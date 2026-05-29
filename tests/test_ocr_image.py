@@ -64,7 +64,7 @@ class OCRImageTests(unittest.TestCase):
 
         self.assertFalse(result["ocr_available"])
         self.assertEqual(result["raw_text"], "")
-        self.assertIn("Image OCR is unavailable", result["error"] or "")
+        self.assertIn("OCR недоступен в этом окружении", result["error"] or "")
 
 
 if __name__ == "__main__":

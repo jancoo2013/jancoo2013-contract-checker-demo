@@ -1,54 +1,83 @@
-# Contract Checker Streamlit Demo
+# Проверка договора аренды на иврите — Streamlit демо
 
-This repository contains a public-safe Streamlit demo for deterministic contract text checks.
+Это публичное демо для предварительной проверки текста договора аренды на иврите. Интерфейс сделан на русском языке для русскоговорящих арендаторов в Израиле. Проверка выполняется простыми детерминированными правилами и не использует LLM, платные API, секреты или реальные фотографии договоров.
 
-## What this demo does
+## Что делает демо
 
-- Accepts pasted Hebrew/English contract text.
-- Optionally accepts JPG/PNG uploads and runs experimental server-side OCR with Tesseract.
-- Lets the user edit OCR text before analysis.
-- Checks for common contract topics such as parties, payment terms, duration, termination, governing law, and signatures.
-- Flags a small set of caution patterns with simple keyword matching.
-- Exports a Markdown summary report.
+- Принимает вставленный текст договора на иврите.
+- Принимает OCR JSON с уже распознанным текстом, если такой файл есть.
+- Принимает JPG/JPEG/PNG изображения и запускает экспериментальный серверный OCR через Tesseract.
+- Показывает распознанный иврит в редактируемом поле, чтобы пользователь мог исправить ошибки OCR до анализа.
+- Ищет базовые темы договора: стороны, платежи, срок, расторжение, применимое право / юрисдикцию и подписи.
+- Отмечает некоторые потенциально опасные формулировки простыми ключевыми словами.
+- Показывает краткий отчёт, найденные поля, проверки, зоны для ручной проверки и сырой JSON.
+- Экспортирует Markdown-отчёт.
 
-## Image upload OCR
+## Важные ограничения
 
-Image upload OCR is experimental and is intended only for clear printed contract pages. Printed Hebrew OCR may work when the Tesseract Hebrew language data is available, but handwritten Hebrew is **not** treated as verified fact and should remain manual-review / untrusted.
+Это прототип для предварительной проверки договора. Он не заменяет адвоката. OCR может ошибаться. Рукописный иврит не считается автоматически подтверждённым. Перед подписанием спорного договора проверь опасные пункты вручную или с юристом.
 
-The public Streamlit Community Cloud deployment uses `packages.txt` to install system Tesseract packages:
+Демо намеренно не содержит:
 
-- `tesseract-ocr`
-- `tesseract-ocr-heb`
-- `tesseract-ocr-eng`
+- реальных фото договоров;
+- секретов или API-ключей;
+- LLM-вызовов;
+- платных API;
+- утверждений, что рукописный иврит надёжно распознаётся.
 
-The Python dependency `pytesseract` calls that server-side Tesseract binary. Hebrew OCR requires the Hebrew language data package (`tesseract-ocr-heb`). If OCR is unavailable in a deployment, text paste mode remains the fallback.
+## OCR изображений
 
-## Public-safety boundaries
+OCR изображений — экспериментальная функция. Она рассчитана только на чёткие страницы с печатным ивритом. Печатный иврит может распознаваться, если в окружении установлены Tesseract и языковые данные Hebrew/English. Рукописный иврит остаётся недоверенным источником и требует ручной проверки.
 
-This demo intentionally does **not** include:
+После загрузки изображения пользователь должен:
 
-- Real contract photos or private repository files.
-- Paid APIs.
-- LLM calls.
-- Secrets or API keys.
-- Any claim that handwritten Hebrew is reliably recognized.
+1. нажать «Распознать фото»;
+2. посмотреть распознанный текст;
+3. исправить ошибки OCR в редактируемом поле;
+4. нажать «Анализировать распознанный текст».
 
-This prototype does not replace a lawyer. OCR mistakes are possible. Handwritten Hebrew is not treated as verified fact.
+Если OCR недоступен или распознал текст плохо, используй вкладку «Вставить текст договора».
 
-## Run locally
+## Запуск локально
 
 ```bash
 pip install -r requirements.txt
 streamlit run app.py
 ```
 
-For local OCR, your machine also needs the Tesseract binary and Hebrew/English language data installed. If local OCR is not available, use the paste-text tab.
+Для локального OCR также нужны системный Tesseract и языковые данные Hebrew/English. Если они не установлены, приложение не должно падать: оно покажет русское сообщение об ошибке OCR и предложит вставку текста договора.
 
-## Streamlit Community Cloud settings
+## Streamlit Community Cloud
 
-- Repository: `jancoo2013/contract-checker-demo`
-- Branch: `main`
+Для Streamlit Community Cloud системные пакеты описаны в `packages.txt`:
+
+- `tesseract-ocr`
+- `tesseract-ocr-heb`
+- `tesseract-ocr-eng`
+
+Python-зависимости описаны в `requirements.txt`:
+
+- `streamlit`
+- `pytesseract`
+- `Pillow`
+- `opencv-python-headless`
+
+Рекомендуемые настройки Streamlit Community Cloud:
+
+- Repository: `jancoo2013/jancoo2013-contract-checker-demo`
 - Main file path: `app.py`
-- System packages: configured by `packages.txt`
+- Branch: подключённая ветка деплоя
 
-When the connected branch is updated, Streamlit Community Cloud should redeploy the app automatically.
+После обновления подключённой ветки Streamlit должен автоматически пересобрать приложение.
+
+## Что проверить после redeploy
+
+1. Открыть приложение.
+2. Загрузить чёткую страницу печатного договора на иврите.
+3. Проверить распознанный текст.
+4. Исправить ошибки OCR при необходимости.
+5. Запустить анализ распознанного текста.
+
+## English note
+
+This is a Russian-first public Streamlit prototype for deterministic Hebrew lease-contract checks. It is not legal advice. Image OCR is experimental, and handwritten Hebrew is not trusted as verified text.

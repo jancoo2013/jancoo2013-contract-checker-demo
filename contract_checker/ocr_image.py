@@ -1,20 +1,25 @@
-"""Image OCR helpers for the public Streamlit demo.
-
-The helper uses local/server-side Tesseract via pytesseract. It never calls paid
-APIs or LLMs, and it treats OCR output as editable, untrusted draft text.
-"""
+"""OCR helpers for uploaded contract images."""
 
 from __future__ import annotations
 
 from typing import BinaryIO, TypedDict
 
 
+class BoundingBox(TypedDict):
+    """OCR bounding box coordinates in pixels."""
+
+    left: int
+    top: int
+    width: int
+    height: int
+
+
 class OCRBlock(TypedDict):
-    """Block-level OCR output for optional UI diagnostics."""
+    """A text block returned by Tesseract diagnostics."""
 
     text: str
     confidence: float | None
-    bbox: dict[str, int]
+    bbox: BoundingBox
 
 
 class OCRResult(TypedDict):
@@ -24,6 +29,9 @@ class OCRResult(TypedDict):
     blocks: list[OCRBlock]
     ocr_available: bool
     error: str | None
+
+
+_OCR_UNAVAILABLE_MESSAGE = "OCR недоступен в этом окружении. Используй вставку текста договора."
 
 
 def _preprocess_image(image: object) -> object:
@@ -49,17 +57,14 @@ def _parse_confidence(value: object) -> float | None:
     return confidence
 
 
-def _missing_tesseract_result(error: Exception) -> OCRResult:
+def _missing_tesseract_result(_error: Exception) -> OCRResult:
     """Return a non-crashing result for missing Tesseract or language data."""
 
     return {
         "raw_text": "",
         "blocks": [],
         "ocr_available": False,
-        "error": (
-            "Image OCR is unavailable in this deployment. Please use Paste Hebrew text for now. "
-            f"Details: {error}"
-        ),
+        "error": _OCR_UNAVAILABLE_MESSAGE,
     }
 
 
