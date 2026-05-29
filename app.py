@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import asdict
 from typing import Any
 
-from contract_checker.ocr_image import ocr_image_to_text
+from contract_checker.ocr_image import ocr_images_to_text, ocr_json_to_text
 from contract_checker.pipeline import analyze_contract_text
 from contract_checker.report import result_to_markdown
 from contract_checker.web_helpers import (
@@ -111,72 +111,134 @@ def _render_paste_tab() -> None:
         _render_analysis(result)
 
 
+def _uploaded_files_signature(uploaded_files: list[Any]) -> tuple[tuple[str, int], ...]:
+    """Return a stable signature for the current multi-file upload."""
+
+    return tuple((str(file.name), int(getattr(file, "size", 0) or 0)) for file in uploaded_files)
+
+
+def _ocr_status_rows(pages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Build Russian page-level OCR diagnostics for Streamlit tables."""
+
+    rows: list[dict[str, Any]] = []
+    for page in pages:
+        raw_text = str(page.get("raw_text") or "")
+        error = page.get("error")
+        if error or not page.get("ocr_available"):
+            status = "ошибка"
+        elif raw_text.strip():
+            status = "успех"
+        else:
+            status = "пустой текст"
+        rows.append(
+            {
+                "Страница": page.get("page_index"),
+                "Файл": page.get("filename"),
+                "Статус OCR": status,
+                "Символов распознано": len(raw_text),
+                "Ошибка": error or "",
+            }
+        )
+    return rows
+
+
 def _render_image_tab() -> None:
-    """Render the experimental server-side OCR upload workflow."""
+    """Render the experimental server-side multi-page OCR upload workflow."""
 
     import streamlit as st
 
     st.warning(
         "OCR экспериментальный: печатный иврит может распознаваться, рукописный иврит не считается подтверждённым."
     )
-    uploaded_image = st.file_uploader(
-        "Загрузи фото или скан договора",
-        type=["jpg", "jpeg", "png"],
-        accept_multiple_files=False,
-        help="Поддерживаются JPG, JPEG и PNG. Не загружай реальные частные фото в публичное демо.",
+    st.warning(
+        "Если загрузить только одну страницу, система может не найти пункты, которые находятся на других страницах. "
+        "Для нормальной проверки загрузи весь договор."
     )
+    uploaded_images = st.file_uploader(
+        "Загрузи все страницы договора сразу",
+        type=["jpg", "jpeg", "png"],
+        accept_multiple_files=True,
+        help=(
+            "Лучше загружать страницы по порядку: 1, 2, 3... Поддерживаются JPG, JPEG и PNG. "
+            "Не загружай реальные частные фото в публичное демо."
+        ),
+    )
+    st.caption("Лучше загружать страницы по порядку: 1, 2, 3...")
 
-    if uploaded_image is None:
+    if not uploaded_images:
         st.info("Загрузи JPG или PNG с чётким печатным ивритом либо используй вкладку вставки текста.")
         return
 
-    st.image(uploaded_image, caption="Предпросмотр загруженного изображения", use_container_width=True)
+    st.subheader("Порядок загруженных страниц")
+    st.dataframe(
+        [
+            {"Страница": index, "Файл": uploaded_image.name}
+            for index, uploaded_image in enumerate(uploaded_images, start=1)
+        ],
+        use_container_width=True,
+        hide_index=True,
+    )
 
-    if "last_ocr_file" not in st.session_state or st.session_state.last_ocr_file != uploaded_image.name:
-        st.session_state.last_ocr_file = uploaded_image.name
+    st.subheader("Предпросмотр загруженных страниц")
+    for index, uploaded_image in enumerate(uploaded_images, start=1):
+        with st.expander(f"Страница {index}: {uploaded_image.name}", expanded=False):
+            st.image(uploaded_image, caption=f"Страница {index}: {uploaded_image.name}", use_container_width=True)
+
+    upload_signature = _uploaded_files_signature(uploaded_images)
+    if st.session_state.get("last_ocr_files") != upload_signature:
+        st.session_state.last_ocr_files = upload_signature
         st.session_state.ocr_text = ""
         st.session_state.ocr_result = None
 
-    if st.button("Распознать фото"):
-        with st.spinner("Идёт OCR через серверный Tesseract..."):
-            uploaded_image.seek(0)
-            st.session_state.ocr_result = ocr_image_to_text(uploaded_image)
+    if st.button("Распознать все страницы"):
+        with st.spinner("Идёт OCR всех страниц через серверный Tesseract..."):
+            st.session_state.ocr_result = ocr_images_to_text(uploaded_images)
             st.session_state.ocr_text = st.session_state.ocr_result["raw_text"]
 
     ocr_result = st.session_state.get("ocr_result")
     if ocr_result is None:
-        st.info("Нажми «Распознать фото», чтобы получить редактируемый текст перед анализом.")
+        st.info("Нажми «Распознать все страницы», чтобы получить редактируемый текст всего договора перед анализом.")
         return
+
+    pages = ocr_result.get("pages", [])
+    st.subheader("Статус OCR по страницам")
+    st.dataframe(_ocr_status_rows(pages), use_container_width=True, hide_index=True)
+
+    if ocr_result.get("errors"):
+        for error in ocr_result["errors"]:
+            st.error(error)
 
     if not ocr_result["ocr_available"]:
-        st.error(ocr_result["error"] or "OCR недоступен в этом окружении. Используй вставку текста договора.")
+        st.error("Не удалось распознать ни одну страницу. Используй вставку текста договора или проверь OCR окружение.")
         return
 
-    if ocr_result["blocks"]:
+    all_blocks = [
+        {
+            "Страница": page["page_index"],
+            "Текст": block["text"],
+            "Уверенность": block["confidence"],
+            "Рамка": block["bbox"],
+        }
+        for page in pages
+        for block in page.get("blocks", [])
+    ]
+    if all_blocks:
         with st.expander("Диагностика OCR-блоков", expanded=False):
-            block_rows = [
-                {
-                    "Текст": block["text"],
-                    "Уверенность": block["confidence"],
-                    "Рамка": block["bbox"],
-                }
-                for block in ocr_result["blocks"]
-            ]
-            st.dataframe(block_rows, use_container_width=True, hide_index=True)
+            st.dataframe(all_blocks, use_container_width=True, hide_index=True)
 
     if not st.session_state.ocr_text.strip():
         st.warning(
-            "Не удалось уверенно распознать текст. Попробуй более чёткое фото или используй ручную вставку текста."
+            "Не удалось уверенно распознать текст. Попробуй более чёткие фото или используй ручную вставку текста."
         )
 
     edited_ocr_text = st.text_area(
-        "Распознанный текст. Проверь и исправь ошибки OCR перед анализом.",
+        "Распознанный текст всего договора. Проверь и исправь ошибки OCR перед анализом.",
         key="ocr_text",
-        height=280,
+        height=360,
         help="Текст можно редактировать. Рукописный иврит не считается подтверждённым и требует ручной проверки.",
     )
 
-    if st.button("Анализировать распознанный текст"):
+    if st.button("Анализировать весь договор"):
         if not edited_ocr_text.strip():
             st.warning("Текст OCR пустой. Исправь распознавание вручную или используй вкладку вставки текста.")
             return
@@ -195,7 +257,7 @@ def _render_json_tab() -> None:
         "Загрузи OCR JSON",
         type=["json"],
         accept_multiple_files=False,
-        help="Можно загрузить JSON с полем raw_text или text. Сырой JSON будет показан без изменений.",
+        help="Можно загрузить JSON с полем raw_text, text или pages. Сырой JSON будет показан без изменений.",
     )
     if uploaded_json is None:
         st.info("Если у тебя уже есть результат OCR в JSON, загрузи файл здесь или используй вставку текста.")
@@ -209,9 +271,7 @@ def _render_json_tab() -> None:
 
     st.subheader("Сырой JSON")
     st.json(payload)
-    extracted_text = ""
-    if isinstance(payload, dict):
-        extracted_text = str(payload.get("raw_text") or payload.get("text") or "")
+    extracted_text = ocr_json_to_text(payload)
 
     json_text = st.text_area(
         "Текст из OCR JSON. Проверь и исправь его перед анализом.",
