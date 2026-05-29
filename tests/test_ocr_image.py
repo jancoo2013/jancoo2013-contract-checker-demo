@@ -142,5 +142,64 @@ class OCRMultiPageTests(unittest.TestCase):
         self.assertEqual(ocr_json_to_text({"text": "fallback text"}), "fallback text")
 
 
+class OCRScoringTests(unittest.TestCase):
+    def _blocks(self, words: list[str], confidence: float = 90.0) -> list[dict[str, object]]:
+        return [
+            {"text": word, "confidence": confidence, "bbox": {"left": 0, "top": 0, "width": 10, "height": 10}}
+            for word in words
+        ]
+
+    def test_clean_hebrew_contract_text_scores_higher_than_latin_garbage(self) -> None:
+        from contract_checker.ocr_image import score_ocr_result
+
+        hebrew_text = "חוזה שכירות דמי שכירות תקופת השכירות פיקדון ארנונה חשמל מים המשכיר השוכר"
+        garbage_text = "abc xyz qwe rty foo bar baz agreement contract lorem ipsum aaa bbb ccc"
+
+        hebrew_score = score_ocr_result(hebrew_text, self._blocks(hebrew_text.split()))
+        garbage_score = score_ocr_result(garbage_text, self._blocks(garbage_text.split(), confidence=35.0))
+
+        self.assertGreater(hebrew_score["total_score"], garbage_score["total_score"])
+        self.assertGreaterEqual(hebrew_score["known_anchor_hits"], 5)
+        self.assertGreater(garbage_score["garbage_score"], 0)
+
+    def test_text_with_many_anchors_gets_good_or_medium_quality(self) -> None:
+        from contract_checker.ocr_image import score_ocr_result
+
+        text = "הסכם שכירות דמי שכירות תנאי תשלום שיקים פיקדון ועד בית המשכיר השוכר"
+        metrics = score_ocr_result(text, self._blocks(text.split(), confidence=86.0))
+
+        self.assertGreaterEqual(metrics["total_score"], 10)
+        self.assertGreaterEqual(metrics["known_anchor_hits"], 6)
+
+    def test_text_with_mostly_latin_garbage_gets_low_score(self) -> None:
+        from contract_checker.ocr_image import score_ocr_result
+
+        text = "aa bb cc dd ee ff gg hh rent xyz pq rm no ok zz"
+        metrics = score_ocr_result(text, self._blocks(text.split(), confidence=25.0))
+
+        self.assertLess(metrics["total_score"], 10)
+        self.assertGreater(metrics["latin_ratio"], 0.9)
+
+    def test_money_markers_improve_score(self) -> None:
+        from contract_checker.ocr_image import score_ocr_result
+
+        base_text = "דמי שכירות פיקדון המשכיר השוכר"
+        money_text = f"{base_text} 5000 ₪ ש\"ח"
+
+        base_metrics = score_ocr_result(base_text, self._blocks(base_text.split(), confidence=80.0))
+        money_metrics = score_ocr_result(money_text, self._blocks(money_text.split(), confidence=80.0))
+
+        self.assertGreater(money_metrics["total_score"], base_metrics["total_score"])
+        self.assertGreaterEqual(money_metrics["money_marker_count"], 2)
+
+    def test_quality_gate_blocks_failed_and_low(self) -> None:
+        from contract_checker.ocr_image import is_ocr_quality_sufficient
+
+        self.assertFalse(is_ocr_quality_sufficient({"quality_level": "failed"}))
+        self.assertFalse(is_ocr_quality_sufficient({"quality_level": "low"}))
+        self.assertTrue(is_ocr_quality_sufficient({"quality_level": "medium"}))
+        self.assertTrue(is_ocr_quality_sufficient({"quality_level": "good"}))
+
+
 if __name__ == "__main__":
     unittest.main()
