@@ -18,6 +18,20 @@ from contract_checker.web_helpers import (
     status_label,
 )
 
+_RETAKE_PHOTO_INSTRUCTION = """Не удалось достаточно надёжно распознать текст на этой странице.
+
+Попробуй переснять страницу:
+— найди хорошо освещённое место или включи вспышку;
+— положи лист на ровную тёмную поверхность;
+— держи камеру строго перпендикулярно листу;
+— страница должна полностью помещаться в кадр;
+— текст должен быть резким, без размытия;
+— избегай теней, бликов и складок;
+— не фотографируй под углом;
+— если текст мелкий, поднеси камеру ближе, но не обрезай края."""
+
+_LOW_OCR_REPORT_WARNING = "Внимание: отчёт основан на OCR низкого качества. Проверь все важные пункты вручную."
+
 
 def _result_payload(result: Any) -> dict[str, Any]:
     """Build the raw JSON payload shown in the public demo."""
@@ -120,27 +134,47 @@ def _uploaded_files_signature(uploaded_files: list[Any]) -> tuple[tuple[str, int
     return tuple((str(file.name), int(getattr(file, "size", 0) or 0)) for file in uploaded_files)
 
 
+def _page_is_usable(page: dict[str, Any]) -> bool:
+    """Return page-level deterministic OCR usability from stored metrics."""
+
+    quality = page.get("quality") or {}
+    metrics = quality.get("metrics") or {}
+    return bool(page.get("ocr_available")) and bool(metrics.get("ocr_text_usable"))
+
+
+def _ocr_page_status(page: dict[str, Any]) -> str:
+    """Return Russian status for one OCR page."""
+
+    if page.get("error") or not page.get("ocr_available"):
+        return "ошибка OCR"
+    if _page_is_usable(page):
+        return "достаточно для чернового анализа"
+    return "недостаточно качества"
+
+
 def _ocr_status_rows(pages: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Build Russian page-level OCR diagnostics for Streamlit tables."""
 
-    labels = {"good": "хорошее", "medium": "среднее", "low": "низкое", "failed": "ошибка"}
     rows: list[dict[str, Any]] = []
     for page in pages:
         quality = page.get("quality") or {}
         metrics = quality.get("metrics") or {}
         raw_text = str(page.get("raw_text") or "")
-        error = page.get("error")
-        level = str(quality.get("quality_level") or ("failed" if error else "low"))
+        status = _ocr_page_status(page)
+        if status == "достаточно для чернового анализа":
+            comment = "Текст можно проверить вручную и использовать для чернового анализа."
+        elif status == "ошибка OCR":
+            comment = "OCR не вернул надёжный текст для этой страницы."
+        else:
+            comment = "Текст ненадёжен: пересними страницу или исправь OCR вручную."
         rows.append(
             {
                 "Страница": page.get("page_index"),
                 "Файл": page.get("filename"),
-                "Качество OCR": labels.get(level, level),
-                "Score": quality.get("score", 0.0),
-                "Найдено якорей": metrics.get("known_anchor_hits", 0),
-                "Латинский мусор": metrics.get("garbage_score", 0.0),
-                "Символов распознано": metrics.get("recognized_char_count", len(raw_text)),
-                "Ошибка": error or "",
+                "Статус": status,
+                "Символов иврита": metrics.get("hebrew_char_count", 0),
+                "Найдено ключевых слов": metrics.get("known_anchor_hits", 0),
+                "Комментарий": comment,
             }
         )
     return rows
@@ -159,13 +193,11 @@ def _render_image_tab() -> None:
         "Для нормальной проверки загрузи весь договор."
     )
     st.info(
-        "Для лучшего распознавания:\n"
-        "— загружай все страницы договора;\n"
-        "— фотографируй ближе;\n"
-        "— держи страницу ровно;\n"
-        "— избегай теней;\n"
-        "— текст должен быть резким;\n"
-        "— рукописный иврит всё равно требует ручной проверки."
+        "Для лучшего распознавания загружай все страницы договора. "
+        "Рукописный иврит всё равно требует ручной проверки.\n\n"
+        + _RETAKE_PHOTO_INSTRUCTION.replace(
+            "Не удалось достаточно надёжно распознать текст на этой странице.\n\n", ""
+        )
     )
     uploaded_images = st.file_uploader(
         "Загрузи все страницы договора сразу",
@@ -222,12 +254,24 @@ def _render_image_tab() -> None:
         f"Общее качество OCR: {combined_level}; score: {combined_quality.get('score', 0.0)}"
     )
 
+    unusable_pages = [page for page in pages if not _page_is_usable(page)]
+    all_pages_failed = bool(pages) and all(
+        bool(page.get("error")) or not str(page.get("raw_text") or "").strip() for page in pages
+    )
+
+    if unusable_pages:
+        for page in unusable_pages:
+            st.warning(f"Страница {page.get('page_index')} ({page.get('filename')}):\n\n{_RETAKE_PHOTO_INSTRUCTION}")
+        if any(str(page.get("raw_text") or "").strip() for page in unusable_pages):
+            st.info("Можно вручную исправить распознанный текст и затем запустить анализ.")
+
     if ocr_result.get("errors"):
         for error in ocr_result["errors"]:
             st.error(error)
 
     if not ocr_result["ocr_available"]:
         st.error("Не удалось распознать ни одну страницу. Используй вставку текста договора или проверь OCR окружение.")
+        st.warning(_RETAKE_PHOTO_INSTRUCTION)
         return
 
     all_blocks = [
@@ -244,13 +288,12 @@ def _render_image_tab() -> None:
         with st.expander("Диагностика OCR-блоков", expanded=False):
             st.dataframe(all_blocks, use_container_width=True, hide_index=True)
 
-    low_quality_message = (
-        "Качество OCR низкое. Распознанный текст может быть непригоден для анализа. "
-        "Проверь текст вручную или загрузи более чёткие фото."
-    )
-    quality_sufficient = is_ocr_quality_sufficient(combined_quality)
+    quality_sufficient = is_ocr_quality_sufficient(combined_quality) and not unusable_pages
     if not quality_sufficient:
-        st.warning(low_quality_message)
+        st.warning(
+            "Качество OCR недостаточно для автоматического анализа без ручной проверки. "
+            "Распознанный текст ниже может быть ненадёжным."
+        )
 
     if not st.session_state.ocr_text.strip():
         st.warning(
@@ -265,26 +308,26 @@ def _render_image_tab() -> None:
     )
 
     user_confirmed_low_quality = True
-    if not quality_sufficient and combined_level != "failed":
+    if not quality_sufficient and not all_pages_failed:
         user_confirmed_low_quality = st.checkbox(
-            "Я проверил распознанный текст и понимаю, что OCR мог ошибиться"
+            "Я проверил распознанный текст вручную и понимаю, что OCR мог ошибиться."
         )
-    elif combined_level == "failed":
+    elif all_pages_failed:
         user_confirmed_low_quality = False
         st.error(
-            "OCR помечен как failed. Автоматический анализ не запускается; "
-            "используй ручную вставку проверенного текста."
+            "Все страницы не удалось распознать достаточно надёжно. "
+            "Автоматический анализ не запускается; пересними страницы или используй ручную вставку проверенного текста."
         )
 
-    analyze_disabled = not quality_sufficient and not user_confirmed_low_quality
-    if st.button("Анализировать весь договор", disabled=analyze_disabled):
+    analyze_disabled = (not quality_sufficient and not user_confirmed_low_quality) or all_pages_failed
+    if not all_pages_failed and st.button("Анализировать весь договор", disabled=analyze_disabled):
         if not edited_ocr_text.strip():
             st.warning("Текст OCR пустой. Исправь распознавание вручную или используй вкладку вставки текста.")
             return
         result = analyze_contract_text(edited_ocr_text)
         notice = None
         if not quality_sufficient:
-            notice = "Отчёт основан на OCR низкого качества. Юридические выводы могут быть неполными."
+            notice = _LOW_OCR_REPORT_WARNING
         _render_analysis(result, report_notice=notice)
 
 
