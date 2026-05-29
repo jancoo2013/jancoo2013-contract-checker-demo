@@ -91,12 +91,69 @@ _KNOWN_ANCHORS = [
     "המשכיר",
     "השוכר",
 ]
+_USEFUL_CONTRACT_WORDS = [
+    "שכירות",
+    "תשלום",
+    "תשלומים",
+    "פיקדון",
+    "ערבון",
+    "ארנונה",
+    "חשמל",
+    "מים",
+    "משכיר",
+    "שוכר",
+    "דירה",
+    "נכס",
+    "תקופה",
+    "חתימה",
+]
 _MONEY_MARKERS = ["₪", 'ש"ח', "שח"]
 _HEBREW_RE = re.compile(r"[\u0590-\u05FF]")
 _LATIN_RE = re.compile(r"[A-Za-z]")
 _DIGIT_RE = re.compile(r"\d")
 _SHORT_LATIN_TOKEN_RE = re.compile(r"\b[A-Za-z]{1,3}\b")
 _LATIN_TOKEN_RE = re.compile(r"\b[A-Za-z]+\b")
+
+
+def count_hebrew_chars(text: str) -> int:
+    """Count Hebrew Unicode characters in OCR text."""
+
+    return len(_HEBREW_RE.findall(text or ""))
+
+
+def count_latin_chars(text: str) -> int:
+    """Count Latin letters in OCR text."""
+
+    return len(_LATIN_RE.findall(text or ""))
+
+
+def count_known_anchors(text: str) -> int:
+    """Count known Hebrew rental-contract anchor phrases in OCR text."""
+
+    safe_text = text or ""
+    return sum(1 for anchor in _KNOWN_ANCHORS if anchor in safe_text)
+
+
+def _count_useful_contract_words(text: str) -> int:
+    """Count simple Hebrew contract words that can appear on later pages."""
+
+    safe_text = text or ""
+    return sum(1 for word in _USEFUL_CONTRACT_WORDS if word in safe_text)
+
+
+def is_ocr_text_usable(text: str) -> bool:
+    """Return True when deterministic OCR text checks are enough for draft analysis."""
+
+    safe_text = text or ""
+    hebrew_chars = count_hebrew_chars(safe_text)
+    latin_chars = count_latin_chars(safe_text)
+    known_anchor_count = count_known_anchors(safe_text)
+    useful_word_count = _count_useful_contract_words(safe_text)
+    return (
+        hebrew_chars >= 80
+        and latin_chars <= hebrew_chars
+        and (known_anchor_count >= 1 or useful_word_count >= 1)
+    )
 
 
 def _preprocess_image(image: object) -> object:
@@ -210,6 +267,8 @@ def _empty_quality(level: str = "failed", error: str | None = None) -> OCRQualit
         "money_marker_count": 0,
         "known_anchor_hits": 0,
         "known_anchors_found": [],
+        "useful_contract_word_hits": 0,
+        "ocr_text_usable": False,
         "garbage_score": 0.0,
         "avg_confidence": 0.0,
         "recognized_char_count": 0,
@@ -281,8 +340,8 @@ def score_ocr_result(raw_text: str, blocks: list[OCRBlock]) -> dict[str, Any]:
     """Score OCR text for Hebrew rental-contract usefulness and Latin garbage."""
 
     text = raw_text or ""
-    hebrew_char_count = len(_HEBREW_RE.findall(text))
-    latin_char_count = len(_LATIN_RE.findall(text))
+    hebrew_char_count = count_hebrew_chars(text)
+    latin_char_count = count_latin_chars(text)
     digit_count = len(_DIGIT_RE.findall(text))
     recognized_char_count = hebrew_char_count + latin_char_count + digit_count
     text_char_count = max(1, hebrew_char_count + latin_char_count)
@@ -290,7 +349,9 @@ def score_ocr_result(raw_text: str, blocks: list[OCRBlock]) -> dict[str, Any]:
     latin_ratio = latin_char_count / text_char_count
     money_marker_count = sum(text.count(marker) for marker in _MONEY_MARKERS)
     anchors_found = [anchor for anchor in _KNOWN_ANCHORS if anchor in text]
-    known_anchor_hits = len(anchors_found)
+    known_anchor_hits = count_known_anchors(text)
+    useful_contract_word_hits = _count_useful_contract_words(text)
+    ocr_text_usable = is_ocr_text_usable(text)
     latin_tokens = _LATIN_TOKEN_RE.findall(text)
     short_latin_tokens = _SHORT_LATIN_TOKEN_RE.findall(text)
     garbage_score = 0.0
@@ -320,6 +381,8 @@ def score_ocr_result(raw_text: str, blocks: list[OCRBlock]) -> dict[str, Any]:
         "money_marker_count": money_marker_count,
         "known_anchor_hits": known_anchor_hits,
         "known_anchors_found": anchors_found,
+        "useful_contract_word_hits": useful_contract_word_hits,
+        "ocr_text_usable": ocr_text_usable,
         "garbage_score": round(garbage_score, 3),
         "avg_confidence": avg_confidence,
         "recognized_char_count": recognized_char_count,
@@ -336,9 +399,11 @@ def _quality_from_attempt(attempt: dict[str, Any]) -> OCRQuality:
         "preprocessing_variant": attempt.get("preprocessing_variant"),
         "avg_confidence": metrics["avg_confidence"],
     }
+    raw_text = str(attempt.get("raw_text") or "")
+    deterministic_level = "medium" if bool(metrics.get("ocr_text_usable")) else _quality_level(0.0, raw_text)
     return {
         "score": score,
-        "quality_level": _quality_level(score, str(attempt.get("raw_text") or "")),
+        "quality_level": deterministic_level,
         "metrics": metrics,
         "chosen_attempt": chosen_attempt,
     }
@@ -456,6 +521,9 @@ def _aggregate_quality(pages: list[OCRPageResult]) -> OCRQuality:
     combined_blocks = [block for page in pages for block in page.get("blocks", [])]
     metrics = score_ocr_result(combined_text, combined_blocks)
     metrics["weighted_page_score"] = round(weighted_score, 3)
+    metrics["ocr_text_usable"] = all(
+        bool(page["quality"]["metrics"].get("ocr_text_usable")) for page in pages
+    )
     return {
         "score": round(weighted_score, 3),
         "quality_level": worst_level,
@@ -516,6 +584,9 @@ def is_ocr_quality_sufficient(quality: dict[str, Any] | None) -> bool:
 
     if not quality:
         return False
+    metrics = quality.get("metrics") or {}
+    if "ocr_text_usable" in metrics:
+        return bool(metrics.get("ocr_text_usable"))
     return str(quality.get("quality_level") or "failed") in {"good", "medium"}
 
 

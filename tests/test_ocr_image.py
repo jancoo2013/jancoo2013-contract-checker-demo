@@ -200,6 +200,43 @@ class OCRScoringTests(unittest.TestCase):
         self.assertTrue(is_ocr_quality_sufficient({"quality_level": "medium"}))
         self.assertTrue(is_ocr_quality_sufficient({"quality_level": "good"}))
 
+class OCRUsabilityHelperTests(unittest.TestCase):
+    def test_count_hebrew_chars_counts_only_hebrew_letters(self) -> None:
+        from contract_checker.ocr_image import count_hebrew_chars
+
+        self.assertEqual(count_hebrew_chars("שלום abc 123 חוזה"), 8)
+
+    def test_count_latin_chars_counts_only_latin_letters(self) -> None:
+        from contract_checker.ocr_image import count_latin_chars
+
+        self.assertEqual(count_latin_chars("שלום abc XYZ 123"), 6)
+
+    def test_count_known_anchors_counts_rental_contract_phrases(self) -> None:
+        from contract_checker.ocr_image import count_known_anchors
+
+        text = "חוזה שכירות כולל דמי שכירות, פיקדון, ארנונה ומים"
+        self.assertEqual(count_known_anchors(text), 5)
+
+    def test_is_ocr_text_usable_accepts_reasonable_hebrew_contract_text(self) -> None:
+        from contract_checker.ocr_image import is_ocr_text_usable
+
+        text = (
+            "חוזה שכירות בין המשכיר לבין השוכר. דמי שכירות ישולמו בכל חודש עבור הדירה. "
+            "תקופת השכירות, פיקדון, ארנונה, חשמל, מים וועד בית מפורטים בסעיפים הבאים."
+        )
+        self.assertTrue(is_ocr_text_usable(text))
+
+    def test_is_ocr_text_usable_rejects_latin_garbage(self) -> None:
+        from contract_checker.ocr_image import is_ocr_text_usable
+
+        text = "abc xyz qwe rty foo bar baz agreement contract lorem ipsum aaa bbb ccc " * 4
+        self.assertFalse(is_ocr_text_usable(text))
+
+    def test_is_ocr_text_usable_rejects_very_short_text(self) -> None:
+        from contract_checker.ocr_image import is_ocr_text_usable
+
+        self.assertFalse(is_ocr_text_usable("חוזה שכירות"))
+
 
 if __name__ == "__main__":
     unittest.main()
