@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any, BinaryIO, Iterable, TypedDict
 
 
@@ -22,6 +23,15 @@ class OCRBlock(TypedDict):
     bbox: BoundingBox
 
 
+class OCRQuality(TypedDict):
+    """JSON-serializable OCR quality diagnostics."""
+
+    score: float
+    quality_level: str
+    metrics: dict[str, Any]
+    chosen_attempt: dict[str, Any] | None
+
+
 class OCRResult(TypedDict):
     """Structured OCR result returned to the Streamlit app."""
 
@@ -29,6 +39,8 @@ class OCRResult(TypedDict):
     blocks: list[OCRBlock]
     ocr_available: bool
     error: str | None
+    quality: OCRQuality
+    attempts_summary: list[dict[str, Any]]
 
 
 class OCRPageResult(TypedDict):
@@ -40,6 +52,8 @@ class OCRPageResult(TypedDict):
     blocks: list[OCRBlock]
     ocr_available: bool
     error: str | None
+    quality: OCRQuality
+    attempts_summary: list[dict[str, Any]]
 
 
 class OCRMultiPageResult(TypedDict):
@@ -49,20 +63,107 @@ class OCRMultiPageResult(TypedDict):
     pages: list[OCRPageResult]
     ocr_available: bool
     errors: list[str]
+    quality: OCRQuality
 
 
 _OCR_UNAVAILABLE_MESSAGE = "OCR недоступен в этом окружении. Используй вставку текста договора."
+_OCR_CONFIGS = [
+    ("psm_6", "--oem 3 --psm 6 -c preserve_interword_spaces=1"),
+    ("psm_4", "--oem 3 --psm 4 -c preserve_interword_spaces=1"),
+    ("psm_11", "--oem 3 --psm 11 -c preserve_interword_spaces=1"),
+]
+_OCR_LANGUAGES = ["heb", "heb+eng"]
+_QUALITY_ORDER = {"failed": 0, "low": 1, "medium": 2, "good": 3}
+_KNOWN_ANCHORS = [
+    "חוזה שכירות",
+    "הסכם שכירות",
+    "דמי שכירות",
+    "תקופת השכירות",
+    "תנאי תשלום",
+    "שיקים",
+    "צ'קים",
+    "פיקדון",
+    "ערבון",
+    "ארנונה",
+    "חשמל",
+    "מים",
+    "ועד בית",
+    "המשכיר",
+    "השוכר",
+]
+_MONEY_MARKERS = ["₪", 'ש"ח', "שח"]
+_HEBREW_RE = re.compile(r"[\u0590-\u05FF]")
+_LATIN_RE = re.compile(r"[A-Za-z]")
+_DIGIT_RE = re.compile(r"\d")
+_SHORT_LATIN_TOKEN_RE = re.compile(r"\b[A-Za-z]{1,3}\b")
+_LATIN_TOKEN_RE = re.compile(r"\b[A-Za-z]+\b")
 
 
 def _preprocess_image(image: object) -> object:
-    """Apply light preprocessing that is safe for printed document images."""
+    """Backward-compatible default preprocessing used by older callers/tests."""
+
+    return dict(_preprocessing_variants(image))["autocontrast_upscaled"]
+
+
+def _resize(image: object, scale: int) -> object:
+    """Resize a PIL image-like object when the method is available."""
+
+    if not hasattr(image, "resize") or not hasattr(image, "size"):
+        return image
+    from PIL import Image
+
+    width, height = image.size  # type: ignore[attr-defined]
+    lanczos = getattr(getattr(Image, "Resampling", Image), "LANCZOS", 1)
+    return image.resize((int(width) * scale, int(height) * scale), lanczos)
+
+
+def _preprocessing_variants(image: object) -> list[tuple[str, object]]:
+    """Create several in-memory OCR preprocessing variants for printed documents."""
 
     from PIL import ImageOps
 
+    try:
+        from PIL import ImageFilter
+    except ImportError:
+        ImageFilter = None  # type: ignore[assignment]
+
     rgb_image = image.convert("RGB")
     grayscale_image = ImageOps.grayscale(rgb_image)
-    normalized_image = ImageOps.autocontrast(grayscale_image)
-    return normalized_image.point(lambda pixel: 255 if pixel > 180 else 0)
+    grayscale_2x = _resize(grayscale_image, 2)
+    autocontrast_upscaled = ImageOps.autocontrast(grayscale_2x)
+    variants: list[tuple[str, object]] = [
+        ("original_rgb", rgb_image),
+        ("grayscale", grayscale_image),
+        ("grayscale_upscaled_2x", grayscale_2x),
+        ("grayscale_upscaled_3x", _resize(grayscale_image, 3)),
+        ("autocontrast_upscaled", autocontrast_upscaled),
+    ]
+    if ImageFilter is not None and hasattr(autocontrast_upscaled, "filter"):
+        variants.append(("sharpened_upscaled", autocontrast_upscaled.filter(ImageFilter.SHARPEN)))
+    else:
+        variants.append(("sharpened_upscaled", autocontrast_upscaled))
+
+    try:
+        import cv2
+        import numpy as np
+
+        gray_array = np.array(autocontrast_upscaled)
+        thresholded = cv2.adaptiveThreshold(
+            gray_array,
+            255,
+            cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+            cv2.THRESH_BINARY,
+            35,
+            11,
+        )
+        from PIL import Image
+
+        variants.append(("adaptive_threshold", Image.fromarray(thresholded)))
+    except Exception:
+        # OpenCV is optional at runtime; skip this single variant if unavailable.
+        pass
+
+    return variants
 
 
 def _parse_confidence(value: object) -> float | None:
@@ -77,6 +178,46 @@ def _parse_confidence(value: object) -> float | None:
     return confidence
 
 
+def _average_block_confidence(blocks: list[OCRBlock]) -> float:
+    """Return average OCR confidence normalized to 0..1."""
+
+    values = [block["confidence"] for block in blocks if block.get("confidence") is not None]
+    if not values:
+        return 0.0
+    average = sum(float(value) for value in values) / len(values)
+    return round(max(0.0, min(average / 100.0, 1.0)), 4)
+
+
+def _quality_level(score: float, raw_text: str) -> str:
+    """Map score and text presence to a conservative quality label."""
+
+    if not raw_text.strip():
+        return "failed"
+    if score >= 18:
+        return "good"
+    if score >= 10:
+        return "medium"
+    return "low"
+
+
+def _empty_quality(level: str = "failed", error: str | None = None) -> OCRQuality:
+    metrics = {
+        "hebrew_char_count": 0,
+        "hebrew_ratio": 0.0,
+        "latin_char_count": 0,
+        "latin_ratio": 0.0,
+        "digit_count": 0,
+        "money_marker_count": 0,
+        "known_anchor_hits": 0,
+        "known_anchors_found": [],
+        "garbage_score": 0.0,
+        "avg_confidence": 0.0,
+        "recognized_char_count": 0,
+        "error": error,
+    }
+    return {"score": 0.0, "quality_level": level, "metrics": metrics, "chosen_attempt": None}
+
+
 def _missing_tesseract_result(_error: Exception) -> OCRResult:
     """Return a non-crashing result for missing Tesseract or language data."""
 
@@ -85,6 +226,8 @@ def _missing_tesseract_result(_error: Exception) -> OCRResult:
         "blocks": [],
         "ocr_available": False,
         "error": _OCR_UNAVAILABLE_MESSAGE,
+        "quality": _empty_quality("failed", _OCR_UNAVAILABLE_MESSAGE),
+        "attempts_summary": [],
     }
 
 
@@ -107,41 +250,7 @@ def combine_ocr_page_texts(pages: Iterable[dict[str, Any]]) -> str:
     return "\n\n".join(chunks)
 
 
-def ocr_image_to_text(image_file: BinaryIO) -> OCRResult:
-    """Extract editable Hebrew/English text and OCR blocks from an uploaded image.
-
-    Args:
-        image_file: A Streamlit uploaded image file or any binary file-like object.
-
-    Returns:
-        A dictionary containing raw OCR text, optional block-level data,
-        availability, and an error message. Missing Tesseract binaries or Hebrew
-        language data are reported without raising to the UI.
-    """
-
-    try:
-        import pytesseract
-        from PIL import Image
-        from pytesseract import Output
-    except ImportError as error:
-        return _missing_tesseract_result(error)
-
-    handled_errors = (
-        getattr(pytesseract, "TesseractError", RuntimeError),
-        getattr(pytesseract, "TesseractNotFoundError", RuntimeError),
-        FileNotFoundError,
-        ImportError,
-        OSError,
-    )
-
-    try:
-        image = Image.open(image_file)
-        processed_image = _preprocess_image(image)
-        raw_text = pytesseract.image_to_string(processed_image, lang="heb+eng")
-        ocr_data = pytesseract.image_to_data(processed_image, lang="heb+eng", output_type=Output.DICT)
-    except handled_errors as error:
-        return _missing_tesseract_result(error)
-
+def _parse_blocks(ocr_data: dict[str, list[Any]]) -> list[OCRBlock]:
     blocks: list[OCRBlock] = []
     texts = ocr_data.get("text", [])
     confidences = ocr_data.get("conf", [None] * len(texts))
@@ -165,21 +274,198 @@ def ocr_image_to_text(image_file: BinaryIO) -> OCRResult:
                 },
             }
         )
+    return blocks
+
+
+def score_ocr_result(raw_text: str, blocks: list[OCRBlock]) -> dict[str, Any]:
+    """Score OCR text for Hebrew rental-contract usefulness and Latin garbage."""
+
+    text = raw_text or ""
+    hebrew_char_count = len(_HEBREW_RE.findall(text))
+    latin_char_count = len(_LATIN_RE.findall(text))
+    digit_count = len(_DIGIT_RE.findall(text))
+    recognized_char_count = hebrew_char_count + latin_char_count + digit_count
+    text_char_count = max(1, hebrew_char_count + latin_char_count)
+    hebrew_ratio = hebrew_char_count / text_char_count
+    latin_ratio = latin_char_count / text_char_count
+    money_marker_count = sum(text.count(marker) for marker in _MONEY_MARKERS)
+    anchors_found = [anchor for anchor in _KNOWN_ANCHORS if anchor in text]
+    known_anchor_hits = len(anchors_found)
+    latin_tokens = _LATIN_TOKEN_RE.findall(text)
+    short_latin_tokens = _SHORT_LATIN_TOKEN_RE.findall(text)
+    garbage_score = 0.0
+    if latin_ratio > 0.25:
+        garbage_score += (latin_ratio - 0.25) * 10
+    if len(short_latin_tokens) >= 5:
+        garbage_score += min(len(short_latin_tokens) / 3, 8)
+    if latin_tokens and len(short_latin_tokens) / max(1, len(latin_tokens)) > 0.6:
+        garbage_score += 2
+    avg_confidence = _average_block_confidence(blocks)
+    total_score = (
+        known_anchor_hits * 3
+        + money_marker_count * 2
+        + hebrew_ratio * 10
+        + avg_confidence * 5
+        - latin_ratio * 8
+        - garbage_score
+    )
+    total_score = round(max(0.0, total_score), 3)
 
     return {
-        "raw_text": raw_text,
-        "blocks": blocks,
+        "hebrew_char_count": hebrew_char_count,
+        "hebrew_ratio": round(hebrew_ratio, 4),
+        "latin_char_count": latin_char_count,
+        "latin_ratio": round(latin_ratio, 4),
+        "digit_count": digit_count,
+        "money_marker_count": money_marker_count,
+        "known_anchor_hits": known_anchor_hits,
+        "known_anchors_found": anchors_found,
+        "garbage_score": round(garbage_score, 3),
+        "avg_confidence": avg_confidence,
+        "recognized_char_count": recognized_char_count,
+        "total_score": total_score,
+    }
+
+
+def _quality_from_attempt(attempt: dict[str, Any]) -> OCRQuality:
+    metrics = score_ocr_result(str(attempt.get("raw_text") or ""), list(attempt.get("blocks") or []))
+    score = float(metrics["total_score"])
+    chosen_attempt = {
+        "config_name": attempt.get("config_name"),
+        "language": attempt.get("language"),
+        "preprocessing_variant": attempt.get("preprocessing_variant"),
+        "avg_confidence": metrics["avg_confidence"],
+    }
+    return {
+        "score": score,
+        "quality_level": _quality_level(score, str(attempt.get("raw_text") or "")),
+        "metrics": metrics,
+        "chosen_attempt": chosen_attempt,
+    }
+
+
+def _attempt_summary(attempt: dict[str, Any], quality: OCRQuality | None = None) -> dict[str, Any]:
+    if quality is None:
+        quality = _quality_from_attempt(attempt)
+    text = str(attempt.get("raw_text") or "")
+    return {
+        "config_name": attempt.get("config_name"),
+        "language": attempt.get("language"),
+        "preprocessing_variant": attempt.get("preprocessing_variant"),
+        "score": quality["score"],
+        "quality_level": quality["quality_level"],
+        "avg_confidence": quality["metrics"].get("avg_confidence", 0.0),
+        "known_anchor_hits": quality["metrics"].get("known_anchor_hits", 0),
+        "latin_ratio": quality["metrics"].get("latin_ratio", 0.0),
+        "recognized_char_count": len(text),
+        "error": attempt.get("error"),
+    }
+
+
+def ocr_image_to_text(image_file: BinaryIO) -> OCRResult:
+    """Extract editable text using multiple OCR preprocessing/config attempts."""
+
+    try:
+        import pytesseract
+        from PIL import Image
+        from pytesseract import Output
+    except ImportError as error:
+        return _missing_tesseract_result(error)
+
+    handled_errors = (
+        getattr(pytesseract, "TesseractError", RuntimeError),
+        getattr(pytesseract, "TesseractNotFoundError", RuntimeError),
+        FileNotFoundError,
+        ImportError,
+        OSError,
+    )
+
+    try:
+        image = Image.open(image_file)
+        variants = _preprocessing_variants(image)
+    except handled_errors as error:
+        return _missing_tesseract_result(error)
+
+    attempts: list[dict[str, Any]] = []
+    attempts_summary: list[dict[str, Any]] = []
+    for variant_name, processed_image in variants:
+        for language in _OCR_LANGUAGES:
+            for config_name, config in _OCR_CONFIGS:
+                attempt: dict[str, Any] = {
+                    "raw_text": "",
+                    "blocks": [],
+                    "config_name": config_name,
+                    "language": language,
+                    "preprocessing_variant": variant_name,
+                    "error": None,
+                }
+                try:
+                    raw_text = pytesseract.image_to_string(processed_image, lang=language, config=config)
+                    ocr_data = pytesseract.image_to_data(
+                        processed_image,
+                        lang=language,
+                        config=config,
+                        output_type=Output.DICT,
+                    )
+                    attempt["raw_text"] = raw_text
+                    attempt["blocks"] = _parse_blocks(ocr_data)
+                    attempts.append(attempt)
+                    attempts_summary.append(_attempt_summary(attempt))
+                except handled_errors as error:
+                    attempt["error"] = str(error) or error.__class__.__name__
+                    attempts_summary.append(_attempt_summary(attempt))
+                    continue
+
+    if not attempts:
+        error = attempts_summary[0]["error"] if attempts_summary else _OCR_UNAVAILABLE_MESSAGE
+        return {
+            "raw_text": "",
+            "blocks": [],
+            "ocr_available": False,
+            "error": str(error),
+            "quality": _empty_quality("failed", str(error)),
+            "attempts_summary": attempts_summary,
+        }
+
+    best_attempt = max(attempts, key=lambda item: _quality_from_attempt(item)["score"])
+    quality = _quality_from_attempt(best_attempt)
+    return {
+        "raw_text": str(best_attempt.get("raw_text") or ""),
+        "blocks": list(best_attempt.get("blocks") or []),
         "ocr_available": True,
         "error": None,
+        "quality": quality,
+        "attempts_summary": attempts_summary,
+    }
+
+
+def _aggregate_quality(pages: list[OCRPageResult]) -> OCRQuality:
+    if not pages:
+        return _empty_quality("failed", "Нет страниц для OCR")
+    worst_level = min(
+        (page["quality"]["quality_level"] for page in pages),
+        key=lambda level: _QUALITY_ORDER.get(level, 0),
+    )
+    total_chars = sum(max(1, int(page["quality"]["metrics"].get("recognized_char_count", 0))) for page in pages)
+    weighted_score = sum(
+        float(page["quality"].get("score", 0.0))
+        * max(1, int(page["quality"]["metrics"].get("recognized_char_count", 0)))
+        for page in pages
+    ) / max(1, total_chars)
+    combined_text = "\n".join(page["raw_text"] for page in pages)
+    combined_blocks = [block for page in pages for block in page.get("blocks", [])]
+    metrics = score_ocr_result(combined_text, combined_blocks)
+    metrics["weighted_page_score"] = round(weighted_score, 3)
+    return {
+        "score": round(weighted_score, 3),
+        "quality_level": worst_level,
+        "metrics": metrics,
+        "chosen_attempt": {"aggregation": "lowest_page_quality_weighted_score"},
     }
 
 
 def ocr_images_to_text(image_files: Iterable[BinaryIO]) -> OCRMultiPageResult:
-    """OCR all uploaded contract page images and combine them into one document.
-
-    Pages are processed in the order provided by Streamlit. A failed page is
-    represented in diagnostics but does not stop OCR for the remaining pages.
-    """
+    """OCR all uploaded contract page images and combine them into one document."""
 
     pages: list[OCRPageResult] = []
     errors: list[str] = []
@@ -197,6 +483,8 @@ def ocr_images_to_text(image_files: Iterable[BinaryIO]) -> OCRMultiPageResult:
                 "blocks": [],
                 "ocr_available": False,
                 "error": message,
+                "quality": _empty_quality("failed", message),
+                "attempts_summary": [],
             }
 
         page_error = result.get("error")
@@ -207,6 +495,8 @@ def ocr_images_to_text(image_files: Iterable[BinaryIO]) -> OCRMultiPageResult:
             "blocks": list(result.get("blocks") or []),
             "ocr_available": bool(result.get("ocr_available")),
             "error": str(page_error) if page_error else None,
+            "quality": result.get("quality") or _empty_quality("failed", str(page_error) if page_error else None),
+            "attempts_summary": list(result.get("attempts_summary") or []),
         }
         if page["error"]:
             errors.append(f"Страница {page_index} ({filename}): {page['error']}")
@@ -217,7 +507,16 @@ def ocr_images_to_text(image_files: Iterable[BinaryIO]) -> OCRMultiPageResult:
         "pages": pages,
         "ocr_available": any(page["ocr_available"] for page in pages),
         "errors": errors,
+        "quality": _aggregate_quality(pages),
     }
+
+
+def is_ocr_quality_sufficient(quality: dict[str, Any] | None) -> bool:
+    """Return True only when OCR quality is good enough for normal analysis."""
+
+    if not quality:
+        return False
+    return str(quality.get("quality_level") or "failed") in {"good", "medium"}
 
 
 def ocr_json_to_text(payload: object) -> str:
