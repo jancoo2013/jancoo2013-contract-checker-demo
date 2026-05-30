@@ -5,6 +5,11 @@ from __future__ import annotations
 from dataclasses import asdict
 from typing import Any
 
+from contract_checker.cloud_ocr import (
+    get_provider_status,
+    ocr_with_azure_vision,
+    ocr_with_google_vision,
+)
 from contract_checker.ocr_image import ocr_json_to_text
 from contract_checker.pipeline import analyze_contract_text
 from contract_checker.report import result_to_markdown
@@ -128,23 +133,34 @@ def _render_image_tab() -> None:
         "Рукописный иврит не считается автоматически подтверждённым."
     )
 
-    st.subheader("Будущий OCR-движок")
-    st.selectbox(
-        "Будущий OCR-движок",
-        [
-            "Cloud OCR — скоро",
-            "OCR JSON — загрузить готовый результат",
-            "Tesseract — отключён в публичном демо",
-        ],
-        disabled=True,
-        label_visibility="collapsed",
+    st.subheader("OCR-движок")
+    provider_options = {
+        "OCR пока не подключён": "not_configured",
+        "Google Cloud Vision OCR — подготовлено, но не настроено": "google_vision",
+        "Azure AI Vision Read OCR — подготовлено, но не настроено": "azure_vision",
+    }
+    provider_label = st.selectbox(
+        "Выбери OCR-провайдера",
+        list(provider_options),
         help="Публичное демо не показывает поля API-ключей. Будущая интеграция должна читать секреты из защищённой конфигурации.",
+    )
+    provider = provider_options[provider_label]
+    provider_status = get_provider_status(provider)
+    st.info(provider_status["message"])
+    st.caption(
+        "Для включения этого режима нужно добавить ключи в Streamlit secrets. "
+        "Ключи нельзя хранить в GitHub."
+    )
+
+    st.markdown(
+        "**Пока Cloud OCR не подключён, можно загрузить OCR JSON от внешнего распознавателя.** "
+        "Также можно вставить проверенный текст вручную во вкладке **\"Вставить текст договора\"**."
     )
 
     st.subheader("Временный ручной сценарий")
     st.markdown(
         "1. распознай текст внешним OCR;\n"
-        "2. вставь текст во вкладку **\"Вставить текст договора\"**;\n"
+        "2. загрузи OCR JSON во вкладке **\"Загрузить OCR JSON\"** или вставь текст во вкладку **\"Вставить текст договора\"**;\n"
         "3. проверь отчёт."
     )
 
@@ -180,6 +196,23 @@ def _render_image_tab() -> None:
     for index, uploaded_image in enumerate(uploaded_images, start=1):
         with st.expander(f"Страница {index}: {uploaded_image.name}", expanded=False):
             st.image(uploaded_image, caption=f"Страница {index}: {uploaded_image.name}", use_container_width=True)
+
+    if st.button("Распознать через Cloud OCR"):
+        if provider == "google_vision":
+            ocr_result = ocr_with_google_vision(uploaded_images)
+        elif provider == "azure_vision":
+            ocr_result = ocr_with_azure_vision(uploaded_images)
+        else:
+            ocr_result = None
+
+        if ocr_result is None:
+            st.warning(
+                "Cloud OCR пока не подключён. Выбери подготовленный провайдер "
+                "или загрузи OCR JSON от внешнего распознавателя."
+            )
+        else:
+            st.error(ocr_result.error)
+            st.json(ocr_result.to_dict())
 
     st.warning(
         "Автоматический анализ фото отключён. Чтобы продолжить проверку, распознай текст внешним OCR "
