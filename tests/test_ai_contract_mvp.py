@@ -129,7 +129,7 @@ class PromptTests(unittest.TestCase):
 class ImportTests(unittest.TestCase):
     def test_app_and_helpers_import_without_api_key(self) -> None:
         import app  # noqa: F401
-        import contract_checker.openai_engine  # noqa: F401
+        import contract_checker.gemini_engine  # noqa: F401
 
         self.assertTrue(True)
 
