@@ -1,0 +1,312 @@
+"""In-memory, test-only image row redaction helpers.
+
+This module intentionally does not perform general OCR and does not call external
+services.  The current automatic detector is an experimental geometric scaffold:
+it can find text-like rows, but it does not claim to read Hebrew marker text.  The
+same masking pipeline is used by manual test detections in the Streamlit UI.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from io import BytesIO
+from typing import Iterable, Sequence
+
+import numpy as np
+from PIL import Image, ImageDraw, ImageOps, UnidentifiedImageError
+
+
+PII_MARKERS = [
+    "שם",
+    "ת.ז.",
+    "תז",
+    "מספר זהות",
+    "טלפון",
+    "כתובת",
+    "המשכיר",
+    "השוכר",
+    "מיופה כוח",
+    "חתימה",
+    "בנק",
+    "חשבון",
+    "סניף",
+]
+
+MIN_EXPORT_CONFIDENCE = 0.85
+EXPERIMENTAL_DETECTOR_NAME = "experimental-geometric-no-ocr"
+MANUAL_DETECTOR_NAME = "manual-test-row"
+
+
+BBox = tuple[int, int, int, int]
+
+
+@dataclass(frozen=True)
+class DetectedMarker:
+    marker: str
+    confidence: float
+    bbox: BBox
+    row_bbox: BBox
+    detector: str
+
+
+@dataclass(frozen=True)
+class RedactionPageResult:
+    filename: str
+    width: int
+    height: int
+    markers: list[DetectedMarker]
+    redacted_image_bytes: bytes
+    success: bool
+    error: str | None
+    safe_to_export: bool
+
+
+def _clamp_bbox(bbox: Sequence[int], image_width: int, image_height: int) -> BBox:
+    x1, y1, x2, y2 = (int(round(value)) for value in bbox)
+    x1 = max(0, min(image_width, x1))
+    x2 = max(0, min(image_width, x2))
+    y1 = max(0, min(image_height, y1))
+    y2 = max(0, min(image_height, y2))
+    if x2 < x1:
+        x1, x2 = x2, x1
+    if y2 < y1:
+        y1, y2 = y2, y1
+    return x1, y1, x2, y2
+
+
+def _image_to_png_bytes(image: Image.Image) -> bytes:
+    output = BytesIO()
+    image.save(output, format="PNG")
+    return output.getvalue()
+
+
+def _detect_text_row_regions(image: Image.Image) -> list[BBox]:
+    """Return rough text-row boxes from dark pixels without recognizing text."""
+
+    grayscale = ImageOps.grayscale(image)
+    arr = np.asarray(grayscale)
+    if arr.size == 0:
+        return []
+
+    # A conservative dark-pixel threshold is enough for synthetic tests and for a
+    # rough Streamlit preview.  It is not OCR and it does not identify markers.
+    dark = arr < 190
+    min_pixels_per_row = max(3, int(arr.shape[1] * 0.005))
+    row_has_text = dark.sum(axis=1) >= min_pixels_per_row
+
+    regions: list[BBox] = []
+    start: int | None = None
+    gap = 0
+    max_gap = 2
+    for index, has_text in enumerate(row_has_text):
+        if has_text:
+            if start is None:
+                start = index
+            gap = 0
+        elif start is not None:
+            gap += 1
+            if gap > max_gap:
+                y1 = start
+                y2 = index - gap + 1
+                if y2 - y1 >= 3:
+                    rows = dark[y1:y2, :]
+                    xs = np.where(rows.any(axis=0))[0]
+                    if xs.size:
+                        regions.append((int(xs.min()), y1, int(xs.max()) + 1, y2))
+                start = None
+                gap = 0
+
+    if start is not None:
+        y1 = start
+        y2 = arr.shape[0]
+        if y2 - y1 >= 3:
+            rows = dark[y1:y2, :]
+            xs = np.where(rows.any(axis=0))[0]
+            if xs.size:
+                regions.append((int(xs.min()), y1, int(xs.max()) + 1, y2))
+
+    return regions
+
+
+def _content_x_bounds(row_regions: Sequence[BBox], image_width: int) -> tuple[int, int]:
+    if not row_regions:
+        return 0, image_width
+    x1 = min(region[0] for region in row_regions)
+    x2 = max(region[2] for region in row_regions)
+    margin = max(8, int(image_width * 0.02))
+    return max(0, x1 - margin), min(image_width, x2 + margin)
+
+
+def expand_marker_bbox_to_full_row(
+    marker_bbox: BBox,
+    image_width: int,
+    image_height: int,
+    row_regions: Sequence[BBox] | None = None,
+) -> BBox:
+    """Expand a marker rectangle to an opaque full-row redaction rectangle."""
+
+    if image_width <= 0 or image_height <= 0:
+        return (0, 0, 0, 0)
+
+    marker = _clamp_bbox(marker_bbox, image_width, image_height)
+    x1, y1, x2, y2 = marker
+    row_y1, row_y2 = y1, y2
+    content_x1, content_x2 = _content_x_bounds(row_regions or [], image_width)
+
+    if row_regions:
+        marker_center_y = (y1 + y2) / 2
+        best_region: BBox | None = None
+        best_score = -1
+        for region in row_regions:
+            rx1, ry1, rx2, ry2 = _clamp_bbox(region, image_width, image_height)
+            overlap = max(0, min(y2, ry2) - max(y1, ry1))
+            contains_center = ry1 <= marker_center_y <= ry2
+            score = overlap + (1000 if contains_center else 0)
+            if score > best_score:
+                best_region = (rx1, ry1, rx2, ry2)
+                best_score = score
+        if best_region and best_score > 0:
+            row_y1, row_y2 = best_region[1], best_region[3]
+
+    padding_y = 8
+    return _clamp_bbox((content_x1, row_y1 - padding_y, content_x2, row_y2 + padding_y), image_width, image_height)
+
+
+def merge_overlapping_row_bboxes(row_bboxes: Iterable[BBox]) -> list[BBox]:
+    """Merge masks that overlap vertically or touch, preserving full row coverage."""
+
+    sorted_boxes = sorted(row_bboxes, key=lambda box: (box[1], box[0]))
+    merged: list[BBox] = []
+    for box in sorted_boxes:
+        if not merged:
+            merged.append(box)
+            continue
+        last = merged[-1]
+        vertical_overlap = box[1] <= last[3]
+        horizontal_overlap = box[0] <= last[2] and box[2] >= last[0]
+        if vertical_overlap and horizontal_overlap:
+            merged[-1] = (
+                min(last[0], box[0]),
+                min(last[1], box[1]),
+                max(last[2], box[2]),
+                max(last[3], box[3]),
+            )
+        else:
+            merged.append(box)
+    return merged
+
+
+def detect_pii_markers(image: Image.Image) -> list[DetectedMarker]:
+    """Experimental placeholder detector for Hebrew PII markers.
+
+    The function prepares row geometry but intentionally returns no marker hits
+    until a validated marker recognizer is available.  This avoids pretending that
+    general Hebrew OCR or reliable marker recognition has been solved without a
+    model, Tesseract, or training data.
+    """
+
+    _detect_text_row_regions(image)
+    return []
+
+
+def make_manual_detection(
+    marker_bbox: BBox,
+    image_width: int,
+    image_height: int,
+    marker: str = "ручная строка",
+    row_regions: Sequence[BBox] | None = None,
+) -> DetectedMarker:
+    """Build a test-only manual detection that uses the normal masking pipeline."""
+
+    bbox = _clamp_bbox(marker_bbox, image_width, image_height)
+    return DetectedMarker(
+        marker=marker,
+        confidence=1.0,
+        bbox=bbox,
+        row_bbox=expand_marker_bbox_to_full_row(bbox, image_width, image_height, row_regions),
+        detector=MANUAL_DETECTOR_NAME,
+    )
+
+
+def redact_detected_rows(
+    image: Image.Image,
+    detections: list[DetectedMarker],
+    row_padding_y: int = 8,
+) -> Image.Image:
+    """Cover detected logical rows with solid opaque black rectangles."""
+
+    redacted = image.convert("RGB").copy()
+    draw = ImageDraw.Draw(redacted)
+    row_boxes: list[BBox] = []
+    for detection in detections:
+        x1, y1, x2, y2 = detection.row_bbox
+        padded = _clamp_bbox((x1, y1 - row_padding_y, x2, y2 + row_padding_y), redacted.width, redacted.height)
+        if padded[2] > padded[0] and padded[3] > padded[1]:
+            row_boxes.append(padded)
+
+    for row_bbox in merge_overlapping_row_bboxes(row_boxes):
+        draw.rectangle(row_bbox, fill=(0, 0, 0))
+    return redacted
+
+
+def _result_with_error(filename: str, error: str) -> RedactionPageResult:
+    return RedactionPageResult(
+        filename=filename,
+        width=0,
+        height=0,
+        markers=[],
+        redacted_image_bytes=b"",
+        success=False,
+        error=error,
+        safe_to_export=False,
+    )
+
+
+def process_page_for_redaction(uploaded_file) -> RedactionPageResult:
+    """Load one uploaded image in memory, detect rows, and return a preview PNG."""
+
+    filename = getattr(uploaded_file, "name", "uploaded-image")
+    try:
+        if hasattr(uploaded_file, "getvalue"):
+            raw_bytes = uploaded_file.getvalue()
+        else:
+            current_position = uploaded_file.tell() if hasattr(uploaded_file, "tell") else None
+            raw_bytes = uploaded_file.read()
+            if current_position is not None and hasattr(uploaded_file, "seek"):
+                uploaded_file.seek(current_position)
+        image = Image.open(BytesIO(raw_bytes))
+        image.load()
+    except (UnidentifiedImageError, OSError, ValueError, TypeError) as exc:
+        return _result_with_error(filename, f"Не удалось прочитать изображение: {exc}")
+
+    width, height = image.size
+    if width <= 0 or height <= 0:
+        return _result_with_error(filename, "Некорректные размеры изображения.")
+
+    try:
+        detections = detect_pii_markers(image)
+        redacted_image = redact_detected_rows(image, detections)
+        masks_applied = bool(detections)
+        confident = bool(detections) and all(detection.confidence >= MIN_EXPORT_CONFIDENCE for detection in detections)
+        safe_to_export = masks_applied and confident
+        return RedactionPageResult(
+            filename=filename,
+            width=width,
+            height=height,
+            markers=detections,
+            redacted_image_bytes=_image_to_png_bytes(redacted_image),
+            success=True,
+            error=None,
+            safe_to_export=safe_to_export,
+        )
+    except Exception as exc:  # Controlled Streamlit-facing error boundary.
+        return RedactionPageResult(
+            filename=filename,
+            width=width,
+            height=height,
+            markers=[],
+            redacted_image_bytes=b"",
+            success=False,
+            error=f"Ошибка обработки изображения: {exc}",
+            safe_to_export=False,
+        )

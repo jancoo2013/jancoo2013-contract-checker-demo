@@ -143,6 +143,169 @@ def _clear_sensitive_state() -> None:
         st.session_state.pop(key, None)
 
 
+def _clear_image_redaction_state() -> None:
+    import streamlit as st
+
+    for key in (
+        "image_redaction_results",
+        "image_manual_masks",
+    ):
+        st.session_state.pop(key, None)
+    for key in list(st.session_state.keys()):
+        if str(key).startswith("image_redaction_uploads_"):
+            st.session_state.pop(key, None)
+
+
+def _render_image_redaction_status(has_masks: bool, has_auto_markers: bool, safe_to_export: bool) -> None:
+    import streamlit as st
+
+    if has_masks:
+        st.success("строки закрыты")
+    elif not has_auto_markers:
+        st.warning("маркеры не найдены")
+    if not safe_to_export:
+        st.error("результат небезопасен для отправки")
+        st.info("Страница пока не считается безопасно обезличенной. Она не будет отправлена во внешние сервисы.")
+
+
+def _render_image_redaction_test() -> None:
+    import streamlit as st
+    from PIL import Image
+    from io import BytesIO
+
+    from contract_checker.image_redaction import (
+        DetectedMarker,
+        make_manual_detection,
+        process_page_for_redaction,
+        redact_detected_rows,
+    )
+
+    st.divider()
+    st.header("ТЕСТ: маскирование личных данных на фото")
+    st.warning(
+        "Закрытый технический тест. Загружай только собственные тестовые документы. "
+        "Фото пока поступают на сервер Streamlit и не отправляются во внешние API."
+    )
+    st.caption(
+        "Автоматическое распознавание Hebrew-маркеров пока экспериментальное: без OCR-модели, "
+        "Tesseract, Google Vision или Gemini для изображений. Ручные координаты нужны только для проверки маскирования строк."
+    )
+
+    upload_generation = st.session_state.setdefault("image_redaction_upload_generation", 0)
+    upload_key = f"image_redaction_uploads_{upload_generation}"
+    uploaded_images = st.file_uploader(
+        "Загрузи страницы договора как JPG/JPEG/PNG",
+        type=["jpg", "jpeg", "png"],
+        accept_multiple_files=True,
+        key=upload_key,
+    )
+
+    col_find, col_clear = st.columns(2)
+    with col_find:
+        find_clicked = st.button(
+            "Найти и закрыть строки с личными данными",
+            disabled=not uploaded_images,
+        )
+    with col_clear:
+        if st.button("Удалить загруженные изображения из сессии"):
+            _clear_image_redaction_state()
+            st.session_state.image_redaction_upload_generation = upload_generation + 1
+            st.rerun()
+
+    if find_clicked:
+        results = {}
+        for index, uploaded_file in enumerate(uploaded_images):
+            page_key = f"{index}:{uploaded_file.name}"
+            results[page_key] = process_page_for_redaction(uploaded_file)
+        st.session_state.image_redaction_results = results
+        st.session_state.setdefault("image_manual_masks", {})
+
+    results = st.session_state.get("image_redaction_results", {})
+    manual_masks = st.session_state.setdefault("image_manual_masks", {})
+
+    for index, uploaded_file in enumerate(uploaded_images or []):
+        page_key = f"{index}:{uploaded_file.name}"
+        result = results.get(page_key)
+        with st.expander(f"Страница {index + 1}: {uploaded_file.name}", expanded=True):
+            raw_bytes = uploaded_file.getvalue()
+            original_image = None
+            try:
+                original_image = Image.open(BytesIO(raw_bytes))
+                original_image.load()
+                st.image(raw_bytes, caption="Оригинал", use_container_width=True)
+            except Exception as exc:
+                st.error(f"Не удалось показать оригинал: {exc}")
+
+            if result:
+                if result.success:
+                    automatic_markers = result.markers
+                    page_manual_masks = manual_masks.get(page_key, [])
+                    manual_detections: list[DetectedMarker] = []
+                    if original_image is not None:
+                        for mask in page_manual_masks:
+                            manual_detections.append(
+                                make_manual_detection(
+                                    (mask["x1"], mask["y1"], mask["x2"], mask["y2"]),
+                                    original_image.width,
+                                    original_image.height,
+                                )
+                            )
+                        combined = automatic_markers + manual_detections
+                        if combined:
+                            redacted_image = redact_detected_rows(original_image, combined)
+                            output = BytesIO()
+                            redacted_image.save(output, format="PNG")
+                            st.image(output.getvalue(), caption="Предпросмотр с закрытыми строками", use_container_width=True)
+                        else:
+                            st.image(result.redacted_image_bytes, caption="Предпросмотр: маски не применены", use_container_width=True)
+
+                    detections_for_table = [
+                        {
+                            "marker": marker.marker,
+                            "confidence": marker.confidence,
+                            "row_bbox": marker.row_bbox,
+                            "detector": marker.detector,
+                        }
+                        for marker in automatic_markers + manual_detections
+                    ]
+                    if detections_for_table:
+                        st.dataframe(detections_for_table, use_container_width=True)
+                    else:
+                        st.info("Список найденных маркеров пуст. Персональные значения не извлекаются и не показываются.")
+
+                    has_masks = bool(automatic_markers or manual_detections)
+                    _render_image_redaction_status(has_masks, bool(automatic_markers), result.safe_to_export)
+                else:
+                    st.error(result.error or "Неизвестная ошибка обработки изображения.")
+                    _render_image_redaction_status(False, False, False)
+
+            if original_image is not None:
+                st.subheader("Ручная коррекция — только для теста маскирования")
+                max_x = max(1, original_image.width)
+                max_y = max(1, original_image.height)
+                c1, c2, c3, c4 = st.columns(4)
+                with c1:
+                    x1 = st.number_input("x1", min_value=0, max_value=max_x, value=0, key=f"{page_key}:x1")
+                with c2:
+                    y1 = st.number_input("y1", min_value=0, max_value=max_y, value=0, key=f"{page_key}:y1")
+                with c3:
+                    x2 = st.number_input("x2", min_value=0, max_value=max_x, value=max_x, key=f"{page_key}:x2")
+                with c4:
+                    y2 = st.number_input("y2", min_value=0, max_value=max_y, value=min(max_y, 60), key=f"{page_key}:y2")
+                if st.button("Добавить строку для маскирования", key=f"{page_key}:add-mask"):
+                    manual_masks.setdefault(page_key, []).append({"x1": int(x1), "y1": int(y1), "x2": int(x2), "y2": int(y2)})
+                    st.session_state.image_manual_masks = manual_masks
+                    st.rerun()
+
+                for mask_index, mask in enumerate(manual_masks.get(page_key, [])):
+                    cols = st.columns([4, 1])
+                    cols[0].write(f"Ручная строка {mask_index + 1}: {(mask['x1'], mask['y1'], mask['x2'], mask['y2'])}")
+                    if cols[1].button("Удалить", key=f"{page_key}:remove:{mask_index}"):
+                        manual_masks[page_key].pop(mask_index)
+                        st.session_state.image_manual_masks = manual_masks
+                        st.rerun()
+
+
 def main() -> None:
     """Run the Streamlit application."""
 
@@ -240,6 +403,8 @@ def main() -> None:
         result = ContractAuditResult.model_validate(stored_result)
         warnings = st.session_state.get("validation_warnings", [])
         _render_analysis(EvidenceValidationResult(result=result, warnings=warnings))
+
+    _render_image_redaction_test()
 
 
 if __name__ == "__main__":
