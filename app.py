@@ -1,263 +1,141 @@
-"""Public Streamlit demo for deterministic contract checks."""
+"""Russian-first Streamlit app for text-based AI contract audit."""
 
 from __future__ import annotations
 
-from dataclasses import asdict
+import json
+import os
 from typing import Any
 
-from contract_checker.cloud_ocr import (
-    get_provider_status,
-    ocr_with_azure_vision,
-    ocr_with_google_vision,
-)
-from contract_checker.ocr_image import ocr_json_to_text
-from contract_checker.pipeline import analyze_contract_text
-from contract_checker.report import result_to_markdown
-from contract_checker.web_helpers import (
-    finding_detail_label,
-    finding_title_label,
-    recommendation_label,
-    result_summary,
-    sample_contract_text,
-    status_badge,
-    status_label,
-)
+from contract_checker.openai_engine import DEFAULT_OPENAI_MODEL, ContractAnalysisError, analyze_contract_with_openai
+from contract_checker.output_validator import EvidenceValidationResult, validate_model_evidence
+from contract_checker.redaction import redact_personal_data
+from contract_checker.schemas import ContractAuditResult
+from contract_checker.validator import ContractTextValidationResult, validate_contract_text
 
 
-def _result_payload(result: Any) -> dict[str, Any]:
-    """Build the raw JSON payload shown in the public demo."""
-
-    return asdict(result)
+def _model_to_dict(result: ContractAuditResult) -> dict[str, Any]:
+    return result.model_dump(mode="json")
 
 
-def _render_analysis(result: Any, report_notice: str | None = None) -> None:
-    """Render deterministic analysis sections for pasted or OCR text."""
-
+def _render_risk_list(title: str, risks: list[Any]) -> None:
     import streamlit as st
 
-    summary = result_summary(result)
+    st.subheader(title)
+    if not risks:
+        st.info("Нет подтверждённых пунктов в этом разделе.")
+        return
+    for risk in risks:
+        with st.expander(risk.title_ru, expanded=True):
+            st.markdown(f"**Уровень:** `{risk.level}`")
+            if risk.page:
+                st.markdown(f"**Страница:** {risk.page}")
+            st.markdown(f"**Цитата:** {risk.source_quote_he}")
+            st.markdown(risk.explanation_ru)
+            if risk.requested_change_ru:
+                st.markdown(f"**Что просить изменить:** {risk.requested_change_ru}")
 
-    st.subheader("Краткий отчёт")
-    cols = st.columns(4)
-    for column, (label, value) in zip(cols, summary.items(), strict=True):
-        column.metric(label, value)
 
-    st.subheader("Найденные поля")
-    fields = [
-        {
-            "Поле": finding_title_label(finding.title),
-            "Статус": status_label(finding.status),
-            "Комментарий": finding_detail_label(finding),
-        }
-        for finding in result.findings
-    ]
-    st.dataframe(fields, use_container_width=True, hide_index=True)
+def _render_analysis(validated: EvidenceValidationResult) -> None:
+    import streamlit as st
 
-    st.subheader("Проверки")
-    for finding in result.findings:
-        title = finding_title_label(finding.title)
-        with st.expander(f"{status_badge(finding.status)} — {title}", expanded=True):
-            st.write(finding_detail_label(finding))
-            st.write(f"**Рекомендация:** {recommendation_label(finding)}")
+    result = validated.result
+    st.header("Итог анализа")
+    st.metric("Вердикт", result.verdict)
+    st.write(result.verdict_reason_ru)
 
-    st.subheader("Зоны для ручной проверки")
-    crop_requests = [
-        {
-            "Тема": finding_title_label(finding.title),
-            "Что проверить": "Проверь соответствующий фрагмент договора вручную: рукописный иврит не считается подтверждённым.",
-        }
-        for finding in result.findings
-        if finding.status in {"Missing", "Caution"}
-    ]
-    if crop_requests:
-        st.dataframe(crop_requests, use_container_width=True, hide_index=True)
+    if validated.warnings:
+        with st.expander("Предупреждения проверки цитат", expanded=True):
+            for warning in validated.warnings:
+                st.warning(warning)
+
+    red_risks = [risk for risk in result.risks if risk.level == "red"]
+    yellow_risks = [risk for risk in result.risks if risk.level == "yellow"]
+    _render_risk_list("Красные риски", red_risks)
+    _render_risk_list("Жёлтые риски", yellow_risks)
+
+    st.subheader("Обычные пункты")
+    normal_clauses = [clause for clause in result.clauses if clause.risk_level == "normal"]
+    if normal_clauses:
+        for clause in normal_clauses:
+            with st.expander(f"{clause.clause_id}: {clause.category}"):
+                st.markdown(f"**Цитата:** {clause.source_quote_he}")
+                st.markdown(clause.explanation_ru)
     else:
-        st.success("Дополнительные зоны для ручной проверки не найдены простыми правилами демо.")
+        st.info("Модель не вернула обычные пункты или они не прошли проверку.")
 
-    st.subheader("Сырой JSON")
-    st.json(_result_payload(result))
+    st.subheader("Отсутствующие условия")
+    if result.missing_clauses:
+        for item in result.missing_clauses:
+            st.markdown(f"* **{item.title_ru}** — {item.explanation_ru}")
+            if item.requested_change_ru:
+                st.markdown(f"  *Просить:* {item.requested_change_ru}")
+    else:
+        st.info("Нет отмеченных отсутствующих условий.")
 
-    st.subheader("Экспорт")
-    report_markdown = result_to_markdown(result)
-    if report_notice:
-        report_markdown = f"{report_notice}\n\n{report_markdown}"
-        st.warning(report_notice)
-    st.download_button(
-        "Скачать Markdown-отчёт",
-        data=report_markdown,
-        file_name="contract-check-report.md",
-        mime="text/markdown",
-    )
-    st.markdown(report_markdown)
+    st.subheader("Неясные фрагменты")
+    if result.unclear_fragments:
+        for item in result.unclear_fragments:
+            with st.expander(item.title_ru):
+                st.markdown(f"**Цитата:** {item.source_quote_he}")
+                st.markdown(item.explanation_ru)
+                if item.requested_clarification_ru:
+                    st.markdown(f"**Уточнить:** {item.requested_clarification_ru}")
+    else:
+        st.info("Нет подтверждённых неясных фрагментов.")
+
+    st.subheader("Вопросы агенту/арендодателю")
+    if result.questions_to_agent:
+        for question in result.questions_to_agent:
+            st.markdown(f"* **{question.question_ru}** — {question.why_ru}")
+    else:
+        st.info("Нет дополнительных вопросов.")
+
+    st.subheader("Предлагаемые изменения")
+    if result.proposed_changes:
+        for change in result.proposed_changes:
+            st.markdown(f"* **{change.title_ru}** (`{change.priority}`): {change.proposed_text_ru}")
+    else:
+        st.info("Нет предложенных формулировок.")
+
+    with st.expander("Advanced: сырой структурированный JSON", expanded=False):
+        st.json(_model_to_dict(result))
 
 
-def _render_paste_tab() -> None:
-    """Render the pasted-text workflow."""
-
+def _render_validation_status(validation: ContractTextValidationResult) -> None:
     import streamlit as st
 
-    if "contract_text" not in st.session_state:
-        st.session_state.contract_text = ""
-
-    if st.button("Загрузить синтетический пример"):
-        st.session_state.contract_text = sample_contract_text()
-
-    contract_text = st.text_area(
-        "Текст договора",
-        key="contract_text",
-        height=280,
-        placeholder="Вставь сюда текст договора на иврите. Не вставляй личные данные, если демо публичное.",
-        help="Режим вставки текста остаётся основным запасным вариантом, если OCR недоступен или ошибается.",
+    st.subheader("Статус валидации текста")
+    if validation.usable:
+        st.success("Текст пригоден для AI-анализа после обезличивания.")
+    else:
+        st.error("Текст пока непригоден для AI-анализа.")
+    st.write(
+        {
+            "полнота": validation.completeness,
+            "символы иврита": validation.hebrew_char_count,
+            "признаки аренды": validation.indicator_count,
+            "пункты/абзацы": validation.clause_count,
+            "доля мусора": validation.garbage_ratio,
+            "разделители страниц": validation.page_separator_count,
+        }
     )
-
-    if not contract_text.strip():
-        st.warning("Добавь текст договора, чтобы запустить проверку.")
-        return
-
-    if st.button("Анализировать текст"):
-        result = analyze_contract_text(contract_text)
-        _render_analysis(result)
+    for problem in validation.problems:
+        st.warning(problem)
 
 
-def _render_image_tab() -> None:
-    """Render the photo upload workflow without running server-side OCR."""
-
+def _clear_sensitive_state() -> None:
     import streamlit as st
 
-    st.warning(
-        "Серверный Tesseract OCR временно отключён: на реальных договорах он слишком медленный "
-        "и нестабильный в Streamlit Cloud. Следующий этап — подключение облачного OCR."
-    )
-    st.info(
-        "Фото-вкладка сейчас показывает только предпросмотр загруженных страниц и не запускает долгие OCR-задачи. "
-        "Рукописный иврит не считается автоматически подтверждённым."
-    )
-
-    st.subheader("OCR-движок")
-    provider_options = {
-        "OCR пока не подключён": "not_configured",
-        "Google Cloud Vision OCR — подготовлено, но не настроено": "google_vision",
-        "Azure AI Vision Read OCR — подготовлено, но не настроено": "azure_vision",
-    }
-    provider_label = st.selectbox(
-        "Выбери OCR-провайдера",
-        list(provider_options),
-        help="Публичное демо не показывает поля API-ключей. Будущая интеграция должна читать секреты из защищённой конфигурации.",
-    )
-    provider = provider_options[provider_label]
-    provider_status = get_provider_status(provider)
-    st.info(provider_status["message"])
-    st.caption(
-        "Для включения этого режима нужно добавить ключи в Streamlit secrets. "
-        "Ключи нельзя хранить в GitHub."
-    )
-
-    st.markdown(
-        "**Пока Cloud OCR не подключён, можно загрузить OCR JSON от внешнего распознавателя.** "
-        "Также можно вставить проверенный текст вручную во вкладке **\"Вставить текст договора\"**."
-    )
-
-    st.subheader("Временный ручной сценарий")
-    st.markdown(
-        "1. распознай текст внешним OCR;\n"
-        "2. загрузи OCR JSON во вкладке **\"Загрузить OCR JSON\"** или вставь текст во вкладку **\"Вставить текст договора\"**;\n"
-        "3. проверь отчёт."
-    )
-
-    st.caption("Совет для будущего OCR: загружай страницы по порядку: 1, 2, 3...")
-    uploaded_images = st.file_uploader(
-        "Загрузи фото страниц для предпросмотра",
-        type=["jpg", "jpeg", "png"],
-        accept_multiple_files=True,
-        help=(
-            "Сейчас фото не распознаются на сервере. Не загружай реальные частные фото в публичное демо; "
-            "используй этот блок только для проверки будущего сценария загрузки."
-        ),
-    )
-
-    if not uploaded_images:
-        st.info(
-            "Загрузи JPG или PNG для предпросмотра, используй вкладку OCR JSON для готового результата "
-            "или вставь проверенный текст вручную."
-        )
-        return
-
-    st.subheader("Порядок загруженных страниц")
-    st.dataframe(
-        [
-            {"Страница": index, "Файл": uploaded_image.name}
-            for index, uploaded_image in enumerate(uploaded_images, start=1)
-        ],
-        use_container_width=True,
-        hide_index=True,
-    )
-
-    st.subheader("Предпросмотр загруженных страниц")
-    for index, uploaded_image in enumerate(uploaded_images, start=1):
-        with st.expander(f"Страница {index}: {uploaded_image.name}", expanded=False):
-            st.image(uploaded_image, caption=f"Страница {index}: {uploaded_image.name}", use_container_width=True)
-
-    if st.button("Распознать через Cloud OCR"):
-        if provider == "google_vision":
-            ocr_result = ocr_with_google_vision(uploaded_images)
-        elif provider == "azure_vision":
-            ocr_result = ocr_with_azure_vision(uploaded_images)
-        else:
-            ocr_result = None
-
-        if ocr_result is None:
-            st.warning(
-                "Cloud OCR пока не подключён. Выбери подготовленный провайдер "
-                "или загрузи OCR JSON от внешнего распознавателя."
-            )
-        else:
-            st.error(ocr_result.error)
-            st.json(ocr_result.to_dict())
-
-    st.warning(
-        "Автоматический анализ фото отключён. Чтобы продолжить проверку, распознай текст внешним OCR "
-        "и вставь его во вкладку \"Вставить текст договора\" или загрузи готовый OCR JSON."
-    )
-
-
-def _render_json_tab() -> None:
-    """Render a JSON upload placeholder without changing raw JSON behavior."""
-
-    import json
-
-    import streamlit as st
-
-    uploaded_json = st.file_uploader(
-        "Загрузи OCR JSON",
-        type=["json"],
-        accept_multiple_files=False,
-        help="Можно загрузить JSON с полем raw_text, text или pages. Сырой JSON будет показан без изменений.",
-    )
-    if uploaded_json is None:
-        st.info("Если у тебя уже есть результат OCR в JSON, загрузи файл здесь или используй вставку текста.")
-        return
-
-    try:
-        payload = json.load(uploaded_json)
-    except json.JSONDecodeError:
-        st.error("Не удалось прочитать JSON. Проверь формат файла.")
-        return
-
-    st.subheader("Сырой JSON")
-    st.json(payload)
-    extracted_text = ocr_json_to_text(payload)
-
-    json_text = st.text_area(
-        "Текст из OCR JSON. Проверь и исправь его перед анализом.",
-        value=extracted_text,
-        height=280,
-    )
-    if st.button("Анализировать текст из JSON"):
-        if not json_text.strip():
-            st.warning("В JSON не найден текст для анализа. Вставь текст вручную.")
-            return
-        result = analyze_contract_text(json_text)
-        _render_analysis(result)
+    for key in (
+        "contract_text_input",
+        "api_key_input",
+        "redacted_text",
+        "validation_result",
+        "analysis_result",
+        "validation_warnings",
+        "manual_model_id",
+    ):
+        st.session_state.pop(key, None)
 
 
 def main() -> None:
@@ -265,27 +143,94 @@ def main() -> None:
 
     import streamlit as st
 
-    st.set_page_config(page_title="Проверка договора аренды на иврите", page_icon="📄", layout="wide")
-    st.title("📄 Проверка договора аренды на иврите")
-    st.caption(
-        "Публичное демо с простыми детерминированными проверками: без LLM, платных API, секретов и реальных фото договоров."
-    )
+    st.set_page_config(page_title="AI-аудит договора аренды", page_icon="📄", layout="wide")
+    st.title("📄 AI-аудит договора аренды на иврите")
+    st.caption("Закрытый MVP: текст → обезличивание → проверка пригодности → OpenAI Structured Output → проверка цитат → отчёт на русском.")
 
+    st.warning("Прототип не является юридической консультацией и не заменяет проверку адвоката.")
     st.info(
-        "Это прототип для предварительной проверки договора. Он не заменяет адвоката. OCR может ошибаться. "
-        "Рукописный иврит не считается автоматически подтверждённым. Перед подписанием спорного договора "
-        "проверь опасные пункты вручную или с юристом."
+        "API-ключ вводится по модели BYOK только для закрытого теста. Текст договора отправляется в OpenAI "
+        "только после показанного обезличивания. Не храните договор и ключ в сессии дольше необходимого."
     )
 
-    paste_tab, json_tab, image_tab = st.tabs(
-        ["Вставить текст договора", "Загрузить OCR JSON", "Загрузить фото договора"]
+    api_key = st.text_input(
+        "OpenAI API-ключ — только для закрытого теста",
+        type="password",
+        key="api_key_input",
+        help="Ключ не должен попадать в GitHub. Приложение не выводит его в ошибки или отчёты.",
     )
-    with paste_tab:
-        _render_paste_tab()
-    with json_tab:
-        _render_json_tab()
-    with image_tab:
-        _render_image_tab()
+
+    default_model = os.getenv("OPENAI_CONTRACT_MODEL", DEFAULT_OPENAI_MODEL)
+    model_options = [default_model, "gpt-5.4-mini", "gpt-5.4", "gpt-5.2"]
+    deduped_options = list(dict.fromkeys(model_options))
+    selected_model = st.selectbox("Модель OpenAI", deduped_options, index=0)
+    with st.expander("Advanced settings", expanded=False):
+        manual_model = st.text_input("Manual model ID", key="manual_model_id", placeholder="например: gpt-5.4-mini")
+    model = manual_model.strip() or selected_model
+
+    contract_text = st.text_area(
+        "Вставь полный текст договора на иврите",
+        key="contract_text_input",
+        height=360,
+        placeholder="Вставь сюда полный текст договора. Фото/OCR в этом MVP не используются.",
+    )
+
+    col1, col2 = st.columns(2)
+    with col1:
+        redact_clicked = st.button("Обезличить и проверить", type="primary")
+    with col2:
+        if st.button("Очистить договор и ключ"):
+            _clear_sensitive_state()
+            st.rerun()
+
+    if redact_clicked:
+        if not contract_text.strip():
+            st.error("Вставь текст договора перед проверкой.")
+        else:
+            redacted_text = redact_personal_data(contract_text)
+            validation = validate_contract_text(redacted_text)
+            st.session_state.redacted_text = redacted_text
+            st.session_state.validation_result = validation
+            st.session_state.pop("analysis_result", None)
+            st.session_state.pop("validation_warnings", None)
+
+    redacted_text = st.session_state.get("redacted_text", "")
+    validation = st.session_state.get("validation_result")
+
+    if redacted_text:
+        with st.expander("Обезличенный текст, который будет отправлен в OpenAI", expanded=True):
+            st.text_area("Redacted source", value=redacted_text, height=260, disabled=True, label_visibility="collapsed")
+    if validation:
+        _render_validation_status(validation)
+
+    can_analyze = bool(validation and validation.usable and api_key.strip())
+    if st.button("Запустить анализ", disabled=not can_analyze):
+        if not redacted_text or not validation or not validation.usable:
+            st.error("Сначала обезличь текст и пройди валидацию.")
+        elif not api_key.strip():
+            st.error("Для закрытого теста нужен OpenAI API-ключ.")
+        else:
+            try:
+                with st.spinner("OpenAI анализирует обезличенный договор..."):
+                    result = analyze_contract_with_openai(redacted_text=redacted_text, api_key=api_key, model=model)
+                    validated = validate_model_evidence(result, redacted_text)
+                st.session_state.analysis_result = validated.result.model_dump(mode="json")
+                st.session_state.validation_warnings = validated.warnings
+            except ContractAnalysisError as exc:
+                st.error(str(exc))
+
+    stored_result = st.session_state.get("analysis_result")
+    if stored_result:
+        result = ContractAuditResult.model_validate(stored_result)
+        warnings = st.session_state.get("validation_warnings", [])
+        _render_analysis(EvidenceValidationResult(result=result, warnings=warnings))
+
+    with st.expander("Deprecated/unused OCR direction", expanded=False):
+        st.write(
+            "Google/Azure OCR, Tesseract и загрузка фото скрыты из основного сценария. "
+            "В этом задании MVP принимает только готовый текст договора на иврите."
+        )
+        st.code(json.dumps({"ocr": "deprecated_unused_in_this_mvp"}, ensure_ascii=False), language="json")
 
 
 if __name__ == "__main__":
