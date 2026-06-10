@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
-import json
-import os
 from typing import Any
 
-from contract_checker.openai_engine import DEFAULT_OPENAI_MODEL, ContractAnalysisError, analyze_contract_with_openai
+from contract_checker.gemini_engine import (
+    DEFAULT_GEMINI_MODEL,
+    GeminiAuthenticationError,
+    GeminiConfigurationError,
+    GeminiRateLimitError,
+    GeminiResponseError,
+    analyze_contract_with_gemini,
+)
 from contract_checker.output_validator import EvidenceValidationResult, validate_model_evidence
 from contract_checker.redaction import redact_personal_data
 from contract_checker.schemas import ContractAuditResult
@@ -145,28 +150,29 @@ def main() -> None:
 
     st.set_page_config(page_title="AI-аудит договора аренды", page_icon="📄", layout="wide")
     st.title("📄 AI-аудит договора аренды на иврите")
-    st.caption("Закрытый MVP: текст → обезличивание → проверка пригодности → OpenAI Structured Output → проверка цитат → отчёт на русском.")
+    st.caption("Закрытый MVP: текст → обезличивание → проверка пригодности → Gemini Structured Output → проверка цитат → отчёт на русском.")
 
     st.warning("Прототип не является юридической консультацией и не заменяет проверку адвоката.")
     st.info(
-        "API-ключ вводится по модели BYOK только для закрытого теста. Текст договора отправляется в OpenAI "
-        "только после показанного обезличивания. Не храните договор и ключ в сессии дольше необходимого."
+        "API-ключ Gemini вводится по модели BYOK только для закрытого теста. В Gemini отправляется "
+        "только показанный обезличенный текст. Не храните договор и ключ в сессии дольше необходимого."
     )
 
     api_key = st.text_input(
-        "OpenAI API-ключ — только для закрытого теста",
+        "Gemini API-ключ — только для закрытого теста",
         type="password",
         key="api_key_input",
         help="Ключ не должен попадать в GitHub. Приложение не выводит его в ошибки или отчёты.",
     )
 
-    default_model = os.getenv("OPENAI_CONTRACT_MODEL", DEFAULT_OPENAI_MODEL)
-    model_options = [default_model, "gpt-5.4-mini", "gpt-5.4", "gpt-5.2"]
-    deduped_options = list(dict.fromkeys(model_options))
-    selected_model = st.selectbox("Модель OpenAI", deduped_options, index=0)
     with st.expander("Advanced settings", expanded=False):
-        manual_model = st.text_input("Manual model ID", key="manual_model_id", placeholder="например: gpt-5.4-mini")
-    model = manual_model.strip() or selected_model
+        manual_model = st.text_input(
+            "Manual Gemini model ID",
+            key="manual_model_id",
+            value=DEFAULT_GEMINI_MODEL,
+            placeholder="например: gemini-3.5-flash",
+        )
+    model = manual_model.strip() or DEFAULT_GEMINI_MODEL
 
     contract_text = st.text_area(
         "Вставь полный текст договора на иврите",
@@ -198,7 +204,7 @@ def main() -> None:
     validation = st.session_state.get("validation_result")
 
     if redacted_text:
-        with st.expander("Обезличенный текст, который будет отправлен в OpenAI", expanded=True):
+        with st.expander("Обезличенный текст, который будет отправлен в Gemini", expanded=True):
             st.text_area("Redacted source", value=redacted_text, height=260, disabled=True, label_visibility="collapsed")
     if validation:
         _render_validation_status(validation)
@@ -208,29 +214,32 @@ def main() -> None:
         if not redacted_text or not validation or not validation.usable:
             st.error("Сначала обезличь текст и пройди валидацию.")
         elif not api_key.strip():
-            st.error("Для закрытого теста нужен OpenAI API-ключ.")
+            st.error("Для закрытого теста нужен Gemini API-ключ.")
         else:
             try:
-                with st.spinner("OpenAI анализирует обезличенный договор..."):
-                    result = analyze_contract_with_openai(redacted_text=redacted_text, api_key=api_key, model=model)
+                with st.spinner("Gemini анализирует обезличенный договор..."):
+                    result = analyze_contract_with_gemini(redacted_text=redacted_text, api_key=api_key, model=model)
                     validated = validate_model_evidence(result, redacted_text)
                 st.session_state.analysis_result = validated.result.model_dump(mode="json")
                 st.session_state.validation_warnings = validated.warnings
-            except ContractAnalysisError as exc:
-                st.error(str(exc))
+            except (GeminiAuthenticationError, GeminiConfigurationError):
+                st.error("Не удалось авторизоваться в Gemini API. Проверь API-ключ.")
+            except GeminiRateLimitError:
+                st.error("Достигнут лимит запросов Gemini API.")
+            except GeminiResponseError as exc:
+                error_text = str(exc).lower()
+                if "safety" in error_text or "refusal" in error_text:
+                    st.error("Gemini отказался обработать запрос. Анализ не завершён.")
+                elif "network" in error_text or "timeout" in error_text or "connection" in error_text:
+                    st.error("Не удалось связаться с Gemini API. Попробуй позже.")
+                else:
+                    st.error("Gemini вернул ответ, который не соответствует ожидаемой структуре. Анализ не завершён.")
 
     stored_result = st.session_state.get("analysis_result")
     if stored_result:
         result = ContractAuditResult.model_validate(stored_result)
         warnings = st.session_state.get("validation_warnings", [])
         _render_analysis(EvidenceValidationResult(result=result, warnings=warnings))
-
-    with st.expander("Deprecated/unused OCR direction", expanded=False):
-        st.write(
-            "Google/Azure OCR, Tesseract и загрузка фото скрыты из основного сценария. "
-            "В этом задании MVP принимает только готовый текст договора на иврите."
-        )
-        st.code(json.dumps({"ocr": "deprecated_unused_in_this_mvp"}, ensure_ascii=False), language="json")
 
 
 if __name__ == "__main__":

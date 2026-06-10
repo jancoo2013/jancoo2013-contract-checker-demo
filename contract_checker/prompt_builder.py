@@ -30,7 +30,7 @@ SYSTEM_PROMPT_RU = """
 
 
 def build_contract_audit_prompt(redacted_text: str) -> list[dict[str, str]]:
-    """Build Responses API input messages without logging source text."""
+    """Build chat-style audit prompt messages without logging source text."""
 
     user_prompt = (
         "Проанализируй следующий обезличенный текст договора аренды на иврите. "
