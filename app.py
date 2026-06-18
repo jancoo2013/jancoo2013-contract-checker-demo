@@ -156,6 +156,8 @@ def _clear_image_redaction_state() -> None:
             st.session_state.pop(key, None)
         if str(key).startswith("image_redaction_last_click_"):
             st.session_state.pop(key, None)
+        if str(key).startswith("image_redaction_ignored_click_after_undo_"):
+            st.session_state.pop(key, None)
 
 
 def _render_image_redaction_status(
@@ -209,10 +211,6 @@ def _render_image_redaction_test() -> None:
         "Автоматическое распознавание Hebrew-маркеров пока экспериментальное: без OCR-модели, "
         "Tesseract, Google Vision или Gemini для изображений. Ручные координаты нужны только для проверки маскирования строк."
     )
-    st.info(
-        "Автоматический поиск личных данных пока не включён. "
-        "В этом тесте строки закрываются кликом по изображению."
-    )
 
     upload_generation = st.session_state.setdefault("image_redaction_upload_generation", 0)
     upload_key = f"image_redaction_uploads_{upload_generation}"
@@ -221,6 +219,11 @@ def _render_image_redaction_test() -> None:
         type=["jpg", "jpeg", "png"],
         accept_multiple_files=True,
         key=upload_key,
+    )
+
+    st.info(
+        "Автоматический поиск личных данных пока не включён. "
+        "В этом тесте строки закрываются кликом по изображению."
     )
 
     col_find, col_clear = st.columns(2)
@@ -306,6 +309,7 @@ def _render_image_redaction_test() -> None:
                 )
 
                 last_click_state_key = f"image_redaction_last_click_{page_key}"
+                ignored_click_state_key = f"image_redaction_ignored_click_after_undo_{page_key}"
                 if streamlit_image_coordinates is None:
                     st.warning(
                         "Интерактивный клик по изображению временно недоступен. "
@@ -319,7 +323,12 @@ def _render_image_redaction_test() -> None:
                     click_value = streamlit_image_coordinates(working_image, key=f"{page_key}:click-row")
                     if click_value and click_value.get("y") is not None:
                         click_coordinates = (int(click_value.get("x", -1)), int(click_value["y"]))
-                        if st.session_state.get(last_click_state_key) != click_coordinates:
+                        ignored_click = st.session_state.get(ignored_click_state_key)
+                        last_processed_click = st.session_state.get(last_click_state_key)
+                        if ignored_click == click_coordinates:
+                            st.session_state[last_click_state_key] = click_coordinates
+                        elif last_processed_click != click_coordinates:
+                            st.session_state.pop(ignored_click_state_key, None)
                             try:
                                 row_bbox = create_row_mask_from_y(
                                     original_image.width,
@@ -418,7 +427,9 @@ def _render_image_redaction_test() -> None:
                     else:
                         manual_masks.pop(page_key, None)
                     st.session_state.image_manual_masks = manual_masks
-                    st.session_state.pop(last_click_state_key, None)
+                    last_processed_click = st.session_state.get(last_click_state_key)
+                    if last_processed_click is not None:
+                        st.session_state[ignored_click_state_key] = last_processed_click
                     st.rerun()
                 if reset_col.button(
                     "Отменить изменения",
@@ -427,7 +438,9 @@ def _render_image_redaction_test() -> None:
                 ):
                     manual_masks.pop(page_key, None)
                     st.session_state.image_manual_masks = manual_masks
-                    st.session_state.pop(last_click_state_key, None)
+                    last_processed_click = st.session_state.get(last_click_state_key)
+                    if last_processed_click is not None:
+                        st.session_state[ignored_click_state_key] = last_processed_click
                     st.rerun()
 
                 st.subheader("Текущие маски")
@@ -446,7 +459,9 @@ def _render_image_redaction_test() -> None:
                             else:
                                 manual_masks.pop(page_key, None)
                             st.session_state.image_manual_masks = manual_masks
-                            st.session_state.pop(last_click_state_key, None)
+                            last_processed_click = st.session_state.get(last_click_state_key)
+                            if last_processed_click is not None:
+                                st.session_state[ignored_click_state_key] = last_processed_click
                             st.rerun()
                 else:
                     st.info("Ручных масок на этой странице пока нет.")
