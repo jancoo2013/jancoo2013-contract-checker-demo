@@ -74,6 +74,53 @@ def _clamp_bbox(bbox: Sequence[int], image_width: int, image_height: int) -> BBo
     return x1, y1, x2, y2
 
 
+def create_row_mask_from_y(
+    image_width: int,
+    image_height: int,
+    y: int,
+    row_height: int = 48,
+    horizontal_margin: int = 12,
+) -> BBox:
+    """Create a clamped full-row mask centered around a tester-provided Y coordinate."""
+
+    try:
+        width = int(image_width)
+        height = int(image_height)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Invalid image dimensions: width and height must be integers.") from exc
+
+    if width <= 0 or height <= 0:
+        raise ValueError("Invalid image dimensions: width and height must be positive.")
+
+    try:
+        center_y = int(y)
+        safe_row_height = int(row_height)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Invalid row mask values: y and row_height must be integers.") from exc
+
+    if safe_row_height <= 0:
+        raise ValueError("Invalid row_height: value must be positive.")
+    safe_row_height = min(safe_row_height, height)
+
+    try:
+        margin = int(horizontal_margin)
+    except (TypeError, ValueError):
+        margin = 0
+    margin = max(0, margin)
+    margin = min(margin, max(0, (width - 1) // 2))
+
+    return _clamp_bbox(
+        (
+            margin,
+            center_y - safe_row_height // 2,
+            width - margin,
+            center_y + safe_row_height // 2,
+        ),
+        width,
+        height,
+    )
+
+
 def _image_to_png_bytes(image: Image.Image) -> bytes:
     output = BytesIO()
     image.save(output, format="PNG")

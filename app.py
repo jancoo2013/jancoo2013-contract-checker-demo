@@ -156,16 +156,27 @@ def _clear_image_redaction_state() -> None:
             st.session_state.pop(key, None)
 
 
-def _render_image_redaction_status(has_masks: bool, has_auto_markers: bool, safe_to_export: bool) -> None:
+def _render_image_redaction_status(
+    has_masks: bool,
+    has_auto_markers: bool,
+    safe_to_export: bool,
+    has_manual_masks: bool = False,
+) -> None:
     import streamlit as st
 
     if has_masks:
-        st.success("строки закрыты")
+        st.success("Строки закрыты")
     elif not has_auto_markers:
-        st.warning("маркеры не найдены")
+        st.warning("Маркеры не найдены")
     if not safe_to_export:
-        st.error("результат небезопасен для отправки")
-        st.info("Страница пока не считается безопасно обезличенной. Она не будет отправлена во внешние сервисы.")
+        st.error("Результат небезопасен для отправки")
+        if has_manual_masks and not has_auto_markers:
+            st.info(
+                "Строки замаскированы вручную. Для теста геометрии — OK. "
+                "Для автоматической отправки во внешний OCR — пока небезопасно."
+            )
+        else:
+            st.info("Страница пока не считается безопасно обезличенной. Она не будет отправлена во внешние сервисы.")
 
 
 def _render_image_redaction_test() -> None:
@@ -175,6 +186,8 @@ def _render_image_redaction_test() -> None:
 
     from contract_checker.image_redaction import (
         DetectedMarker,
+        MANUAL_DETECTOR_NAME,
+        create_row_mask_from_y,
         make_manual_detection,
         process_page_for_redaction,
         redact_detected_rows,
@@ -232,78 +245,177 @@ def _render_image_redaction_test() -> None:
             try:
                 original_image = Image.open(BytesIO(raw_bytes))
                 original_image.load()
-                st.image(raw_bytes, caption="Оригинал", use_container_width=True)
+                st.write(f"Размер изображения: {original_image.width} × {original_image.height} px")
+                st.image(original_image, caption="Оригинал", use_container_width=True)
             except Exception as exc:
                 st.error(f"Не удалось показать оригинал: {exc}")
 
-            if result:
-                if result.success:
-                    automatic_markers = result.markers
-                    page_manual_masks = manual_masks.get(page_key, [])
-                    manual_detections: list[DetectedMarker] = []
-                    if original_image is not None:
-                        for mask in page_manual_masks:
-                            manual_detections.append(
-                                make_manual_detection(
-                                    (mask["x1"], mask["y1"], mask["x2"], mask["y2"]),
-                                    original_image.width,
-                                    original_image.height,
-                                )
-                            )
-                        combined = automatic_markers + manual_detections
-                        if combined:
-                            redacted_image = redact_detected_rows(original_image, combined)
-                            output = BytesIO()
-                            redacted_image.save(output, format="PNG")
-                            st.image(output.getvalue(), caption="Предпросмотр с закрытыми строками", use_container_width=True)
-                        else:
-                            st.image(result.redacted_image_bytes, caption="Предпросмотр: маски не применены", use_container_width=True)
-
-                    detections_for_table = [
-                        {
-                            "marker": marker.marker,
-                            "confidence": marker.confidence,
-                            "row_bbox": marker.row_bbox,
-                            "detector": marker.detector,
-                        }
-                        for marker in automatic_markers + manual_detections
-                    ]
-                    if detections_for_table:
-                        st.dataframe(detections_for_table, use_container_width=True)
-                    else:
-                        st.info("Список найденных маркеров пуст. Персональные значения не извлекаются и не показываются.")
-
-                    has_masks = bool(automatic_markers or manual_detections)
-                    _render_image_redaction_status(has_masks, bool(automatic_markers), result.safe_to_export)
-                else:
-                    st.error(result.error or "Неизвестная ошибка обработки изображения.")
-                    _render_image_redaction_status(False, False, False)
-
             if original_image is not None:
-                st.subheader("Ручная коррекция — только для теста маскирования")
+                automatic_markers = result.markers if result and result.success else []
+                page_manual_masks = manual_masks.setdefault(page_key, [])
+                manual_detections: list[DetectedMarker] = []
+                for mask in page_manual_masks:
+                    bbox = (int(mask["x1"]), int(mask["y1"]), int(mask["x2"]), int(mask["y2"]))
+                    marker = str(mask.get("marker", "ручная строка"))
+                    if marker == "manual_row":
+                        manual_detections.append(
+                            DetectedMarker(
+                                marker="manual_row",
+                                confidence=1.0,
+                                bbox=bbox,
+                                row_bbox=bbox,
+                                detector=MANUAL_DETECTOR_NAME,
+                            )
+                        )
+                    else:
+                        manual_detections.append(
+                            make_manual_detection(
+                                bbox,
+                                original_image.width,
+                                original_image.height,
+                                marker=marker,
+                            )
+                        )
+
+                st.subheader("Быстрое маскирование строки")
+                st.info(
+                    "Для теста не нужно точно выделять имя или номер. "
+                    "Достаточно указать строку: приложение закроет её целиком."
+                )
                 max_x = max(1, original_image.width)
                 max_y = max(1, original_image.height)
-                c1, c2, c3, c4 = st.columns(4)
-                with c1:
-                    x1 = st.number_input("x1", min_value=0, max_value=max_x, value=0, key=f"{page_key}:x1")
-                with c2:
-                    y1 = st.number_input("y1", min_value=0, max_value=max_y, value=0, key=f"{page_key}:y1")
-                with c3:
-                    x2 = st.number_input("x2", min_value=0, max_value=max_x, value=max_x, key=f"{page_key}:x2")
-                with c4:
-                    y2 = st.number_input("y2", min_value=0, max_value=max_y, value=min(max_y, 60), key=f"{page_key}:y2")
-                if st.button("Добавить строку для маскирования", key=f"{page_key}:add-mask"):
-                    manual_masks.setdefault(page_key, []).append({"x1": int(x1), "y1": int(y1), "x2": int(x2), "y2": int(y2)})
-                    st.session_state.image_manual_masks = manual_masks
-                    st.rerun()
-
-                for mask_index, mask in enumerate(manual_masks.get(page_key, [])):
-                    cols = st.columns([4, 1])
-                    cols[0].write(f"Ручная строка {mask_index + 1}: {(mask['x1'], mask['y1'], mask['x2'], mask['y2'])}")
-                    if cols[1].button("Удалить", key=f"{page_key}:remove:{mask_index}"):
-                        manual_masks[page_key].pop(mask_index)
+                row_col_y, row_col_height = st.columns([1, 2])
+                with row_col_y:
+                    row_y = st.number_input(
+                        "Y-координата строки",
+                        min_value=0,
+                        max_value=max_y,
+                        value=max_y // 2,
+                        step=1,
+                        key=f"{page_key}:row-y",
+                    )
+                with row_col_height:
+                    row_height = st.slider(
+                        "Высота маски строки",
+                        min_value=20,
+                        max_value=120,
+                        value=48,
+                        step=1,
+                        key=f"{page_key}:row-height",
+                    )
+                if st.button("Закрыть строку по Y", key=f"{page_key}:add-row-mask"):
+                    try:
+                        row_bbox = create_row_mask_from_y(
+                            original_image.width,
+                            original_image.height,
+                            int(row_y),
+                            row_height=int(row_height),
+                        )
+                    except ValueError as exc:
+                        st.error(str(exc))
+                    else:
+                        page_manual_masks.append(
+                            {
+                                "x1": row_bbox[0],
+                                "y1": row_bbox[1],
+                                "x2": row_bbox[2],
+                                "y2": row_bbox[3],
+                                "marker": "manual_row",
+                            }
+                        )
+                        manual_masks[page_key] = page_manual_masks
                         st.session_state.image_manual_masks = manual_masks
                         st.rerun()
+
+                with st.expander("Расширенное ручное маскирование прямоугольником", expanded=False):
+                    c1, c2, c3, c4 = st.columns(4)
+                    with c1:
+                        x1 = st.number_input("x1", min_value=0, max_value=max_x, value=0, key=f"{page_key}:x1")
+                    with c2:
+                        y1 = st.number_input("y1", min_value=0, max_value=max_y, value=0, key=f"{page_key}:y1")
+                    with c3:
+                        x2 = st.number_input("x2", min_value=0, max_value=max_x, value=max_x, key=f"{page_key}:x2")
+                    with c4:
+                        y2 = st.number_input("y2", min_value=0, max_value=max_y, value=min(max_y, 60), key=f"{page_key}:y2")
+                    if st.button("Добавить прямоугольную маску", key=f"{page_key}:add-rect-mask"):
+                        page_manual_masks.append(
+                            {
+                                "x1": int(x1),
+                                "y1": int(y1),
+                                "x2": int(x2),
+                                "y2": int(y2),
+                                "marker": "manual_rect",
+                            }
+                        )
+                        manual_masks[page_key] = page_manual_masks
+                        st.session_state.image_manual_masks = manual_masks
+                        st.rerun()
+
+                st.subheader("Текущие маски")
+                if page_manual_masks:
+                    for mask_index, mask in enumerate(list(page_manual_masks)):
+                        mask_label = "строка по Y" if mask.get("marker") == "manual_row" else "прямоугольник"
+                        cols = st.columns([5, 1])
+                        cols[0].write(
+                            f"{mask_index + 1}. {mask_label}: "
+                            f"{(mask['x1'], mask['y1'], mask['x2'], mask['y2'])}"
+                        )
+                        if cols[1].button("Удалить", key=f"{page_key}:remove:{mask_index}"):
+                            page_manual_masks.pop(mask_index)
+                            if page_manual_masks:
+                                manual_masks[page_key] = page_manual_masks
+                            else:
+                                manual_masks.pop(page_key, None)
+                            st.session_state.image_manual_masks = manual_masks
+                            st.rerun()
+
+                    if st.button("Очистить все маски на этой странице", key=f"{page_key}:clear-page-masks"):
+                        manual_masks.pop(page_key, None)
+                        st.session_state.image_manual_masks = manual_masks
+                        st.rerun()
+                else:
+                    st.info("Ручных масок на этой странице пока нет.")
+                    st.button(
+                        "Очистить все маски на этой странице",
+                        key=f"{page_key}:clear-page-masks-empty",
+                        disabled=True,
+                    )
+
+                combined = automatic_markers + manual_detections
+                if combined:
+                    redacted_image = redact_detected_rows(original_image, combined)
+                    output = BytesIO()
+                    redacted_image.save(output, format="PNG")
+                    st.image(output.getvalue(), caption="Предпросмотр с закрытыми строками", use_container_width=True)
+                elif result and result.success and result.redacted_image_bytes:
+                    st.image(result.redacted_image_bytes, caption="Предпросмотр: маски не применены", use_container_width=True)
+                else:
+                    st.image(original_image, caption="Предпросмотр: маски не применены", use_container_width=True)
+
+                detections_for_table = [
+                    {
+                        "marker": marker.marker,
+                        "confidence": marker.confidence,
+                        "row_bbox": marker.row_bbox,
+                        "detector": marker.detector,
+                    }
+                    for marker in combined
+                ]
+                if detections_for_table:
+                    st.dataframe(detections_for_table, use_container_width=True)
+                else:
+                    st.info("Список масок пуст. Персональные значения не извлекаются и не показываются.")
+
+                if result and not result.success:
+                    st.error(result.error or "Неизвестная ошибка обработки изображения.")
+
+                safe_to_export = bool(result and result.safe_to_export)
+                _render_image_redaction_status(
+                    bool(combined),
+                    bool(automatic_markers),
+                    safe_to_export,
+                    has_manual_masks=bool(manual_detections),
+                )
 
 
 def main() -> None:
