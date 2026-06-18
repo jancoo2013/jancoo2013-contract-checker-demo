@@ -154,6 +154,8 @@ def _clear_image_redaction_state() -> None:
     for key in list(st.session_state.keys()):
         if str(key).startswith("image_redaction_uploads_"):
             st.session_state.pop(key, None)
+        if str(key).startswith("image_redaction_last_click_"):
+            st.session_state.pop(key, None)
 
 
 def _render_image_redaction_status(
@@ -183,6 +185,10 @@ def _render_image_redaction_test() -> None:
     import streamlit as st
     from PIL import Image
     from io import BytesIO
+    try:
+        from streamlit_image_coordinates import streamlit_image_coordinates
+    except ImportError:
+        streamlit_image_coordinates = None
 
     from contract_checker.image_redaction import (
         DetectedMarker,
@@ -203,6 +209,10 @@ def _render_image_redaction_test() -> None:
         "Автоматическое распознавание Hebrew-маркеров пока экспериментальное: без OCR-модели, "
         "Tesseract, Google Vision или Gemini для изображений. Ручные координаты нужны только для проверки маскирования строк."
     )
+    st.info(
+        "Автоматический поиск личных данных пока не включён. "
+        "В этом тесте строки закрываются кликом по изображению."
+    )
 
     upload_generation = st.session_state.setdefault("image_redaction_upload_generation", 0)
     upload_key = f"image_redaction_uploads_{upload_generation}"
@@ -216,7 +226,7 @@ def _render_image_redaction_test() -> None:
     col_find, col_clear = st.columns(2)
     with col_find:
         find_clicked = st.button(
-            "Найти и закрыть строки с личными данными",
+            "Подготовить страницы к маскированию",
             disabled=not uploaded_images,
         )
     with col_clear:
@@ -246,7 +256,6 @@ def _render_image_redaction_test() -> None:
                 original_image = Image.open(BytesIO(raw_bytes))
                 original_image.load()
                 st.write(f"Размер изображения: {original_image.width} × {original_image.height} px")
-                st.image(original_image, caption="Оригинал", use_container_width=True)
             except Exception as exc:
                 st.error(f"Не удалось показать оригинал: {exc}")
 
@@ -284,8 +293,53 @@ def _render_image_redaction_test() -> None:
                 )
                 max_x = max(1, original_image.width)
                 max_y = max(1, original_image.height)
-                row_col_y, row_col_height = st.columns([1, 2])
-                with row_col_y:
+                row_height = st.slider(
+                    "Высота маски строки",
+                    min_value=20,
+                    max_value=140,
+                    value=48,
+                    step=1,
+                    key=f"{page_key}:row-height",
+                )
+
+                last_click_state_key = f"image_redaction_last_click_{page_key}"
+                if streamlit_image_coordinates is None:
+                    st.warning(
+                        "Интерактивный клик по изображению временно недоступен. "
+                        "Используй ручной ввод Y-координаты."
+                    )
+                    st.image(original_image, caption="Оригинал", use_container_width=True)
+                else:
+                    st.caption("Кликни по строке с персональными данными, чтобы закрыть её целиком.")
+                    click_value = streamlit_image_coordinates(original_image, key=f"{page_key}:click-row")
+                    if click_value and click_value.get("y") is not None:
+                        click_coordinates = (int(click_value.get("x", -1)), int(click_value["y"]))
+                        if st.session_state.get(last_click_state_key) != click_coordinates:
+                            try:
+                                row_bbox = create_row_mask_from_y(
+                                    original_image.width,
+                                    original_image.height,
+                                    click_coordinates[1],
+                                    row_height=int(row_height),
+                                )
+                            except ValueError as exc:
+                                st.error(str(exc))
+                            else:
+                                page_manual_masks.append(
+                                    {
+                                        "x1": row_bbox[0],
+                                        "y1": row_bbox[1],
+                                        "x2": row_bbox[2],
+                                        "y2": row_bbox[3],
+                                        "marker": "manual_row",
+                                    }
+                                )
+                                manual_masks[page_key] = page_manual_masks
+                                st.session_state.image_manual_masks = manual_masks
+                                st.session_state[last_click_state_key] = click_coordinates
+                                st.rerun()
+
+                with st.expander("Ручной ввод Y-координаты", expanded=False):
                     row_y = st.number_input(
                         "Y-координата строки",
                         min_value=0,
@@ -294,38 +348,29 @@ def _render_image_redaction_test() -> None:
                         step=1,
                         key=f"{page_key}:row-y",
                     )
-                with row_col_height:
-                    row_height = st.slider(
-                        "Высота маски строки",
-                        min_value=20,
-                        max_value=120,
-                        value=48,
-                        step=1,
-                        key=f"{page_key}:row-height",
-                    )
-                if st.button("Закрыть строку по Y", key=f"{page_key}:add-row-mask"):
-                    try:
-                        row_bbox = create_row_mask_from_y(
-                            original_image.width,
-                            original_image.height,
-                            int(row_y),
-                            row_height=int(row_height),
-                        )
-                    except ValueError as exc:
-                        st.error(str(exc))
-                    else:
-                        page_manual_masks.append(
-                            {
-                                "x1": row_bbox[0],
-                                "y1": row_bbox[1],
-                                "x2": row_bbox[2],
-                                "y2": row_bbox[3],
-                                "marker": "manual_row",
-                            }
-                        )
-                        manual_masks[page_key] = page_manual_masks
-                        st.session_state.image_manual_masks = manual_masks
-                        st.rerun()
+                    if st.button("Закрыть строку по Y", key=f"{page_key}:add-row-mask"):
+                        try:
+                            row_bbox = create_row_mask_from_y(
+                                original_image.width,
+                                original_image.height,
+                                int(row_y),
+                                row_height=int(row_height),
+                            )
+                        except ValueError as exc:
+                            st.error(str(exc))
+                        else:
+                            page_manual_masks.append(
+                                {
+                                    "x1": row_bbox[0],
+                                    "y1": row_bbox[1],
+                                    "x2": row_bbox[2],
+                                    "y2": row_bbox[3],
+                                    "marker": "manual_row",
+                                }
+                            )
+                            manual_masks[page_key] = page_manual_masks
+                            st.session_state.image_manual_masks = manual_masks
+                            st.rerun()
 
                 with st.expander("Расширенное ручное маскирование прямоугольником", expanded=False):
                     c1, c2, c3, c4 = st.columns(4)
@@ -367,11 +412,13 @@ def _render_image_redaction_test() -> None:
                             else:
                                 manual_masks.pop(page_key, None)
                             st.session_state.image_manual_masks = manual_masks
+                            st.session_state.pop(last_click_state_key, None)
                             st.rerun()
 
                     if st.button("Очистить все маски на этой странице", key=f"{page_key}:clear-page-masks"):
                         manual_masks.pop(page_key, None)
                         st.session_state.image_manual_masks = manual_masks
+                        st.session_state.pop(last_click_state_key, None)
                         st.rerun()
                 else:
                     st.info("Ручных масок на этой странице пока нет.")
