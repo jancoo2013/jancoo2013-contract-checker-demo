@@ -13,6 +13,7 @@ from PIL import Image, ImageDraw
 
 from contract_checker.image_redaction import (
     DetectedMarker,
+    create_row_mask_from_y,
     expand_marker_bbox_to_full_row,
     merge_overlapping_row_bboxes,
     process_page_for_redaction,
@@ -36,6 +37,37 @@ def _png_bytes(image: Image.Image) -> bytes:
 
 
 class ImageRedactionGeometryTests(unittest.TestCase):
+    def test_create_row_mask_from_y_normal_case(self) -> None:
+        row = create_row_mask_from_y(400, 200, y=80)
+
+        self.assertEqual(row, (12, 56, 388, 104))
+
+    def test_create_row_mask_from_y_clamps_top_edge(self) -> None:
+        row = create_row_mask_from_y(400, 200, y=10)
+
+        self.assertEqual(row, (12, 0, 388, 34))
+
+    def test_create_row_mask_from_y_clamps_bottom_edge(self) -> None:
+        row = create_row_mask_from_y(400, 200, y=190)
+
+        self.assertEqual(row, (12, 166, 388, 200))
+
+    def test_create_row_mask_from_y_respects_horizontal_margins(self) -> None:
+        row = create_row_mask_from_y(300, 180, y=90, row_height=40, horizontal_margin=24)
+
+        self.assertEqual(row, (24, 70, 276, 110))
+
+    def test_create_row_mask_from_y_rejects_invalid_dimensions(self) -> None:
+        with self.assertRaises(ValueError):
+            create_row_mask_from_y(0, 200, y=50)
+
+        with self.assertRaises(ValueError):
+            create_row_mask_from_y(400, -1, y=50)
+
+    def test_create_row_mask_from_y_rejects_invalid_row_height(self) -> None:
+        with self.assertRaises(ValueError):
+            create_row_mask_from_y(400, 200, y=50, row_height=0)
+
     def test_expand_marker_bbox_to_full_row_covers_nearly_full_width(self) -> None:
         row = expand_marker_bbox_to_full_row((150, 40, 180, 55), 400, 200)
 
@@ -56,6 +88,23 @@ class ImageRedactionGeometryTests(unittest.TestCase):
 
 
 class ImageRedactionPipelineTests(unittest.TestCase):
+    def test_row_mask_from_y_is_applied_across_full_image_width(self) -> None:
+        image = Image.new("RGB", (120, 80), "white")
+        row_bbox = create_row_mask_from_y(120, 80, y=35, row_height=20, horizontal_margin=0)
+        detection = DetectedMarker(
+            marker="manual_row",
+            confidence=1.0,
+            bbox=row_bbox,
+            row_bbox=row_bbox,
+            detector="unit-test",
+        )
+
+        redacted = redact_detected_rows(image, [detection], row_padding_y=0)
+        pixels = np.asarray(redacted)
+
+        self.assertTrue(np.all(pixels[25:46, 0:120] == 0))
+        self.assertTrue(np.all(pixels[0:20, 0:120] == 255))
+
     def test_masking_replaces_pixels_across_the_entire_row(self) -> None:
         image = Image.new("RGB", (120, 80), "white")
         draw = ImageDraw.Draw(image)
