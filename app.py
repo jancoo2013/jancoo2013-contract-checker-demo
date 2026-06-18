@@ -260,6 +260,7 @@ def _render_image_redaction_test() -> None:
                 st.error(f"Не удалось показать оригинал: {exc}")
 
             if original_image is not None:
+                st.info("Кликни по строке с личными данными — приложение закроет всю строку.")
                 automatic_markers = result.markers if result and result.success else []
                 page_manual_masks = manual_masks.setdefault(page_key, [])
                 manual_detections: list[DetectedMarker] = []
@@ -285,6 +286,8 @@ def _render_image_redaction_test() -> None:
                                 marker=marker,
                             )
                         )
+                combined = automatic_markers + manual_detections
+                working_image = redact_detected_rows(original_image, combined) if combined else original_image
 
                 st.subheader("Быстрое маскирование строки")
                 st.info(
@@ -308,10 +311,12 @@ def _render_image_redaction_test() -> None:
                         "Интерактивный клик по изображению временно недоступен. "
                         "Используй ручной ввод Y-координаты."
                     )
-                    st.image(original_image, caption="Оригинал", use_container_width=True)
+                    caption = "Рабочее изображение: текущий предпросмотр с масками" if combined else "Рабочее изображение"
+                    st.image(working_image, caption=caption, use_container_width=True)
                 else:
-                    st.caption("Кликни по строке с персональными данными, чтобы закрыть её целиком.")
-                    click_value = streamlit_image_coordinates(original_image, key=f"{page_key}:click-row")
+                    caption = "Рабочее изображение: текущий предпросмотр с масками" if combined else "Рабочее изображение"
+                    st.caption(caption)
+                    click_value = streamlit_image_coordinates(working_image, key=f"{page_key}:click-row")
                     if click_value and click_value.get("y") is not None:
                         click_coordinates = (int(click_value.get("x", -1)), int(click_value["y"]))
                         if st.session_state.get(last_click_state_key) != click_coordinates:
@@ -339,7 +344,10 @@ def _render_image_redaction_test() -> None:
                                 st.session_state[last_click_state_key] = click_coordinates
                                 st.rerun()
 
-                with st.expander("Ручной ввод Y-координаты", expanded=False):
+                with st.expander("Показать оригинал", expanded=False):
+                    st.image(original_image, caption="Оригинал", use_container_width=True)
+
+                with st.expander("Ручной ввод Y-координаты", expanded=streamlit_image_coordinates is None):
                     row_y = st.number_input(
                         "Y-координата строки",
                         min_value=0,
@@ -427,17 +435,6 @@ def _render_image_redaction_test() -> None:
                         key=f"{page_key}:clear-page-masks-empty",
                         disabled=True,
                     )
-
-                combined = automatic_markers + manual_detections
-                if combined:
-                    redacted_image = redact_detected_rows(original_image, combined)
-                    output = BytesIO()
-                    redacted_image.save(output, format="PNG")
-                    st.image(output.getvalue(), caption="Предпросмотр с закрытыми строками", use_container_width=True)
-                elif result and result.success and result.redacted_image_bytes:
-                    st.image(result.redacted_image_bytes, caption="Предпросмотр: маски не применены", use_container_width=True)
-                else:
-                    st.image(original_image, caption="Предпросмотр: маски не применены", use_container_width=True)
 
                 detections_for_table = [
                     {
