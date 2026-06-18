@@ -404,6 +404,32 @@ def _render_image_redaction_test() -> None:
                         st.session_state.image_manual_masks = manual_masks
                         st.rerun()
 
+                undo_col, reset_col = st.columns([1, 3])
+                has_page_masks = bool(page_manual_masks)
+                if undo_col.button(
+                    "←",
+                    key=f"{page_key}:undo-last-mask",
+                    help="Откатить последний шаг",
+                    disabled=not has_page_masks,
+                ):
+                    page_manual_masks.pop()
+                    if page_manual_masks:
+                        manual_masks[page_key] = page_manual_masks
+                    else:
+                        manual_masks.pop(page_key, None)
+                    st.session_state.image_manual_masks = manual_masks
+                    st.session_state.pop(last_click_state_key, None)
+                    st.rerun()
+                if reset_col.button(
+                    "Отменить изменения",
+                    key=f"{page_key}:reset-page-masks",
+                    disabled=not has_page_masks,
+                ):
+                    manual_masks.pop(page_key, None)
+                    st.session_state.image_manual_masks = manual_masks
+                    st.session_state.pop(last_click_state_key, None)
+                    st.rerun()
+
                 st.subheader("Текущие маски")
                 if page_manual_masks:
                     for mask_index, mask in enumerate(list(page_manual_masks)):
@@ -422,19 +448,8 @@ def _render_image_redaction_test() -> None:
                             st.session_state.image_manual_masks = manual_masks
                             st.session_state.pop(last_click_state_key, None)
                             st.rerun()
-
-                    if st.button("Очистить все маски на этой странице", key=f"{page_key}:clear-page-masks"):
-                        manual_masks.pop(page_key, None)
-                        st.session_state.image_manual_masks = manual_masks
-                        st.session_state.pop(last_click_state_key, None)
-                        st.rerun()
                 else:
                     st.info("Ручных масок на этой странице пока нет.")
-                    st.button(
-                        "Очистить все маски на этой странице",
-                        key=f"{page_key}:clear-page-masks-empty",
-                        disabled=True,
-                    )
 
                 detections_for_table = [
                     {
