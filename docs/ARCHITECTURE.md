@@ -16,7 +16,8 @@ The current prototype supports:
 - manual click-to-redact-row masking;
 - undo last mask;
 - reset all masks on page;
-- export of redacted/anonymized PDF if implemented in current main;
+- in-memory handoff of masked pages via `Продолжить к распознаванию текста` for a future OCR stage;
+- optional/debug/supportive PDF download or export if implemented in current main;
 - no OCR pipeline in production yet.
 
 Images are not sent to Gemini, Google Vision, OCR services, or external image APIs.
@@ -31,6 +32,7 @@ Production target pipeline:
 photo
 → local/browser/mobile PII masking
 → anonymized image/PDF
+→ "Продолжить к распознаванию текста"
 → OCR
 → secondary text PII redaction
 → LLM audit
