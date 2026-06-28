@@ -149,6 +149,8 @@ def _clear_image_redaction_state() -> None:
     for key in (
         "image_redaction_results",
         "image_manual_masks",
+        "image_redaction_ocr_pages",
+        "image_redaction_ocr_confirmed",
     ):
         st.session_state.pop(key, None)
     for key in list(st.session_state.keys()):
@@ -201,6 +203,68 @@ def _render_image_redaction_test() -> None:
         redact_detected_rows,
     )
 
+    def clear_ocr_handoff() -> None:
+        st.session_state.pop("image_redaction_ocr_pages", None)
+        st.session_state.pop("image_redaction_ocr_confirmed", None)
+
+    def image_to_png_bytes(image: Image.Image) -> bytes:
+        output = BytesIO()
+        image.convert("RGB").save(output, format="PNG")
+        return output.getvalue()
+
+    def build_manual_detections(page_manual_masks: list[dict], image: Image.Image) -> list[DetectedMarker]:
+        manual_detections: list[DetectedMarker] = []
+        for mask in page_manual_masks:
+            bbox = (int(mask["x1"]), int(mask["y1"]), int(mask["x2"]), int(mask["y2"]))
+            marker = str(mask.get("marker", "ручная строка"))
+            if marker == "manual_row":
+                manual_detections.append(
+                    DetectedMarker(
+                        marker="manual_row",
+                        confidence=1.0,
+                        bbox=bbox,
+                        row_bbox=bbox,
+                        detector=MANUAL_DETECTOR_NAME,
+                    )
+                )
+            else:
+                manual_detections.append(
+                    make_manual_detection(
+                        bbox,
+                        image.width,
+                        image.height,
+                        marker=marker,
+                    )
+                )
+        return manual_detections
+
+    def prepare_ocr_pages(uploaded_files, results: dict, manual_masks: dict) -> tuple[list[dict], list[str]]:
+        prepared_pages: list[dict] = []
+        errors: list[str] = []
+        for page_index, uploaded_file in enumerate(uploaded_files or []):
+            page_key = f"{page_index}:{uploaded_file.name}"
+            try:
+                image = Image.open(BytesIO(uploaded_file.getvalue()))
+                image.load()
+            except Exception as exc:
+                errors.append(f"{uploaded_file.name}: {exc}")
+                continue
+
+            result = results.get(page_key)
+            automatic_markers = result.markers if result and result.success else []
+            manual_detections = build_manual_detections(manual_masks.get(page_key, []), image)
+            redacted_image = redact_detected_rows(image, automatic_markers + manual_detections)
+            prepared_pages.append(
+                {
+                    "page_index": page_index,
+                    "filename": uploaded_file.name,
+                    "width": image.width,
+                    "height": image.height,
+                    "image_bytes": image_to_png_bytes(redacted_image),
+                }
+            )
+        return prepared_pages, errors
+
     st.divider()
     st.header("ТЕСТ: маскирование личных данных на фото")
     st.warning(
@@ -245,6 +309,7 @@ def _render_image_redaction_test() -> None:
             results[page_key] = process_page_for_redaction(uploaded_file)
         st.session_state.image_redaction_results = results
         st.session_state.setdefault("image_manual_masks", {})
+        clear_ocr_handoff()
 
     results = st.session_state.get("image_redaction_results", {})
     manual_masks = st.session_state.setdefault("image_manual_masks", {})
@@ -266,29 +331,7 @@ def _render_image_redaction_test() -> None:
                 st.info("Кликни по строке с личными данными — приложение закроет всю строку.")
                 automatic_markers = result.markers if result and result.success else []
                 page_manual_masks = manual_masks.setdefault(page_key, [])
-                manual_detections: list[DetectedMarker] = []
-                for mask in page_manual_masks:
-                    bbox = (int(mask["x1"]), int(mask["y1"]), int(mask["x2"]), int(mask["y2"]))
-                    marker = str(mask.get("marker", "ручная строка"))
-                    if marker == "manual_row":
-                        manual_detections.append(
-                            DetectedMarker(
-                                marker="manual_row",
-                                confidence=1.0,
-                                bbox=bbox,
-                                row_bbox=bbox,
-                                detector=MANUAL_DETECTOR_NAME,
-                            )
-                        )
-                    else:
-                        manual_detections.append(
-                            make_manual_detection(
-                                bbox,
-                                original_image.width,
-                                original_image.height,
-                                marker=marker,
-                            )
-                        )
+                manual_detections = build_manual_detections(page_manual_masks, original_image)
                 combined = automatic_markers + manual_detections
                 working_image = redact_detected_rows(original_image, combined) if combined else original_image
 
@@ -350,6 +393,7 @@ def _render_image_redaction_test() -> None:
                                 )
                                 manual_masks[page_key] = page_manual_masks
                                 st.session_state.image_manual_masks = manual_masks
+                                clear_ocr_handoff()
                                 st.session_state[last_click_state_key] = click_coordinates
                                 st.rerun()
 
@@ -387,6 +431,7 @@ def _render_image_redaction_test() -> None:
                             )
                             manual_masks[page_key] = page_manual_masks
                             st.session_state.image_manual_masks = manual_masks
+                            clear_ocr_handoff()
                             st.rerun()
 
                 with st.expander("Расширенное ручное маскирование прямоугольником", expanded=False):
@@ -411,6 +456,7 @@ def _render_image_redaction_test() -> None:
                         )
                         manual_masks[page_key] = page_manual_masks
                         st.session_state.image_manual_masks = manual_masks
+                        clear_ocr_handoff()
                         st.rerun()
 
                 undo_col, reset_col = st.columns([1, 3])
@@ -427,6 +473,7 @@ def _render_image_redaction_test() -> None:
                     else:
                         manual_masks.pop(page_key, None)
                     st.session_state.image_manual_masks = manual_masks
+                    clear_ocr_handoff()
                     last_processed_click = st.session_state.get(last_click_state_key)
                     if last_processed_click is not None:
                         st.session_state[ignored_click_state_key] = last_processed_click
@@ -438,6 +485,7 @@ def _render_image_redaction_test() -> None:
                 ):
                     manual_masks.pop(page_key, None)
                     st.session_state.image_manual_masks = manual_masks
+                    clear_ocr_handoff()
                     last_processed_click = st.session_state.get(last_click_state_key)
                     if last_processed_click is not None:
                         st.session_state[ignored_click_state_key] = last_processed_click
@@ -459,6 +507,7 @@ def _render_image_redaction_test() -> None:
                             else:
                                 manual_masks.pop(page_key, None)
                             st.session_state.image_manual_masks = manual_masks
+                            clear_ocr_handoff()
                             last_processed_click = st.session_state.get(last_click_state_key)
                             if last_processed_click is not None:
                                 st.session_state[ignored_click_state_key] = last_processed_click
@@ -490,6 +539,28 @@ def _render_image_redaction_test() -> None:
                     safe_to_export,
                     has_manual_masks=bool(manual_detections),
                 )
+
+    st.subheader("Следующий шаг")
+    has_uploaded_pages = bool(uploaded_images)
+    confirmed = st.checkbox(
+        "Я проверил, что личные данные закрыты",
+        key="image_redaction_ocr_confirmed",
+        disabled=not has_uploaded_pages,
+    )
+    if st.button(
+        "Продолжить к распознаванию текста",
+        type="primary",
+        disabled=not has_uploaded_pages or not confirmed,
+    ):
+        prepared_pages, errors = prepare_ocr_pages(uploaded_images, results, manual_masks)
+        if errors:
+            st.error("Не удалось подготовить некоторые страницы для распознавания текста.")
+            for error in errors:
+                st.warning(error)
+        else:
+            st.session_state.image_redaction_ocr_pages = prepared_pages
+            st.success("Обезличенные страницы подготовлены для распознавания текста. Сам OCR ещё не подключён.")
+            st.info("На следующий этап будут передаваться только страницы с наложенными масками.")
 
 
 def main() -> None:
