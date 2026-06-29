@@ -29,8 +29,8 @@ SAMPLE_CONTRACT = """
 
 def _sample_result(quote: str) -> ContractAuditResult:
     return ContractAuditResult(
-        verdict="Можно обсуждать",
-        verdict_reason_ru="Есть проверяемые условия.",
+        risk_profile="issues_to_clarify",
+        risk_profile_summary_ru="Есть проверяемые условия и вопросы для уточнения.",
         document_quality=DocumentQuality(usable=True, completeness="medium", problems=[]),
         clauses=[
             ClauseAnalysis(
@@ -96,6 +96,22 @@ class SchemaTests(unittest.TestCase):
         with self.assertRaises(Exception):
             DocumentQuality(usable=True, completeness="high", problems=[], unknown="boom")  # type: ignore[call-arg]
 
+    def test_contract_audit_result_accepts_risk_profile_shell(self) -> None:
+        result = _sample_result("תקופת תיקון של 14 ימים")
+
+        self.assertEqual(result.risk_profile, "issues_to_clarify")
+        self.assertEqual(result.risk_profile_summary_ru, "Есть проверяемые условия и вопросы для уточнения.")
+        self.assertNotIn("verdict", result.model_dump())
+        self.assertNotIn("verdict_reason_ru", result.model_dump())
+
+    def test_old_verdict_fields_are_not_part_of_schema(self) -> None:
+        payload = _sample_result("תקופת תיקון של 14 ימים").model_dump()
+        payload["verdict"] = "Можно обсуждать"
+        payload["verdict_reason_ru"] = "Старое поле."
+
+        with self.assertRaises(Exception):
+            ContractAuditResult.model_validate(payload)
+
 
 class EvidenceValidatorTests(unittest.TestCase):
     def test_evidence_validator_accepts_exact_quotes(self) -> None:
@@ -124,6 +140,14 @@ class PromptTests(unittest.TestCase):
     def test_replacement_tenant_requirement_is_not_automatically_red(self) -> None:
         self.assertIn("не является автоматически красным риском", SYSTEM_PROMPT_RU)
         self.assertIn("практически делает выход невозможным", SYSTEM_PROMPT_RU)
+
+    def test_prompt_requests_risk_profile_instead_of_legal_verdict(self) -> None:
+        self.assertIn("risk_profile", SYSTEM_PROMPT_RU)
+        self.assertIn("risk_profile_summary_ru", SYSTEM_PROMPT_RU)
+        self.assertIn("Не возвращай verdict или verdict_reason_ru", SYSTEM_PROMPT_RU)
+        self.assertIn("Не прогнозируй исход суда или спора", SYSTEM_PROMPT_RU)
+        self.assertIn("Не утверждай с уверенностью", SYSTEM_PROMPT_RU)
+        self.assertIn("может создавать риск", SYSTEM_PROMPT_RU)
 
 
 class ImportTests(unittest.TestCase):

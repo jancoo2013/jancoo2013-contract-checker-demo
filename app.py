@@ -22,6 +22,16 @@ def _model_to_dict(result: ContractAuditResult) -> dict[str, Any]:
     return result.model_dump(mode="json")
 
 
+def _risk_profile_label(risk_profile: str) -> str:
+    labels = {
+        "high_risk_found": "Найдены существенные риски",
+        "issues_to_clarify": "Есть вопросы для уточнения",
+        "no_obvious_critical_risk_found": "Явных критических рисков не найдено",
+        "text_unusable": "Текст непригоден для анализа",
+    }
+    return labels.get(risk_profile, "Риск-профиль требует проверки")
+
+
 def _render_risk_list(title: str, risks: list[Any]) -> None:
     import streamlit as st
 
@@ -44,9 +54,13 @@ def _render_analysis(validated: EvidenceValidationResult) -> None:
     import streamlit as st
 
     result = validated.result
-    st.header("Итог анализа")
-    st.metric("Вердикт", result.verdict)
-    st.write(result.verdict_reason_ru)
+    st.header("Итоговый риск-профиль загруженных материалов")
+    st.metric("Риск-профиль", _risk_profile_label(result.risk_profile))
+    st.write(result.risk_profile_summary_ru)
+    st.warning(
+        "Это не означает, что договор безопасен или что его можно подписывать без консультации. "
+        "Сервис показывает только риск-профиль загруженных и проанализированных материалов."
+    )
 
     if validated.warnings:
         with st.expander("Предупреждения проверки цитат", expanded=True):

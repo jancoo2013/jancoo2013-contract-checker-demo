@@ -121,11 +121,11 @@ except ImportError:  # pragma: no cover - fallback for locked-down CI sandboxes
 
 RiskLevel = Literal["red", "yellow", "normal", "unclear"]
 Completeness = Literal["high", "medium", "low"]
-Verdict = Literal[
-    "Можно обсуждать",
-    "Нельзя подписывать в текущем виде",
-    "Нужна проверка юриста",
-    "Текст непригоден для вывода",
+OverallRiskProfile = Literal[
+    "high_risk_found",
+    "issues_to_clarify",
+    "no_obvious_critical_risk_found",
+    "text_unusable",
 ]
 
 
@@ -190,8 +190,8 @@ class ProposedChange(StrictModel):
 
 
 class ContractAuditResult(StrictModel):
-    verdict: Verdict
-    verdict_reason_ru: str
+    risk_profile: OverallRiskProfile
+    risk_profile_summary_ru: str
     document_quality: DocumentQuality
     clauses: list[ClauseAnalysis] = Field(default_factory=list)
     risks: list[RiskItem] = Field(default_factory=list)

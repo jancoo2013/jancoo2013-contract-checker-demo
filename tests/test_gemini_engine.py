@@ -30,8 +30,8 @@ REDACTED_CONTRACT = f"""
 
 def _sample_result(quote: str = QUOTE) -> ContractAuditResult:
     return ContractAuditResult(
-        verdict="Можно обсуждать",
-        verdict_reason_ru="Есть проверяемые условия.",
+        risk_profile="issues_to_clarify",
+        risk_profile_summary_ru="Есть проверяемые условия и вопросы для уточнения.",
         document_quality=DocumentQuality(usable=True, completeness="medium", problems=[]),
         clauses=[
             ClauseAnalysis(
@@ -165,6 +165,18 @@ class GeminiEngineTests(unittest.TestCase):
         self.assertNotIn("Open" + "AI", source)
         self.assertNotIn("open" + "ai", source)
         self.assertIn("Gemini API-ключ — только для закрытого теста", source)
+
+    def test_ui_uses_risk_profile_shell_instead_of_verdict_copy(self) -> None:
+        with open("app.py", encoding="utf-8") as app_file:
+            source = app_file.read()
+
+        self.assertIn("Итоговый риск-профиль загруженных материалов", source)
+        self.assertIn("Риск-профиль", source)
+        self.assertIn("Сервис показывает только риск-профиль", source)
+        self.assertNotIn("st.metric(\"Вердикт\"", source)
+        self.assertNotIn("Нельзя подписывать в текущем виде", source)
+        self.assertNotIn("Можно обсуждать", source)
+        self.assertNotIn("Нужна проверка юриста", source)
 
 
 if __name__ == "__main__":
