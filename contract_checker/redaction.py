@@ -22,7 +22,8 @@ GUARANTOR_PLACEHOLDER = "[ДАННЫЕ ПОРУЧИТЕЛЯ УДАЛЕНЫ]"
 _HEBREW = r"\u0590-\u05FF"
 _LINE_VALUE = r"[^,\n.;]{1,90}"
 _FIELD_VALUE = r"[^,\n.;]{1,120}"
-_LABEL_SEPARATOR = r"(?:\s*[:#*־\-–—]\s*|\s+)"
+_EXPLICIT_LABEL_SEPARATOR = r"\s*[:#*־\-–—]\s*"
+_FLEXIBLE_LABEL_SEPARATOR = rf"(?:{_EXPLICIT_LABEL_SEPARATOR}|\s+)"
 _STANDALONE_ID_RE = re.compile(r"(?<![\d/.,₪-])\d{8,9}(?![\d/.,₪-])")
 
 _RISK_CONTEXT_MARKERS = (
@@ -92,8 +93,10 @@ def _add_count(counts: dict[str, int] | None, field: str, count: int) -> None:
         counts[field] = counts.get(field, 0) + count
 
 
-def _label_pattern(labels: list[str]) -> re.Pattern[str]:
-    return re.compile(rf"(?P<label>{'|'.join(labels)})(?P<sep>{_LABEL_SEPARATOR})(?P<value>{_FIELD_VALUE})")
+def _label_pattern(labels: list[str], separator: str = _FLEXIBLE_LABEL_SEPARATOR) -> re.Pattern[str]:
+    return re.compile(
+        rf"(?<![{_HEBREW}])(?P<label>{'|'.join(labels)})(?P<sep>{separator})(?P<value>{_FIELD_VALUE})"
+    )
 
 
 def _redact_labeled_values(
@@ -102,8 +105,9 @@ def _redact_labeled_values(
     placeholder: str,
     report_field: str,
     counts: dict[str, int] | None = None,
+    separator: str = _FLEXIBLE_LABEL_SEPARATOR,
 ) -> str:
-    pattern = _label_pattern(labels)
+    pattern = _label_pattern(labels, separator)
 
     def replace(match: re.Match[str]) -> str:
         value = match.group("value")
@@ -219,13 +223,15 @@ def redact_labeled_personal_fields(text: str, counts: dict[str, int] | None = No
         r"תז\s+ערב",
         r"מספר\s+זהות\s+ערב",
     ]
-    name_labels = [
+    specific_name_labels = [
         r"שם\s+בעל\s+הדירה",
         r"שם\s+המשכיר",
         r"שם\s+השוכר",
         r"שם\s+הסוכן",
         r"שם\s+המתווך",
         r"מיופה\s+כוח",
+    ]
+    generic_name_labels = [
         r"סוכן",
         r"מתווך",
         r"שם(?!\s+הערב)",
@@ -239,7 +245,15 @@ def redact_labeled_personal_fields(text: str, counts: dict[str, int] | None = No
     text = _redact_labeled_values(text, address_labels, ADDRESS_PLACEHOLDER, "addresses", counts)
     text = _redact_labeled_values(text, phone_labels, PHONE_PLACEHOLDER, "phones", counts)
     text = _redact_labeled_values(text, email_labels, EMAIL_PLACEHOLDER, "emails", counts)
-    text = _redact_labeled_values(text, name_labels, NAME_PLACEHOLDER, "names", counts)
+    text = _redact_labeled_values(text, specific_name_labels, NAME_PLACEHOLDER, "names", counts)
+    text = _redact_labeled_values(
+        text,
+        generic_name_labels,
+        NAME_PLACEHOLDER,
+        "names",
+        counts,
+        separator=_EXPLICIT_LABEL_SEPARATOR,
+    )
     text = _redact_labeled_values(text, signature_labels, SIGNATURE_PLACEHOLDER, "signatures", counts)
     return text
 
