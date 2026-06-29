@@ -1,0 +1,15 @@
+[theme]
+base = "dark"
+
+# Palette sampled from the uploaded reference:
+# dark slate: #434D51
+# coral red:  #EB4E45
+# acid lime:  #CCFD50
+# off white:  #FFFFFF
+# sky blue:   #57BEF6
+
+primaryColor = "#EB4E45"
+backgroundColor = "#0F1416"
+secondaryBackgroundColor = "#2B3438"
+textColor = "#FFFFFF"
+font = "sans serif"
