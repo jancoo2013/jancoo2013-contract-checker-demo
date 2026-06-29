@@ -142,7 +142,8 @@ class DocumentQuality(StrictModel):
 class ClauseAnalysis(StrictModel):
     clause_id: str
     page: int | None = None
-    source_quote_he: str
+    source_quote_he: str = ""
+    evidence_block_ids: list[str] = Field(default_factory=list)
     explanation_ru: str
     category: str
     risk_level: RiskLevel
@@ -156,7 +157,8 @@ class RiskItem(StrictModel):
     title_ru: str
     level: Literal["red", "yellow"]
     page: int | None = None
-    source_quote_he: str
+    source_quote_he: str = ""
+    evidence_block_ids: list[str] = Field(default_factory=list)
     explanation_ru: str
     requested_change_ru: str | None = None
 
@@ -171,7 +173,8 @@ class MissingClause(StrictModel):
 class UnclearFragment(StrictModel):
     title_ru: str
     page: int | None = None
-    source_quote_he: str
+    source_quote_he: str = ""
+    evidence_block_ids: list[str] = Field(default_factory=list)
     explanation_ru: str
     requested_clarification_ru: str | None = None
 
@@ -180,11 +183,13 @@ class AgentQuestion(StrictModel):
     question_ru: str
     why_ru: str
     related_quote_he: str | None = None
+    evidence_block_ids: list[str] = Field(default_factory=list)
 
 
 class ProposedChange(StrictModel):
     title_ru: str
     source_quote_he: str | None = None
+    evidence_block_ids: list[str] = Field(default_factory=list)
     proposed_text_ru: str
     priority: Literal["red", "yellow", "normal"] = "yellow"
 

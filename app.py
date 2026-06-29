@@ -32,6 +32,10 @@ def _risk_profile_label(risk_profile: str) -> str:
     return labels.get(risk_profile, "Риск-профиль требует проверки")
 
 
+def _evidence_ids_label(evidence_block_ids: list[str]) -> str:
+    return ", ".join(evidence_block_ids)
+
+
 def _render_risk_list(title: str, risks: list[Any]) -> None:
     import streamlit as st
 
@@ -44,6 +48,8 @@ def _render_risk_list(title: str, risks: list[Any]) -> None:
             st.markdown(f"**Уровень:** `{risk.level}`")
             if risk.page:
                 st.markdown(f"**Страница:** {risk.page}")
+            if risk.evidence_block_ids:
+                st.markdown(f"**Источник:** `{_evidence_ids_label(risk.evidence_block_ids)}`")
             st.markdown(f"**Цитата:** {risk.source_quote_he}")
             st.markdown(risk.explanation_ru)
             if risk.requested_change_ru:
@@ -77,6 +83,8 @@ def _render_analysis(validated: EvidenceValidationResult) -> None:
     if normal_clauses:
         for clause in normal_clauses:
             with st.expander(f"{clause.clause_id}: {clause.category}"):
+                if clause.evidence_block_ids:
+                    st.markdown(f"**Источник:** `{_evidence_ids_label(clause.evidence_block_ids)}`")
                 st.markdown(f"**Цитата:** {clause.source_quote_he}")
                 st.markdown(clause.explanation_ru)
     else:
@@ -95,6 +103,8 @@ def _render_analysis(validated: EvidenceValidationResult) -> None:
     if result.unclear_fragments:
         for item in result.unclear_fragments:
             with st.expander(item.title_ru):
+                if item.evidence_block_ids:
+                    st.markdown(f"**Источник:** `{_evidence_ids_label(item.evidence_block_ids)}`")
                 st.markdown(f"**Цитата:** {item.source_quote_he}")
                 st.markdown(item.explanation_ru)
                 if item.requested_clarification_ru:
