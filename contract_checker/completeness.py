@@ -45,6 +45,10 @@ class _CompletenessRule:
 
 
 _HEBREW_RE = re.compile(r"[\u0590-\u05FF]")
+_COMPLETENESS_DISCLAIMER_RU = (
+    "Это не означает, что комплект договора полный. "
+    "Сервис проверяет только загруженный и распознанный текст."
+)
 
 _RULES = (
     _CompletenessRule(
@@ -127,6 +131,10 @@ _RULES = (
 )
 
 
+def _with_disclaimer(summary: str) -> str:
+    return f"{summary} {_COMPLETENESS_DISCLAIMER_RU}"
+
+
 def _has_usable_text(redacted_text: str, blocks: Sequence[EvidenceBlock]) -> bool:
     return bool(redacted_text.strip()) and bool(blocks) and len(_HEBREW_RE.findall(redacted_text)) >= 20
 
@@ -147,7 +155,7 @@ def audit_completeness(
     if not text_usable or not _has_usable_text(redacted_text, evidence_blocks):
         return CompletenessAudit(
             status="text_unusable",
-            summary_ru=(
+            summary_ru=_with_disclaimer(
                 "Текст пока непригоден для проверки комплектности документов. "
                 "Сначала нужно получить более полный обезличенный текст договора."
             ),
@@ -173,7 +181,7 @@ def audit_completeness(
     if not findings:
         return CompletenessAudit(
             status="no_referenced_documents_found",
-            summary_ru=(
+            summary_ru=_with_disclaimer(
                 "В загруженном тексте не найдено явных ссылок на отдельные приложения, гарантии, чеки, "
                 "описи имущества, протокол передачи или страницы подписей."
             ),
@@ -189,6 +197,6 @@ def audit_completeness(
         summary += " Некоторые ссылки относятся к финансово значимым документам."
     return CompletenessAudit(
         status="referenced_documents_need_check",
-        summary_ru=summary,
+        summary_ru=_with_disclaimer(summary),
         findings=findings,
     )

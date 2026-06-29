@@ -34,6 +34,12 @@ REFERENCED_DOCUMENTS_TEXT = """
 """
 
 
+COMPLETENESS_DISCLAIMER = (
+    "Это не означает, что комплект договора полный. "
+    "Сервис проверяет только загруженный и распознанный текст."
+)
+
+
 class CompletenessAuditTests(unittest.TestCase):
     def test_no_referenced_documents_found(self) -> None:
         audit = audit_completeness(NO_REFERENCES_TEXT)
@@ -71,6 +77,16 @@ class CompletenessAuditTests(unittest.TestCase):
 
         self.assertEqual(audit.status, "text_unusable")
         self.assertEqual(audit.findings, [])
+
+    def test_summaries_always_include_completeness_disclaimer(self) -> None:
+        audits = [
+            audit_completeness(NO_REFERENCES_TEXT),
+            audit_completeness(REFERENCED_DOCUMENTS_TEXT),
+            audit_completeness("abc", text_usable=False),
+        ]
+
+        for audit in audits:
+            self.assertIn(COMPLETENESS_DISCLAIMER, audit.summary_ru)
 
     def test_findings_do_not_store_source_text(self) -> None:
         audit = audit_completeness(REFERENCED_DOCUMENTS_TEXT)
