@@ -14,7 +14,7 @@ INDICATORS = (
     "תקופת השכירות",
     "דמי שכירות",
 )
-PAGE_SEPARATOR_RE = re.compile(r"---\s*СТРАНИЦА\s+(\d+)(?::[^-]*)?---", re.IGNORECASE)
+PAGE_SEPARATOR_RE = re.compile(r"---\s*СТРАНИЦА\s+(\d+)(?::[^-]*)?\s*---", re.IGNORECASE)
 
 
 @dataclass(frozen=True)

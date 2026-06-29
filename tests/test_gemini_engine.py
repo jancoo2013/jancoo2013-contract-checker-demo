@@ -38,6 +38,7 @@ def _sample_result(quote: str = QUOTE) -> ContractAuditResult:
                 clause_id="breach_notice",
                 page=None,
                 source_quote_he=quote,
+                evidence_block_ids=["P1-B04"],
                 explanation_ru="Срок исправления указан.",
                 category="termination",
                 risk_level="normal",
@@ -53,6 +54,7 @@ def _sample_result(quote: str = QUOTE) -> ContractAuditResult:
                 level="yellow",
                 page=None,
                 source_quote_he=quote,
+                evidence_block_ids=["P1-B04"],
                 explanation_ru="Нужно уточнить 14 дней.",
                 requested_change_ru="Сохранить 14 дней на исправление.",
             )
@@ -108,7 +110,8 @@ class GeminiEngineTests(unittest.TestCase):
         fake_genai.Client.assert_called_once_with(api_key="test-key")
         call = generate_content.call_args.kwargs
         self.assertEqual(call["model"], DEFAULT_GEMINI_MODEL)
-        self.assertIn("ОБЕЗЛИЧЕННЫЙ ТЕКСТ ДОГОВОРА", call["contents"])
+        self.assertIn("ОБЕЗЛИЧЕННЫЕ EVIDENCE BLOCKS", call["contents"])
+        self.assertIn("[P1-B04]", call["contents"])
         self.assertEqual(call["config"].kwargs["response_mime_type"], "application/json")
         self.assertIn("response_json_schema", call["config"].kwargs)
 

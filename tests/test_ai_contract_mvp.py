@@ -120,7 +120,7 @@ class EvidenceValidatorTests(unittest.TestCase):
         validated = validate_model_evidence(result, redacted)
 
         self.assertEqual(len(validated.result.risks), 1)
-        self.assertEqual(validated.warnings, [])
+        self.assertTrue(any("old quote fallback used" in warning for warning in validated.warnings))
 
     def test_evidence_validator_rejects_fabricated_quotes(self) -> None:
         redacted = redact_personal_data(SAMPLE_CONTRACT)
