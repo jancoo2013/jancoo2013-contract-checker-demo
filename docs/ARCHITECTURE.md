@@ -2,9 +2,30 @@
 
 ## 1. Product Purpose
 
-This project helps Russian-speaking tenants in Israel understand and check Hebrew rental contracts before signing.
+This project helps Russian-speaking tenants in Israel understand and check Hebrew residential rental contracts before signing.
 
-The product is not legal advice and does not replace a lawyer. It is a guided risk-audit and explanation tool.
+The product is a preliminary AI-assisted contract risk audit and explanation tool.
+
+It is not:
+
+- legal advice;
+- an AI lawyer;
+- a legality verdict;
+- a guarantee that the contract is safe;
+- a tool that tells the user whether to sign.
+
+The product should answer questions such as:
+
+- what requires attention before signing;
+- where the uploaded materials show visible risks;
+- which questions should be asked to the landlord, agent, or lawyer;
+- which referenced documents are missing.
+
+The product must not answer:
+
+- whether the user can safely sign;
+- whether a clause is definitely illegal, void, enforceable, or unenforceable;
+- who would win a dispute.
 
 ## 2. Current Working Pipeline
 
@@ -22,17 +43,68 @@ The current prototype supports:
 
 Images are not sent to Gemini, Google Vision, OCR services, or external image APIs.
 
-## 3. Privacy Model
+The current image redaction flow is a closed technical test, not a complete production privacy layer.
 
-Raw photos with personal data must not be sent to external OCR or LLM services.
+## 3. Target MVP Pipeline
+
+The target MVP should move in this order:
+
+```text
+redacted/anonymized input
+→ OCR or text extraction
+→ secondary text PII redaction
+→ numbered evidence blocks
+→ structured LLM risk extraction
+→ Python validation
+→ completeness audit
+→ three user-facing report cards
+→ detailed “Разбор по пунктам”
+→ optional Hebrew source expansion
+```
+
+Do not connect OCR before the privacy-safe preprocessing layer is ready.
+
+Do not connect runtime Airtable API before the local JSON/YAML risk configuration is stable. Airtable is a project knowledge base and control table, not the runtime MVP backend.
+
+## 4. Airtable Role
+
+Airtable is used as a project knowledge base and admin/control table for:
+
+- product decisions;
+- Hebrew markers;
+- missing document rules;
+- report card aggregation rules;
+- risk types;
+- prompt versions;
+- synthetic/anonymized test cases.
+
+Airtable must not store:
+
+- raw user contracts;
+- raw user photos;
+- OCR text containing PII;
+- names;
+- Israeli ID numbers;
+- full addresses;
+- phone numbers;
+- emails;
+- signatures;
+- bank details;
+- check numbers or account identifiers;
+- landlord, tenant, agent, or guarantor identifying details.
+
+For MVP code, prefer repo-local JSON/YAML configuration exported or copied from Airtable later.
+
+## 5. Privacy Model
+
+Raw photos, documents, or text containing personal data must not be sent to external OCR or LLM services.
 
 Production target pipeline:
 
 ```text
-photo
+raw image/document
 → local/browser/mobile PII masking
-→ anonymized image/PDF
-→ "Продолжить к распознаванию текста"
+→ anonymized image/document
 → OCR
 → secondary text PII redaction
 → LLM audit
@@ -49,25 +121,74 @@ PII includes at least:
 - signatures;
 - bank account details;
 - check numbers if present;
-- landlord/tenant/agent identifying details.
+- landlord/tenant/agent/guarantor identifying details.
 
-Important:
 Monetary amounts are not PII by default and should usually be preserved for analysis.
 
 Example:
+
+```text
 Security check amount 7,500 ₪ should remain visible.
 ID number or bank/check number should be redacted.
+```
 
-## 4. Evidence and Citation Architecture
+Do not require a mask on every page. Many middle pages of a lease may contain no personal data. Future privacy logic should detect likely personal-data rows by Hebrew field labels, layout context, and known PII markers. It should mask only the rows or zones likely to contain personal data while preserving monetary amounts and legal-risk content.
+
+## 6. Future PII-Line Detection
+
+Future image/text privacy logic should search for Hebrew field labels and row patterns such as:
+
+- tenant name field;
+- landlord name field;
+- Israeli ID field;
+- phone field;
+- email field;
+- address field;
+- signature field;
+- bank details field;
+- guarantor identifying fields.
+
+The detector should classify rows into at least two groups:
+
+1. PII rows/zones that should be masked before external OCR/LLM use.
+2. Risk-relevant rows that should be preserved for analysis.
+
+Risk-relevant rows include, for example:
+
+- שכר דירה;
+- דמי שכירות;
+- פיקדון;
+- שיק ביטחון;
+- בטוחה;
+- ערבות;
+- שטר חוב;
+- נספח;
+- כתב ערבות;
+- רשימת ציוד;
+- פרוטוקול מסירה;
+- שוכר חלופי;
+- עזיבה מוקדמת;
+- הודעה מראש;
+- בלאי סביר;
+- צביעה;
+- תיקונים;
+- חשבונות;
+- ועד בית;
+- ארנונה.
+
+Do not blindly redact a full page only because one PII-like label appears on it. Prefer row/zone-level masking.
+
+## 7. Evidence and Citation Architecture
 
 Do not rely on the LLM to copy exact Hebrew quotes.
 
-Reason:
-LLMs may paraphrase, normalize spelling, alter spaces, omit particles, or slightly rewrite text. Strict string matching would reject valid answers, while loose quote matching can accept wrong evidence.
+Reason: LLMs may paraphrase, normalize spelling, alter spaces, omit particles, or slightly rewrite text. Strict string matching would reject valid answers, while loose quote matching can accept wrong evidence.
 
 Canonical decision:
 
+```text
 The model must not generate contract quotes.
+```
 
 Instead:
 
@@ -84,66 +205,257 @@ Instead:
 
 Core rule:
 
+```text
 Model does not quote.
 Code stores the source.
 User sees the explanation.
 Original Hebrew is available on demand.
+```
 
-## 5. User-Facing Report
+Fuzzy matching can be used only as fallback/debugging, not as the main verification method.
 
-Hebrew quotes are mostly noise for users who do not know Hebrew.
+Embeddings are not part of MVP evidence validation. Semantic similarity is not legal evidence. Embeddings may be useful later for knowledge-base search, similar-clause retrieval, or risk-matrix enrichment.
 
-Default report card should show:
+## 8. LLM/Python Responsibility Split
 
-- risk type;
-- risk level;
-- plain Russian explanation;
+The LLM should extract structured findings.
+
+Python should validate and decide what is shown.
+
+The LLM should return fields such as:
+
+- risk domain;
+- severity;
 - practical consequence;
-- what to ask the landlord/agent;
+- questions to ask;
 - suggested Hebrew message if useful;
-- confidence level;
-- source reference like `page 1, block 7`.
+- confidence;
+- evidence block IDs.
 
-The exact Hebrew source should be hidden by default and shown only on request.
-
-Use `Источник: страница X, блок Y` instead of dumping Hebrew text into the main report.
-
-## 6. Guardrails Against Hallucinations
-
-The LLM must be constrained to structured output.
-
-Every risk finding must include at least one `evidence_block_id` unless it is explicitly marked as a general warning.
-
-Python must validate:
+Python should validate:
 
 - JSON schema;
 - evidence IDs exist;
 - risk has required evidence;
 - source blocks are not empty;
-- optional keyword/marker checks for certain risk classes.
+- completeness rules;
+- marker checks where applicable;
+- aggregation into report cards.
 
-Examples:
+The model is not the source of truth. The uploaded contract text/images after preprocessing are the source of truth.
 
-`security_check` / deposit risks should usually be supported by blocks containing markers such as:
+## 9. Completeness Audit
 
-- שיק ביטחון;
-- בטוחה;
+The contract must be treated as a document package, not just one text blob.
+
+The package may include:
+
+- main lease agreement;
+- נספחים / appendices;
+- שטר חוב;
+- כתב ערבות / guarantee document;
+- inventory / רשימת ציוד;
+- handover protocol / פרוטוקול מסירה;
+- signature pages;
+- checks or payment/security appendices;
+- additional pages with special conditions.
+
+The product should detect references to missing documents using markers such as:
+
+- נספח;
+- נספחים;
+- שטר חוב;
+- כתב ערבות;
 - ערבות;
-- פיקדון;
-- ₪.
+- רשימת ציוד;
+- פרוטוקול מסירה;
+- צ'קים;
+- שיקים;
+- שיק ביטחון;
+- בטחונות;
+- חתימה;
+- חתימות.
 
-`early_exit` / replacement tenant risks should usually be supported by markers such as:
+If referenced documents are missing, the report must show a completeness status before risk cards:
 
-- שוכר חלופי;
-- עזיבה מוקדמת;
-- הודעה מראש;
-- העברת זכויות.
+- Full analysis;
+- Partial analysis;
+- Missing documents.
 
-Fuzzy matching can be used only as fallback/debugging, not as the main verification method.
+For high-impact missing documents such as שטר חוב or כתב ערבות, the affected report card may become `Incomplete` even if no explicit high-risk clause was extracted.
 
-Embeddings are not part of MVP verification. They may be useful later for knowledge-base search, similar clause retrieval, or risk-matrix enrichment, but not as legal evidence validation.
+## 10. User-Facing Report Model
 
-## 7. Conflict-Consultant Mode Is Not MVP
+The default user report should not be a long legal memo.
+
+The default UI should show:
+
+1. A global completeness status.
+2. Three traffic-light risk cards.
+3. A detailed mode called `Разбор по пунктам`.
+
+The three cards are:
+
+- Money;
+- Terms and eviction;
+- Obligations.
+
+Each card can have one of these states:
+
+- Red;
+- Yellow;
+- Green;
+- Incomplete.
+
+Green must never mean:
+
+- the contract is safe;
+- the user may sign;
+- there are no legal risks.
+
+Green means only:
+
+```text
+No obvious critical risk was found in this domain in the uploaded/analyzed materials.
+```
+
+Preferred Russian wording:
+
+```text
+В загруженных страницах явных критических рисков в этой зоне не найдено. Это не означает, что договор безопасен или что его можно подписывать без консультации.
+```
+
+## 11. Report Domains
+
+### Money
+
+Includes:
+
+- rent;
+- deposit;
+- שטר חוב;
+- security checks;
+- guarantees;
+- penalties;
+- commissions;
+- indexation;
+- repair/cleaning/painting payments charged to tenant.
+
+### Terms and eviction
+
+Includes:
+
+- lease period;
+- renewal;
+- early exit;
+- replacement tenant;
+- notice period;
+- landlord termination rights;
+- eviction or handover timing.
+
+### Obligations
+
+Includes:
+
+- repairs;
+- fair wear and tear;
+- painting;
+- cleaning;
+- utilities;
+- building committee;
+- municipal taxes;
+- furniture/equipment responsibility;
+- appliances;
+- handover state.
+
+## 12. Detailed Mode: Разбор по пунктам
+
+`Разбор по пунктам` is the optional detailed layer over the same backend analysis.
+
+It should show:
+
+- validated finding title;
+- domain;
+- severity;
+- Russian explanation;
+- practical consequence;
+- questions to ask;
+- suggested Hebrew message if useful;
+- evidence block IDs;
+- confidence;
+- optional Hebrew original in an expander.
+
+There must not be two separate analyses. The system should run one backend analysis and present it in two ways:
+
+```text
+one validated structured analysis
+→ default three-card summary
+→ detailed point-by-point view
+```
+
+## 13. שטר חוב UX
+
+Do not force the user to read or rewrite Hebrew handwriting.
+
+For שטר חוב, the product should ask only minimal critical questions that the machine cannot reliably answer:
+
+- Is a numeric amount visible?
+- What numeric amount is visible, if any?
+- Are there suspicious blank fields near amount/date/signature?
+- Is the user unsure?
+
+The product should not require the user to enter:
+
+- amount in words;
+- debtor name;
+- full date;
+- all handwritten fields;
+- full Hebrew transcription.
+
+Python should compare the numeric amount with rent/deposit/security context and raise risk if the amount is missing, unusually high, blank, or unclear.
+
+## 14. Guardrails Against Legal Overclaiming
+
+Avoid language such as:
+
+- this clause is illegal;
+- demand deletion;
+- do not sign;
+- the landlord is violating the law;
+- you will win in court;
+- this is enforceable/unforceable with certainty.
+
+Use language such as:
+
+- this clause may create increased risk;
+- this wording appears to place broad responsibility on the tenant;
+- it is worth clarifying this before signing;
+- consider discussing this with the landlord, agent, or a licensed lawyer;
+- this report is incomplete because referenced documents are missing.
+
+The product may recommend consulting a licensed lawyer when high financial, termination, guarantee, or unclear legal-risk conditions appear.
+
+## 15. Template/RAG Comparison
+
+Template/reference comparison is not MVP.
+
+Do not send many reference contracts plus the user contract into one LLM call and ask the model to find deviations.
+
+If template comparison is added later, use this safer flow:
+
+```text
+OCR/text
+→ evidence blocks
+→ classify template candidate
+→ confidence threshold
+→ load exactly one matching baseline
+→ compare normalized extracted JSON to normalized baseline JSON
+→ Python performs final diff and report aggregation
+```
+
+If template confidence is low, skip template comparison and fall back to generic risk audit.
+
+## 16. Conflict-Consultant Mode Is Not MVP
 
 A future mode may help users structure a post-signing conflict, for example:
 
@@ -154,8 +466,7 @@ A future mode may help users structure a post-signing conflict, for example:
 
 This is not part of MVP because the source of truth is weaker than in contract analysis.
 
-Contract audit has a document as source.
-Conflict consulting often has only the user narrative.
+Contract audit has a document as source. Conflict consulting often has only the user narrative.
 
 If implemented later, it must avoid legal conclusions and focus on:
 
@@ -168,57 +479,43 @@ If implemented later, it must avoid legal conclusions and focus on:
 
 The assistant must not say who will win a legal dispute.
 
-## 8. Security Checks and Deposits
-
-The product must preserve and analyze monetary amounts connected to:
-
-- security checks;
-- deposits;
-- guarantees;
-- repair/cleaning obligations;
-- painting obligations;
-- unpaid bills;
-- early termination penalties.
-
-These values are legally and practically important.
-
-Do not redact amounts merely because they are near personal-data markers.
-
-Redact identifying numbers and personal values, but preserve risk-relevant financial terms and sums when possible.
-
-## 9. Rejected or Deferred Approaches
+## 17. Rejected or Deferred Approaches
 
 Rejected for MVP:
 
 - sending raw contract photos to external OCR/LLM services;
+- requiring a mask on every page before OCR handoff;
+- using the current manual masking test as a complete production privacy layer;
 - asking the user to manually redact everything without guidance;
 - relying on exact LLM-generated quotes;
 - exposing long Hebrew quotes by default in the user report;
 - using embeddings as legal evidence validation;
+- comparing against many reference contracts in one LLM call;
 - building conflict-consultant mode before contract-audit pipeline is stable.
 
 Deferred:
 
-- automatic Hebrew marker detection;
+- automatic PII-line detection by Hebrew field labels and layout;
 - OCR after local image anonymization;
-- comparison against a curated legal/risk knowledge base;
+- runtime Airtable API integration;
+- template/reference comparison;
+- curated legal/risk knowledge base RAG;
 - NotebookLM-generated risk matrix integration.
 
-## 10. Development Principle
+## 18. Development Principle
 
 Keep the architecture conservative.
 
-The safest MVP path:
+Build the product in this order:
 
-```text
-redacted/anonymized document
-→ OCR/text extraction
-→ numbered evidence blocks
-→ structured LLM risk analysis
-→ Python validation
-→ Russian user report
-→ optional Hebrew source expansion
-```
+1. Structured text audit.
+2. Evidence blocks.
+3. Python validation.
+4. Completeness audit.
+5. Three-card report + `Разбор по пунктам`.
+6. Future privacy-safe image/OCR pipeline.
+
+Do not let OCR work outrun the privacy architecture.
 
 Do not let the LLM become the source of truth.
 
