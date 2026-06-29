@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from contract_checker.completeness import CompletenessAudit, audit_completeness
 from contract_checker.gemini_engine import (
     DEFAULT_GEMINI_MODEL,
     GeminiAuthenticationError,
@@ -177,6 +178,31 @@ def _render_redaction_report(report: RedactionReport) -> None:
     )
 
 
+def _render_completeness_audit(audit: CompletenessAudit) -> None:
+    import streamlit as st
+
+    st.subheader("Комплектность загруженных материалов")
+    if audit.status == "text_unusable":
+        st.warning(audit.summary_ru)
+        return
+    if audit.status == "no_referenced_documents_found":
+        st.info(audit.summary_ru)
+        return
+
+    st.warning(audit.summary_ru)
+    severity_labels = {
+        "red": "существенно проверить",
+        "yellow": "проверить",
+        "normal": "к сведению",
+    }
+    for finding in audit.findings:
+        with st.expander(f"{finding.title_ru} — {severity_labels.get(finding.severity, finding.severity)}"):
+            if finding.evidence_block_ids:
+                st.markdown(f"**Источник:** `{_evidence_ids_label(finding.evidence_block_ids)}`")
+            st.markdown(finding.explanation_ru)
+            st.markdown(f"**Вопрос:** {finding.question_ru}")
+
+
 def _clear_sensitive_state() -> None:
     import streamlit as st
 
@@ -185,6 +211,7 @@ def _clear_sensitive_state() -> None:
         "api_key_input",
         "redacted_text",
         "redaction_report",
+        "completeness_audit",
         "validation_result",
         "analysis_result",
         "validation_warnings",
@@ -666,14 +693,17 @@ def main() -> None:
             redaction_result = redact_personal_data_with_report(contract_text)
             redacted_text = redaction_result.redacted_text
             validation = validate_contract_text(redacted_text)
+            completeness_audit = audit_completeness(redacted_text, text_usable=validation.usable)
             st.session_state.redacted_text = redacted_text
             st.session_state.redaction_report = redaction_result.report
+            st.session_state.completeness_audit = completeness_audit
             st.session_state.validation_result = validation
             st.session_state.pop("analysis_result", None)
             st.session_state.pop("validation_warnings", None)
 
     redacted_text = st.session_state.get("redacted_text", "")
     redaction_report = st.session_state.get("redaction_report")
+    completeness_audit = st.session_state.get("completeness_audit")
     validation = st.session_state.get("validation_result")
 
     if redacted_text:
@@ -683,6 +713,8 @@ def main() -> None:
             st.text_area("Redacted source", value=redacted_text, height=260, disabled=True, label_visibility="collapsed")
     if validation:
         _render_validation_status(validation)
+    if completeness_audit:
+        _render_completeness_audit(completeness_audit)
 
     can_analyze = bool(validation and validation.usable and api_key.strip())
     if st.button("Запустить анализ", disabled=not can_analyze):
