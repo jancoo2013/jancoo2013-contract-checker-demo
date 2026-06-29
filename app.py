@@ -13,7 +13,7 @@ from contract_checker.gemini_engine import (
     analyze_contract_with_gemini,
 )
 from contract_checker.output_validator import EvidenceValidationResult, validate_model_evidence
-from contract_checker.redaction import redact_personal_data
+from contract_checker.redaction import RedactionReport, redact_personal_data_with_report
 from contract_checker.schemas import ContractAuditResult
 from contract_checker.validator import ContractTextValidationResult, validate_contract_text
 
@@ -142,6 +142,31 @@ def _render_validation_status(validation: ContractTextValidationResult) -> None:
         st.warning(problem)
 
 
+def _render_redaction_report(report: RedactionReport) -> None:
+    import streamlit as st
+
+    if report.total <= 0:
+        st.info("Автофильтр не нашёл типовые персональные поля в тексте.")
+        return
+
+    labels = {
+        "phones": ("телефоны", report.phones),
+        "emails": ("email", report.emails),
+        "ids": ("ID", report.ids),
+        "bank_details": ("банковские реквизиты", report.bank_details),
+        "addresses": ("адреса", report.addresses),
+        "names": ("имена", report.names),
+        "signatures": ("подписи", report.signatures),
+        "guarantor_details": ("данные поручителя", report.guarantor_details),
+    }
+    categories = [label for label, count in labels.values() if count > 0]
+    st.info(
+        "Автофильтр удалил возможные персональные данные: "
+        + ", ".join(categories)
+        + f". Всего замен: {report.total}."
+    )
+
+
 def _clear_sensitive_state() -> None:
     import streamlit as st
 
@@ -149,6 +174,7 @@ def _clear_sensitive_state() -> None:
         "contract_text_input",
         "api_key_input",
         "redacted_text",
+        "redaction_report",
         "validation_result",
         "analysis_result",
         "validation_warnings",
@@ -627,17 +653,22 @@ def main() -> None:
         if not contract_text.strip():
             st.error("Вставь текст договора перед проверкой.")
         else:
-            redacted_text = redact_personal_data(contract_text)
+            redaction_result = redact_personal_data_with_report(contract_text)
+            redacted_text = redaction_result.redacted_text
             validation = validate_contract_text(redacted_text)
             st.session_state.redacted_text = redacted_text
+            st.session_state.redaction_report = redaction_result.report
             st.session_state.validation_result = validation
             st.session_state.pop("analysis_result", None)
             st.session_state.pop("validation_warnings", None)
 
     redacted_text = st.session_state.get("redacted_text", "")
+    redaction_report = st.session_state.get("redaction_report")
     validation = st.session_state.get("validation_result")
 
     if redacted_text:
+        if redaction_report:
+            _render_redaction_report(redaction_report)
         with st.expander("Обезличенный текст, который будет отправлен в Gemini", expanded=True):
             st.text_area("Redacted source", value=redacted_text, height=260, disabled=True, label_visibility="collapsed")
     if validation:
