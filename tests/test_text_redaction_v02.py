@@ -137,6 +137,27 @@ class TextRedactionV02Tests(unittest.TestCase):
 
         self.assertEqual(redact_personal_data(legal_text), legal_text)
 
+    def test_generic_name_labels_require_explicit_field_separator(self) -> None:
+        legal_text = (
+            "שם ההסכם אינו משנה את זכויות הצדדים.\n"
+            "סוכן יהיה אחראי להעברת הודעות רק אם הוסכם כך בכתב.\n"
+            "מתווך אינו צד להסכם השכירות.\n"
+        )
+
+        self.assertEqual(redact_personal_data(legal_text), legal_text)
+
+        field_text = (
+            "שם: משה לוי\n"
+            "סוכן: אבי כהן\n"
+            "מתווך — יוסי לוי\n"
+        )
+        result = redact_personal_data_with_report(field_text)
+
+        self.assertEqual(result.report.names, 3)
+        self.assertEqual(result.redacted_text.count(NAME_PLACEHOLDER), 3)
+        for original_value in ("משה לוי", "אבי כהן", "יוסי לוי"):
+            self.assertNotIn(original_value, result.redacted_text)
+
     def test_backward_compatible_redact_personal_data_returns_string(self) -> None:
         redacted = redact_personal_data(SYNTHETIC_CONTRACT)
 
