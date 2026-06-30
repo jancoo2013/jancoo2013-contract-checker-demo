@@ -240,6 +240,8 @@ def _clear_image_redaction_state() -> None:
             st.session_state.pop(key, None)
         if str(key).startswith("image_redaction_ignored_click_after_undo_"):
             st.session_state.pop(key, None)
+        if str(key).startswith("image_redaction_page_select_"):
+            st.session_state.pop(key, None)
         if str(key).endswith(":reviewed"):
             st.session_state.pop(key, None)
 
@@ -438,31 +440,25 @@ def _render_image_redaction_test() -> None:
     st.dataframe(status_rows, use_container_width=True, hide_index=True)
     st.caption(f"Проверено страниц: {reviewed_count} из {page_count}")
 
-    if "image_redaction_page_select" not in st.session_state or int(st.session_state.image_redaction_page_select) >= page_count:
-        st.session_state.image_redaction_page_select = active_index
-
     prev_col, select_col, next_col = st.columns([1, 4, 1])
     with prev_col:
         if st.button("← Предыдущая", disabled=active_index <= 0):
-            new_index = active_index - 1
-            st.session_state.active_image_page_index = new_index
-            st.session_state.image_redaction_page_select = new_index
+            st.session_state.active_image_page_index = active_index - 1
             st.rerun()
     with select_col:
         selected_index = st.selectbox(
             "Активная страница",
             options=list(range(page_count)),
+            index=active_index,
             format_func=lambda item: page_label(item, uploaded_images, page_keys, manual_masks),
-            key="image_redaction_page_select",
+            key=f"image_redaction_page_select_{page_count}_{active_index}",
         )
         if int(selected_index) != active_index:
             st.session_state.active_image_page_index = int(selected_index)
             st.rerun()
     with next_col:
         if st.button("Следующая →", disabled=active_index >= page_count - 1):
-            new_index = active_index + 1
-            st.session_state.active_image_page_index = new_index
-            st.session_state.image_redaction_page_select = new_index
+            st.session_state.active_image_page_index = active_index + 1
             st.rerun()
 
     uploaded_file = uploaded_images[active_index]
