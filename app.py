@@ -216,6 +216,9 @@ def _clear_sensitive_state() -> None:
         "analysis_result",
         "validation_warnings",
         "manual_model_id",
+        "ocr_text_input",
+        "ocr_source_input",
+        "ocr_txt_upload",
     ):
         st.session_state.pop(key, None)
 
@@ -747,6 +750,90 @@ def _render_image_redaction_test() -> None:
             st.info("На следующий этап будут передаваться все проверенные страницы с ручными масками, если они были добавлены.")
 
 
+def _render_manual_ocr_test_mode() -> None:
+    import streamlit as st
+
+    prepared_pages = st.session_state.get("image_redaction_ocr_pages") or []
+    if not prepared_pages:
+        return
+
+    st.divider()
+    st.header("ТЕСТ: вставка OCR-текста")
+    st.warning(
+        "Временный тестовый режим. Это не финальный UX: сейчас можно вставить весь OCR-текст одним блоком, "
+        "чтобы быстро проверить цепочку OCR-текст → комплектность → анализ."
+    )
+    st.caption(
+        "Текущий быстрый сценарий: Google Объектив / другой OCR → скопировать весь распознанный текст → вставить сюда один раз."
+    )
+
+    st.write(
+        {
+            "подготовлено страниц": len(prepared_pages),
+            "режим OCR": "manual_ocr_paste",
+            "автоматический OCR": "не подключён",
+        }
+    )
+
+    ocr_source = st.selectbox(
+        "Источник OCR-текста",
+        [
+            "Google Lens / Google Объектив",
+            "Samsung Gallery / Extract text",
+            "Другой внешний OCR",
+            "Ручная вставка / тестовый текст",
+        ],
+        key="ocr_source_input",
+    )
+    uploaded_txt = st.file_uploader(
+        "Или загрузи .txt с OCR-текстом",
+        type=["txt"],
+        key="ocr_txt_upload",
+    )
+    pasted_text = st.text_area(
+        "Вставь OCR-текст всего договора одним блоком",
+        key="ocr_text_input",
+        height=360,
+        placeholder="Сюда можно вставить весь Hebrew OCR-текст из Google Объектива одним куском.",
+    )
+
+    uploaded_text = ""
+    if uploaded_txt is not None:
+        uploaded_text = uploaded_txt.getvalue().decode("utf-8", errors="replace")
+        st.info("Будет использован текст из загруженного .txt. Поле ручной вставки ниже можно оставить пустым.")
+
+    ocr_text = uploaded_text.strip() or pasted_text.strip()
+    if ocr_text:
+        hebrew_chars = sum(1 for char in ocr_text if "\u0590" <= char <= "\u05ff")
+        st.write(
+            {
+                "символов всего": len(ocr_text),
+                "символов иврита": hebrew_chars,
+                "примерная доля иврита": round(hebrew_chars / max(1, len(ocr_text)), 3),
+            }
+        )
+
+    if st.button("Подготовить OCR-текст к анализу", type="primary", disabled=not bool(ocr_text)):
+        assembled_text = (
+            f"--- OCR SOURCE: {ocr_source} ---\n"
+            f"--- OCR MODE: manual_ocr_paste ---\n"
+            f"--- IMAGE PAGES PREPARED: {len(prepared_pages)} ---\n\n"
+            f"{ocr_text}"
+        )
+        redaction_result = redact_personal_data_with_report(assembled_text)
+        redacted_text = redaction_result.redacted_text
+        validation = validate_contract_text(redacted_text)
+        completeness_audit = audit_completeness(redacted_text, text_usable=validation.usable)
+        st.session_state.redacted_text = redacted_text
+        st.session_state.redaction_report = redaction_result.report
+        st.session_state.completeness_audit = completeness_audit
+        st.session_state.validation_result = validation
+        st.session_state.pop("analysis_result", None)
+        st.session_state.pop("validation_warnings", None)
+        st.success("OCR-текст подготовлен. Выше появится обезличенный текст, валидация и проверка комплектности.")
+        st.rerun()
+
+
 def main() -> None:
     """Run the Streamlit application."""
 
@@ -782,14 +869,14 @@ def main() -> None:
         "Вставь полный текст договора на иврите",
         key="contract_text_input",
         height=360,
-        placeholder="Вставь сюда полный текст договора. Фото/OCR в этом MVP не используются.",
+        placeholder="Вставь сюда полный текст договора или используй OCR-тестовый режим ниже после маскировки страниц.",
     )
 
     col1, col2 = st.columns(2)
     with col1:
         redact_clicked = st.button("Обезличить и проверить", type="primary")
     with col2:
-        if st.button("Очистить договор и ключ"):
+        if st.button("Очистить договор, OCR-текст и ключ"):
             _clear_sensitive_state()
             st.rerun()
 
@@ -856,6 +943,7 @@ def main() -> None:
         _render_analysis(EvidenceValidationResult(result=result, warnings=warnings))
 
     _render_image_redaction_test()
+    _render_manual_ocr_test_mode()
 
 
 if __name__ == "__main__":
