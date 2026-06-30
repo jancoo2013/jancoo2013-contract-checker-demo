@@ -248,15 +248,22 @@ def _render_image_redaction_status(
     import streamlit as st
 
     if has_masks:
-        st.success("Строки закрыты")
-    elif not has_auto_markers:
+        st.success("Подтверждённые маски применены")
+    elif has_auto_markers:
+        st.warning("Есть автоматические строки-кандидаты, но они ещё не применены")
+    else:
         st.warning("Маркеры не найдены")
     if not safe_to_export:
         st.error("Результат небезопасен для отправки")
-        if has_manual_masks and not has_auto_markers:
+        if has_manual_masks:
             st.info(
                 "Строки замаскированы вручную. Для теста геометрии — OK. "
                 "Для автоматической отправки во внешний OCR — пока небезопасно."
+            )
+        elif has_auto_markers:
+            st.info(
+                "Автоматические кандидаты требуют ручного подтверждения. "
+                "До подтверждения они не попадут в изображение для будущего OCR."
             )
         else:
             st.info("Страница пока не считается безопасно обезличенной. Она не будет отправлена во внешние сервисы.")
@@ -327,10 +334,8 @@ def _render_image_redaction_test() -> None:
                 errors.append(f"{uploaded_file.name}: {exc}")
                 continue
 
-            result = results.get(page_key)
-            automatic_markers = result.markers if result and result.success else []
             manual_detections = build_manual_detections(manual_masks.get(page_key, []), image)
-            redacted_image = redact_detected_rows(image, automatic_markers + manual_detections)
+            redacted_image = redact_detected_rows(image, manual_detections) if manual_detections else image
             prepared_pages.append(
                 {
                     "page_index": page_index,
@@ -363,8 +368,8 @@ def _render_image_redaction_test() -> None:
     )
 
     st.info(
-        "Автоматический поиск личных данных пока не включён. "
-        "В этом тесте строки закрываются кликом по изображению."
+        "Экспериментальный поиск строк-кандидатов включён. "
+        "Он не читает текст и не применяет маски автоматически: каждую найденную строку нужно подтвердить вручную."
     )
 
     col_find, col_clear = st.columns(2)
@@ -409,8 +414,49 @@ def _render_image_redaction_test() -> None:
                 automatic_markers = result.markers if result and result.success else []
                 page_manual_masks = manual_masks.setdefault(page_key, [])
                 manual_detections = build_manual_detections(page_manual_masks, original_image)
-                combined = automatic_markers + manual_detections
+                combined = manual_detections
                 working_image = redact_detected_rows(original_image, combined) if combined else original_image
+
+                st.subheader("Автоматические строки-кандидаты")
+                if automatic_markers:
+                    st.warning(
+                        "Найдены возможные строки с личными данными. "
+                        "Они не применены к изображению: добавь только те строки, которые действительно нужно закрыть."
+                    )
+                    for candidate_index, marker in enumerate(automatic_markers):
+                        x1, y1, x2, y2 = marker.row_bbox
+                        already_added = any(
+                            int(mask["x1"]) == x1
+                            and int(mask["y1"]) == y1
+                            and int(mask["x2"]) == x2
+                            and int(mask["y2"]) == y2
+                            for mask in page_manual_masks
+                        )
+                        cols = st.columns([5, 2])
+                        cols[0].write(
+                            f"{candidate_index + 1}. `{marker.marker}` "
+                            f"confidence={marker.confidence:.2f}, row_bbox={(x1, y1, x2, y2)}"
+                        )
+                        if cols[1].button(
+                            "Добавить",
+                            key=f"{page_key}:accept-auto:{candidate_index}",
+                            disabled=already_added,
+                        ):
+                            page_manual_masks.append(
+                                {
+                                    "x1": x1,
+                                    "y1": y1,
+                                    "x2": x2,
+                                    "y2": y2,
+                                    "marker": "manual_row",
+                                }
+                            )
+                            manual_masks[page_key] = page_manual_masks
+                            st.session_state.image_manual_masks = manual_masks
+                            clear_ocr_handoff()
+                            st.rerun()
+                else:
+                    st.info("Автоматические строки-кандидаты не найдены.")
 
                 st.subheader("Быстрое маскирование строки")
                 st.info(
@@ -435,10 +481,10 @@ def _render_image_redaction_test() -> None:
                         "Интерактивный клик по изображению временно недоступен. "
                         "Используй ручной ввод Y-координаты."
                     )
-                    caption = "Рабочее изображение: текущий предпросмотр с масками" if combined else "Рабочее изображение"
+                    caption = "Рабочее изображение: текущий предпросмотр с подтверждёнными масками" if combined else "Рабочее изображение"
                     st.image(working_image, caption=caption, use_container_width=True)
                 else:
-                    caption = "Рабочее изображение: текущий предпросмотр с масками" if combined else "Рабочее изображение"
+                    caption = "Рабочее изображение: текущий предпросмотр с подтверждёнными масками" if combined else "Рабочее изображение"
                     st.caption(caption)
                     click_value = streamlit_image_coordinates(working_image, key=f"{page_key}:click-row")
                     if click_value and click_value.get("y") is not None:
@@ -568,7 +614,7 @@ def _render_image_redaction_test() -> None:
                         st.session_state[ignored_click_state_key] = last_processed_click
                     st.rerun()
 
-                st.subheader("Текущие маски")
+                st.subheader("Подтверждённые маски")
                 if page_manual_masks:
                     for mask_index, mask in enumerate(list(page_manual_masks)):
                         mask_label = "строка по Y" if mask.get("marker") == "manual_row" else "прямоугольник"
@@ -590,7 +636,7 @@ def _render_image_redaction_test() -> None:
                                 st.session_state[ignored_click_state_key] = last_processed_click
                             st.rerun()
                 else:
-                    st.info("Ручных масок на этой странице пока нет.")
+                    st.info("Подтверждённых масок на этой странице пока нет.")
 
                 detections_for_table = [
                     {
@@ -599,19 +645,19 @@ def _render_image_redaction_test() -> None:
                         "row_bbox": marker.row_bbox,
                         "detector": marker.detector,
                     }
-                    for marker in combined
+                    for marker in manual_detections
                 ]
                 if detections_for_table:
                     st.dataframe(detections_for_table, use_container_width=True)
                 else:
-                    st.info("Список масок пуст. Персональные значения не извлекаются и не показываются.")
+                    st.info("Список подтверждённых масок пуст. Персональные значения не извлекаются и не показываются.")
 
                 if result and not result.success:
                     st.error(result.error or "Неизвестная ошибка обработки изображения.")
 
-                safe_to_export = bool(result and result.safe_to_export)
+                safe_to_export = bool(manual_detections) and bool(result and result.safe_to_export)
                 _render_image_redaction_status(
-                    bool(combined),
+                    bool(manual_detections),
                     bool(automatic_markers),
                     safe_to_export,
                     has_manual_masks=bool(manual_detections),
@@ -637,7 +683,7 @@ def _render_image_redaction_test() -> None:
         else:
             st.session_state.image_redaction_ocr_pages = prepared_pages
             st.success("Обезличенные страницы подготовлены для распознавания текста. Сам OCR ещё не подключён.")
-            st.info("На следующий этап будут передаваться только страницы с наложенными масками.")
+            st.info("На следующий этап будут передаваться только страницы с подтверждёнными масками.")
 
 
 def main() -> None:
