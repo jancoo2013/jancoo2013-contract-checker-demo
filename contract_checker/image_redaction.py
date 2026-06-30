@@ -37,6 +37,7 @@ MIN_EXPORT_CONFIDENCE = 0.85
 EXPERIMENTAL_DETECTOR_NAME = "experimental-geometric-no-ocr"
 PII_ROW_CANDIDATE_DETECTOR_NAME = "experimental-geometric-pii-row-candidate"
 MANUAL_DETECTOR_NAME = "manual-test-row"
+MAX_AUTO_CANDIDATES_PER_PAGE = 40
 
 
 BBox = tuple[int, int, int, int]
@@ -129,6 +130,21 @@ def _image_to_png_bytes(image: Image.Image) -> bytes:
     return output.getvalue()
 
 
+def _dark_pixel_mask(grayscale_array: np.ndarray) -> np.ndarray:
+    """Return an adaptive dark-pixel mask for printed or photographed pages.
+
+    The detector is intentionally OCR-free.  A slightly adaptive threshold is more
+    useful than a fixed one for phone photos, gray paper, compression artifacts,
+    and faint scans.
+    """
+
+    if grayscale_array.size == 0:
+        return np.zeros_like(grayscale_array, dtype=bool)
+    background_level = int(np.percentile(grayscale_array, 90))
+    threshold = max(190, min(235, background_level - 20))
+    return grayscale_array < threshold
+
+
 def _detect_text_row_regions(image: Image.Image) -> list[BBox]:
     """Return rough text-row boxes from dark pixels without recognizing text."""
 
@@ -137,16 +153,16 @@ def _detect_text_row_regions(image: Image.Image) -> list[BBox]:
     if arr.size == 0:
         return []
 
-    # A conservative dark-pixel threshold is enough for synthetic tests and for a
-    # rough Streamlit preview.  It is not OCR and it does not identify markers.
-    dark = arr < 190
-    min_pixels_per_row = max(3, int(arr.shape[1] * 0.005))
+    # This is not OCR and it does not identify text content.  It only finds rows
+    # that contain enough dark pixels to look text-like in a page image.
+    dark = _dark_pixel_mask(arr)
+    min_pixels_per_row = max(2, int(arr.shape[1] * 0.002))
     row_has_text = dark.sum(axis=1) >= min_pixels_per_row
 
     regions: list[BBox] = []
     start: int | None = None
     gap = 0
-    max_gap = 2
+    max_gap = 5
     for index, has_text in enumerate(row_has_text):
         if has_text:
             if start is None:
@@ -157,7 +173,7 @@ def _detect_text_row_regions(image: Image.Image) -> list[BBox]:
             if gap > max_gap:
                 y1 = start
                 y2 = index - gap + 1
-                if y2 - y1 >= 3:
+                if y2 - y1 >= 2:
                     rows = dark[y1:y2, :]
                     xs = np.where(rows.any(axis=0))[0]
                     if xs.size:
@@ -168,7 +184,7 @@ def _detect_text_row_regions(image: Image.Image) -> list[BBox]:
     if start is not None:
         y1 = start
         y2 = arr.shape[0]
-        if y2 - y1 >= 3:
+        if y2 - y1 >= 2:
             rows = dark[y1:y2, :]
             xs = np.where(rows.any(axis=0))[0]
             if xs.size:
@@ -255,14 +271,15 @@ def _row_dark_density(image: Image.Image, bbox: BBox) -> float:
     arr = np.asarray(grayscale)[y1:y2, x1:x2]
     if arr.size == 0:
         return 0.0
-    return float((arr < 190).sum() / arr.size)
+    return float(_dark_pixel_mask(arr).sum() / arr.size)
 
 
 def _candidate_marker_for_row(row: BBox, image_width: int, image_height: int, row_regions: Sequence[BBox]) -> str | None:
     """Classify a text-like row as a cautious PII candidate.
 
     This is geometric only.  It intentionally does not inspect characters or make
-    claims about the row content.
+    claims about the row content.  Because the UI requires manual confirmation,
+    this should prefer recall over precision.
     """
 
     x1, y1, x2, y2 = _clamp_bbox(row, image_width, image_height)
@@ -272,39 +289,34 @@ def _candidate_marker_for_row(row: BBox, image_width: int, image_height: int, ro
     width_ratio = (x2 - x1) / image_width
     height_ratio = (y2 - y1) / image_height
     center_y_ratio = ((y1 + y2) / 2) / image_height
-    near_left_or_right_edge = x1 <= image_width * 0.16 or x2 >= image_width * 0.84
+    near_left_or_right_edge = x1 <= image_width * 0.22 or x2 >= image_width * 0.78
 
-    if width_ratio < 0.08 or height_ratio < 0.004:
+    if width_ratio < 0.025 or height_ratio < 0.0015:
+        return None
+    if height_ratio > 0.12:
         return None
 
-    # Contract parties, IDs, phone numbers and addresses are commonly placed in
-    # the upper part of the first page.  This is only a suggestion for review.
-    if center_y_ratio <= 0.34 and width_ratio >= 0.14:
+    # Prefer recall now that automatic candidates are review-only suggestions.
+    if center_y_ratio <= 0.50:
         return "possible_pii_row"
-
-    # Signature and bank/account details often appear in compact blocks near the
-    # bottom.  Keep this narrow so body clauses are not all treated as PII.
-    if center_y_ratio >= 0.72 and width_ratio >= 0.10 and near_left_or_right_edge:
+    if center_y_ratio >= 0.62:
         return "possible_signature_or_account_row"
-
-    # Short label/value-like rows near the page edges are likely to be names,
-    # addresses, IDs, phones, bank details, or signatures.  This is conservative
-    # and still below export confidence.
-    if width_ratio <= 0.42 and near_left_or_right_edge and (center_y_ratio <= 0.48 or center_y_ratio >= 0.60):
+    if near_left_or_right_edge and width_ratio >= 0.04:
+        return "possible_pii_row"
+    if width_ratio <= 0.55:
         return "possible_pii_row"
 
     return None
 
 
 def detect_pii_markers(image: Image.Image) -> list[DetectedMarker]:
-    """Return conservative geometric candidates for possible PII rows.
+    """Return recall-oriented geometric candidates for possible PII rows.
 
     This detector does not perform OCR, does not read Hebrew, and does not claim
     to recognize the PII markers listed above.  It only proposes text-like rows
-    that are commonly sensitive in lease-contract page layouts.  Because these
-    are automatic geometric guesses, confidence is kept below
-    MIN_EXPORT_CONFIDENCE so they cannot make a page safe to export by
-    themselves.
+    that may be sensitive in lease-contract page layouts.  Because these are
+    automatic geometric guesses, confidence is kept below MIN_EXPORT_CONFIDENCE
+    so they cannot make a page safe to export by themselves.
     """
 
     width, height = image.size
@@ -321,7 +333,7 @@ def detect_pii_markers(image: Image.Image) -> list[DetectedMarker]:
             continue
 
         density = _row_dark_density(image, row)
-        if density < 0.004 or density > 0.65:
+        if density < 0.001 or density > 0.80:
             continue
 
         row_bbox = expand_marker_bbox_to_full_row(row, width, height, row_regions)
@@ -331,9 +343,12 @@ def detect_pii_markers(image: Image.Image) -> list[DetectedMarker]:
 
         x1, y1, x2, y2 = _clamp_bbox(row, width, height)
         center_y_ratio = ((y1 + y2) / 2) / height
-        confidence = 0.70 if center_y_ratio <= 0.34 else 0.62
-        if marker == "possible_signature_or_account_row":
-            confidence = 0.66
+        if center_y_ratio <= 0.50:
+            confidence = 0.68
+        elif marker == "possible_signature_or_account_row":
+            confidence = 0.64
+        else:
+            confidence = 0.58
 
         detections.append(
             DetectedMarker(
@@ -344,6 +359,8 @@ def detect_pii_markers(image: Image.Image) -> list[DetectedMarker]:
                 detector=PII_ROW_CANDIDATE_DETECTOR_NAME,
             )
         )
+        if len(detections) >= MAX_AUTO_CANDIDATES_PER_PAGE:
+            break
 
     return detections
 
