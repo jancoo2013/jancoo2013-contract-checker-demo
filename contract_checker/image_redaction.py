@@ -2,8 +2,9 @@
 
 This module intentionally does not perform general OCR and does not call external
 services.  The current automatic detector is an experimental geometric scaffold:
-it can find text-like rows, but it does not claim to read Hebrew marker text.  The
-same masking pipeline is used by manual test detections in the Streamlit UI.
+it can find text-like rows and suggest possible personal-data rows, but it does
+not claim to read Hebrew marker text.  The same masking pipeline is used by
+manual test detections in the Streamlit UI.
 """
 
 from __future__ import annotations
@@ -34,6 +35,7 @@ PII_MARKERS = [
 
 MIN_EXPORT_CONFIDENCE = 0.85
 EXPERIMENTAL_DETECTOR_NAME = "experimental-geometric-no-ocr"
+PII_ROW_CANDIDATE_DETECTOR_NAME = "experimental-geometric-pii-row-candidate"
 MANUAL_DETECTOR_NAME = "manual-test-row"
 
 
@@ -243,17 +245,107 @@ def merge_overlapping_row_bboxes(row_bboxes: Iterable[BBox]) -> list[BBox]:
     return merged
 
 
-def detect_pii_markers(image: Image.Image) -> list[DetectedMarker]:
-    """Experimental placeholder detector for Hebrew PII markers.
+def _row_dark_density(image: Image.Image, bbox: BBox) -> float:
+    """Estimate dark-pixel density inside a detected row without OCR."""
 
-    The function prepares row geometry but intentionally returns no marker hits
-    until a validated marker recognizer is available.  This avoids pretending that
-    general Hebrew OCR or reliable marker recognition has been solved without a
-    model, Tesseract, or training data.
+    x1, y1, x2, y2 = _clamp_bbox(bbox, image.width, image.height)
+    if x2 <= x1 or y2 <= y1:
+        return 0.0
+    grayscale = ImageOps.grayscale(image)
+    arr = np.asarray(grayscale)[y1:y2, x1:x2]
+    if arr.size == 0:
+        return 0.0
+    return float((arr < 190).sum() / arr.size)
+
+
+def _candidate_marker_for_row(row: BBox, image_width: int, image_height: int, row_regions: Sequence[BBox]) -> str | None:
+    """Classify a text-like row as a cautious PII candidate.
+
+    This is geometric only.  It intentionally does not inspect characters or make
+    claims about the row content.
     """
 
-    _detect_text_row_regions(image)
-    return []
+    x1, y1, x2, y2 = _clamp_bbox(row, image_width, image_height)
+    if x2 <= x1 or y2 <= y1:
+        return None
+
+    width_ratio = (x2 - x1) / image_width
+    height_ratio = (y2 - y1) / image_height
+    center_y_ratio = ((y1 + y2) / 2) / image_height
+    near_left_or_right_edge = x1 <= image_width * 0.16 or x2 >= image_width * 0.84
+
+    if width_ratio < 0.08 or height_ratio < 0.004:
+        return None
+
+    # Contract parties, IDs, phone numbers and addresses are commonly placed in
+    # the upper part of the first page.  This is only a suggestion for review.
+    if center_y_ratio <= 0.34 and width_ratio >= 0.14:
+        return "possible_pii_row"
+
+    # Signature and bank/account details often appear in compact blocks near the
+    # bottom.  Keep this narrow so body clauses are not all treated as PII.
+    if center_y_ratio >= 0.72 and width_ratio >= 0.10 and near_left_or_right_edge:
+        return "possible_signature_or_account_row"
+
+    # Short label/value-like rows near the page edges are likely to be names,
+    # addresses, IDs, phones, bank details, or signatures.  This is conservative
+    # and still below export confidence.
+    if width_ratio <= 0.42 and near_left_or_right_edge and (center_y_ratio <= 0.48 or center_y_ratio >= 0.60):
+        return "possible_pii_row"
+
+    return None
+
+
+def detect_pii_markers(image: Image.Image) -> list[DetectedMarker]:
+    """Return conservative geometric candidates for possible PII rows.
+
+    This detector does not perform OCR, does not read Hebrew, and does not claim
+    to recognize the PII markers listed above.  It only proposes text-like rows
+    that are commonly sensitive in lease-contract page layouts.  Because these
+    are automatic geometric guesses, confidence is kept below
+    MIN_EXPORT_CONFIDENCE so they cannot make a page safe to export by
+    themselves.
+    """
+
+    width, height = image.size
+    if width <= 0 or height <= 0:
+        return []
+
+    row_regions = _detect_text_row_regions(image)
+    detections: list[DetectedMarker] = []
+    seen_rows: set[BBox] = set()
+
+    for row in row_regions:
+        marker = _candidate_marker_for_row(row, width, height, row_regions)
+        if marker is None:
+            continue
+
+        density = _row_dark_density(image, row)
+        if density < 0.004 or density > 0.65:
+            continue
+
+        row_bbox = expand_marker_bbox_to_full_row(row, width, height, row_regions)
+        if row_bbox in seen_rows:
+            continue
+        seen_rows.add(row_bbox)
+
+        x1, y1, x2, y2 = _clamp_bbox(row, width, height)
+        center_y_ratio = ((y1 + y2) / 2) / height
+        confidence = 0.70 if center_y_ratio <= 0.34 else 0.62
+        if marker == "possible_signature_or_account_row":
+            confidence = 0.66
+
+        detections.append(
+            DetectedMarker(
+                marker=marker,
+                confidence=min(confidence, MIN_EXPORT_CONFIDENCE - 0.01),
+                bbox=(x1, y1, x2, y2),
+                row_bbox=row_bbox,
+                detector=PII_ROW_CANDIDATE_DETECTOR_NAME,
+            )
+        )
+
+    return detections
 
 
 def make_manual_detection(
