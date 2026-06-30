@@ -228,6 +228,9 @@ def _clear_image_redaction_state() -> None:
         "image_manual_masks",
         "image_redaction_ocr_pages",
         "image_redaction_ocr_confirmed",
+        "image_page_reviewed",
+        "active_image_page_index",
+        "image_redaction_page_select",
     ):
         st.session_state.pop(key, None)
     for key in list(st.session_state.keys()):
@@ -236,6 +239,8 @@ def _clear_image_redaction_state() -> None:
         if str(key).startswith("image_redaction_last_click_"):
             st.session_state.pop(key, None)
         if str(key).startswith("image_redaction_ignored_click_after_undo_"):
+            st.session_state.pop(key, None)
+        if str(key).endswith(":reviewed"):
             st.session_state.pop(key, None)
 
 
@@ -250,7 +255,7 @@ def _render_image_redaction_status(has_masks: bool) -> None:
         )
     else:
         st.warning("Ручных масок пока нет")
-        st.info("Страница не считается обезличенной и не должна передаваться во внешние сервисы.")
+        st.info("Страница может быть проверена без масок, если на ней нет личных данных.")
 
 
 def _render_image_redaction_test() -> None:
@@ -353,15 +358,18 @@ def _render_image_redaction_test() -> None:
             )
         return prepared_pages, errors
 
+    def page_label(page_index: int, uploaded_files, page_keys: list[str], manual_masks: dict) -> str:
+        page_key = page_keys[page_index]
+        mask_count = len(manual_masks.get(page_key, []))
+        return f"Страница {page_index + 1}: {uploaded_files[page_index].name} — {mask_count} масок"
+
     st.divider()
     st.header("ТЕСТ: ручное маскирование личных данных на фото")
     st.warning(
         "Закрытый технический тест. Загружай только собственные тестовые документы. "
         "Фото пока поступают на сервер Streamlit и не отправляются во внешние API."
     )
-    st.caption(
-        "Автоматический поиск строк отключён. Маски добавляются и корректируются только вручную."
-    )
+    st.caption("Автоматический поиск строк отключён. Маски добавляются и корректируются только вручную.")
 
     upload_generation = st.session_state.setdefault("image_redaction_upload_generation", 0)
     upload_key = f"image_redaction_uploads_{upload_generation}"
@@ -375,7 +383,7 @@ def _render_image_redaction_test() -> None:
     col_info, col_clear = st.columns([3, 1])
     with col_info:
         st.info(
-            "Режим manual-only: клик по изображению добавляет новую строку-маску или переносит выбранную маску."
+            "Режим manual-only: показывается только одна активная страница, чтобы договор не превращался в длинную простыню."
         )
     with col_clear:
         if st.button("Удалить загруженные изображения из сессии"):
@@ -384,136 +392,179 @@ def _render_image_redaction_test() -> None:
             st.rerun()
 
     manual_masks = st.session_state.setdefault("image_manual_masks", {})
+    reviewed_pages = st.session_state.setdefault("image_page_reviewed", {})
 
-    for index, uploaded_file in enumerate(uploaded_images or []):
-        page_key = f"{index}:{uploaded_file.name}"
-        with st.expander(f"Страница {index + 1}: {uploaded_file.name}", expanded=True):
-            raw_bytes = uploaded_file.getvalue()
-            original_image = None
-            try:
-                original_image = Image.open(BytesIO(raw_bytes))
-                original_image.load()
-                st.write(f"Размер изображения: {original_image.width} × {original_image.height} px")
-            except Exception as exc:
-                st.error(f"Не удалось показать оригинал: {exc}")
+    if not uploaded_images:
+        st.info("Загрузи страницы договора. После загрузки здесь появится навигация по одной активной странице.")
+        return
 
-            if original_image is not None:
-                page_manual_masks = manual_masks.setdefault(page_key, [])
-                manual_detections = build_manual_detections(page_manual_masks, original_image)
-                working_image = redact_detected_rows(original_image, manual_detections) if manual_detections else original_image
+    page_keys = [f"{page_index}:{uploaded_file.name}" for page_index, uploaded_file in enumerate(uploaded_images)]
+    current_page_keys = set(page_keys)
+    for stale_key in list(manual_masks.keys()):
+        if stale_key not in current_page_keys:
+            manual_masks.pop(stale_key, None)
+    for stale_key in list(reviewed_pages.keys()):
+        if stale_key not in current_page_keys:
+            reviewed_pages.pop(stale_key, None)
+    for page_key in page_keys:
+        reviewed_widget_key = f"{page_key}:reviewed"
+        if reviewed_widget_key in st.session_state:
+            reviewed_pages[page_key] = bool(st.session_state[reviewed_widget_key])
+    st.session_state.image_manual_masks = manual_masks
+    st.session_state.image_page_reviewed = reviewed_pages
 
-                st.subheader("Ручное маскирование")
-                st.info(
-                    "Кликни по строке с личными данными. Для перемещения выбери существующую маску и кликни новое место."
+    page_count = len(uploaded_images)
+    active_index = int(st.session_state.get("active_image_page_index", 0))
+    active_index = max(0, min(active_index, page_count - 1))
+    st.session_state.active_image_page_index = active_index
+
+    st.subheader("Страницы договора")
+    status_rows = []
+    reviewed_count = 0
+    for page_index, uploaded_file in enumerate(uploaded_images):
+        page_key = page_keys[page_index]
+        mask_count = len(manual_masks.get(page_key, []))
+        reviewed = bool(reviewed_pages.get(page_key, False))
+        if reviewed:
+            reviewed_count += 1
+        status_rows.append(
+            {
+                "Страница": page_index + 1,
+                "Файл": uploaded_file.name,
+                "Маски": mask_count,
+                "Статус": "✅ проверена" if reviewed else "⚠️ не проверена",
+            }
+        )
+    st.dataframe(status_rows, use_container_width=True, hide_index=True)
+    st.caption(f"Проверено страниц: {reviewed_count} из {page_count}")
+
+    if "image_redaction_page_select" not in st.session_state or int(st.session_state.image_redaction_page_select) >= page_count:
+        st.session_state.image_redaction_page_select = active_index
+
+    prev_col, select_col, next_col = st.columns([1, 4, 1])
+    with prev_col:
+        if st.button("← Предыдущая", disabled=active_index <= 0):
+            new_index = active_index - 1
+            st.session_state.active_image_page_index = new_index
+            st.session_state.image_redaction_page_select = new_index
+            st.rerun()
+    with select_col:
+        selected_index = st.selectbox(
+            "Активная страница",
+            options=list(range(page_count)),
+            format_func=lambda item: page_label(item, uploaded_images, page_keys, manual_masks),
+            key="image_redaction_page_select",
+        )
+        if int(selected_index) != active_index:
+            st.session_state.active_image_page_index = int(selected_index)
+            st.rerun()
+    with next_col:
+        if st.button("Следующая →", disabled=active_index >= page_count - 1):
+            new_index = active_index + 1
+            st.session_state.active_image_page_index = new_index
+            st.session_state.image_redaction_page_select = new_index
+            st.rerun()
+
+    uploaded_file = uploaded_images[active_index]
+    page_key = page_keys[active_index]
+    st.subheader(f"Рабочая область: страница {active_index + 1} из {page_count}")
+
+    raw_bytes = uploaded_file.getvalue()
+    original_image = None
+    try:
+        original_image = Image.open(BytesIO(raw_bytes))
+        original_image.load()
+        st.write(f"Файл: `{uploaded_file.name}`. Размер изображения: {original_image.width} × {original_image.height} px")
+    except Exception as exc:
+        st.error(f"Не удалось показать оригинал: {exc}")
+
+    if original_image is not None:
+        page_manual_masks = manual_masks.setdefault(page_key, [])
+        manual_detections = build_manual_detections(page_manual_masks, original_image)
+        working_image = redact_detected_rows(original_image, manual_detections) if manual_detections else original_image
+
+        reviewed_widget_key = f"{page_key}:reviewed"
+        if reviewed_widget_key not in st.session_state:
+            st.session_state[reviewed_widget_key] = bool(reviewed_pages.get(page_key, False))
+        previous_reviewed = bool(reviewed_pages.get(page_key, False))
+        reviewed_value = st.checkbox("Я проверил эту страницу", key=reviewed_widget_key)
+        reviewed_pages[page_key] = bool(reviewed_value)
+        st.session_state.image_page_reviewed = reviewed_pages
+        if previous_reviewed != bool(reviewed_value):
+            clear_ocr_handoff()
+
+        st.subheader("Ручное маскирование")
+        st.info("Кликни по строке с личными данными. Для перемещения выбери существующую маску и кликни новое место.")
+        max_x = max(1, original_image.width)
+        max_y = max(1, original_image.height)
+        row_height = st.slider(
+            "Высота маски строки",
+            min_value=10,
+            max_value=140,
+            value=30,
+            step=1,
+            key=f"{page_key}:row-height",
+        )
+
+        click_action = "Добавить новую маску"
+        selected_mask_index = 0
+        if page_manual_masks:
+            click_action = st.radio(
+                "Действие при клике по изображению",
+                ["Добавить новую маску", "Переместить выбранную маску"],
+                horizontal=True,
+                key=f"{page_key}:click-action",
+            )
+            if click_action == "Переместить выбранную маску":
+                selected_mask_index = st.selectbox(
+                    "Какую маску переместить",
+                    options=list(range(len(page_manual_masks))),
+                    format_func=lambda item: f"{item + 1}. {(page_manual_masks[item]['x1'], page_manual_masks[item]['y1'], page_manual_masks[item]['x2'], page_manual_masks[item]['y2'])}",
+                    key=f"{page_key}:move-mask-index",
                 )
-                max_x = max(1, original_image.width)
-                max_y = max(1, original_image.height)
-                row_height = st.slider(
-                    "Высота маски строки",
-                    min_value=10,
-                    max_value=140,
-                    value=30,
-                    step=1,
-                    key=f"{page_key}:row-height",
-                )
 
-                click_action = "Добавить новую маску"
-                selected_mask_index = 0
-                if page_manual_masks:
-                    click_action = st.radio(
-                        "Действие при клике по изображению",
-                        ["Добавить новую маску", "Переместить выбранную маску"],
-                        horizontal=True,
-                        key=f"{page_key}:click-action",
-                    )
-                    if click_action == "Переместить выбранную маску":
-                        selected_mask_index = st.selectbox(
-                            "Какую маску переместить",
-                            options=list(range(len(page_manual_masks))),
-                            format_func=lambda item: f"{item + 1}. {(page_manual_masks[item]['x1'], page_manual_masks[item]['y1'], page_manual_masks[item]['x2'], page_manual_masks[item]['y2'])}",
-                            key=f"{page_key}:move-mask-index",
+        last_click_state_key = f"image_redaction_last_click_{page_key}"
+        ignored_click_state_key = f"image_redaction_ignored_click_after_undo_{page_key}"
+        if streamlit_image_coordinates is None:
+            st.warning(
+                "Интерактивный клик по изображению временно недоступен. "
+                "Используй ручной ввод Y-координаты или прямоугольника."
+            )
+            caption = "Рабочее изображение: текущий предпросмотр с ручными масками" if manual_detections else "Рабочее изображение"
+            st.image(working_image, caption=caption, use_container_width=True)
+        else:
+            caption = "Рабочее изображение: текущий предпросмотр с ручными масками" if manual_detections else "Рабочее изображение"
+            st.caption(caption)
+            click_value = streamlit_image_coordinates(working_image, key=f"{page_key}:click-row")
+            if click_value and click_value.get("y") is not None:
+                click_coordinates = (int(click_value.get("x", -1)), int(click_value["y"]))
+                click_signature = (click_action, selected_mask_index, click_coordinates[0], click_coordinates[1])
+                ignored_click = st.session_state.get(ignored_click_state_key)
+                last_processed_click = st.session_state.get(last_click_state_key)
+                if ignored_click == click_coordinates:
+                    st.session_state[last_click_state_key] = click_signature
+                elif last_processed_click != click_signature:
+                    st.session_state.pop(ignored_click_state_key, None)
+                    if click_action == "Переместить выбранную маску" and page_manual_masks:
+                        page_manual_masks[int(selected_mask_index)] = move_mask_to_point(
+                            page_manual_masks[int(selected_mask_index)],
+                            click_coordinates[0],
+                            click_coordinates[1],
+                            original_image.width,
+                            original_image.height,
                         )
-
-                last_click_state_key = f"image_redaction_last_click_{page_key}"
-                ignored_click_state_key = f"image_redaction_ignored_click_after_undo_{page_key}"
-                if streamlit_image_coordinates is None:
-                    st.warning(
-                        "Интерактивный клик по изображению временно недоступен. "
-                        "Используй ручной ввод Y-координаты или прямоугольника."
-                    )
-                    caption = "Рабочее изображение: текущий предпросмотр с ручными масками" if manual_detections else "Рабочее изображение"
-                    st.image(working_image, caption=caption, use_container_width=True)
-                else:
-                    caption = "Рабочее изображение: текущий предпросмотр с ручными масками" if manual_detections else "Рабочее изображение"
-                    st.caption(caption)
-                    click_value = streamlit_image_coordinates(working_image, key=f"{page_key}:click-row")
-                    if click_value and click_value.get("y") is not None:
-                        click_coordinates = (int(click_value.get("x", -1)), int(click_value["y"]))
-                        click_signature = (click_action, selected_mask_index, click_coordinates[0], click_coordinates[1])
-                        ignored_click = st.session_state.get(ignored_click_state_key)
-                        last_processed_click = st.session_state.get(last_click_state_key)
-                        if ignored_click == click_coordinates:
-                            st.session_state[last_click_state_key] = click_signature
-                        elif last_processed_click != click_signature:
-                            st.session_state.pop(ignored_click_state_key, None)
-                            if click_action == "Переместить выбранную маску" and page_manual_masks:
-                                page_manual_masks[int(selected_mask_index)] = move_mask_to_point(
-                                    page_manual_masks[int(selected_mask_index)],
-                                    click_coordinates[0],
-                                    click_coordinates[1],
-                                    original_image.width,
-                                    original_image.height,
-                                )
-                            else:
-                                try:
-                                    row_bbox = create_row_mask_from_y(
-                                        original_image.width,
-                                        original_image.height,
-                                        click_coordinates[1],
-                                        row_height=int(row_height),
-                                    )
-                                except ValueError as exc:
-                                    st.error(str(exc))
-                                    row_bbox = None
-                                if row_bbox is not None:
-                                    page_manual_masks.append(
-                                        {
-                                            "x1": row_bbox[0],
-                                            "y1": row_bbox[1],
-                                            "x2": row_bbox[2],
-                                            "y2": row_bbox[3],
-                                            "marker": "manual_row",
-                                        }
-                                    )
-                            manual_masks[page_key] = page_manual_masks
-                            st.session_state.image_manual_masks = manual_masks
-                            clear_ocr_handoff()
-                            st.session_state[last_click_state_key] = click_signature
-                            st.rerun()
-
-                with st.expander("Показать оригинал", expanded=False):
-                    st.image(original_image, caption="Оригинал", use_container_width=True)
-
-                with st.expander("Ручной ввод Y-координаты", expanded=streamlit_image_coordinates is None):
-                    row_y = st.number_input(
-                        "Y-координата строки",
-                        min_value=0,
-                        max_value=max_y,
-                        value=max_y // 2,
-                        step=1,
-                        key=f"{page_key}:row-y",
-                    )
-                    if st.button("Закрыть строку по Y", key=f"{page_key}:add-row-mask"):
+                    else:
                         try:
                             row_bbox = create_row_mask_from_y(
                                 original_image.width,
                                 original_image.height,
-                                int(row_y),
+                                click_coordinates[1],
                                 row_height=int(row_height),
                             )
                         except ValueError as exc:
                             st.error(str(exc))
-                        else:
+                            row_bbox = None
+                        if row_bbox is not None:
                             page_manual_masks.append(
                                 {
                                     "x1": row_bbox[0],
@@ -523,45 +574,123 @@ def _render_image_redaction_test() -> None:
                                     "marker": "manual_row",
                                 }
                             )
-                            manual_masks[page_key] = page_manual_masks
-                            st.session_state.image_manual_masks = manual_masks
-                            clear_ocr_handoff()
-                            st.rerun()
+                    manual_masks[page_key] = page_manual_masks
+                    st.session_state.image_manual_masks = manual_masks
+                    clear_ocr_handoff()
+                    st.session_state[last_click_state_key] = click_signature
+                    st.rerun()
 
-                with st.expander("Расширенное ручное маскирование прямоугольником", expanded=False):
-                    c1, c2, c3, c4 = st.columns(4)
-                    with c1:
-                        x1 = st.number_input("x1", min_value=0, max_value=max_x, value=0, key=f"{page_key}:x1")
-                    with c2:
-                        y1 = st.number_input("y1", min_value=0, max_value=max_y, value=0, key=f"{page_key}:y1")
-                    with c3:
-                        x2 = st.number_input("x2", min_value=0, max_value=max_x, value=max_x, key=f"{page_key}:x2")
-                    with c4:
-                        y2 = st.number_input("y2", min_value=0, max_value=max_y, value=min(max_y, 30), key=f"{page_key}:y2")
-                    if st.button("Добавить прямоугольную маску", key=f"{page_key}:add-rect-mask"):
-                        page_manual_masks.append(
-                            {
-                                "x1": int(x1),
-                                "y1": int(y1),
-                                "x2": int(x2),
-                                "y2": int(y2),
-                                "marker": "manual_rect",
-                            }
-                        )
-                        manual_masks[page_key] = page_manual_masks
-                        st.session_state.image_manual_masks = manual_masks
-                        clear_ocr_handoff()
-                        st.rerun()
+        with st.expander("Показать оригинал", expanded=False):
+            st.image(original_image, caption="Оригинал", use_container_width=True)
 
-                undo_col, reset_col = st.columns([1, 3])
-                has_page_masks = bool(page_manual_masks)
-                if undo_col.button(
-                    "←",
-                    key=f"{page_key}:undo-last-mask",
-                    help="Откатить последний шаг добавления маски",
-                    disabled=not has_page_masks,
-                ):
-                    page_manual_masks.pop()
+        with st.expander("Ручной ввод Y-координаты", expanded=streamlit_image_coordinates is None):
+            row_y = st.number_input(
+                "Y-координата строки",
+                min_value=0,
+                max_value=max_y,
+                value=max_y // 2,
+                step=1,
+                key=f"{page_key}:row-y",
+            )
+            if st.button("Закрыть строку по Y", key=f"{page_key}:add-row-mask"):
+                try:
+                    row_bbox = create_row_mask_from_y(
+                        original_image.width,
+                        original_image.height,
+                        int(row_y),
+                        row_height=int(row_height),
+                    )
+                except ValueError as exc:
+                    st.error(str(exc))
+                else:
+                    page_manual_masks.append(
+                        {
+                            "x1": row_bbox[0],
+                            "y1": row_bbox[1],
+                            "x2": row_bbox[2],
+                            "y2": row_bbox[3],
+                            "marker": "manual_row",
+                        }
+                    )
+                    manual_masks[page_key] = page_manual_masks
+                    st.session_state.image_manual_masks = manual_masks
+                    clear_ocr_handoff()
+                    st.rerun()
+
+        with st.expander("Расширенное ручное маскирование прямоугольником", expanded=False):
+            c1, c2, c3, c4 = st.columns(4)
+            with c1:
+                x1 = st.number_input("x1", min_value=0, max_value=max_x, value=0, key=f"{page_key}:x1")
+            with c2:
+                y1 = st.number_input("y1", min_value=0, max_value=max_y, value=0, key=f"{page_key}:y1")
+            with c3:
+                x2 = st.number_input("x2", min_value=0, max_value=max_x, value=max_x, key=f"{page_key}:x2")
+            with c4:
+                y2 = st.number_input("y2", min_value=0, max_value=max_y, value=min(max_y, 30), key=f"{page_key}:y2")
+            if st.button("Добавить прямоугольную маску", key=f"{page_key}:add-rect-mask"):
+                page_manual_masks.append(
+                    {
+                        "x1": int(x1),
+                        "y1": int(y1),
+                        "x2": int(x2),
+                        "y2": int(y2),
+                        "marker": "manual_rect",
+                    }
+                )
+                manual_masks[page_key] = page_manual_masks
+                st.session_state.image_manual_masks = manual_masks
+                clear_ocr_handoff()
+                st.rerun()
+
+        undo_col, reset_col = st.columns([1, 3])
+        has_page_masks = bool(page_manual_masks)
+        if undo_col.button(
+            "←",
+            key=f"{page_key}:undo-last-mask",
+            help="Откатить последний шаг добавления маски",
+            disabled=not has_page_masks,
+        ):
+            page_manual_masks.pop()
+            if page_manual_masks:
+                manual_masks[page_key] = page_manual_masks
+            else:
+                manual_masks.pop(page_key, None)
+            st.session_state.image_manual_masks = manual_masks
+            clear_ocr_handoff()
+            last_processed_click = st.session_state.get(last_click_state_key)
+            if last_processed_click is not None:
+                if isinstance(last_processed_click, tuple) and len(last_processed_click) >= 4:
+                    st.session_state[ignored_click_state_key] = (last_processed_click[-2], last_processed_click[-1])
+                else:
+                    st.session_state[ignored_click_state_key] = last_processed_click
+            st.rerun()
+        if reset_col.button(
+            "Отменить изменения на этой странице",
+            key=f"{page_key}:reset-page-masks",
+            disabled=not has_page_masks,
+        ):
+            manual_masks.pop(page_key, None)
+            st.session_state.image_manual_masks = manual_masks
+            clear_ocr_handoff()
+            last_processed_click = st.session_state.get(last_click_state_key)
+            if last_processed_click is not None:
+                if isinstance(last_processed_click, tuple) and len(last_processed_click) >= 4:
+                    st.session_state[ignored_click_state_key] = (last_processed_click[-2], last_processed_click[-1])
+                else:
+                    st.session_state[ignored_click_state_key] = last_processed_click
+            st.rerun()
+
+        st.subheader("Ручные маски на активной странице")
+        if page_manual_masks:
+            for mask_index, mask in enumerate(list(page_manual_masks)):
+                mask_label = "строка по Y" if mask.get("marker") == "manual_row" else "прямоугольник"
+                cols = st.columns([5, 1])
+                cols[0].write(
+                    f"{mask_index + 1}. {mask_label}: "
+                    f"{(mask['x1'], mask['y1'], mask['x2'], mask['y2'])}"
+                )
+                if cols[1].button("Удалить", key=f"{page_key}:remove:{mask_index}"):
+                    page_manual_masks.pop(mask_index)
                     if page_manual_masks:
                         manual_masks[page_key] = page_manual_masks
                     else:
@@ -575,79 +704,41 @@ def _render_image_redaction_test() -> None:
                         else:
                             st.session_state[ignored_click_state_key] = last_processed_click
                     st.rerun()
-                if reset_col.button(
-                    "Отменить изменения",
-                    key=f"{page_key}:reset-page-masks",
-                    disabled=not has_page_masks,
-                ):
-                    manual_masks.pop(page_key, None)
-                    st.session_state.image_manual_masks = manual_masks
-                    clear_ocr_handoff()
-                    last_processed_click = st.session_state.get(last_click_state_key)
-                    if last_processed_click is not None:
-                        if isinstance(last_processed_click, tuple) and len(last_processed_click) >= 4:
-                            st.session_state[ignored_click_state_key] = (last_processed_click[-2], last_processed_click[-1])
-                        else:
-                            st.session_state[ignored_click_state_key] = last_processed_click
-                    st.rerun()
+        else:
+            st.info("Ручных масок на этой странице пока нет.")
 
-                st.subheader("Ручные маски")
-                if page_manual_masks:
-                    for mask_index, mask in enumerate(list(page_manual_masks)):
-                        mask_label = "строка по Y" if mask.get("marker") == "manual_row" else "прямоугольник"
-                        cols = st.columns([5, 1, 1])
-                        cols[0].write(
-                            f"{mask_index + 1}. {mask_label}: "
-                            f"{(mask['x1'], mask['y1'], mask['x2'], mask['y2'])}"
-                        )
-                        if cols[1].button("Центр", key=f"{page_key}:center:{mask_index}"):
-                            center_y = (int(mask["y1"]) + int(mask["y2"])) // 2
-                            st.session_state[f"{page_key}:row-y"] = center_y
-                        if cols[2].button("Удалить", key=f"{page_key}:remove:{mask_index}"):
-                            page_manual_masks.pop(mask_index)
-                            if page_manual_masks:
-                                manual_masks[page_key] = page_manual_masks
-                            else:
-                                manual_masks.pop(page_key, None)
-                            st.session_state.image_manual_masks = manual_masks
-                            clear_ocr_handoff()
-                            last_processed_click = st.session_state.get(last_click_state_key)
-                            if last_processed_click is not None:
-                                if isinstance(last_processed_click, tuple) and len(last_processed_click) >= 4:
-                                    st.session_state[ignored_click_state_key] = (last_processed_click[-2], last_processed_click[-1])
-                                else:
-                                    st.session_state[ignored_click_state_key] = last_processed_click
-                            st.rerun()
-                else:
-                    st.info("Ручных масок на этой странице пока нет.")
+        detections_for_table = [
+            {
+                "marker": marker.marker,
+                "confidence": marker.confidence,
+                "row_bbox": marker.row_bbox,
+                "detector": marker.detector,
+            }
+            for marker in manual_detections
+        ]
+        if detections_for_table:
+            st.dataframe(detections_for_table, use_container_width=True)
+        else:
+            st.info("Список ручных масок пуст. Персональные значения не извлекаются и не показываются.")
 
-                detections_for_table = [
-                    {
-                        "marker": marker.marker,
-                        "confidence": marker.confidence,
-                        "row_bbox": marker.row_bbox,
-                        "detector": marker.detector,
-                    }
-                    for marker in manual_detections
-                ]
-                if detections_for_table:
-                    st.dataframe(detections_for_table, use_container_width=True)
-                else:
-                    st.info("Список ручных масок пуст. Персональные значения не извлекаются и не показываются.")
-
-                _render_image_redaction_status(bool(manual_detections))
+        _render_image_redaction_status(bool(manual_detections))
 
     st.subheader("Следующий шаг")
-    has_uploaded_pages = bool(uploaded_images)
+    reviewed_pages[page_key] = bool(st.session_state.get(f"{page_key}:reviewed", reviewed_pages.get(page_key, False)))
+    st.session_state.image_page_reviewed = reviewed_pages
+    all_pages_reviewed = all(bool(reviewed_pages.get(key, False)) for key in page_keys)
+    if not all_pages_reviewed:
+        st.warning("Перед переходом к распознаванию текста нужно отметить каждую страницу как проверенную.")
+
     confirmed = st.checkbox(
-        "Я проверил, что личные данные закрыты",
+        "Я проверил, что личные данные закрыты на всех страницах",
         key="image_redaction_ocr_confirmed",
-        disabled=not has_uploaded_pages,
+        disabled=not all_pages_reviewed,
     )
     if st.button(
         "Продолжить к распознаванию текста",
         type="primary",
-        disabled=not has_uploaded_pages or not confirmed,
+        disabled=not all_pages_reviewed or not confirmed,
     ):
         prepared_pages, errors = prepare_ocr_pages(uploaded_images, manual_masks)
         if errors:
@@ -657,7 +748,7 @@ def _render_image_redaction_test() -> None:
         else:
             st.session_state.image_redaction_ocr_pages = prepared_pages
             st.success("Обезличенные страницы подготовлены для распознавания текста. Сам OCR ещё не подключён.")
-            st.info("На следующий этап будут передаваться только страницы с ручными масками.")
+            st.info("На следующий этап будут передаваться все проверенные страницы с ручными масками, если они были добавлены.")
 
 
 def main() -> None:
