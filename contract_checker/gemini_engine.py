@@ -132,6 +132,89 @@ def _build_config(types_module: Any) -> Any:
     return generate_config(**config) if generate_config else config
 
 
+def _build_ocr_config(types_module: Any) -> Any:
+    config = {
+        "max_output_tokens": 8000,
+        "temperature": 0.0,
+    }
+    generate_config = getattr(types_module, "GenerateContentConfig", None)
+    return generate_config(**config) if generate_config else config
+
+
+def _ocr_prompt(page_number: int, filename: str) -> str:
+    return (
+        "You are an OCR engine for Israeli Hebrew rental contracts.\n"
+        "Extract all visible printed Hebrew text from this already-redacted page image.\n"
+        "Return OCR text only. Do not translate. Do not summarize. Do not explain.\n"
+        "Preserve line breaks when reasonably possible.\n"
+        "If a line is hidden by a black privacy mask, write [MASKED].\n"
+        "If a character is unclear, keep the closest visible Hebrew character rather than guessing legal meaning.\n\n"
+        f"Page: {page_number}\n"
+        f"Filename: {filename}"
+    )
+
+
+def _image_part(types_module: Any, image_bytes: bytes) -> Any:
+    part = getattr(types_module, "Part", None)
+    from_bytes = getattr(part, "from_bytes", None) if part is not None else None
+    if from_bytes is None:
+        raise GeminiConfigurationError("google-genai image part API is unavailable")
+    return from_bytes(data=image_bytes, mime_type="image/png")
+
+
+def ocr_redacted_pages_with_gemini(
+    prepared_pages: list[dict[str, Any]],
+    api_key: str,
+    model: str = DEFAULT_GEMINI_MODEL,
+) -> str:
+    """Run temporary Gemini OCR on already-redacted page images.
+
+    This is a test bridge only. It must receive redacted images produced by the
+    manual masking flow, not raw contract photos.
+    """
+
+    if not api_key or not api_key.strip():
+        raise GeminiConfigurationError("Не указан Gemini API-ключ")
+    if not prepared_pages:
+        raise GeminiConfigurationError("Нет подготовленных замаскированных страниц для OCR")
+    if genai is None and importlib.util.find_spec("google.genai") is None:
+        raise GeminiConfigurationError("Пакет google-genai не установлен")
+
+    genai_module, types_module = _load_genai_modules()
+    selected_model = (model or DEFAULT_GEMINI_MODEL).strip() or DEFAULT_GEMINI_MODEL
+    config = _build_ocr_config(types_module)
+
+    try:
+        client = genai_module.Client(api_key=api_key.strip())
+    except Exception as exc:
+        raise _classify_sdk_error(exc) from exc
+
+    page_texts: list[str] = []
+    for page in prepared_pages:
+        page_index = int(page.get("page_index", len(page_texts)))
+        page_number = page_index + 1
+        filename = str(page.get("filename", f"page_{page_number}.png"))
+        image_bytes = page.get("image_bytes")
+        if not isinstance(image_bytes, bytes) or not image_bytes:
+            raise GeminiConfigurationError(f"Страница {page_number}: нет PNG-байтов для OCR")
+
+        contents = [
+            _ocr_prompt(page_number=page_number, filename=filename),
+            _image_part(types_module, image_bytes),
+        ]
+        try:
+            response = client.models.generate_content(model=selected_model, contents=contents, config=config)
+        except GeminiError:
+            raise
+        except Exception as exc:
+            raise _classify_sdk_error(exc) from exc
+
+        text = _response_text(response)
+        page_texts.append(f"--- PAGE {page_number}: {filename} ---\n{text}")
+
+    return "\n\n".join(page_texts).strip()
+
+
 def analyze_contract_with_gemini(
     redacted_text: str,
     api_key: str,
