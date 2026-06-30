@@ -18,14 +18,10 @@ from contract_checker.validator import validate_contract_text
 
 
 st.set_page_config(page_title="Temporary Gemini OCR", page_icon="🔎", layout="wide")
-st.title("🔎 Temporary Gemini OCR")
-st.warning(
-    "Временный тестовый OCR. Использовать только для страниц, которые уже прошли ручную проверку "
-    "и были подготовлены через manual masking flow. Это не production on-device OCR."
-)
-st.info(
-    "Этот режим отправляет в Gemini только подготовленные страницы из `image_redaction_ocr_pages`, "
-    "то есть redacted preview с ручными масками, а не исходные загруженные фото."
+st.title("🔎 Step 5 — Run temporary OCR")
+st.warning("Временный OCR только для закрытого тестирования.")
+st.caption(
+    "Используются только подготовленные замаскированные страницы. Это не production on-device OCR."
 )
 
 prepared_pages = st.session_state.get("image_redaction_ocr_pages") or []
@@ -36,15 +32,16 @@ if not prepared_pages:
     )
     st.stop()
 
-st.write(
-    {
-        "подготовлено страниц": len(prepared_pages),
-        "режим": "temporary_gemini_ocr_on_redacted_pages",
-        "production OCR": "нет",
-    }
-)
+st.success(f"Подготовлено страниц: {len(prepared_pages)}")
 
-with st.expander("Подготовленные страницы", expanded=False):
+with st.expander("Advanced: подготовленные страницы", expanded=False):
+    st.write(
+        {
+            "подготовлено страниц": len(prepared_pages),
+            "режим": "temporary_gemini_ocr_on_redacted_pages",
+            "production OCR": "нет",
+        }
+    )
     for page in prepared_pages:
         st.write(
             {
@@ -112,8 +109,8 @@ if st.button("Распознать подготовленные страницы
 
 ocr_raw_text = st.session_state.get("gemini_ocr_raw_text")
 if ocr_raw_text:
-    st.subheader("Последний сырой OCR-текст")
-    st.text_area("Raw OCR", value=ocr_raw_text, height=420, disabled=True, label_visibility="collapsed")
+    with st.expander("Advanced: последний сырой OCR-текст", expanded=False):
+        st.text_area("Raw OCR", value=ocr_raw_text, height=360, disabled=True, label_visibility="collapsed")
 
 validation = st.session_state.get("validation_result")
 if validation:
@@ -122,13 +119,14 @@ if validation:
         st.success("OCR-текст пригоден для дальнейшего AI-анализа.")
     else:
         st.warning("OCR-текст пока не прошёл validation как пригодный договор.")
-    st.write(
-        {
-            "полнота": validation.completeness,
-            "символы иврита": validation.hebrew_char_count,
-            "признаки аренды": validation.indicator_count,
-            "пункты/абзацы": validation.clause_count,
-            "доля мусора": validation.garbage_ratio,
-            "разделители страниц": validation.page_separator_count,
-        }
-    )
+    with st.expander("Advanced: метрики OCR-текста", expanded=False):
+        st.write(
+            {
+                "полнота": validation.completeness,
+                "символы иврита": validation.hebrew_char_count,
+                "признаки аренды": validation.indicator_count,
+                "пункты/абзацы": validation.clause_count,
+                "доля мусора": validation.garbage_ratio,
+                "разделители страниц": validation.page_separator_count,
+            }
+        )
