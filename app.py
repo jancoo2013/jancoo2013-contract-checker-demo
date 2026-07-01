@@ -901,10 +901,10 @@ def main() -> None:
     _render_manual_ocr_test_mode()
 
     st.divider()
-    st.header("Optional: paste recognized contract text manually")
+    st.header("AI analysis settings")
     st.caption(
-        "Обычный путь для фото-договора: Step 4 → Temporary Gemini OCR в левом меню → возврат сюда для анализа. "
-        "Этот блок нужен только если у тебя уже есть готовый OCR-текст или полный текст договора."
+        "Эти настройки используются для финального анализа после Temporary Gemini OCR "
+        "или после ручной вставки текста."
     )
 
     api_key = st.text_input(
@@ -914,7 +914,7 @@ def main() -> None:
         help="Ключ не должен попадать в GitHub. Приложение не выводит его в ошибки или отчёты.",
     )
 
-    with st.expander("Advanced settings", expanded=False):
+    with st.expander("Advanced model settings", expanded=False):
         manual_model = st.text_input(
             "Manual Gemini model ID",
             key="manual_model_id",
@@ -922,6 +922,12 @@ def main() -> None:
             placeholder="например: gemini-3.5-flash",
         )
     model = manual_model.strip() or DEFAULT_GEMINI_MODEL
+
+    st.header("Optional: paste recognized contract text manually")
+    st.caption(
+        "Обычный путь для фото-договора: Step 4 → Temporary Gemini OCR в левом меню → возврат сюда для анализа. "
+        "Этот блок нужен только если у тебя уже есть готовый OCR-текст или полный текст договора."
+    )
 
     redact_clicked = False
     with st.expander("Alternative / manual text input", expanded=False):
