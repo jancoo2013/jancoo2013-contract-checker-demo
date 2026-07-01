@@ -139,7 +139,6 @@ if st.button("Распознать подготовленные страницы
             st.warning(f"OCR quality: warning. Score {ocr_quality_report.score}. Если это важный договор, пересними страницы с предупреждениями.")
         else:
             st.error("OCR quality is too low; reshoot pages before analysis.")
-        _render_page_quality_summary(ocr_page_quality_reports)
         st.info("Вернись на основную страницу: там появится обезличенный OCR-текст и будет доступна кнопка анализа, если текст пригоден.")
 
 ocr_raw_text = st.session_state.get("gemini_ocr_raw_text")
