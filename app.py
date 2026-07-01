@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+
 from typing import Any
 
 from contract_checker.completeness import CompletenessAudit, audit_completeness
@@ -60,12 +62,12 @@ def _image_page_bytes(page: dict[str, Any]) -> bytes:
     return bytes(content)
 
 
-def _image_pages_signature(pages: list[dict[str, Any]]) -> list[tuple[str, str, int]]:
+def _image_pages_signature(pages: list[dict[str, Any]]) -> list[tuple[str, str, str]]:
     return [
         (
             _image_page_filename(page),
             str(page.get("content_type") or ""),
-            len(page.get("bytes") or b""),
+            hashlib.sha256(_image_page_bytes(page)).hexdigest(),
         )
         for page in pages
     ]
