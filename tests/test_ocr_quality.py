@@ -75,7 +75,7 @@ class OCRQualityGateTests(unittest.TestCase):
     def test_scaffolding_and_mask_placeholders_do_not_lower_hebrew_ratio(self) -> None:
         text = (
             "--- OCR SOURCE: temporary_gemini_ocr_on_redacted_pages ---\n"
-            "--- IMAGE PAGES PREPARED: 3 ---\n"
+            "--- IMAGE PAGES PREPARED: 1 ---\n"
             "--- PAGE 1: page_1.png ---\n"
             "[MASKED]\n"
             "[MASKED]\n"
@@ -85,7 +85,6 @@ class OCRQualityGateTests(unittest.TestCase):
             "דמי שכירות ישולמו בכל חודש בסך 5000 ש\"ח.\n"
             "השוכר ישלם ארנונה, חשמל, מים וועד הבית.\n"
             "השוכר יפקיד פיקדון ויחתום על נספח וערבות לפי הצורך.\n"
-            "--- PAGE 2: page_2.jpg ---\n"
             "[MASKED] [MASKED] [MASKED]\n"
         )
 
