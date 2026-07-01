@@ -69,10 +69,36 @@ _LATIN_TOKEN_RE = re.compile(r"\b[A-Za-z]\b")
 _REPLACEMENT_RE = re.compile(r"[\uFFFD□]")
 _HEBREW_TOKEN_RE = re.compile(r"[\u0590-\u05FF]+(?:[\"׳'][\u0590-\u05FF]+)?")
 _CLAUSE_NUMBER_RE = re.compile(r"^\s*(\d{1,2})[\.)]")
+_MASK_PLACEHOLDER_RE = re.compile(r"\[(?:MASKED|REDACTED)\]", re.IGNORECASE)
+_SCAFFOLDING_LINE_RE = re.compile(
+    r"^\s*---\s*(?:PAGE\s+\d+|OCR SOURCE|OCR MODE|IMAGE PAGES PREPARED)\b.*---\s*$",
+    re.IGNORECASE,
+)
+_IMAGE_FILENAME_LINE_RE = re.compile(r"^\s*[\w .\-()]+\.(?:png|jpe?g|webp|heic|pdf)\s*$", re.IGNORECASE)
 
 
 def _hebrew_char_count(text: str) -> int:
     return len(_HEBREW_RE.findall(text))
+
+
+def _quality_scoring_text(text: str) -> str:
+    """Remove OCR scaffolding that should not affect quality scoring.
+
+    The raw OCR text must remain unchanged for evidence/debug output. This helper
+    only builds the technical text used for ratios, garbage checks, and markers.
+    """
+
+    cleaned_lines: list[str] = []
+    for line in (text or "").splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if _SCAFFOLDING_LINE_RE.match(stripped) or _IMAGE_FILENAME_LINE_RE.match(stripped):
+            continue
+        cleaned = _MASK_PLACEHOLDER_RE.sub(" ", line).strip()
+        if cleaned:
+            cleaned_lines.append(cleaned)
+    return "\n".join(cleaned_lines).strip()
 
 
 def _normalize_marker_text(text: str) -> str:
@@ -235,13 +261,14 @@ def assess_ocr_quality(text: str, expected_pages: int | None = None) -> OCRQuali
 
     safe_text = text or ""
     stripped_text = safe_text.strip()
-    total_char_count = len(stripped_text)
-    hebrew_char_count = _hebrew_char_count(stripped_text)
+    scoring_text = _quality_scoring_text(stripped_text)
+    total_char_count = len(scoring_text)
+    hebrew_char_count = _hebrew_char_count(scoring_text)
     hebrew_ratio = round(hebrew_char_count / max(1, total_char_count), 4)
-    fuzzy_marker_hits = detect_fuzzy_lease_markers(stripped_text)
+    fuzzy_marker_hits = detect_fuzzy_lease_markers(scoring_text)
     lease_marker_hits = len(fuzzy_marker_hits)
     garbage_signals = _garbage_signals(
-        text=stripped_text,
+        text=scoring_text,
         hebrew_char_count=hebrew_char_count,
         total_char_count=total_char_count,
         hebrew_ratio=hebrew_ratio,
@@ -268,7 +295,7 @@ def assess_ocr_quality(text: str, expected_pages: int | None = None) -> OCRQuali
         "low_hebrew_ratio",
         "too_short_for_expected_pages",
     }
-    if not stripped_text or hebrew_char_count < 40 or (hebrew_ratio < 0.25 and total_char_count >= 120):
+    if not scoring_text or hebrew_char_count < 40 or (hebrew_ratio < 0.25 and total_char_count >= 120):
         status: OCRQualityStatus = "poor"
     elif lease_marker_hits == 0:
         status = "poor"
