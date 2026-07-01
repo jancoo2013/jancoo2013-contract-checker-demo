@@ -14,6 +14,7 @@ from contract_checker.gemini_engine import (
     analyze_contract_with_gemini,
 )
 from contract_checker.output_validator import EvidenceValidationResult, validate_model_evidence
+from contract_checker.ocr_quality import OCRQualityReport, assess_ocr_quality
 from contract_checker.redaction import RedactionReport, redact_personal_data_with_report
 from contract_checker.schemas import ContractAuditResult
 from contract_checker.validator import ContractTextValidationResult, validate_contract_text
@@ -21,6 +22,14 @@ from contract_checker.validator import ContractTextValidationResult, validate_co
 
 def _model_to_dict(result: ContractAuditResult) -> dict[str, Any]:
     return result.model_dump(mode="json")
+
+
+def _ocr_quality_to_dict(report: OCRQualityReport | dict[str, Any] | None) -> dict[str, Any]:
+    if report is None:
+        return {}
+    if isinstance(report, dict):
+        return report
+    return report.to_dict()
 
 
 def _risk_profile_label(risk_profile: str) -> str:
@@ -154,6 +163,39 @@ def _render_validation_status(validation: ContractTextValidationResult) -> None:
         )
 
 
+def _render_ocr_quality_report(report: OCRQualityReport | dict[str, Any] | None) -> None:
+    import streamlit as st
+
+    data = _ocr_quality_to_dict(report)
+    if not data:
+        return
+
+    status = str(data.get("status") or "")
+    score = data.get("score")
+    marker_hits = data.get("lease_marker_hits")
+    if status == "good":
+        st.success(f"OCR quality: good. Score {score}, markers {marker_hits}.")
+    elif status == "warning":
+        st.warning(f"OCR quality: warning. Score {score}, markers {marker_hits}. Проверь текст перед анализом.")
+    else:
+        st.error("OCR quality is too low; reshoot pages before analysis.")
+
+    with st.expander("Advanced: OCR quality details", expanded=False):
+        st.write(
+            {
+                "status": data.get("status"),
+                "score": data.get("score"),
+                "hebrew_char_count": data.get("hebrew_char_count"),
+                "total_char_count": data.get("total_char_count"),
+                "hebrew_ratio": data.get("hebrew_ratio"),
+                "lease_marker_hits": data.get("lease_marker_hits"),
+                "garbage_signals": data.get("garbage_signals"),
+                "warnings": data.get("warnings"),
+            }
+        )
+        st.write({"fuzzy_marker_hits": data.get("fuzzy_marker_hits")})
+
+
 def _render_redaction_report(report: RedactionReport) -> None:
     import streamlit as st
 
@@ -212,6 +254,8 @@ def _clear_sensitive_state() -> None:
         "redaction_report",
         "completeness_audit",
         "validation_result",
+        "ocr_quality_report",
+        "gemini_ocr_raw_text",
         "analysis_result",
         "validation_warnings",
         "manual_model_id",
@@ -812,12 +856,14 @@ def _render_manual_ocr_test_mode() -> None:
             )
             redaction_result = redact_personal_data_with_report(assembled_text)
             redacted_text = redaction_result.redacted_text
+            ocr_quality_report = assess_ocr_quality(ocr_text, expected_pages=len(prepared_pages))
             validation = validate_contract_text(redacted_text)
             completeness_audit = audit_completeness(redacted_text, text_usable=validation.usable)
             st.session_state.redacted_text = redacted_text
             st.session_state.redaction_report = redaction_result.report
             st.session_state.completeness_audit = completeness_audit
             st.session_state.validation_result = validation
+            st.session_state.ocr_quality_report = ocr_quality_report
             st.session_state.pop("analysis_result", None)
             st.session_state.pop("validation_warnings", None)
             st.success("OCR-текст подготовлен. Ниже появится обезличенный текст, валидация и проверка комплектности.")
@@ -885,6 +931,8 @@ def main() -> None:
             st.session_state.redaction_report = redaction_result.report
             st.session_state.completeness_audit = completeness_audit
             st.session_state.validation_result = validation
+            st.session_state.pop("ocr_quality_report", None)
+            st.session_state.pop("gemini_ocr_raw_text", None)
             st.session_state.pop("analysis_result", None)
             st.session_state.pop("validation_warnings", None)
 
@@ -892,6 +940,7 @@ def main() -> None:
     redaction_report = st.session_state.get("redaction_report")
     completeness_audit = st.session_state.get("completeness_audit")
     validation = st.session_state.get("validation_result")
+    ocr_quality_report = st.session_state.get("ocr_quality_report")
 
     if redacted_text:
         if redaction_report:
@@ -900,12 +949,17 @@ def main() -> None:
             st.text_area("Redacted source", value=redacted_text, height=260, disabled=True, label_visibility="collapsed")
     if validation:
         _render_validation_status(validation)
+    if ocr_quality_report:
+        _render_ocr_quality_report(ocr_quality_report)
     if completeness_audit:
         st.header("Step 6 — Check completeness")
         _render_completeness_audit(completeness_audit)
 
-    can_analyze = bool(validation and validation.usable and api_key.strip())
+    ocr_quality_status = str(_ocr_quality_to_dict(ocr_quality_report).get("status") or "")
+    can_analyze = bool(validation and validation.usable and api_key.strip() and ocr_quality_status != "poor")
     st.header("Step 7 — Run analysis")
+    if ocr_quality_status == "poor":
+        st.error("Анализ отключён: качество OCR слишком низкое. Пересними или заново подготовь страницы.")
     if st.button("Запустить анализ", disabled=not can_analyze):
         if not redacted_text or not validation or not validation.usable:
             st.error("Сначала обезличь текст и пройди валидацию.")

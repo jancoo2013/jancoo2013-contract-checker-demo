@@ -13,6 +13,7 @@ from contract_checker.gemini_engine import (
     GeminiResponseError,
     ocr_redacted_pages_with_gemini,
 )
+from contract_checker.ocr_quality import assess_ocr_quality
 from contract_checker.redaction import redact_personal_data_with_report
 from contract_checker.validator import validate_contract_text
 
@@ -91,6 +92,7 @@ if st.button("Распознать подготовленные страницы
             f"--- IMAGE PAGES PREPARED: {len(prepared_pages)} ---\n\n"
             f"{ocr_text}"
         )
+        ocr_quality_report = assess_ocr_quality(ocr_text, expected_pages=len(prepared_pages))
         redaction_result = redact_personal_data_with_report(assembled_text)
         redacted_text = redaction_result.redacted_text
         validation = validate_contract_text(redacted_text)
@@ -100,11 +102,18 @@ if st.button("Распознать подготовленные страницы
         st.session_state.redaction_report = redaction_result.report
         st.session_state.completeness_audit = completeness_audit
         st.session_state.validation_result = validation
+        st.session_state.ocr_quality_report = ocr_quality_report
         st.session_state.gemini_ocr_raw_text = ocr_text
         st.session_state.pop("analysis_result", None)
         st.session_state.pop("validation_warnings", None)
 
         st.success("OCR готов. Текст уже прогнан через redaction, validation и completeness audit.")
+        if ocr_quality_report.status == "good":
+            st.success(f"OCR quality: good. Score {ocr_quality_report.score}.")
+        elif ocr_quality_report.status == "warning":
+            st.warning(f"OCR quality: warning. Score {ocr_quality_report.score}. Проверь текст перед анализом.")
+        else:
+            st.error("OCR quality is too low; reshoot pages before analysis.")
         st.info("Вернись на основную страницу: там появится обезличенный OCR-текст и будет доступна кнопка анализа, если текст пригоден.")
 
 ocr_raw_text = st.session_state.get("gemini_ocr_raw_text")
@@ -130,3 +139,11 @@ if validation:
                 "разделители страниц": validation.page_separator_count,
             }
         )
+
+ocr_quality_report = st.session_state.get("ocr_quality_report")
+if ocr_quality_report:
+    with st.expander("Advanced: OCR quality details", expanded=False):
+        if hasattr(ocr_quality_report, "to_dict"):
+            st.write(ocr_quality_report.to_dict())
+        else:
+            st.write(ocr_quality_report)
