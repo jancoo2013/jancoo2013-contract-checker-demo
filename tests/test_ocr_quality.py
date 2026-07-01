@@ -72,6 +72,30 @@ class OCRQualityGateTests(unittest.TestCase):
             {"many_isolated_latin_tokens", "many_single_character_lines"} & set(report.garbage_signals)
         )
 
+    def test_scaffolding_and_mask_placeholders_do_not_lower_hebrew_ratio(self) -> None:
+        text = (
+            "--- OCR SOURCE: temporary_gemini_ocr_on_redacted_pages ---\n"
+            "--- IMAGE PAGES PREPARED: 3 ---\n"
+            "--- PAGE 1: page_1.png ---\n"
+            "[MASKED]\n"
+            "[MASKED]\n"
+            "[MASKED]\n"
+            "הסכם שכירות בלתי מוגנת\n"
+            "המשכיר משכיר לשוכר דירה למטרת מגורים בלבד.\n"
+            "דמי שכירות ישולמו בכל חודש בסך 5000 ש\"ח.\n"
+            "השוכר ישלם ארנונה, חשמל, מים וועד הבית.\n"
+            "השוכר יפקיד פיקדון ויחתום על נספח וערבות לפי הצורך.\n"
+            "--- PAGE 2: page_2.jpg ---\n"
+            "[MASKED] [MASKED] [MASKED]\n"
+        )
+
+        report = assess_ocr_quality(text, expected_pages=1)
+
+        self.assertNotEqual(report.status, "poor")
+        self.assertNotIn("low_hebrew_ratio", report.garbage_signals)
+        self.assertGreater(report.hebrew_ratio, 0.75)
+        self.assertGreaterEqual(report.lease_marker_hits, 6)
+
     def test_marker_detection_does_not_mutate_original_text(self) -> None:
         text = "חשוכר ישלם שז עבור חדירה."
         original = text[:]
