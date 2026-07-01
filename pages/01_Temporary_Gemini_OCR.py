@@ -18,6 +18,29 @@ from contract_checker.redaction import redact_personal_data_with_report
 from contract_checker.validator import validate_contract_text
 
 
+_SHARED_GEMINI_API_KEY_STATE = "shared_gemini_api_key"
+_OCR_API_KEY_INPUT_STATE = "ocr_api_key_input"
+
+
+def _sync_api_key_widget_before_render(widget_key: str) -> None:
+    shared_value = str(st.session_state.get(_SHARED_GEMINI_API_KEY_STATE) or "")
+    widget_value = str(st.session_state.get(widget_key) or "")
+    legacy_main_value = str(st.session_state.get("api_key_input") or "")
+    if shared_value and not widget_value:
+        st.session_state[widget_key] = shared_value
+    elif widget_value and not shared_value:
+        st.session_state[_SHARED_GEMINI_API_KEY_STATE] = widget_value
+    elif legacy_main_value and not shared_value:
+        st.session_state[_SHARED_GEMINI_API_KEY_STATE] = legacy_main_value
+        st.session_state[widget_key] = legacy_main_value
+
+
+def _sync_shared_api_key(value: str) -> str:
+    value = value or ""
+    st.session_state[_SHARED_GEMINI_API_KEY_STATE] = value
+    return value
+
+
 def _render_page_quality_summary(page_quality_reports: list[object]) -> None:
     if not page_quality_reports:
         return
@@ -77,12 +100,14 @@ with st.expander("Advanced: подготовленные страницы", expa
             }
         )
 
+_sync_api_key_widget_before_render(_OCR_API_KEY_INPUT_STATE)
 api_key = st.text_input(
     "Gemini API-ключ для временного OCR",
     type="password",
-    value=st.session_state.get("api_key_input", ""),
+    key=_OCR_API_KEY_INPUT_STATE,
     help="Ключ не выводится в ошибки или отчёты.",
 )
+api_key = _sync_shared_api_key(api_key)
 model = st.text_input(
     "Gemini model ID for OCR",
     value=st.session_state.get("manual_model_id", DEFAULT_GEMINI_MODEL) or DEFAULT_GEMINI_MODEL,
