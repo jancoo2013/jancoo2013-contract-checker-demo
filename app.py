@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+
 from typing import Any
 
 from contract_checker.completeness import CompletenessAudit, audit_completeness
@@ -20,8 +22,114 @@ from contract_checker.schemas import ContractAuditResult
 from contract_checker.validator import ContractTextValidationResult, validate_contract_text
 
 
+_SHARED_GEMINI_API_KEY_STATE = "shared_gemini_api_key"
+_PERSISTED_IMAGE_UPLOADS_STATE = "image_redaction_uploaded_pages"
+
+
 def _model_to_dict(result: ContractAuditResult) -> dict[str, Any]:
     return result.model_dump(mode="json")
+
+
+def _sync_api_key_widget_before_render(widget_key: str) -> None:
+    import streamlit as st
+
+    shared_value = str(st.session_state.get(_SHARED_GEMINI_API_KEY_STATE) or "")
+    widget_value = str(st.session_state.get(widget_key) or "")
+    if shared_value and not widget_value:
+        st.session_state[widget_key] = shared_value
+    elif widget_value and not shared_value:
+        st.session_state[_SHARED_GEMINI_API_KEY_STATE] = widget_value
+
+
+def _sync_shared_api_key(value: str) -> str:
+    import streamlit as st
+
+    value = value or ""
+    st.session_state[_SHARED_GEMINI_API_KEY_STATE] = value
+    return value
+
+
+def _page_key(page_index: int, filename: str) -> str:
+    return f"{page_index}:{filename}"
+
+
+def _image_page_filename(page: dict[str, Any]) -> str:
+    return str(page.get("filename") or "page")
+
+
+def _image_page_bytes(page: dict[str, Any]) -> bytes:
+    content = page.get("bytes") or b""
+    return bytes(content)
+
+
+def _image_pages_signature(pages: list[dict[str, Any]]) -> list[tuple[str, str, str]]:
+    return [
+        (
+            _image_page_filename(page),
+            str(page.get("content_type") or ""),
+            hashlib.sha256(_image_page_bytes(page)).hexdigest(),
+        )
+        for page in pages
+    ]
+
+
+def _reset_image_redaction_workspace_for_upload_change() -> None:
+    import streamlit as st
+
+    for key in (
+        "image_redaction_results",
+        "image_manual_masks",
+        "image_redaction_ocr_pages",
+        "image_redaction_ocr_confirmed",
+        "image_page_reviewed",
+        "active_image_page_index",
+        "image_redaction_page_select",
+        "ocr_page_quality_reports",
+    ):
+        st.session_state.pop(key, None)
+    for key in list(st.session_state.keys()):
+        text_key = str(key)
+        if text_key.startswith("image_redaction_last_click_"):
+            st.session_state.pop(key, None)
+        if text_key.startswith("image_redaction_ignored_click_after_undo_"):
+            st.session_state.pop(key, None)
+        if text_key.startswith("image_redaction_page_select_"):
+            st.session_state.pop(key, None)
+        if text_key.endswith(":reviewed"):
+            st.session_state.pop(key, None)
+
+
+def _persist_uploaded_images(uploaded_files: list[Any] | None) -> None:
+    import streamlit as st
+
+    if not uploaded_files:
+        return
+
+    pages = [
+        {
+            "filename": str(uploaded_file.name),
+            "content_type": str(getattr(uploaded_file, "type", "") or ""),
+            "bytes": uploaded_file.getvalue(),
+        }
+        for uploaded_file in uploaded_files
+    ]
+    existing_pages = st.session_state.get(_PERSISTED_IMAGE_UPLOADS_STATE) or []
+    if _image_pages_signature(existing_pages) != _image_pages_signature(pages):
+        _reset_image_redaction_workspace_for_upload_change()
+    st.session_state[_PERSISTED_IMAGE_UPLOADS_STATE] = pages
+
+
+def _get_session_image_pages() -> list[dict[str, Any]]:
+    import streamlit as st
+
+    pages = st.session_state.get(_PERSISTED_IMAGE_UPLOADS_STATE) or []
+    return [
+        page
+        for page in pages
+        if isinstance(page, dict)
+        and isinstance(page.get("bytes"), (bytes, bytearray))
+        and bool(page.get("filename"))
+    ]
 
 
 def _ocr_quality_to_dict(report: OCRQualityReport | dict[str, Any] | None) -> dict[str, Any]:
@@ -249,12 +357,15 @@ def _clear_sensitive_state() -> None:
 
     for key in (
         "contract_text_input",
+        _SHARED_GEMINI_API_KEY_STATE,
         "api_key_input",
+        "ocr_api_key_input",
         "redacted_text",
         "redaction_report",
         "completeness_audit",
         "validation_result",
         "ocr_quality_report",
+        "ocr_page_quality_reports",
         "gemini_ocr_raw_text",
         "analysis_result",
         "validation_warnings",
@@ -269,26 +380,13 @@ def _clear_sensitive_state() -> None:
 def _clear_image_redaction_state() -> None:
     import streamlit as st
 
+    _reset_image_redaction_workspace_for_upload_change()
     for key in (
-        "image_redaction_results",
-        "image_manual_masks",
-        "image_redaction_ocr_pages",
-        "image_redaction_ocr_confirmed",
-        "image_page_reviewed",
-        "active_image_page_index",
-        "image_redaction_page_select",
+        _PERSISTED_IMAGE_UPLOADS_STATE,
     ):
         st.session_state.pop(key, None)
     for key in list(st.session_state.keys()):
         if str(key).startswith("image_redaction_uploads_"):
-            st.session_state.pop(key, None)
-        if str(key).startswith("image_redaction_last_click_"):
-            st.session_state.pop(key, None)
-        if str(key).startswith("image_redaction_ignored_click_after_undo_"):
-            st.session_state.pop(key, None)
-        if str(key).startswith("image_redaction_page_select_"):
-            st.session_state.pop(key, None)
-        if str(key).endswith(":reviewed"):
             st.session_state.pop(key, None)
 
 
@@ -380,12 +478,13 @@ def _render_image_redaction_test() -> None:
         prepared_pages: list[dict] = []
         errors: list[str] = []
         for page_index, uploaded_file in enumerate(uploaded_files or []):
-            page_key = f"{page_index}:{uploaded_file.name}"
+            filename = _image_page_filename(uploaded_file)
+            page_key = _page_key(page_index, filename)
             try:
-                image = Image.open(BytesIO(uploaded_file.getvalue()))
+                image = Image.open(BytesIO(_image_page_bytes(uploaded_file)))
                 image.load()
             except Exception as exc:
-                errors.append(f"{uploaded_file.name}: {exc}")
+                errors.append(f"{filename}: {exc}")
                 continue
 
             manual_detections = build_manual_detections(manual_masks.get(page_key, []), image)
@@ -393,7 +492,7 @@ def _render_image_redaction_test() -> None:
             prepared_pages.append(
                 {
                     "page_index": page_index,
-                    "filename": uploaded_file.name,
+                    "filename": filename,
                     "width": image.width,
                     "height": image.height,
                     "image_bytes": image_to_png_bytes(redacted_image),
@@ -404,7 +503,7 @@ def _render_image_redaction_test() -> None:
     def page_label(page_index: int, uploaded_files, page_keys: list[str], manual_masks: dict) -> str:
         page_key = page_keys[page_index]
         mask_count = len(manual_masks.get(page_key, []))
-        return f"Страница {page_index + 1}: {uploaded_files[page_index].name} — {mask_count} масок"
+        return f"Страница {page_index + 1}: {_image_page_filename(uploaded_files[page_index])} — {mask_count} масок"
 
     st.divider()
     st.header("Step 1 — Upload pages")
@@ -418,6 +517,8 @@ def _render_image_redaction_test() -> None:
         accept_multiple_files=True,
         key=upload_key,
     )
+    _persist_uploaded_images(uploaded_images)
+    image_pages = _get_session_image_pages()
 
     col_clear, _ = st.columns([1, 3])
     with col_clear:
@@ -429,11 +530,11 @@ def _render_image_redaction_test() -> None:
     manual_masks = st.session_state.setdefault("image_manual_masks", {})
     reviewed_pages = st.session_state.setdefault("image_page_reviewed", {})
 
-    if not uploaded_images:
+    if not image_pages:
         st.info("Загрузи страницы договора. После загрузки здесь появится навигация по одной активной странице.")
         return
 
-    page_keys = [f"{page_index}:{uploaded_file.name}" for page_index, uploaded_file in enumerate(uploaded_images)]
+    page_keys = [_page_key(page_index, _image_page_filename(uploaded_file)) for page_index, uploaded_file in enumerate(image_pages)]
     current_page_keys = set(page_keys)
     for stale_key in list(manual_masks.keys()):
         if stale_key not in current_page_keys:
@@ -448,7 +549,7 @@ def _render_image_redaction_test() -> None:
     st.session_state.image_manual_masks = manual_masks
     st.session_state.image_page_reviewed = reviewed_pages
 
-    page_count = len(uploaded_images)
+    page_count = len(image_pages)
     active_index = int(st.session_state.get("active_image_page_index", 0))
     active_index = max(0, min(active_index, page_count - 1))
     st.session_state.active_image_page_index = active_index
@@ -456,7 +557,7 @@ def _render_image_redaction_test() -> None:
     status_rows = []
     reviewed_count = 0
     pages_with_masks = 0
-    for page_index, uploaded_file in enumerate(uploaded_images):
+    for page_index, uploaded_file in enumerate(image_pages):
         page_key = page_keys[page_index]
         mask_count = len(manual_masks.get(page_key, []))
         if mask_count > 0:
@@ -467,7 +568,7 @@ def _render_image_redaction_test() -> None:
         status_rows.append(
             {
                 "Страница": page_index + 1,
-                "Файл": uploaded_file.name,
+                "Файл": _image_page_filename(uploaded_file),
                 "Маски": mask_count,
                 "Статус": "✅ проверена" if reviewed else "⚠️ не проверена",
             }
@@ -491,7 +592,7 @@ def _render_image_redaction_test() -> None:
             "Активная страница",
             options=list(range(page_count)),
             index=active_index,
-            format_func=lambda item: page_label(item, uploaded_images, page_keys, manual_masks),
+            format_func=lambda item: page_label(item, image_pages, page_keys, manual_masks),
             key=f"image_redaction_page_select_{page_count}_{active_index}",
         )
         if int(selected_index) != active_index:
@@ -502,17 +603,17 @@ def _render_image_redaction_test() -> None:
             st.session_state.active_image_page_index = active_index + 1
             st.rerun()
 
-    uploaded_file = uploaded_images[active_index]
+    uploaded_file = image_pages[active_index]
     page_key = page_keys[active_index]
     st.header("Step 2 — Mask personal data")
     st.subheader(f"Рабочая область: страница {active_index + 1} из {page_count}")
 
-    raw_bytes = uploaded_file.getvalue()
+    raw_bytes = _image_page_bytes(uploaded_file)
     original_image = None
     try:
         original_image = Image.open(BytesIO(raw_bytes))
         original_image.load()
-        st.caption(f"Файл: `{uploaded_file.name}`")
+        st.caption(f"Файл: `{_image_page_filename(uploaded_file)}`")
         with st.expander("Advanced: параметры изображения", expanded=False):
             st.write({"width": original_image.width, "height": original_image.height})
     except Exception as exc:
@@ -785,7 +886,7 @@ def _render_image_redaction_test() -> None:
         type="primary",
         disabled=not all_pages_reviewed or not confirmed,
     ):
-        prepared_pages, errors = prepare_ocr_pages(uploaded_images, manual_masks)
+        prepared_pages, errors = prepare_ocr_pages(image_pages, manual_masks)
         if errors:
             st.error("Не удалось подготовить некоторые страницы для распознавания текста.")
             for error in errors:
@@ -907,12 +1008,14 @@ def main() -> None:
         "или после ручной вставки текста."
     )
 
+    _sync_api_key_widget_before_render("api_key_input")
     api_key = st.text_input(
         "Gemini API-ключ — только для закрытого теста",
         type="password",
         key="api_key_input",
         help="Ключ не должен попадать в GitHub. Приложение не выводит его в ошибки или отчёты.",
     )
+    api_key = _sync_shared_api_key(api_key)
 
     with st.expander("Advanced model settings", expanded=False):
         manual_model = st.text_input(
