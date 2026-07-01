@@ -754,27 +754,34 @@ def _render_image_redaction_test() -> None:
 
         _render_image_redaction_status(bool(manual_detections))
 
-        st.header("Step 3 — Review pages")
-        reviewed_value = st.checkbox("Я проверил эту страницу", key=reviewed_widget_key)
+        st.header("Step 3 — Confirm current page")
+        st.caption(
+            "Отметь только текущую страницу после проверки масок. "
+            "Страницы без личных данных тоже нужно отметить как готовые."
+        )
+        reviewed_value = st.checkbox(
+            "Текущая страница готова: личные данные закрыты или отсутствуют",
+            key=reviewed_widget_key,
+        )
         reviewed_pages[page_key] = bool(reviewed_value)
         st.session_state.image_page_reviewed = reviewed_pages
         if previous_reviewed != bool(reviewed_value):
             clear_ocr_handoff()
 
-    st.header("Step 4 — Prepare for OCR")
+    st.header("Step 4 — Create redacted OCR pages")
     reviewed_pages[page_key] = bool(st.session_state.get(f"{page_key}:reviewed", reviewed_pages.get(page_key, False)))
     st.session_state.image_page_reviewed = reviewed_pages
     all_pages_reviewed = all(bool(reviewed_pages.get(key, False)) for key in page_keys)
     if not all_pages_reviewed:
-        st.warning("Перед переходом к распознаванию текста нужно отметить каждую страницу как проверенную.")
+        st.warning("Чтобы подготовить OCR, сначала отметь каждую страницу как готовую в Step 3.")
 
     confirmed = st.checkbox(
-        "Я проверил, что личные данные закрыты на всех страницах",
+        "Все страницы готовы. Создать замаскированные копии для OCR.",
         key="image_redaction_ocr_confirmed",
         disabled=not all_pages_reviewed,
     )
     if st.button(
-        "Продолжить к распознаванию текста",
+        "Подготовить замаскированные страницы для OCR",
         type="primary",
         disabled=not all_pages_reviewed or not confirmed,
     ):
@@ -786,7 +793,16 @@ def _render_image_redaction_test() -> None:
         else:
             st.session_state.image_redaction_ocr_pages = prepared_pages
             st.success("Обезличенные страницы подготовлены для распознавания текста.")
-            st.info("Открой страницу Temporary Gemini OCR. Временный OCR использует только эти подготовленные замаскированные страницы.")
+            st.info(
+                'Готово. Следующий шаг: в левом меню открой "Temporary Gemini OCR" '
+                "и запусти распознавание подготовленных страниц."
+            )
+            if hasattr(st, "page_link"):
+                st.page_link(
+                    "pages/01_Temporary_Gemini_OCR.py",
+                    label="Перейти к Temporary Gemini OCR",
+                    icon="🔎",
+                )
 
 
 def _render_manual_ocr_test_mode() -> None:
@@ -885,8 +901,11 @@ def main() -> None:
     _render_manual_ocr_test_mode()
 
     st.divider()
-    st.header("Step 5 — Analyze contract text")
-    st.caption("В Gemini отправляется только показанный обезличенный текст. Streamlit остаётся временным закрытым test stand.")
+    st.header("Optional: paste recognized contract text manually")
+    st.caption(
+        "Обычный путь для фото-договора: Step 4 → Temporary Gemini OCR в левом меню → возврат сюда для анализа. "
+        "Этот блок нужен только если у тебя уже есть готовый OCR-текст или полный текст договора."
+    )
 
     api_key = st.text_input(
         "Gemini API-ключ — только для закрытого теста",
@@ -904,17 +923,18 @@ def main() -> None:
         )
     model = manual_model.strip() or DEFAULT_GEMINI_MODEL
 
-    contract_text = st.text_area(
-        "Вставь полный текст договора на иврите",
-        key="contract_text_input",
-        height=360,
-        placeholder="Вставь сюда полный текст договора или используй Temporary Gemini OCR после маскировки страниц.",
-    )
-
-    col1, col2 = st.columns(2)
-    with col1:
+    redact_clicked = False
+    with st.expander("Alternative / manual text input", expanded=False):
+        contract_text = st.text_area(
+            "Вставь полный текст договора на иврите",
+            key="contract_text_input",
+            height=360,
+            placeholder="Вставь сюда уже готовый OCR-текст или полный текст договора.",
+        )
         redact_clicked = st.button("Обезличить и проверить", type="primary")
-    with col2:
+
+    clear_col, _ = st.columns([1, 3])
+    with clear_col:
         if st.button("Очистить договор, OCR-текст и ключ"):
             _clear_sensitive_state()
             st.rerun()
@@ -952,12 +972,17 @@ def main() -> None:
     if ocr_quality_report:
         _render_ocr_quality_report(ocr_quality_report)
     if completeness_audit:
-        st.header("Step 6 — Check completeness")
+        st.header("Review recognized text")
         _render_completeness_audit(completeness_audit)
 
     ocr_quality_status = str(_ocr_quality_to_dict(ocr_quality_report).get("status") or "")
     can_analyze = bool(validation and validation.usable and api_key.strip() and ocr_quality_status != "poor")
-    st.header("Step 7 — Run analysis")
+    st.header("Run AI analysis")
+    if not validation:
+        st.info(
+            "Для фото-договора сначала подготовь страницы в Step 4, затем открой Temporary Gemini OCR в левом меню. "
+            "После OCR здесь появятся проверка текста и кнопка анализа."
+        )
     if ocr_quality_status == "poor":
         st.error("Анализ отключён: качество OCR слишком низкое. Пересними или заново подготовь страницы.")
     if st.button("Запустить анализ", disabled=not can_analyze):
@@ -987,7 +1012,7 @@ def main() -> None:
 
     stored_result = st.session_state.get("analysis_result")
     if stored_result:
-        st.header("Step 8 — View report")
+        st.header("View report")
         result = ContractAuditResult.model_validate(stored_result)
         warnings = st.session_state.get("validation_warnings", [])
         _render_analysis(EvidenceValidationResult(result=result, warnings=warnings))
