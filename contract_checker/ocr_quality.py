@@ -373,7 +373,7 @@ def _page_reshoot_hint_ru(page_number: int, quality: OCRQualityReport) -> str:
         return ""
 
     actions = [
-        f"Страница {page_number}: пересними эту страницу крупнее, ровнее и ярче.",
+        f"Страница {page_number}: Пересними эту страницу крупнее, ровнее и ярче.",
         "Текст должен занимать почти весь кадр.",
     ]
     signals = set(quality.garbage_signals)
