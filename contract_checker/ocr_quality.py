@@ -6,7 +6,7 @@ Fuzzy matching is used only to score OCR quality and marker robustness.
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from difflib import SequenceMatcher
 import re
 from typing import Literal
@@ -29,6 +29,29 @@ class OCRQualityReport:
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)
+
+
+@dataclass(frozen=True)
+class OCRPageQualityReport:
+    page_number: int
+    page_label: str
+    quality: OCRQualityReport
+    reshoot_hint_ru: str
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "page_number": self.page_number,
+            "page_label": self.page_label,
+            "status": self.quality.status,
+            "score": self.quality.score,
+            "hebrew_char_count": self.quality.hebrew_char_count,
+            "total_char_count": self.quality.total_char_count,
+            "hebrew_ratio": self.quality.hebrew_ratio,
+            "lease_marker_hits": self.quality.lease_marker_hits,
+            "garbage_signals": list(self.quality.garbage_signals),
+            "warnings": list(self.quality.warnings),
+            "reshoot_hint_ru": self.reshoot_hint_ru,
+        }
 
 
 LEASE_MARKERS: tuple[str, ...] = (
@@ -74,6 +97,7 @@ _SCAFFOLDING_LINE_RE = re.compile(
     r"^\s*---\s*(?:PAGE\s+\d+|OCR SOURCE|OCR MODE|IMAGE PAGES PREPARED)\b.*---\s*$",
     re.IGNORECASE,
 )
+_PAGE_HEADER_RE = re.compile(r"^\s*---\s*PAGE\s+(\d+)\s*:\s*(.*?)\s*---\s*$", re.IGNORECASE)
 _IMAGE_FILENAME_LINE_RE = re.compile(r"^\s*[\w .\-()]+\.(?:png|jpe?g|webp|heic|pdf)\s*$", re.IGNORECASE)
 
 
@@ -256,9 +280,7 @@ def _warnings_for_signals(signals: list[str]) -> list[str]:
     return [labels[signal] for signal in signals if signal in labels]
 
 
-def assess_ocr_quality(text: str, expected_pages: int | None = None) -> OCRQualityReport:
-    """Assess OCR text quality before treating it as reliable analysis input."""
-
+def _assess_ocr_quality_flat(text: str, expected_pages: int | None = None) -> OCRQualityReport:
     safe_text = text or ""
     stripped_text = safe_text.strip()
     scoring_text = _quality_scoring_text(stripped_text)
@@ -317,3 +339,98 @@ def assess_ocr_quality(text: str, expected_pages: int | None = None) -> OCRQuali
         garbage_signals=garbage_signals,
         warnings=_warnings_for_signals(garbage_signals),
     )
+
+
+def _split_ocr_page_sections(text: str) -> list[tuple[int, str, str]]:
+    sections: list[tuple[int, str, str]] = []
+    current_page_number: int | None = None
+    current_label = ""
+    current_lines: list[str] = []
+
+    for line in (text or "").splitlines():
+        match = _PAGE_HEADER_RE.match(line.strip())
+        if match:
+            if current_page_number is not None:
+                sections.append((current_page_number, current_label, "\n".join(current_lines).strip()))
+            current_page_number = int(match.group(1))
+            filename = match.group(2).strip()
+            current_label = f"Страница {current_page_number}"
+            if filename:
+                current_label = f"{current_label} — {filename}"
+            current_lines = []
+            continue
+        if current_page_number is not None:
+            current_lines.append(line)
+
+    if current_page_number is not None:
+        sections.append((current_page_number, current_label, "\n".join(current_lines).strip()))
+
+    return sections
+
+
+def _page_reshoot_hint_ru(page_number: int, quality: OCRQualityReport) -> str:
+    if quality.status == "good":
+        return ""
+
+    actions = [
+        f"Страница {page_number}: пересними эту страницу крупнее, ровнее и ярче.",
+        "Текст должен занимать почти весь кадр.",
+    ]
+    signals = set(quality.garbage_signals)
+    if {"very_low_hebrew_char_count", "too_short_for_expected_pages", "too_few_lease_markers"} & signals:
+        actions.append("Сними страницу ближе и проследи, чтобы верх, низ и края страницы попали в кадр.")
+    if {"low_hebrew_ratio", "many_isolated_latin_tokens", "many_single_character_lines"} & signals:
+        actions.append("Убери тень, держи телефон ровно сверху и не снимай под углом.")
+    if "replacement_or_unknown_characters" in signals:
+        actions.append("Проверь фокус: буквы должны быть резкими при увеличении фото.")
+    actions.append("Если вспышка даёт блик, выключи её и используй свет сбоку.")
+    return " ".join(actions)
+
+
+def assess_ocr_pages_quality(text: str, expected_pages: int | None = None) -> list[OCRPageQualityReport]:
+    """Assess OCR quality per page when OCR output includes page headers."""
+
+    sections = _split_ocr_page_sections(text)
+    if not sections:
+        return []
+
+    by_number = {page_number: (label, page_text) for page_number, label, page_text in sections}
+    if expected_pages and expected_pages > 0:
+        for page_number in range(1, expected_pages + 1):
+            by_number.setdefault(page_number, (f"Страница {page_number}", ""))
+
+    reports: list[OCRPageQualityReport] = []
+    for page_number in sorted(by_number):
+        label, page_text = by_number[page_number]
+        quality = _assess_ocr_quality_flat(page_text, expected_pages=1)
+        reports.append(
+            OCRPageQualityReport(
+                page_number=page_number,
+                page_label=label,
+                quality=quality,
+                reshoot_hint_ru=_page_reshoot_hint_ru(page_number, quality),
+            )
+        )
+    return reports
+
+
+def assess_ocr_quality(text: str, expected_pages: int | None = None) -> OCRQualityReport:
+    """Assess OCR text quality before treating it as reliable analysis input."""
+
+    flat_report = _assess_ocr_quality_flat(text, expected_pages=expected_pages)
+    page_reports = assess_ocr_pages_quality(text, expected_pages=expected_pages)
+    if not page_reports:
+        return flat_report
+
+    page_statuses = [page.quality.status for page in page_reports]
+    page_scores = [page.quality.score for page in page_reports]
+    warnings = list(flat_report.warnings)
+    status = flat_report.status
+    if "poor" in page_statuses:
+        status = "poor"
+        warnings.append("Одна или несколько страниц распознаны плохо. Пересними указанные страницы крупнее и ровнее.")
+    elif "warning" in page_statuses and status == "good":
+        status = "warning"
+        warnings.append("Одна или несколько страниц распознаны средне. Пересъёмка может улучшить анализ.")
+
+    return replace(flat_report, status=status, score=min([flat_report.score, *page_scores]), warnings=warnings)

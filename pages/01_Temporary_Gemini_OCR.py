@@ -13,9 +13,32 @@ from contract_checker.gemini_engine import (
     GeminiResponseError,
     ocr_redacted_pages_with_gemini,
 )
-from contract_checker.ocr_quality import assess_ocr_quality
+from contract_checker.ocr_quality import assess_ocr_pages_quality, assess_ocr_quality
 from contract_checker.redaction import redact_personal_data_with_report
 from contract_checker.validator import validate_contract_text
+
+
+def _render_page_quality_summary(page_quality_reports: list[object]) -> None:
+    if not page_quality_reports:
+        return
+
+    page_dicts = [report.to_dict() if hasattr(report, "to_dict") else dict(report) for report in page_quality_reports]
+    poor_pages = [page for page in page_dicts if page.get("status") == "poor"]
+    warning_pages = [page for page in page_dicts if page.get("status") == "warning"]
+
+    if poor_pages:
+        page_numbers = ", ".join(str(page.get("page_number")) for page in poor_pages)
+        st.error(f"Нужно переснять страницы: {page_numbers}.")
+        for page in poor_pages:
+            st.warning(str(page.get("reshoot_hint_ru") or "Пересними страницу крупнее, ровнее и ярче."))
+    elif warning_pages:
+        page_numbers = ", ".join(str(page.get("page_number")) for page in warning_pages)
+        st.warning(f"OCR по страницам: есть предупреждения на страницах {page_numbers}. Пересъёмка может улучшить анализ.")
+    else:
+        st.success("OCR по страницам: критичных проблем не найдено.")
+
+    with st.expander("Advanced: OCR quality by page", expanded=False):
+        st.write(page_dicts)
 
 
 st.set_page_config(page_title="Temporary Gemini OCR", page_icon="🔎", layout="wide")
@@ -93,6 +116,7 @@ if st.button("Распознать подготовленные страницы
             f"{ocr_text}"
         )
         ocr_quality_report = assess_ocr_quality(ocr_text, expected_pages=len(prepared_pages))
+        ocr_page_quality_reports = assess_ocr_pages_quality(ocr_text, expected_pages=len(prepared_pages))
         redaction_result = redact_personal_data_with_report(assembled_text)
         redacted_text = redaction_result.redacted_text
         validation = validate_contract_text(redacted_text)
@@ -103,6 +127,7 @@ if st.button("Распознать подготовленные страницы
         st.session_state.completeness_audit = completeness_audit
         st.session_state.validation_result = validation
         st.session_state.ocr_quality_report = ocr_quality_report
+        st.session_state.ocr_page_quality_reports = ocr_page_quality_reports
         st.session_state.gemini_ocr_raw_text = ocr_text
         st.session_state.pop("analysis_result", None)
         st.session_state.pop("validation_warnings", None)
@@ -111,7 +136,7 @@ if st.button("Распознать подготовленные страницы
         if ocr_quality_report.status == "good":
             st.success(f"OCR quality: good. Score {ocr_quality_report.score}.")
         elif ocr_quality_report.status == "warning":
-            st.warning(f"OCR quality: warning. Score {ocr_quality_report.score}. Проверь текст перед анализом.")
+            st.warning(f"OCR quality: warning. Score {ocr_quality_report.score}. Если это важный договор, пересними страницы с предупреждениями.")
         else:
             st.error("OCR quality is too low; reshoot pages before analysis.")
         st.info("Вернись на основную страницу: там появится обезличенный OCR-текст и будет доступна кнопка анализа, если текст пригоден.")
@@ -147,3 +172,6 @@ if ocr_quality_report:
             st.write(ocr_quality_report.to_dict())
         else:
             st.write(ocr_quality_report)
+
+ocr_page_quality_reports = st.session_state.get("ocr_page_quality_reports") or []
+_render_page_quality_summary(ocr_page_quality_reports)
