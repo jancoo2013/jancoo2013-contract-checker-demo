@@ -70,6 +70,15 @@ def _numbers_supported(source_text: str, claim_text: str, label: str, warnings: 
     return True
 
 
+def _numbers_strictly_supported(source_text: str, claim_text: str, label: str, warnings: list[str]) -> bool:
+    source_nums = _numbers(source_text)
+    claim_nums = _numbers(claim_text)
+    if claim_nums and not claim_nums.issubset(source_nums):
+        warnings.append(f"{label}: числа в финансовой подсказке не подтверждены evidence block")
+        return False
+    return True
+
+
 def _risk_quote_fallback(risk: RiskItem, redacted_text: str, pages: set[int], warnings: list[str]) -> RiskItem | None:
     if not risk.source_quote_he.strip():
         warnings.append(f"missing evidence_block_ids: риск удалён — {risk.title_ru}")
@@ -194,6 +203,20 @@ def _unclear_validated(
     return None
 
 
+def _financial_hint_claim_text(hint: FinancialHint) -> str:
+    return " ".join(
+        filter(
+            None,
+            [
+                hint.explanation_ru,
+                " ".join(hint.checklist_ru),
+                hint.amount_detected,
+                hint.comparison_ru,
+            ],
+        )
+    )
+
+
 def _financial_hint_quote_fallback(
     hint: FinancialHint,
     redacted_text: str,
@@ -201,6 +224,13 @@ def _financial_hint_quote_fallback(
     warnings: list[str],
 ) -> FinancialHint | None:
     if hint.source_quote_he and _quote_exists(hint.source_quote_he, redacted_text) and _page_exists(hint.page, pages):
+        if not _numbers_strictly_supported(
+            hint.source_quote_he,
+            _financial_hint_claim_text(hint),
+            f"old quote fallback used: финансовая подсказка удалена — {hint.title_ru}",
+            warnings,
+        ):
+            return None
         warnings.append(f"old quote fallback used: финансовая подсказка принята по source_quote_he — {hint.title_ru}")
         return hint
     return None
@@ -220,18 +250,12 @@ def _financial_hint_validated(
             return None
         if blocks:
             source_text = _blocks_text(blocks)
-            claim_text = " ".join(
-                filter(
-                    None,
-                    [
-                        hint.explanation_ru,
-                        " ".join(hint.checklist_ru),
-                        hint.amount_detected,
-                        hint.comparison_ru,
-                    ],
-                )
-            )
-            if not _numbers_supported(source_text, claim_text, f"финансовая подсказка удалена — {hint.title_ru}", warnings):
+            if not _numbers_strictly_supported(
+                source_text,
+                _financial_hint_claim_text(hint),
+                f"финансовая подсказка удалена — {hint.title_ru}",
+                warnings,
+            ):
                 return None
             return hint.model_copy(update={"source_quote_he": source_text, "page": _blocks_page(blocks)})
 
