@@ -34,6 +34,25 @@ REFERENCED_DOCUMENTS_TEXT = """
 """
 
 
+BLANK_TEMPLATE_TEXT = """
+הסכם שכירות בלתי מוגנת
+
+שם המשכיר: _________
+שם השוכר: _________
+כתובת הדירה: _________
+
+המשכיר משכיר לשוכר דירה למטרת מגורים בלבד.
+תקופת השכירות תהיה מיום ______ ועד ליום ______.
+דמי שכירות יהיו ______ ש"ח לחודש.
+השוכר יפקיד פיקדון בסך ______ ש"ח להבטחת התחייבויותיו.
+השוכר ישלם חשמל, מים, ארנונה ועד בית לפי צריכה.
+המשכיר יהיה אחראי לתיקון ליקויים מהותיים שאינם נגרמו על ידי השוכר.
+השוכר רשאי להציע שוכר חלופי בכפוף להסכמת המשכיר שלא תסורב מטעמים בלתי סבירים.
+חתימת המשכיר: _________
+חתימת השוכר: _________
+"""
+
+
 COMPLETENESS_DISCLAIMER = (
     "Это не означает, что комплект договора полный. "
     "Сервис проверяет только загруженный и распознанный текст."
@@ -77,6 +96,11 @@ class CompletenessAuditTests(unittest.TestCase):
 
         self.assertEqual(audit.status, "text_unusable")
         self.assertEqual(audit.findings, [])
+
+    def test_blank_template_is_not_text_unusable_for_completeness(self) -> None:
+        audit = audit_completeness(BLANK_TEMPLATE_TEXT, text_usable=True)
+
+        self.assertNotEqual(audit.status, "text_unusable")
 
     def test_summaries_always_include_completeness_disclaimer(self) -> None:
         audits = [

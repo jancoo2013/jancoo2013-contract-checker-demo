@@ -7,7 +7,7 @@ import unittest
 from contract_checker.output_validator import validate_model_evidence
 from contract_checker.prompt_builder import SYSTEM_PROMPT_RU
 from contract_checker.redaction import redact_personal_data
-from contract_checker.schemas import ClauseAnalysis, ContractAuditResult, DocumentQuality, RiskItem
+from contract_checker.schemas import ClauseAnalysis, ContractAuditResult, DocumentQuality, FinancialHint, RiskItem
 from contract_checker.validator import validate_contract_text
 
 
@@ -24,6 +24,26 @@ SAMPLE_CONTRACT = """
 7. השוכר רשאי להביא שוכר חלופי בכפוף להסכמת המשכיר שלא תסורב מטעמים בלתי סבירים.
 8. במקרה של הפרה יסודית תינתן הודעה בכתב ותקופת תיקון של 14 ימים.
 בנק לאומי חשבון 123456 סניף 800
+"""
+
+BLANK_TEMPLATE_CONTRACT = """
+הסכם שכירות בלתי מוגנת
+שם המשכיר: _________
+שם השוכר: _________
+כתובת הדירה: _________
+
+1. המשכיר משכיר לשוכר דירה למטרת מגורים בלבד.
+2. תקופת השכירות תהיה מיום ______ ועד ליום ______.
+3. דמי שכירות יהיו ______ ש"ח לחודש וישולמו בכל חודש במועד שייקבע על ידי הצדדים.
+4. השוכר יפקיד פיקדון בסך ______ ש"ח להבטחת התחייבויותיו לפי הסכם זה.
+5. השוכר ישלם חשמל, מים, ארנונה ועד בית לפי צריכה ולפי דרישות הרשויות.
+6. המשכיר יהיה אחראי לתיקון ליקויים מהותיים שאינם נגרמו על ידי השוכר.
+7. השוכר לא יבצע שינויים בדירה ללא הסכמת המשכיר מראש ובכתב.
+8. השוכר רשאי להציע שוכר חלופי בכפוף להסכמת המשכיר שלא תסורב מטעמים בלתי סבירים.
+9. במקרה של הפרה יסודית תינתן הודעה בכתב ותקופת תיקון של 14 ימים.
+10. בסיום תקופת השכירות השוכר יחזיר את הדירה כשהיא פנויה ונקייה בכפוף לבלאי סביר.
+חתימת המשכיר: _________
+חתימת השוכר: _________
 """
 
 
@@ -90,6 +110,12 @@ class ValidatorTests(unittest.TestCase):
         self.assertFalse(validate_contract_text("abc xyz 123 lorem ipsum" * 3).usable)
         self.assertFalse(validate_contract_text("חוזה שכירות").usable)
 
+    def test_validator_accepts_readable_blank_lease_template(self) -> None:
+        result = validate_contract_text(BLANK_TEMPLATE_CONTRACT)
+
+        self.assertTrue(result.usable, result.problems)
+        self.assertGreaterEqual(result.clause_count, 6)
+
 
 class SchemaTests(unittest.TestCase):
     def test_schema_rejects_unknown_fields(self) -> None:
@@ -103,6 +129,28 @@ class SchemaTests(unittest.TestCase):
         self.assertEqual(result.risk_profile_summary_ru, "Есть проверяемые условия и вопросы для уточнения.")
         self.assertNotIn("verdict", result.model_dump())
         self.assertNotIn("verdict_reason_ru", result.model_dump())
+
+    def test_schema_accepts_neutral_financial_hints_separate_from_risks(self) -> None:
+        result = ContractAuditResult(
+            risk_profile="no_obvious_critical_risk_found",
+            risk_profile_summary_ru="Анализ выполнен по условиям формы.",
+            document_quality=DocumentQuality(usable=True, completeness="medium", problems=[]),
+            clauses=[],
+            risks=[],
+            financial_hints=[
+                FinancialHint(
+                    title_ru="Финансовая подсказка: депозит / гарантия",
+                    category="deposit",
+                    evidence_block_ids=["P1-B04"],
+                    explanation_ru="Сумма депозита в форме не заполнена. Это нормально для пустой формы.",
+                    checklist_ru=["Проверь, какая сумма будет вписана перед подписанием."],
+                    confidence=0.9,
+                )
+            ],
+        )
+
+        self.assertEqual(result.risks, [])
+        self.assertEqual(result.financial_hints[0].category, "deposit")
 
     def test_old_verdict_fields_are_not_part_of_schema(self) -> None:
         payload = _sample_result("תקופת תיקון של 14 ימים").model_dump()
@@ -130,6 +178,31 @@ class EvidenceValidatorTests(unittest.TestCase):
         self.assertEqual(validated.result.risks, [])
         self.assertTrue(validated.warnings)
 
+    def test_evidence_validator_keeps_financial_hint_out_of_risks(self) -> None:
+        result = ContractAuditResult(
+            risk_profile="no_obvious_critical_risk_found",
+            risk_profile_summary_ru="Явных критических рисков не найдено.",
+            document_quality=DocumentQuality(usable=True, completeness="medium", problems=[]),
+            clauses=[],
+            risks=[],
+            financial_hints=[
+                FinancialHint(
+                    title_ru="Финансовая подсказка: депозит / гарантия",
+                    category="deposit",
+                    evidence_block_ids=["P1-B07"],
+                    explanation_ru="Указанная сумма депозита: 7,000 ₪. Для ориентира сравни её с месячной арендой.",
+                    checklist_ru=["Проверь условия возврата депозита."],
+                    amount_detected="7,000 ₪",
+                    confidence=0.9,
+                )
+            ],
+        )
+        validated = validate_model_evidence(result, redact_personal_data(SAMPLE_CONTRACT))
+
+        self.assertEqual(validated.result.risks, [])
+        self.assertEqual(len(validated.result.financial_hints), 1)
+        self.assertIn("פיקדון", validated.result.financial_hints[0].source_quote_he)
+
 
 class PromptTests(unittest.TestCase):
     def test_prompt_defines_red_and_yellow_levels(self) -> None:
@@ -148,6 +221,12 @@ class PromptTests(unittest.TestCase):
         self.assertIn("Не прогнозируй исход суда или спора", SYSTEM_PROMPT_RU)
         self.assertIn("Не утверждай с уверенностью", SYSTEM_PROMPT_RU)
         self.assertIn("может создавать риск", SYSTEM_PROMPT_RU)
+
+    def test_prompt_treats_blank_templates_and_financial_hints_as_neutral(self) -> None:
+        self.assertIn("Пустая, но читаемая форма договора аренды", SYSTEM_PROMPT_RU)
+        self.assertIn("Незаполненные переменные поля", SYSTEM_PROMPT_RU)
+        self.assertIn("financial_hints", SYSTEM_PROMPT_RU)
+        self.assertIn("не являются red/yellow рисками автоматически", SYSTEM_PROMPT_RU)
 
 
 class ImportTests(unittest.TestCase):

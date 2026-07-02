@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass, field
 
 from .evidence_blocks import EvidenceBlock, build_evidence_blocks, evidence_block_map
-from .schemas import ClauseAnalysis, ContractAuditResult, RiskItem, UnclearFragment
+from .schemas import ClauseAnalysis, ContractAuditResult, FinancialHint, RiskItem, UnclearFragment
 from .validator import PAGE_SEPARATOR_RE
 
 
@@ -194,6 +194,54 @@ def _unclear_validated(
     return None
 
 
+def _financial_hint_quote_fallback(
+    hint: FinancialHint,
+    redacted_text: str,
+    pages: set[int],
+    warnings: list[str],
+) -> FinancialHint | None:
+    if hint.source_quote_he and _quote_exists(hint.source_quote_he, redacted_text) and _page_exists(hint.page, pages):
+        warnings.append(f"old quote fallback used: финансовая подсказка принята по source_quote_he — {hint.title_ru}")
+        return hint
+    return None
+
+
+def _financial_hint_validated(
+    hint: FinancialHint,
+    redacted_text: str,
+    pages: set[int],
+    blocks_by_id: dict[str, EvidenceBlock],
+    warnings: list[str],
+) -> FinancialHint | None:
+    if hint.evidence_block_ids:
+        blocks, invalid = _resolve_blocks(hint.evidence_block_ids, blocks_by_id)
+        if invalid:
+            warnings.append(f"invalid evidence block ID: финансовая подсказка удалена — {hint.title_ru}: {', '.join(invalid)}")
+            return None
+        if blocks:
+            source_text = _blocks_text(blocks)
+            claim_text = " ".join(
+                filter(
+                    None,
+                    [
+                        hint.explanation_ru,
+                        " ".join(hint.checklist_ru),
+                        hint.amount_detected,
+                        hint.comparison_ru,
+                    ],
+                )
+            )
+            if not _numbers_supported(source_text, claim_text, f"финансовая подсказка удалена — {hint.title_ru}", warnings):
+                return None
+            return hint.model_copy(update={"source_quote_he": source_text, "page": _blocks_page(blocks)})
+
+    fallback = _financial_hint_quote_fallback(hint, redacted_text, pages, warnings)
+    if fallback is not None:
+        return fallback
+    warnings.append(f"missing evidence_block_ids: финансовая подсказка удалена — {hint.title_ru}")
+    return None
+
+
 def validate_model_evidence(result: ContractAuditResult, redacted_text: str) -> EvidenceValidationResult:
     """Validate model evidence IDs and normalize exact source text before display."""
 
@@ -210,6 +258,14 @@ def validate_model_evidence(result: ContractAuditResult, redacted_text: str) -> 
         if risk is not None
     ]
     clauses = [_clause_validated(clause, redacted_text, pages, blocks_by_id, warnings) for clause in result.clauses]
+    financial_hints = [
+        hint
+        for hint in (
+            _financial_hint_validated(hint, redacted_text, pages, blocks_by_id, warnings)
+            for hint in result.financial_hints
+        )
+        if hint is not None
+    ]
     unclear = [
         item
         for item in (
@@ -219,5 +275,12 @@ def validate_model_evidence(result: ContractAuditResult, redacted_text: str) -> 
         if item is not None
     ]
 
-    validated = result.model_copy(update={"risks": risks, "clauses": clauses, "unclear_fragments": unclear})
+    validated = result.model_copy(
+        update={
+            "risks": risks,
+            "clauses": clauses,
+            "financial_hints": financial_hints,
+            "unclear_fragments": unclear,
+        }
+    )
     return EvidenceValidationResult(result=validated, warnings=warnings)

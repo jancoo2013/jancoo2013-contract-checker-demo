@@ -228,6 +228,34 @@ def _render_risk_list(title: str, risks: list[Any]) -> None:
                 st.markdown(f"**Что просить изменить:** {risk.requested_change_ru}")
 
 
+def _render_financial_hints(financial_hints: list[Any]) -> None:
+    import streamlit as st
+
+    if not financial_hints:
+        return
+
+    st.subheader("Финансовые подсказки")
+    st.caption(
+        "Это нейтральный чеклист по суммам и платежам формы. Он не является юридическим выводом и не считается красным или жёлтым риском сам по себе."
+    )
+    for hint in financial_hints:
+        with st.expander(hint.title_ru, expanded=False):
+            st.markdown(f"**Категория:** `{hint.category}`")
+            if hint.page:
+                st.markdown(f"**Страница:** {hint.page}")
+            if hint.evidence_block_ids:
+                st.markdown(f"**Источник:** `{_evidence_ids_label(hint.evidence_block_ids)}`")
+            if hint.amount_detected:
+                st.markdown(f"**Найденная сумма:** {hint.amount_detected}")
+            st.markdown(hint.explanation_ru)
+            if hint.comparison_ru:
+                st.markdown(hint.comparison_ru)
+            if hint.checklist_ru:
+                st.markdown("**Проверить перед подписанием:**")
+                for item in hint.checklist_ru:
+                    st.markdown(f"* {item}")
+
+
 def _render_analysis(validated: EvidenceValidationResult) -> None:
     import streamlit as st
 
@@ -248,6 +276,7 @@ def _render_analysis(validated: EvidenceValidationResult) -> None:
 
     red_risks = [risk for risk in result.risks if risk.level == "red"]
     yellow_risks = [risk for risk in result.risks if risk.level == "yellow"]
+    _render_financial_hints(result.financial_hints)
     _render_risk_list("Красные риски", red_risks)
     _render_risk_list("Жёлтые риски", yellow_risks)
 
