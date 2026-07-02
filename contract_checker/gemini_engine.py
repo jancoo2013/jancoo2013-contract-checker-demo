@@ -83,6 +83,15 @@ def _analysis_cache_set(cache_key: str, raw_text: str) -> None:
     _ANALYSIS_RAW_TEXT_CACHE.setdefault(session_id, {})[cache_key] = raw_text
 
 
+def clear_current_session_analysis_cache() -> None:
+    """Clear cached raw Gemini analysis responses for the current Streamlit session."""
+
+    session_id = _streamlit_session_id()
+    if not session_id:
+        return
+    _ANALYSIS_RAW_TEXT_CACHE.pop(session_id, None)
+
+
 def _load_genai_modules() -> tuple[Any, Any]:
     global genai, _genai_types
     if genai is None:
