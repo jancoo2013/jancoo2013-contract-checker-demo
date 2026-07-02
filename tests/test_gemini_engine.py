@@ -14,6 +14,7 @@ from contract_checker.gemini_engine import (
     GeminiRateLimitError,
     GeminiResponseError,
     analyze_contract_with_gemini,
+    analyze_contract_with_gemini_debug,
 )
 from contract_checker.output_validator import validate_model_evidence
 from contract_checker.schemas import ClauseAnalysis, ContractAuditResult, DocumentQuality, RiskItem
@@ -115,12 +116,33 @@ class GeminiEngineTests(unittest.TestCase):
         self.assertEqual(call["config"].kwargs["response_mime_type"], "application/json")
         self.assertIn("response_json_schema", call["config"].kwargs)
 
+    def test_debug_gemini_analysis_returns_raw_text_and_parsed_result(self) -> None:
+        raw_json = _sample_result().model_dump_json()
+        fake_genai, fake_types, _generate_content = _fake_modules(response=_FakeResponse(raw_json))
+
+        with patch.object(gemini_engine, "genai", fake_genai), patch.object(gemini_engine, "_genai_types", fake_types):
+            result = analyze_contract_with_gemini_debug(REDACTED_CONTRACT, "test-key")
+
+        self.assertEqual(result.raw_text, raw_json)
+        self.assertIsInstance(result.parsed_result, ContractAuditResult)
+        self.assertIsNone(result.parse_error)
+
     def test_malformed_json_raises_gemini_response_error(self) -> None:
         fake_genai, fake_types, _generate_content = _fake_modules(response=_FakeResponse("not-json"))
 
         with patch.object(gemini_engine, "genai", fake_genai), patch.object(gemini_engine, "_genai_types", fake_types):
             with self.assertRaises(GeminiResponseError):
                 analyze_contract_with_gemini(REDACTED_CONTRACT, "test-key")
+
+    def test_debug_gemini_analysis_preserves_raw_text_on_malformed_json(self) -> None:
+        fake_genai, fake_types, _generate_content = _fake_modules(response=_FakeResponse("not-json"))
+
+        with patch.object(gemini_engine, "genai", fake_genai), patch.object(gemini_engine, "_genai_types", fake_types):
+            result = analyze_contract_with_gemini_debug(REDACTED_CONTRACT, "test-key")
+
+        self.assertEqual(result.raw_text, "not-json")
+        self.assertIsNone(result.parsed_result)
+        self.assertIsNotNone(result.parse_error)
 
     def test_empty_response_raises_gemini_response_error(self) -> None:
         fake_genai, fake_types, _generate_content = _fake_modules(response=_FakeResponse(""))

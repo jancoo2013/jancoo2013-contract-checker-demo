@@ -13,7 +13,7 @@ from contract_checker.gemini_engine import (
     GeminiConfigurationError,
     GeminiRateLimitError,
     GeminiResponseError,
-    analyze_contract_with_gemini,
+    analyze_contract_with_gemini_debug,
 )
 from contract_checker.output_validator import EvidenceValidationResult, validate_model_evidence
 from contract_checker.ocr_quality import OCRQualityReport, assess_ocr_quality
@@ -24,10 +24,56 @@ from contract_checker.validator import ContractTextValidationResult, validate_co
 
 _SHARED_GEMINI_API_KEY_STATE = "shared_gemini_api_key"
 _PERSISTED_IMAGE_UPLOADS_STATE = "image_redaction_uploaded_pages"
+_GEMINI_ANALYSIS_RAW_RESPONSE_STATE = "gemini_analysis_raw_response"
+_GEMINI_ANALYSIS_DEBUG_STATUS_STATE = "gemini_analysis_debug_status"
+_GEMINI_ANALYSIS_DEBUG_ERROR_STATE = "gemini_analysis_debug_error"
 
 
 def _model_to_dict(result: ContractAuditResult) -> dict[str, Any]:
     return result.model_dump(mode="json")
+
+
+def _clear_gemini_analysis_debug_state() -> None:
+    import streamlit as st
+
+    for key in (
+        _GEMINI_ANALYSIS_RAW_RESPONSE_STATE,
+        _GEMINI_ANALYSIS_DEBUG_STATUS_STATE,
+        _GEMINI_ANALYSIS_DEBUG_ERROR_STATE,
+    ):
+        st.session_state.pop(key, None)
+
+
+def _render_gemini_analysis_debug() -> None:
+    import streamlit as st
+
+    raw_response = st.session_state.get(_GEMINI_ANALYSIS_RAW_RESPONSE_STATE)
+    debug_status = st.session_state.get(_GEMINI_ANALYSIS_DEBUG_STATUS_STATE)
+    debug_error = st.session_state.get(_GEMINI_ANALYSIS_DEBUG_ERROR_STATE)
+    if not raw_response and not debug_status and not debug_error:
+        return
+
+    with st.expander("Advanced / Developer: raw Gemini analysis response", expanded=False):
+        st.warning(
+            "Developer diagnostic only. This raw model output may contain hallucinations or invalid legal conclusions. "
+            "Do not use it as a report."
+        )
+        st.write(
+            {
+                "debug_status": debug_status or "raw_response_available",
+                "debug_error": debug_error or "",
+                "raw_response_available": bool(raw_response),
+            }
+        )
+        if raw_response:
+            st.text_area(
+                "Raw Gemini analysis response",
+                value=str(raw_response),
+                height=360,
+                disabled=True,
+            )
+        else:
+            st.info("Raw Gemini analysis response is unavailable for this run.")
 
 
 def _sync_api_key_widget_before_render(widget_key: str) -> None:
@@ -367,6 +413,9 @@ def _clear_sensitive_state() -> None:
         "ocr_quality_report",
         "ocr_page_quality_reports",
         "gemini_ocr_raw_text",
+        _GEMINI_ANALYSIS_RAW_RESPONSE_STATE,
+        _GEMINI_ANALYSIS_DEBUG_STATUS_STATE,
+        _GEMINI_ANALYSIS_DEBUG_ERROR_STATE,
         "analysis_result",
         "validation_warnings",
         "manual_model_id",
@@ -1095,6 +1144,9 @@ def main() -> None:
     if ocr_quality_status == "poor":
         st.error("Анализ отключён: качество OCR слишком низкое. Пересними или заново подготовь страницы.")
     if st.button("Запустить анализ", disabled=not can_analyze):
+        _clear_gemini_analysis_debug_state()
+        st.session_state.pop("analysis_result", None)
+        st.session_state.pop("validation_warnings", None)
         if not redacted_text or not validation or not validation.usable:
             st.error("Сначала обезличь текст и пройди валидацию.")
         elif not api_key.strip():
@@ -1102,15 +1154,44 @@ def main() -> None:
         else:
             try:
                 with st.spinner("Gemini анализирует обезличенный договор..."):
-                    result = analyze_contract_with_gemini(redacted_text=redacted_text, api_key=api_key, model=model)
-                    validated = validate_model_evidence(result, redacted_text)
-                st.session_state.analysis_result = validated.result.model_dump(mode="json")
-                st.session_state.validation_warnings = validated.warnings
-            except (GeminiAuthenticationError, GeminiConfigurationError):
+                    debug_result = analyze_contract_with_gemini_debug(
+                        redacted_text=redacted_text,
+                        api_key=api_key,
+                        model=model,
+                    )
+                    st.session_state[_GEMINI_ANALYSIS_RAW_RESPONSE_STATE] = debug_result.raw_text
+                    if debug_result.parsed_result is None:
+                        st.session_state[_GEMINI_ANALYSIS_DEBUG_STATUS_STATE] = "parse_failed"
+                        st.session_state[_GEMINI_ANALYSIS_DEBUG_ERROR_STATE] = (
+                            debug_result.parse_error or "unknown_parse_error"
+                        )
+                        st.error("Gemini вернул ответ, который не соответствует ожидаемой структуре. Анализ не завершён.")
+                    else:
+                        try:
+                            validated = validate_model_evidence(debug_result.parsed_result, redacted_text)
+                        except Exception as exc:
+                            st.session_state[_GEMINI_ANALYSIS_DEBUG_STATUS_STATE] = "evidence_validation_failed"
+                            st.session_state[_GEMINI_ANALYSIS_DEBUG_ERROR_STATE] = type(exc).__name__
+                            st.error("Gemini вернул ответ, который не прошёл проверку источников. Анализ не завершён.")
+                        else:
+                            st.session_state[_GEMINI_ANALYSIS_DEBUG_STATUS_STATE] = "evidence_validation_passed"
+                            if validated.warnings:
+                                st.session_state[_GEMINI_ANALYSIS_DEBUG_ERROR_STATE] = (
+                                    f"evidence_validation_warnings:{len(validated.warnings)}"
+                                )
+                            st.session_state.analysis_result = validated.result.model_dump(mode="json")
+                            st.session_state.validation_warnings = validated.warnings
+            except (GeminiAuthenticationError, GeminiConfigurationError) as exc:
+                st.session_state[_GEMINI_ANALYSIS_DEBUG_STATUS_STATE] = "raw_response_unavailable"
+                st.session_state[_GEMINI_ANALYSIS_DEBUG_ERROR_STATE] = type(exc).__name__
                 st.error("Не удалось авторизоваться в Gemini API. Проверь API-ключ.")
             except GeminiRateLimitError:
+                st.session_state[_GEMINI_ANALYSIS_DEBUG_STATUS_STATE] = "raw_response_unavailable"
+                st.session_state[_GEMINI_ANALYSIS_DEBUG_ERROR_STATE] = "GeminiRateLimitError"
                 st.error("Достигнут лимит запросов Gemini API.")
             except GeminiResponseError as exc:
+                st.session_state[_GEMINI_ANALYSIS_DEBUG_STATUS_STATE] = "raw_response_unavailable"
+                st.session_state[_GEMINI_ANALYSIS_DEBUG_ERROR_STATE] = f"{type(exc).__name__}: {str(exc)}"
                 error_text = str(exc).lower()
                 if "safety" in error_text or "refusal" in error_text:
                     st.error("Gemini отказался обработать запрос. Анализ не завершён.")
@@ -1118,6 +1199,8 @@ def main() -> None:
                     st.error("Не удалось связаться с Gemini API. Попробуй позже.")
                 else:
                     st.error("Gemini вернул ответ, который не соответствует ожидаемой структуре. Анализ не завершён.")
+
+    _render_gemini_analysis_debug()
 
     stored_result = st.session_state.get("analysis_result")
     if stored_result:
