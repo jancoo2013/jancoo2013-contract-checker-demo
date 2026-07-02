@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 import importlib.util
 import json
 from typing import Any
@@ -35,6 +36,13 @@ class GeminiRateLimitError(GeminiError):
 
 class GeminiResponseError(GeminiError):
     """Gemini returned no usable structured response, malformed JSON, or refusal."""
+
+
+@dataclass(frozen=True)
+class GeminiAnalysisDebugResult:
+    raw_text: str
+    parsed_result: ContractAuditResult | None
+    parse_error: str | None
 
 
 def _load_genai_modules() -> tuple[Any, Any]:
@@ -215,12 +223,12 @@ def ocr_redacted_pages_with_gemini(
     return "\n\n".join(page_texts).strip()
 
 
-def analyze_contract_with_gemini(
+def generate_contract_analysis_raw_text(
     redacted_text: str,
     api_key: str,
     model: str = DEFAULT_GEMINI_MODEL,
-) -> ContractAuditResult:
-    """Analyze already-redacted contract text with Gemini structured JSON output."""
+) -> str:
+    """Generate raw Gemini structured-output text for already-redacted contract text."""
 
     if not api_key or not api_key.strip():
         raise GeminiConfigurationError("Не указан Gemini API-ключ")
@@ -244,8 +252,37 @@ def analyze_contract_with_gemini(
     except Exception as exc:
         raise _classify_sdk_error(exc) from exc
 
-    text = _response_text(response)
+    return _response_text(response)
+
+
+def analyze_contract_with_gemini(
+    redacted_text: str,
+    api_key: str,
+    model: str = DEFAULT_GEMINI_MODEL,
+) -> ContractAuditResult:
+    """Analyze already-redacted contract text with Gemini structured JSON output."""
+
+    text = generate_contract_analysis_raw_text(redacted_text=redacted_text, api_key=api_key, model=model)
     try:
         return ContractAuditResult.model_validate_json(text)
     except (ValueError, TypeError, json.JSONDecodeError) as exc:
         raise GeminiResponseError("Gemini returned malformed structured JSON") from exc
+
+
+def analyze_contract_with_gemini_debug(
+    redacted_text: str,
+    api_key: str,
+    model: str = DEFAULT_GEMINI_MODEL,
+) -> GeminiAnalysisDebugResult:
+    """Analyze with raw response capture for closed developer diagnostics."""
+
+    raw_text = generate_contract_analysis_raw_text(redacted_text=redacted_text, api_key=api_key, model=model)
+    try:
+        parsed = ContractAuditResult.model_validate_json(raw_text)
+    except (ValueError, TypeError, json.JSONDecodeError) as exc:
+        return GeminiAnalysisDebugResult(
+            raw_text=raw_text,
+            parsed_result=None,
+            parse_error=type(exc).__name__,
+        )
+    return GeminiAnalysisDebugResult(raw_text=raw_text, parsed_result=parsed, parse_error=None)
