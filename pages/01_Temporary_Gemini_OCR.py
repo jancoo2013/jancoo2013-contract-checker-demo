@@ -20,6 +20,20 @@ from contract_checker.validator import validate_contract_text
 
 _SHARED_GEMINI_API_KEY_STATE = "shared_gemini_api_key"
 _OCR_API_KEY_INPUT_STATE = "ocr_api_key_input"
+_GEMINI_ANALYSIS_RAW_RESPONSE_STATE = "gemini_analysis_raw_response"
+_GEMINI_ANALYSIS_DEBUG_STATUS_STATE = "gemini_analysis_debug_status"
+_GEMINI_ANALYSIS_DEBUG_ERROR_STATE = "gemini_analysis_debug_error"
+
+
+def _clear_gemini_analysis_state_for_source_change() -> None:
+    for key in (
+        _GEMINI_ANALYSIS_RAW_RESPONSE_STATE,
+        _GEMINI_ANALYSIS_DEBUG_STATUS_STATE,
+        _GEMINI_ANALYSIS_DEBUG_ERROR_STATE,
+        "analysis_result",
+        "validation_warnings",
+    ):
+        st.session_state.pop(key, None)
 
 
 def _sync_api_key_widget_before_render(widget_key: str) -> None:
@@ -147,6 +161,7 @@ if st.button("Распознать подготовленные страницы
         validation = validate_contract_text(redacted_text)
         completeness_audit = audit_completeness(redacted_text, text_usable=validation.usable)
 
+        _clear_gemini_analysis_state_for_source_change()
         st.session_state.redacted_text = redacted_text
         st.session_state.redaction_report = redaction_result.report
         st.session_state.completeness_audit = completeness_audit
@@ -154,8 +169,6 @@ if st.button("Распознать подготовленные страницы
         st.session_state.ocr_quality_report = ocr_quality_report
         st.session_state.ocr_page_quality_reports = ocr_page_quality_reports
         st.session_state.gemini_ocr_raw_text = ocr_text
-        st.session_state.pop("analysis_result", None)
-        st.session_state.pop("validation_warnings", None)
 
         st.success("OCR готов. Текст уже прогнан через redaction, validation и completeness audit.")
         if ocr_quality_report.status == "good":
