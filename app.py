@@ -44,6 +44,14 @@ def _clear_gemini_analysis_debug_state() -> None:
         st.session_state.pop(key, None)
 
 
+def _clear_gemini_analysis_state_for_source_change() -> None:
+    import streamlit as st
+
+    _clear_gemini_analysis_debug_state()
+    st.session_state.pop("analysis_result", None)
+    st.session_state.pop("validation_warnings", None)
+
+
 def _render_gemini_analysis_debug() -> None:
     import streamlit as st
 
@@ -1025,13 +1033,12 @@ def _render_manual_ocr_test_mode() -> None:
             ocr_quality_report = assess_ocr_quality(ocr_text, expected_pages=len(prepared_pages))
             validation = validate_contract_text(redacted_text)
             completeness_audit = audit_completeness(redacted_text, text_usable=validation.usable)
+            _clear_gemini_analysis_state_for_source_change()
             st.session_state.redacted_text = redacted_text
             st.session_state.redaction_report = redaction_result.report
             st.session_state.completeness_audit = completeness_audit
             st.session_state.validation_result = validation
             st.session_state.ocr_quality_report = ocr_quality_report
-            st.session_state.pop("analysis_result", None)
-            st.session_state.pop("validation_warnings", None)
             st.success("OCR-текст подготовлен. Ниже появится обезличенный текст, валидация и проверка комплектности.")
             st.rerun()
 
@@ -1105,14 +1112,13 @@ def main() -> None:
             redacted_text = redaction_result.redacted_text
             validation = validate_contract_text(redacted_text)
             completeness_audit = audit_completeness(redacted_text, text_usable=validation.usable)
+            _clear_gemini_analysis_state_for_source_change()
             st.session_state.redacted_text = redacted_text
             st.session_state.redaction_report = redaction_result.report
             st.session_state.completeness_audit = completeness_audit
             st.session_state.validation_result = validation
             st.session_state.pop("ocr_quality_report", None)
             st.session_state.pop("gemini_ocr_raw_text", None)
-            st.session_state.pop("analysis_result", None)
-            st.session_state.pop("validation_warnings", None)
 
     redacted_text = st.session_state.get("redacted_text", "")
     redaction_report = st.session_state.get("redaction_report")
