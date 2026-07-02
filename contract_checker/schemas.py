@@ -121,6 +121,7 @@ except ImportError:  # pragma: no cover - fallback for locked-down CI sandboxes
 
 RiskLevel = Literal["red", "yellow", "normal", "unclear"]
 Completeness = Literal["high", "medium", "low"]
+FinancialHintCategory = Literal["deposit", "guarantee", "penalty", "rent", "utilities", "other"]
 OverallRiskProfile = Literal[
     "high_risk_found",
     "issues_to_clarify",
@@ -163,6 +164,19 @@ class RiskItem(StrictModel):
     requested_change_ru: str | None = None
 
 
+class FinancialHint(StrictModel):
+    title_ru: str
+    category: FinancialHintCategory
+    page: int | None = None
+    source_quote_he: str = ""
+    evidence_block_ids: list[str] = Field(default_factory=list)
+    explanation_ru: str
+    checklist_ru: list[str] = Field(default_factory=list)
+    amount_detected: str | None = None
+    comparison_ru: str | None = None
+    confidence: float = Field(ge=0.0, le=1.0)
+
+
 class MissingClause(StrictModel):
     title_ru: str
     explanation_ru: str
@@ -200,6 +214,7 @@ class ContractAuditResult(StrictModel):
     document_quality: DocumentQuality
     clauses: list[ClauseAnalysis] = Field(default_factory=list)
     risks: list[RiskItem] = Field(default_factory=list)
+    financial_hints: list[FinancialHint] = Field(default_factory=list)
     missing_clauses: list[MissingClause] = Field(default_factory=list)
     unclear_fragments: list[UnclearFragment] = Field(default_factory=list)
     questions_to_agent: list[AgentQuestion] = Field(default_factory=list)
