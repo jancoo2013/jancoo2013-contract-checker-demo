@@ -203,6 +203,30 @@ class EvidenceValidatorTests(unittest.TestCase):
         self.assertEqual(len(validated.result.financial_hints), 1)
         self.assertIn("פיקדון", validated.result.financial_hints[0].source_quote_he)
 
+    def test_evidence_validator_removes_financial_hint_amount_not_in_blank_template_evidence(self) -> None:
+        result = ContractAuditResult(
+            risk_profile="no_obvious_critical_risk_found",
+            risk_profile_summary_ru="Анализ выполнен по условиям формы.",
+            document_quality=DocumentQuality(usable=True, completeness="medium", problems=[]),
+            clauses=[],
+            risks=[],
+            financial_hints=[
+                FinancialHint(
+                    title_ru="Финансовая подсказка: депозит / гарантия",
+                    category="deposit",
+                    evidence_block_ids=["P1-B05"],
+                    explanation_ru="Указанная сумма депозита: 7,000 ₪.",
+                    checklist_ru=["Проверь условия возврата депозита."],
+                    amount_detected="7,000 ₪",
+                    confidence=0.9,
+                )
+            ],
+        )
+        validated = validate_model_evidence(result, BLANK_TEMPLATE_CONTRACT)
+
+        self.assertEqual(validated.result.financial_hints, [])
+        self.assertTrue(any("числа в финансовой подсказке не подтверждены" in warning for warning in validated.warnings))
+
 
 class PromptTests(unittest.TestCase):
     def test_prompt_defines_red_and_yellow_levels(self) -> None:
