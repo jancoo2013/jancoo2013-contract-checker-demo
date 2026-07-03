@@ -44,6 +44,7 @@ def assess_page_privacy_status(
     *,
     has_manual_masks: bool,
     has_auto_masks: bool = False,
+    handwriting_detected: bool = False,
     template_safe_detected: bool = False,
 ) -> PagePrivacyAssessment:
     if has_auto_masks or has_manual_masks:
@@ -52,6 +53,14 @@ def assess_page_privacy_status(
             reasons=("At least one privacy mask is present.",),
             confidence=0.95,
             requires_user_action=False,
+        )
+
+    if handwriting_detected:
+        return PagePrivacyAssessment(
+            status="needs_redaction",
+            reasons=("A local image signal found possible handwriting before text recognition.",),
+            confidence=0.7,
+            requires_user_action=True,
         )
 
     if template_safe_detected:
