@@ -107,14 +107,6 @@ def _sync_api_key_widget_before_render(widget_key: str) -> None:
         st.session_state[_GEMINI_API_KEY_SOURCE_STATE] = _MANUAL_API_KEY_SOURCE
 
 
-def _sync_shared_api_key(value: str) -> str:
-    import streamlit as st
-
-    value = value or ""
-    st.session_state[_SHARED_GEMINI_API_KEY_STATE] = value
-    return value
-
-
 def _manual_gemini_api_key_value() -> str:
     import streamlit as st
 
@@ -158,12 +150,12 @@ def _render_api_key_status() -> None:
     import streamlit as st
 
     source = str(st.session_state.get(_GEMINI_API_KEY_SOURCE_STATE) or API_KEY_SOURCE_MISSING)
-    source_label = api_key_source_label(source)
     if source == API_KEY_SOURCE_STREAMLIT_SECRETS:
-        st.success(f"Gemini API key loaded from {source_label}.")
+        st.success("Gemini API key loaded from .streamlit/secrets.toml.")
     elif source == API_KEY_SOURCE_ENVIRONMENT:
-        st.success(f"Gemini API key loaded from {source_label}.")
+        st.success("Gemini API key loaded from environment variable GEMINI_API_KEY.")
     elif source == _MANUAL_API_KEY_SOURCE:
+        source_label = api_key_source_label(source)
         st.info(f"Gemini API key loaded from {source_label}.")
     else:
         st.warning("Gemini API key is not configured.")
@@ -1477,7 +1469,8 @@ def main() -> None:
             help="Ключ не должен попадать в GitHub. Приложение не выводит его в ошибки или отчёты.",
         )
     api_key = _resolve_effective_api_key(manual_api_key)
-    _render_api_key_status()
+    if not st.session_state.get("image_redaction_ocr_pages"):
+        _render_api_key_status()
 
     with st.expander("Advanced model settings", expanded=False):
         manual_model = st.text_input(
@@ -1493,7 +1486,7 @@ def main() -> None:
 
     clear_col, _ = st.columns([1, 3])
     with clear_col:
-        if st.button("Очистить договор, OCR-текст и ключ"):
+        if st.button("Очистить договор, OCR-текст и ручной ключ"):
             _clear_sensitive_state()
             st.rerun()
 

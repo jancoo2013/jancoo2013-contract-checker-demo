@@ -35,11 +35,14 @@ class StreamlitOnePageFlowTests(unittest.TestCase):
         self.assertIn("def _load_server_side_gemini_api_key", source)
         self.assertIn("def _resolve_effective_api_key", source)
         self.assertIn("def _render_api_key_status", source)
-        self.assertIn("Gemini API key loaded from", source)
+        self.assertIn("Gemini API key loaded from .streamlit/secrets.toml", source)
+        self.assertIn("Gemini API key loaded from environment variable GEMINI_API_KEY", source)
         self.assertIn("Gemini API key is not configured", source)
         self.assertIn("Advanced / dev API key override", source)
-        self.assertNotIn("secret-key", source)
-        self.assertNotIn("env-key", source)
+        self.assertIn("Очистить договор, OCR-текст и ручной ключ", source)
+        self.assertNotIn("Очистить договор, OCR-текст и ключ", source)
+        for prohibited in ("secret" + "-key", "env" + "-key", "AI" + "za"):
+            self.assertNotIn(prohibited, source)
 
 
 if __name__ == "__main__":
