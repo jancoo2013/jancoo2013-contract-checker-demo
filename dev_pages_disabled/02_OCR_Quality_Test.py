@@ -1,4 +1,8 @@
-"""Manual OCR quality test page for synthetic or pasted page-separated OCR text."""
+"""Manual OCR quality test page for synthetic or pasted page-separated OCR text.
+
+This developer-only page is intentionally outside Streamlit's auto-discovered
+pages/ folder so it does not appear in the normal MVP sidebar.
+"""
 
 from __future__ import annotations
 

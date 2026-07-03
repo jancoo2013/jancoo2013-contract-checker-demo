@@ -1,4 +1,9 @@
-"""Compatibility page for the moved Temporary Gemini OCR flow."""
+"""Compatibility page for the moved Temporary Gemini OCR flow.
+
+This file is intentionally outside Streamlit's auto-discovered pages/ folder so
+it does not appear in the normal MVP sidebar. Keep it here as a developer
+reference for the old standalone OCR page.
+"""
 
 from __future__ import annotations
 
