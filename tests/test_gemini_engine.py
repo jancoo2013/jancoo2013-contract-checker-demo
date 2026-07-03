@@ -189,7 +189,7 @@ class GeminiEngineTests(unittest.TestCase):
 
         self.assertNotIn("Open" + "AI", source)
         self.assertNotIn("open" + "ai", source)
-        self.assertIn("Gemini API-ключ — только для закрытого теста", source)
+        self.assertIn("Gemini API-ключ — dev override", source)
 
     def test_ui_uses_risk_profile_shell_instead_of_verdict_copy(self) -> None:
         with open("app.py", encoding="utf-8") as app_file:

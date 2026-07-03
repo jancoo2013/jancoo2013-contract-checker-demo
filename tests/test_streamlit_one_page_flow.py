@@ -26,6 +26,21 @@ class StreamlitOnePageFlowTests(unittest.TestCase):
         self.assertIn("Compatibility page", source)
         self.assertNotIn("ocr_redacted_pages_with_gemini", source)
 
+    def test_main_page_uses_server_side_gemini_api_key_config(self) -> None:
+        with open("app.py", encoding="utf-8") as app_file:
+            source = app_file.read()
+
+        self.assertIn("load_gemini_api_key_from_local_config", source)
+        self.assertIn("api_key_source_label", source)
+        self.assertIn("def _load_server_side_gemini_api_key", source)
+        self.assertIn("def _resolve_effective_api_key", source)
+        self.assertIn("def _render_api_key_status", source)
+        self.assertIn("Gemini API key loaded from", source)
+        self.assertIn("Gemini API key is not configured", source)
+        self.assertIn("Advanced / dev API key override", source)
+        self.assertNotIn("secret-key", source)
+        self.assertNotIn("env-key", source)
+
 
 if __name__ == "__main__":
     unittest.main()
