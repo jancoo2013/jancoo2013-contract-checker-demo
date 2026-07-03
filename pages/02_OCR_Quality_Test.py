@@ -66,10 +66,11 @@ def _render_page_status(page_reports: list[object]) -> None:
         st.write(page_dicts)
 
 
-st.set_page_config(page_title="OCR Quality Test", page_icon="🧪", layout="wide")
-st.title("🧪 OCR quality test")
+st.set_page_config(page_title="Developer OCR Quality Test", page_icon="🧪", layout="wide")
+st.title("🧪 Developer-only OCR quality test")
 st.caption(
-    "Manual test helper for synthetic OCR text. It does not run Gemini OCR, does not analyze legal content, and does not send text to external APIs."
+    "Developer diagnostic helper for synthetic OCR text. It is not part of the normal MVP flow, does not run Gemini OCR, "
+    "does not analyze legal content, and does not send text to external APIs."
 )
 
 expected_pages = st.number_input(
