@@ -26,6 +26,7 @@ from contract_checker.gemini_engine import (
 )
 from contract_checker.output_validator import EvidenceValidationResult, validate_model_evidence
 from contract_checker.ocr_quality import OCRQualityReport, assess_ocr_pages_quality, assess_ocr_quality
+from contract_checker.privacy_assessment import assess_page_privacy_status, privacy_status_label
 from contract_checker.redaction import RedactionReport, redact_personal_data_with_report
 from contract_checker.schemas import ContractAuditResult
 from contract_checker.validator import ContractTextValidationResult, validate_contract_text
@@ -722,6 +723,7 @@ def _render_image_redaction_test() -> None:
     for page_index, uploaded_file in enumerate(image_pages):
         page_key = page_keys[page_index]
         mask_count = len(manual_masks.get(page_key, []))
+        privacy_assessment = assess_page_privacy_status(has_manual_masks=mask_count > 0)
         if mask_count > 0:
             pages_with_masks += 1
         reviewed = bool(reviewed_pages.get(page_key, False))
@@ -733,6 +735,7 @@ def _render_image_redaction_test() -> None:
                 "Файл": _image_page_filename(uploaded_file),
                 "Маски": mask_count,
                 "Статус": "✅ проверена" if reviewed else "⚠️ не проверена",
+                "Pre-OCR privacy": privacy_status_label(privacy_assessment.status),
             }
         )
     all_pages_reviewed = reviewed_count == page_count
