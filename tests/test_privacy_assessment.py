@@ -38,6 +38,23 @@ class PrivacyAssessmentTests(unittest.TestCase):
         self.assertEqual(assessment.status, "redacted")
         self.assertFalse(assessment.requires_user_action)
 
+    def test_handwriting_detected_without_masks_needs_redaction(self) -> None:
+        assessment = assess_page_privacy_status(has_manual_masks=False, handwriting_detected=True)
+
+        self.assertEqual(assessment.status, "needs_redaction")
+        self.assertTrue(assessment.requires_user_action)
+
+    def test_handwriting_detected_with_masks_is_redacted(self) -> None:
+        assessment = assess_page_privacy_status(has_manual_masks=True, handwriting_detected=True)
+
+        self.assertEqual(assessment.status, "redacted")
+        self.assertFalse(assessment.requires_user_action)
+
+    def test_no_handwriting_signal_does_not_produce_template_safe(self) -> None:
+        assessment = assess_page_privacy_status(has_manual_masks=False, handwriting_detected=False)
+
+        self.assertEqual(assessment.status, "uncertain")
+
     def test_future_system_template_safe_signal_produces_template_safe(self) -> None:
         assessment = assess_page_privacy_status(has_manual_masks=False, template_safe_detected=True)
 

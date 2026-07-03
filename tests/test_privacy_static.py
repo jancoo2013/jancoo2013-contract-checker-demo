@@ -40,6 +40,31 @@ class PrivacyStaticTests(unittest.TestCase):
         self.assertNotIn("google-cloud-vision", requirements)
         self.assertNotIn("easyocr", requirements)
 
+    def test_handwriting_risk_module_has_no_external_ocr_or_api_imports(self) -> None:
+        with open("contract_checker/handwriting_risk.py", encoding="utf-8") as source_file:
+            source = source_file.read().lower()
+
+        prohibited = (
+            "pytesseract",
+            "tesseract",
+            "opencv",
+            "cv2",
+            "tensorflow",
+            "onnx",
+            "easyocr",
+            "google-cloud-vision",
+            "gemini",
+        )
+        for name in prohibited:
+            self.assertNotIn(name, source)
+
+    def test_handwriting_risk_module_does_not_include_text_recognition_helpers(self) -> None:
+        with open("contract_checker/handwriting_risk.py", encoding="utf-8") as source_file:
+            source = source_file.read().lower()
+
+        for name in ("recognize", "transcribe", "extract_text", "ocr"):
+            self.assertNotIn(name, source)
+
     def test_no_api_key_value_is_hardcoded_in_app_or_tests(self) -> None:
         source_parts = []
         for path in (
