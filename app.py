@@ -8,6 +8,13 @@ from typing import Any
 
 from contract_checker.cache_keys import ocr_page_cache_key
 from contract_checker.completeness import CompletenessAudit, audit_completeness
+from contract_checker.config import (
+    API_KEY_SOURCE_ENVIRONMENT,
+    API_KEY_SOURCE_MISSING,
+    API_KEY_SOURCE_STREAMLIT_SECRETS,
+    api_key_source_label,
+    load_gemini_api_key_from_local_config,
+)
 from contract_checker.gemini_engine import (
     DEFAULT_GEMINI_MODEL,
     GeminiAuthenticationError,
@@ -32,6 +39,8 @@ _GEMINI_ANALYSIS_DEBUG_ERROR_STATE = "gemini_analysis_debug_error"
 _OCR_PAGE_CACHE_STATE = "gemini_ocr_page_cache"
 _OCR_CACHE_STATUS_STATE = "gemini_ocr_cache_last_status"
 _OCR_PROMPT_VERSION = "temporary_gemini_ocr_prompt_v1"
+_GEMINI_API_KEY_SOURCE_STATE = "gemini_api_key_source"
+_MANUAL_API_KEY_SOURCE = "manual"
 
 
 def _model_to_dict(result: ContractAuditResult) -> dict[str, Any]:
@@ -92,12 +101,10 @@ def _render_gemini_analysis_debug() -> None:
 def _sync_api_key_widget_before_render(widget_key: str) -> None:
     import streamlit as st
 
-    shared_value = str(st.session_state.get(_SHARED_GEMINI_API_KEY_STATE) or "")
     widget_value = str(st.session_state.get(widget_key) or "")
-    if shared_value and not widget_value:
-        st.session_state[widget_key] = shared_value
-    elif widget_value and not shared_value:
+    if widget_value:
         st.session_state[_SHARED_GEMINI_API_KEY_STATE] = widget_value
+        st.session_state[_GEMINI_API_KEY_SOURCE_STATE] = _MANUAL_API_KEY_SOURCE
 
 
 def _sync_shared_api_key(value: str) -> str:
@@ -106,6 +113,60 @@ def _sync_shared_api_key(value: str) -> str:
     value = value or ""
     st.session_state[_SHARED_GEMINI_API_KEY_STATE] = value
     return value
+
+
+def _manual_gemini_api_key_value() -> str:
+    import streamlit as st
+
+    for key in ("api_key_input", "ocr_api_key_input"):
+        value = str(st.session_state.get(key) or "").strip()
+        if value:
+            return value
+    return ""
+
+
+def _load_server_side_gemini_api_key() -> None:
+    import streamlit as st
+
+    config = load_gemini_api_key_from_local_config()
+    if _manual_gemini_api_key_value():
+        st.session_state[_GEMINI_API_KEY_SOURCE_STATE] = _MANUAL_API_KEY_SOURCE
+        return
+
+    if config.found:
+        st.session_state[_SHARED_GEMINI_API_KEY_STATE] = config.value
+        st.session_state[_GEMINI_API_KEY_SOURCE_STATE] = config.source
+    else:
+        st.session_state.pop(_SHARED_GEMINI_API_KEY_STATE, None)
+        st.session_state[_GEMINI_API_KEY_SOURCE_STATE] = API_KEY_SOURCE_MISSING
+
+
+def _resolve_effective_api_key(manual_value: str) -> str:
+    import streamlit as st
+
+    manual_key = (manual_value or "").strip() or _manual_gemini_api_key_value()
+    if manual_key:
+        st.session_state[_SHARED_GEMINI_API_KEY_STATE] = manual_key
+        st.session_state[_GEMINI_API_KEY_SOURCE_STATE] = _MANUAL_API_KEY_SOURCE
+        return manual_key
+
+    _load_server_side_gemini_api_key()
+    return str(st.session_state.get(_SHARED_GEMINI_API_KEY_STATE) or "").strip()
+
+
+def _render_api_key_status() -> None:
+    import streamlit as st
+
+    source = str(st.session_state.get(_GEMINI_API_KEY_SOURCE_STATE) or API_KEY_SOURCE_MISSING)
+    source_label = api_key_source_label(source)
+    if source == API_KEY_SOURCE_STREAMLIT_SECRETS:
+        st.success(f"Gemini API key loaded from {source_label}.")
+    elif source == API_KEY_SOURCE_ENVIRONMENT:
+        st.success(f"Gemini API key loaded from {source_label}.")
+    elif source == _MANUAL_API_KEY_SOURCE:
+        st.info(f"Gemini API key loaded from {source_label}.")
+    else:
+        st.warning("Gemini API key is not configured.")
 
 
 def _page_key(page_index: int, filename: str) -> str:
@@ -446,6 +507,7 @@ def _clear_sensitive_state() -> None:
     for key in (
         "contract_text_input",
         _SHARED_GEMINI_API_KEY_STATE,
+        _GEMINI_API_KEY_SOURCE_STATE,
         "api_key_input",
         "ocr_api_key_input",
         "ocr_model_id",
@@ -1232,14 +1294,16 @@ def _render_inline_temporary_gemini_ocr() -> None:
                 }
             )
 
-    _sync_api_key_widget_before_render("ocr_api_key_input")
-    api_key = st.text_input(
-        "Gemini API-ключ для временного OCR",
-        type="password",
-        key="ocr_api_key_input",
-        help="Ключ не выводится в ошибки или отчёты. OCR запускается только по подготовленным замаскированным страницам.",
-    )
-    api_key = _sync_shared_api_key(api_key)
+    with st.expander("Advanced / dev API key override", expanded=False):
+        _sync_api_key_widget_before_render("ocr_api_key_input")
+        manual_ocr_api_key = st.text_input(
+            "Gemini API-ключ для временного OCR",
+            type="password",
+            key="ocr_api_key_input",
+            help="Ключ не выводится в ошибки или отчёты. OCR запускается только по подготовленным замаскированным страницам.",
+        )
+    api_key = _resolve_effective_api_key(manual_ocr_api_key)
+    _render_api_key_status()
 
     if "ocr_model_id" not in st.session_state:
         st.session_state.ocr_model_id = st.session_state.get("manual_model_id", DEFAULT_GEMINI_MODEL) or DEFAULT_GEMINI_MODEL
@@ -1391,6 +1455,7 @@ def main() -> None:
     st.caption("Закрытый MVP: текст → обезличивание → проверка пригодности → Gemini Structured Output → проверка источников → отчёт на русском.")
 
     st.warning("Прототип не является юридической консультацией и не заменяет проверку адвоката.")
+    _load_server_side_gemini_api_key()
 
     _render_image_redaction_test()
     _render_inline_temporary_gemini_ocr()
@@ -1403,14 +1468,16 @@ def main() -> None:
         "или после ручной вставки текста."
     )
 
-    _sync_api_key_widget_before_render("api_key_input")
-    api_key = st.text_input(
-        "Gemini API-ключ — только для закрытого теста",
-        type="password",
-        key="api_key_input",
-        help="Ключ не должен попадать в GitHub. Приложение не выводит его в ошибки или отчёты.",
-    )
-    api_key = _sync_shared_api_key(api_key)
+    with st.expander("Advanced / dev API key override", expanded=False):
+        _sync_api_key_widget_before_render("api_key_input")
+        manual_api_key = st.text_input(
+            "Gemini API-ключ — dev override",
+            type="password",
+            key="api_key_input",
+            help="Ключ не должен попадать в GitHub. Приложение не выводит его в ошибки или отчёты.",
+        )
+    api_key = _resolve_effective_api_key(manual_api_key)
+    _render_api_key_status()
 
     with st.expander("Advanced model settings", expanded=False):
         manual_model = st.text_input(
