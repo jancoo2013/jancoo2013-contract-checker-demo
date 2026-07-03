@@ -6,6 +6,7 @@ import hashlib
 
 from typing import Any
 
+from contract_checker.cache_keys import ocr_page_cache_key
 from contract_checker.completeness import CompletenessAudit, audit_completeness
 from contract_checker.gemini_engine import (
     DEFAULT_GEMINI_MODEL,
@@ -28,6 +29,9 @@ _PERSISTED_IMAGE_UPLOADS_STATE = "image_redaction_uploaded_pages"
 _GEMINI_ANALYSIS_RAW_RESPONSE_STATE = "gemini_analysis_raw_response"
 _GEMINI_ANALYSIS_DEBUG_STATUS_STATE = "gemini_analysis_debug_status"
 _GEMINI_ANALYSIS_DEBUG_ERROR_STATE = "gemini_analysis_debug_error"
+_OCR_PAGE_CACHE_STATE = "gemini_ocr_page_cache"
+_OCR_CACHE_STATUS_STATE = "gemini_ocr_cache_last_status"
+_OCR_PROMPT_VERSION = "temporary_gemini_ocr_prompt_v1"
 
 
 def _model_to_dict(result: ContractAuditResult) -> dict[str, Any]:
@@ -453,6 +457,8 @@ def _clear_sensitive_state() -> None:
         "ocr_quality_report",
         "ocr_page_quality_reports",
         "gemini_ocr_raw_text",
+        _OCR_PAGE_CACHE_STATE,
+        _OCR_CACHE_STATUS_STATE,
         _GEMINI_ANALYSIS_RAW_RESPONSE_STATE,
         _GEMINI_ANALYSIS_DEBUG_STATUS_STATE,
         _GEMINI_ANALYSIS_DEBUG_ERROR_STATE,
@@ -518,6 +524,7 @@ def _render_image_redaction_test() -> None:
                 "ocr_quality_report",
                 "ocr_page_quality_reports",
                 "gemini_ocr_raw_text",
+                _OCR_CACHE_STATUS_STATE,
             ):
                 st.session_state.pop(key, None)
 
@@ -1108,6 +1115,88 @@ def _render_page_quality_summary(page_quality_reports: list[object]) -> None:
         st.write(page_dicts)
 
 
+def _ocr_page_cache() -> dict[str, dict[str, Any]]:
+    import streamlit as st
+
+    cache = st.session_state.get(_OCR_PAGE_CACHE_STATE)
+    if not isinstance(cache, dict):
+        cache = {}
+        st.session_state[_OCR_PAGE_CACHE_STATE] = cache
+    return cache
+
+
+def _ocr_page_label(page: dict[str, Any], fallback_index: int) -> tuple[int, str]:
+    page_index = int(page.get("page_index", fallback_index))
+    page_number = page_index + 1
+    filename = str(page.get("filename", f"page_{page_number}.png"))
+    return page_number, filename
+
+
+def _run_gemini_ocr_with_page_cache(
+    *,
+    prepared_pages: list[dict[str, Any]],
+    api_key: str,
+    model: str,
+) -> tuple[str, list[dict[str, object]]]:
+    cache = _ocr_page_cache()
+    page_texts: list[str] = []
+    cache_statuses: list[dict[str, object]] = []
+    selected_model = (model or DEFAULT_GEMINI_MODEL).strip() or DEFAULT_GEMINI_MODEL
+
+    for fallback_index, page in enumerate(prepared_pages):
+        page_number, filename = _ocr_page_label(page, fallback_index)
+        image_bytes = page.get("image_bytes")
+        if not isinstance(image_bytes, bytes) or not image_bytes:
+            raise GeminiConfigurationError(f"Страница {page_number}: нет PNG-байтов для OCR")
+
+        key = ocr_page_cache_key(
+            image_bytes=image_bytes,
+            model=selected_model,
+            prompt_version=_OCR_PROMPT_VERSION,
+        )
+        cached = cache.get(key)
+        if isinstance(cached, dict) and isinstance(cached.get("ocr_text"), str):
+            page_text = str(cached["ocr_text"])
+            cache_status = "hit"
+        else:
+            page_text = ocr_redacted_pages_with_gemini(
+                prepared_pages=[page],
+                api_key=api_key,
+                model=selected_model,
+            )
+            cache[key] = {
+                "ocr_text": page_text,
+                "page_number": page_number,
+                "filename": filename,
+                "model": selected_model,
+                "prompt_version": _OCR_PROMPT_VERSION,
+            }
+            cache_status = "miss"
+
+        page_texts.append(page_text)
+        cache_statuses.append(
+            {
+                "page_number": page_number,
+                "filename": filename,
+                "cache_status": cache_status,
+            }
+        )
+
+    return "\n\n".join(page_texts).strip(), cache_statuses
+
+
+def _render_ocr_cache_status(cache_statuses: list[dict[str, object]]) -> None:
+    import streamlit as st
+
+    if not cache_statuses:
+        return
+    hits = sum(1 for item in cache_statuses if item.get("cache_status") == "hit")
+    misses = sum(1 for item in cache_statuses if item.get("cache_status") == "miss")
+    st.info(f"OCR cache: {hits} reused, {misses} sent to Gemini.")
+    with st.expander("Advanced: OCR cache status by page", expanded=False):
+        st.write(cache_statuses)
+
+
 def _render_inline_temporary_gemini_ocr() -> None:
     import streamlit as st
 
@@ -1168,8 +1257,11 @@ def _render_inline_temporary_gemini_ocr() -> None:
         disabled=not api_key.strip() or not confirmed,
     ):
         try:
-            with st.spinner("Gemini распознаёт замаскированные страницы..."):
-                ocr_text = ocr_redacted_pages_with_gemini(
+            with st.spinner(
+                "Gemini распознаёт замаскированные страницы. "
+                "Уже распознанные неизменённые страницы берутся из session cache..."
+            ):
+                ocr_text, cache_statuses = _run_gemini_ocr_with_page_cache(
                     prepared_pages=prepared_pages,
                     api_key=api_key,
                     model=model,
@@ -1205,8 +1297,13 @@ def _render_inline_temporary_gemini_ocr() -> None:
             st.session_state.ocr_quality_report = ocr_quality_report
             st.session_state.ocr_page_quality_reports = ocr_page_quality_reports
             st.session_state.gemini_ocr_raw_text = ocr_text
+            st.session_state[_OCR_CACHE_STATUS_STATE] = cache_statuses
 
             st.success("OCR готов. Ниже показаны текст, качество OCR, подсказки по страницам и проверка комплектности.")
+
+    last_cache_statuses = st.session_state.get(_OCR_CACHE_STATUS_STATE) or []
+    if last_cache_statuses:
+        _render_ocr_cache_status(last_cache_statuses)
 
 
 def _render_recognized_text_review() -> None:
@@ -1280,6 +1377,7 @@ def _render_optional_manual_text_input() -> None:
     st.session_state.pop("ocr_quality_report", None)
     st.session_state.pop("ocr_page_quality_reports", None)
     st.session_state.pop("gemini_ocr_raw_text", None)
+    st.session_state.pop(_OCR_CACHE_STATUS_STATE, None)
     st.rerun()
 
 

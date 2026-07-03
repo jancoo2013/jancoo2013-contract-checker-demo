@@ -7,7 +7,8 @@ import importlib.util
 import json
 from typing import Any
 
-from .prompt_builder import build_contract_audit_prompt
+from .cache_keys import analysis_cache_key
+from .prompt_builder import SYSTEM_PROMPT_RU, build_contract_audit_prompt
 from .schemas import ContractAuditResult
 
 DEFAULT_GEMINI_MODEL = "gemini-3.5-flash"
@@ -16,6 +17,10 @@ DEFAULT_GEMINI_MODEL = "gemini-3.5-flash"
 # the Streamlit app does not require an API key or initialize an SDK client.
 genai: Any = None
 _genai_types: Any = None
+
+# Session-scoped in-memory cache. Values are raw Gemini analysis responses for
+# already-redacted contract text. No API keys are stored.
+_ANALYSIS_RAW_TEXT_CACHE: dict[str, dict[str, str]] = {}
 
 
 class GeminiError(Exception):
@@ -43,6 +48,48 @@ class GeminiAnalysisDebugResult:
     raw_text: str
     parsed_result: ContractAuditResult | None
     parse_error: str | None
+
+
+def _streamlit_session_id() -> str | None:
+    """Return the current Streamlit session ID when running inside Streamlit."""
+
+    try:
+        from streamlit.runtime.scriptrunner import get_script_run_ctx
+    except Exception:
+        return None
+    try:
+        context = get_script_run_ctx()
+    except Exception:
+        return None
+    session_id = getattr(context, "session_id", None)
+    return str(session_id) if session_id else None
+
+
+def _analysis_schema_version() -> str:
+    return json.dumps(ContractAuditResult.model_json_schema(), ensure_ascii=False, sort_keys=True)
+
+
+def _analysis_cache_get(cache_key: str) -> str | None:
+    session_id = _streamlit_session_id()
+    if not session_id:
+        return None
+    return _ANALYSIS_RAW_TEXT_CACHE.get(session_id, {}).get(cache_key)
+
+
+def _analysis_cache_set(cache_key: str, raw_text: str) -> None:
+    session_id = _streamlit_session_id()
+    if not session_id:
+        return
+    _ANALYSIS_RAW_TEXT_CACHE.setdefault(session_id, {})[cache_key] = raw_text
+
+
+def clear_current_session_analysis_cache() -> None:
+    """Clear cached raw Gemini analysis responses for the current Streamlit session."""
+
+    session_id = _streamlit_session_id()
+    if not session_id:
+        return
+    _ANALYSIS_RAW_TEXT_CACHE.pop(session_id, None)
 
 
 def _load_genai_modules() -> tuple[Any, Any]:
@@ -235,12 +282,22 @@ def generate_contract_analysis_raw_text(
     if not redacted_text or not redacted_text.strip():
         raise GeminiConfigurationError("Нет обезличенного текста для анализа")
 
+    selected_model = (model or DEFAULT_GEMINI_MODEL).strip() or DEFAULT_GEMINI_MODEL
+    cache_key = analysis_cache_key(
+        redacted_text=redacted_text,
+        model=selected_model,
+        prompt_text=SYSTEM_PROMPT_RU,
+        schema_version=_analysis_schema_version(),
+    )
+    cached_raw_text = _analysis_cache_get(cache_key)
+    if cached_raw_text is not None:
+        return cached_raw_text
+
     if genai is None and importlib.util.find_spec("google.genai") is None:
         raise GeminiConfigurationError("Пакет google-genai не установлен")
 
     genai_module, types_module = _load_genai_modules()
 
-    selected_model = (model or DEFAULT_GEMINI_MODEL).strip() or DEFAULT_GEMINI_MODEL
     contents = _build_contents(redacted_text)
     config = _build_config(types_module)
 
@@ -252,7 +309,9 @@ def generate_contract_analysis_raw_text(
     except Exception as exc:
         raise _classify_sdk_error(exc) from exc
 
-    return _response_text(response)
+    raw_text = _response_text(response)
+    _analysis_cache_set(cache_key, raw_text)
+    return raw_text
 
 
 def analyze_contract_with_gemini(
