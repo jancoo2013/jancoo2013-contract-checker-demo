@@ -6,6 +6,7 @@ import hashlib
 
 from typing import Any
 
+from contract_checker.cache_keys import ocr_page_cache_key
 from contract_checker.completeness import CompletenessAudit, audit_completeness
 from contract_checker.gemini_engine import (
     DEFAULT_GEMINI_MODEL,
@@ -14,9 +15,10 @@ from contract_checker.gemini_engine import (
     GeminiRateLimitError,
     GeminiResponseError,
     analyze_contract_with_gemini_debug,
+    ocr_redacted_pages_with_gemini,
 )
 from contract_checker.output_validator import EvidenceValidationResult, validate_model_evidence
-from contract_checker.ocr_quality import OCRQualityReport, assess_ocr_quality
+from contract_checker.ocr_quality import OCRQualityReport, assess_ocr_pages_quality, assess_ocr_quality
 from contract_checker.redaction import RedactionReport, redact_personal_data_with_report
 from contract_checker.schemas import ContractAuditResult
 from contract_checker.validator import ContractTextValidationResult, validate_contract_text
@@ -27,6 +29,9 @@ _PERSISTED_IMAGE_UPLOADS_STATE = "image_redaction_uploaded_pages"
 _GEMINI_ANALYSIS_RAW_RESPONSE_STATE = "gemini_analysis_raw_response"
 _GEMINI_ANALYSIS_DEBUG_STATUS_STATE = "gemini_analysis_debug_status"
 _GEMINI_ANALYSIS_DEBUG_ERROR_STATE = "gemini_analysis_debug_error"
+_OCR_PAGE_CACHE_STATE = "gemini_ocr_page_cache"
+_OCR_CACHE_STATUS_STATE = "gemini_ocr_cache_last_status"
+_OCR_PROMPT_VERSION = "temporary_gemini_ocr_prompt_v1"
 
 
 def _model_to_dict(result: ContractAuditResult) -> dict[str, Any]:
@@ -443,6 +448,8 @@ def _clear_sensitive_state() -> None:
         _SHARED_GEMINI_API_KEY_STATE,
         "api_key_input",
         "ocr_api_key_input",
+        "ocr_model_id",
+        "temporary_gemini_ocr_confirmed",
         "redacted_text",
         "redaction_report",
         "completeness_audit",
@@ -450,6 +457,8 @@ def _clear_sensitive_state() -> None:
         "ocr_quality_report",
         "ocr_page_quality_reports",
         "gemini_ocr_raw_text",
+        _OCR_PAGE_CACHE_STATE,
+        _OCR_CACHE_STATUS_STATE,
         _GEMINI_ANALYSIS_RAW_RESPONSE_STATE,
         _GEMINI_ANALYSIS_DEBUG_STATUS_STATE,
         _GEMINI_ANALYSIS_DEBUG_ERROR_STATE,
@@ -505,6 +514,19 @@ def _render_image_redaction_test() -> None:
     def clear_ocr_handoff() -> None:
         st.session_state.pop("image_redaction_ocr_pages", None)
         st.session_state.pop("image_redaction_ocr_confirmed", None)
+        if str(st.session_state.get("redacted_text") or "").startswith("--- OCR SOURCE:"):
+            _clear_gemini_analysis_state_for_source_change()
+            for key in (
+                "redacted_text",
+                "redaction_report",
+                "completeness_audit",
+                "validation_result",
+                "ocr_quality_report",
+                "ocr_page_quality_reports",
+                "gemini_ocr_raw_text",
+                _OCR_CACHE_STATUS_STATE,
+            ):
+                st.session_state.pop(key, None)
 
     def image_to_png_bytes(image: Image.Image) -> bytes:
         output = BytesIO()
@@ -981,15 +1003,8 @@ def _render_image_redaction_test() -> None:
             st.session_state.image_redaction_ocr_pages = prepared_pages
             st.success("Обезличенные страницы подготовлены для распознавания текста.")
             st.info(
-                'Готово. Следующий шаг: в левом меню открой "Temporary Gemini OCR" '
-                "и запусти распознавание подготовленных страниц."
+                "Готово. Ниже в Step 5 запусти Temporary Gemini OCR по подготовленным замаскированным страницам."
             )
-            if hasattr(st, "page_link"):
-                st.page_link(
-                    "pages/01_Temporary_Gemini_OCR.py",
-                    label="Перейти к Temporary Gemini OCR",
-                    icon="🔎",
-                )
 
 
 def _render_manual_ocr_test_mode() -> None:
@@ -1072,6 +1087,300 @@ def _render_manual_ocr_test_mode() -> None:
             st.rerun()
 
 
+def _render_page_quality_summary(page_quality_reports: list[object]) -> None:
+    import streamlit as st
+
+    if not page_quality_reports:
+        return
+
+    page_dicts = [report.to_dict() if hasattr(report, "to_dict") else dict(report) for report in page_quality_reports]
+    poor_pages = [page for page in page_dicts if page.get("status") == "poor"]
+    warning_pages = [page for page in page_dicts if page.get("status") == "warning"]
+
+    if poor_pages:
+        page_numbers = ", ".join(str(page.get("page_number")) for page in poor_pages)
+        st.error(f"Нужно переснять страницы: {page_numbers}.")
+        for page in poor_pages:
+            st.warning(str(page.get("reshoot_hint_ru") or "Пересними страницу крупнее, ровнее и ярче."))
+    elif warning_pages:
+        page_numbers = ", ".join(str(page.get("page_number")) for page in warning_pages)
+        st.warning(
+            f"OCR по страницам: есть предупреждения на страницах {page_numbers}. "
+            "Пересъёмка может улучшить анализ."
+        )
+    else:
+        st.success("OCR по страницам: критичных проблем не найдено.")
+
+    with st.expander("Advanced: OCR quality by page", expanded=False):
+        st.write(page_dicts)
+
+
+def _ocr_page_cache() -> dict[str, dict[str, Any]]:
+    import streamlit as st
+
+    cache = st.session_state.get(_OCR_PAGE_CACHE_STATE)
+    if not isinstance(cache, dict):
+        cache = {}
+        st.session_state[_OCR_PAGE_CACHE_STATE] = cache
+    return cache
+
+
+def _ocr_page_label(page: dict[str, Any], fallback_index: int) -> tuple[int, str]:
+    page_index = int(page.get("page_index", fallback_index))
+    page_number = page_index + 1
+    filename = str(page.get("filename", f"page_{page_number}.png"))
+    return page_number, filename
+
+
+def _run_gemini_ocr_with_page_cache(
+    *,
+    prepared_pages: list[dict[str, Any]],
+    api_key: str,
+    model: str,
+) -> tuple[str, list[dict[str, object]]]:
+    cache = _ocr_page_cache()
+    page_texts: list[str] = []
+    cache_statuses: list[dict[str, object]] = []
+    selected_model = (model or DEFAULT_GEMINI_MODEL).strip() or DEFAULT_GEMINI_MODEL
+
+    for fallback_index, page in enumerate(prepared_pages):
+        page_number, filename = _ocr_page_label(page, fallback_index)
+        image_bytes = page.get("image_bytes")
+        if not isinstance(image_bytes, bytes) or not image_bytes:
+            raise GeminiConfigurationError(f"Страница {page_number}: нет PNG-байтов для OCR")
+
+        key = ocr_page_cache_key(
+            image_bytes=image_bytes,
+            model=selected_model,
+            prompt_version=_OCR_PROMPT_VERSION,
+        )
+        cached = cache.get(key)
+        if isinstance(cached, dict) and isinstance(cached.get("ocr_text"), str):
+            page_text = str(cached["ocr_text"])
+            cache_status = "hit"
+        else:
+            page_text = ocr_redacted_pages_with_gemini(
+                prepared_pages=[page],
+                api_key=api_key,
+                model=selected_model,
+            )
+            cache[key] = {
+                "ocr_text": page_text,
+                "page_number": page_number,
+                "filename": filename,
+                "model": selected_model,
+                "prompt_version": _OCR_PROMPT_VERSION,
+            }
+            cache_status = "miss"
+
+        page_texts.append(page_text)
+        cache_statuses.append(
+            {
+                "page_number": page_number,
+                "filename": filename,
+                "cache_status": cache_status,
+            }
+        )
+
+    return "\n\n".join(page_texts).strip(), cache_statuses
+
+
+def _render_ocr_cache_status(cache_statuses: list[dict[str, object]]) -> None:
+    import streamlit as st
+
+    if not cache_statuses:
+        return
+    hits = sum(1 for item in cache_statuses if item.get("cache_status") == "hit")
+    misses = sum(1 for item in cache_statuses if item.get("cache_status") == "miss")
+    st.info(f"OCR cache: {hits} reused, {misses} sent to Gemini.")
+    with st.expander("Advanced: OCR cache status by page", expanded=False):
+        st.write(cache_statuses)
+
+
+def _render_inline_temporary_gemini_ocr() -> None:
+    import streamlit as st
+
+    st.divider()
+    st.header("Step 5 — Run Temporary Gemini OCR")
+    st.caption(
+        "Временный режим закрытого тестирования. Используются только подготовленные замаскированные страницы; "
+        "это не production on-device OCR."
+    )
+
+    prepared_pages = st.session_state.get("image_redaction_ocr_pages") or []
+    if not prepared_pages:
+        st.info("После Step 4 здесь появится запуск OCR для подготовленных замаскированных страниц.")
+        return
+
+    st.success(f"Подготовлено страниц: {len(prepared_pages)}")
+    with st.expander("Advanced: подготовленные страницы", expanded=False):
+        st.write(
+            {
+                "подготовлено страниц": len(prepared_pages),
+                "режим": "temporary_gemini_ocr_on_redacted_pages",
+                "production OCR": "нет",
+            }
+        )
+        for page in prepared_pages:
+            st.write(
+                {
+                    "page_index": page.get("page_index"),
+                    "filename": page.get("filename"),
+                    "width": page.get("width"),
+                    "height": page.get("height"),
+                    "bytes": len(page.get("image_bytes") or b""),
+                }
+            )
+
+    _sync_api_key_widget_before_render("ocr_api_key_input")
+    api_key = st.text_input(
+        "Gemini API-ключ для временного OCR",
+        type="password",
+        key="ocr_api_key_input",
+        help="Ключ не выводится в ошибки или отчёты. OCR запускается только по подготовленным замаскированным страницам.",
+    )
+    api_key = _sync_shared_api_key(api_key)
+
+    if "ocr_model_id" not in st.session_state:
+        st.session_state.ocr_model_id = st.session_state.get("manual_model_id", DEFAULT_GEMINI_MODEL) or DEFAULT_GEMINI_MODEL
+    with st.expander("Advanced OCR model settings", expanded=False):
+        model = st.text_input("Gemini model ID for OCR", key="ocr_model_id")
+    model = model.strip() or DEFAULT_GEMINI_MODEL
+
+    confirmed = st.checkbox(
+        "Подтверждаю: OCR будет запущен только по подготовленным замаскированным страницам.",
+        key="temporary_gemini_ocr_confirmed",
+    )
+    if st.button(
+        "Распознать подготовленные страницы через Temporary Gemini OCR",
+        type="primary",
+        disabled=not api_key.strip() or not confirmed,
+    ):
+        try:
+            with st.spinner(
+                "Gemini распознаёт замаскированные страницы. "
+                "Уже распознанные неизменённые страницы берутся из session cache..."
+            ):
+                ocr_text, cache_statuses = _run_gemini_ocr_with_page_cache(
+                    prepared_pages=prepared_pages,
+                    api_key=api_key,
+                    model=model,
+                )
+        except (GeminiAuthenticationError, GeminiConfigurationError):
+            st.error("Не удалось запустить Gemini OCR. Проверь API-ключ и модель.")
+        except GeminiRateLimitError:
+            st.error("Достигнут лимит запросов Gemini API.")
+        except GeminiResponseError as exc:
+            error_text = str(exc).lower()
+            if "safety" in error_text or "refusal" in error_text:
+                st.error("Gemini отказался распознавать одну из страниц. OCR не завершён.")
+            else:
+                st.error("Gemini OCR не вернул usable text. OCR не завершён.")
+        else:
+            assembled_text = (
+                "--- OCR SOURCE: temporary_gemini_ocr_on_redacted_pages ---\n"
+                f"--- IMAGE PAGES PREPARED: {len(prepared_pages)} ---\n\n"
+                f"{ocr_text}"
+            )
+            ocr_quality_report = assess_ocr_quality(ocr_text, expected_pages=len(prepared_pages))
+            ocr_page_quality_reports = assess_ocr_pages_quality(ocr_text, expected_pages=len(prepared_pages))
+            redaction_result = redact_personal_data_with_report(assembled_text)
+            redacted_text = redaction_result.redacted_text
+            validation = validate_contract_text(redacted_text)
+            completeness_audit = audit_completeness(redacted_text, text_usable=validation.usable)
+
+            _clear_gemini_analysis_state_for_source_change()
+            st.session_state.redacted_text = redacted_text
+            st.session_state.redaction_report = redaction_result.report
+            st.session_state.completeness_audit = completeness_audit
+            st.session_state.validation_result = validation
+            st.session_state.ocr_quality_report = ocr_quality_report
+            st.session_state.ocr_page_quality_reports = ocr_page_quality_reports
+            st.session_state.gemini_ocr_raw_text = ocr_text
+            st.session_state[_OCR_CACHE_STATUS_STATE] = cache_statuses
+
+            st.success("OCR готов. Ниже показаны текст, качество OCR, подсказки по страницам и проверка комплектности.")
+
+    last_cache_statuses = st.session_state.get(_OCR_CACHE_STATUS_STATE) or []
+    if last_cache_statuses:
+        _render_ocr_cache_status(last_cache_statuses)
+
+
+def _render_recognized_text_review() -> None:
+    import streamlit as st
+
+    st.divider()
+    st.header("Step 6 — Review recognized text")
+
+    redacted_text = st.session_state.get("redacted_text", "")
+    redaction_report = st.session_state.get("redaction_report")
+    completeness_audit = st.session_state.get("completeness_audit")
+    validation = st.session_state.get("validation_result")
+    ocr_quality_report = st.session_state.get("ocr_quality_report")
+    ocr_raw_text = st.session_state.get("gemini_ocr_raw_text")
+
+    if not redacted_text:
+        st.info("После Temporary Gemini OCR здесь появятся сырой OCR-текст, качество, валидация и completeness audit.")
+        return
+
+    if ocr_raw_text:
+        with st.expander("Advanced: последний сырой OCR-текст", expanded=False):
+            st.text_area("Raw OCR", value=ocr_raw_text, height=360, disabled=True, label_visibility="collapsed")
+    if redaction_report:
+        _render_redaction_report(redaction_report)
+    with st.expander("Обезличенный текст, который будет отправлен в Gemini", expanded=False):
+        st.text_area("Redacted source", value=redacted_text, height=260, disabled=True, label_visibility="collapsed")
+    if validation:
+        _render_validation_status(validation)
+    if ocr_quality_report:
+        _render_ocr_quality_report(ocr_quality_report)
+    _render_page_quality_summary(st.session_state.get("ocr_page_quality_reports") or [])
+    if completeness_audit:
+        _render_completeness_audit(completeness_audit)
+
+
+def _render_optional_manual_text_input() -> None:
+    import streamlit as st
+
+    st.header("Advanced fallback: manual text input")
+    st.caption(
+        "Обычный путь для фото-договора: Step 4 → Step 5 Temporary Gemini OCR на этой странице → анализ. "
+        "Этот блок нужен только если уже есть готовый OCR-текст или полный текст договора."
+    )
+
+    redact_clicked = False
+    with st.expander("Alternative / manual text input", expanded=False):
+        contract_text = st.text_area(
+            "Вставь полный текст договора на иврите",
+            key="contract_text_input",
+            height=360,
+            placeholder="Вставь сюда уже готовый OCR-текст или полный текст договора.",
+        )
+        redact_clicked = st.button("Обезличить и проверить", type="primary")
+
+    if not redact_clicked:
+        return
+
+    if not contract_text.strip():
+        st.error("Вставь текст договора перед проверкой.")
+        return
+
+    redaction_result = redact_personal_data_with_report(contract_text)
+    redacted_text = redaction_result.redacted_text
+    validation = validate_contract_text(redacted_text)
+    completeness_audit = audit_completeness(redacted_text, text_usable=validation.usable)
+    _clear_gemini_analysis_state_for_source_change()
+    st.session_state.redacted_text = redacted_text
+    st.session_state.redaction_report = redaction_result.report
+    st.session_state.completeness_audit = completeness_audit
+    st.session_state.validation_result = validation
+    st.session_state.pop("ocr_quality_report", None)
+    st.session_state.pop("ocr_page_quality_reports", None)
+    st.session_state.pop("gemini_ocr_raw_text", None)
+    st.session_state.pop(_OCR_CACHE_STATUS_STATE, None)
+    st.rerun()
+
+
 def main() -> None:
     """Run the Streamlit application."""
 
@@ -1084,10 +1393,11 @@ def main() -> None:
     st.warning("Прототип не является юридической консультацией и не заменяет проверку адвоката.")
 
     _render_image_redaction_test()
-    _render_manual_ocr_test_mode()
+    _render_inline_temporary_gemini_ocr()
+    _render_recognized_text_review()
 
     st.divider()
-    st.header("AI analysis settings")
+    st.header("Step 7 — AI analysis settings")
     st.caption(
         "Эти настройки используются для финального анализа после Temporary Gemini OCR "
         "или после ручной вставки текста."
@@ -1111,21 +1421,8 @@ def main() -> None:
         )
     model = manual_model.strip() or DEFAULT_GEMINI_MODEL
 
-    st.header("Optional: paste recognized contract text manually")
-    st.caption(
-        "Обычный путь для фото-договора: Step 4 → Temporary Gemini OCR в левом меню → возврат сюда для анализа. "
-        "Этот блок нужен только если у тебя уже есть готовый OCR-текст или полный текст договора."
-    )
-
-    redact_clicked = False
-    with st.expander("Alternative / manual text input", expanded=False):
-        contract_text = st.text_area(
-            "Вставь полный текст договора на иврите",
-            key="contract_text_input",
-            height=360,
-            placeholder="Вставь сюда уже готовый OCR-текст или полный текст договора.",
-        )
-        redact_clicked = st.button("Обезличить и проверить", type="primary")
+    _render_optional_manual_text_input()
+    _render_manual_ocr_test_mode()
 
     clear_col, _ = st.columns([1, 3])
     with clear_col:
@@ -1133,47 +1430,16 @@ def main() -> None:
             _clear_sensitive_state()
             st.rerun()
 
-    if redact_clicked:
-        if not contract_text.strip():
-            st.error("Вставь текст договора перед проверкой.")
-        else:
-            redaction_result = redact_personal_data_with_report(contract_text)
-            redacted_text = redaction_result.redacted_text
-            validation = validate_contract_text(redacted_text)
-            completeness_audit = audit_completeness(redacted_text, text_usable=validation.usable)
-            _clear_gemini_analysis_state_for_source_change()
-            st.session_state.redacted_text = redacted_text
-            st.session_state.redaction_report = redaction_result.report
-            st.session_state.completeness_audit = completeness_audit
-            st.session_state.validation_result = validation
-            st.session_state.pop("ocr_quality_report", None)
-            st.session_state.pop("gemini_ocr_raw_text", None)
-
     redacted_text = st.session_state.get("redacted_text", "")
-    redaction_report = st.session_state.get("redaction_report")
-    completeness_audit = st.session_state.get("completeness_audit")
     validation = st.session_state.get("validation_result")
     ocr_quality_report = st.session_state.get("ocr_quality_report")
 
-    if redacted_text:
-        if redaction_report:
-            _render_redaction_report(redaction_report)
-        with st.expander("Обезличенный текст, который будет отправлен в Gemini", expanded=False):
-            st.text_area("Redacted source", value=redacted_text, height=260, disabled=True, label_visibility="collapsed")
-    if validation:
-        _render_validation_status(validation)
-    if ocr_quality_report:
-        _render_ocr_quality_report(ocr_quality_report)
-    if completeness_audit:
-        st.header("Review recognized text")
-        _render_completeness_audit(completeness_audit)
-
     ocr_quality_status = str(_ocr_quality_to_dict(ocr_quality_report).get("status") or "")
     can_analyze = bool(validation and validation.usable and api_key.strip() and ocr_quality_status != "poor")
-    st.header("Run AI analysis")
+    st.header("Step 8 — Run final Gemini contract analysis")
     if not validation:
         st.info(
-            "Для фото-договора сначала подготовь страницы в Step 4, затем открой Temporary Gemini OCR в левом меню. "
+            "Для фото-договора сначала подготовь страницы в Step 4, затем запусти Temporary Gemini OCR в Step 5. "
             "После OCR здесь появятся проверка текста и кнопка анализа."
         )
     if ocr_quality_status == "poor":
@@ -1235,14 +1501,14 @@ def main() -> None:
                 else:
                     st.error("Gemini вернул ответ, который не соответствует ожидаемой структуре. Анализ не завершён.")
 
-    _render_gemini_analysis_debug()
-
     stored_result = st.session_state.get("analysis_result")
     if stored_result:
-        st.header("View report")
+        st.header("Step 9 — View final report")
         result = ContractAuditResult.model_validate(stored_result)
         warnings = st.session_state.get("validation_warnings", [])
         _render_analysis(EvidenceValidationResult(result=result, warnings=warnings))
+
+    _render_gemini_analysis_debug()
 
 
 if __name__ == "__main__":
