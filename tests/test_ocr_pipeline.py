@@ -75,6 +75,12 @@ class OCRProcessingPipelineTests(unittest.TestCase):
         with self.assertRaises(OCRProcessingError):
             process_ocr_text(GOOD_OCR_TEXT, expected_pages="not-a-number")  # type: ignore[arg-type]
 
+        with self.assertRaises(OCRProcessingError):
+            process_ocr_text(GOOD_OCR_TEXT, expected_pages=1.5)  # type: ignore[arg-type]
+
+        with self.assertRaises(OCRProcessingError):
+            process_ocr_text(GOOD_OCR_TEXT, expected_pages=True)  # type: ignore[arg-type]
+
 
 if __name__ == "__main__":
     unittest.main()

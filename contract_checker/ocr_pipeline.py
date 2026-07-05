@@ -67,10 +67,9 @@ def process_ocr_text(
     if not isinstance(ocr_text, str) or not ocr_text.strip():
         raise OCRProcessingError("OCR text is missing or empty.")
 
-    try:
-        page_count = int(expected_pages)
-    except (TypeError, ValueError) as exc:
-        raise OCRProcessingError("expected_pages must be a positive integer.") from exc
+    if not isinstance(expected_pages, int) or isinstance(expected_pages, bool):
+        raise OCRProcessingError("expected_pages must be a positive integer.")
+    page_count = expected_pages
     if page_count <= 0:
         raise OCRProcessingError("expected_pages must be a positive integer.")
 
