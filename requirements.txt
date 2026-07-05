@@ -7,3 +7,4 @@ numpy>=1.26
 PyMuPDF>=1.24
 fastapi>=0.115
 python-multipart>=0.0.9
+httpx>=0.27
