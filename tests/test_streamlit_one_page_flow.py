@@ -19,8 +19,8 @@ class StreamlitOnePageFlowTests(unittest.TestCase):
         self.assertNotIn('"pages/01_Temporary_Gemini_OCR.py"', source)
         self.assertNotIn('левом меню открой "Temporary Gemini OCR"', source)
 
-    def test_sidebar_ocr_page_is_only_compatibility_notice(self) -> None:
-        with open("pages/01_Temporary_Gemini_OCR.py", encoding="utf-8") as page_file:
+    def test_disabled_legacy_ocr_page_is_only_compatibility_notice(self) -> None:
+        with open("dev_pages_disabled/01_Temporary_Gemini_OCR.py", encoding="utf-8") as page_file:
             source = page_file.read()
 
         self.assertIn("Compatibility page", source)
