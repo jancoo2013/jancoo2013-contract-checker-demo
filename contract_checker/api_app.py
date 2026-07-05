@@ -29,6 +29,9 @@ from .gemini_engine import (
 
 _PNG_SIGNATURE = bytes.fromhex("89504E470D0A1A0A")
 _CLIENT_REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9._:-]+$")
+DEFAULT_MAX_PAGES = 40
+DEFAULT_MAX_PAGE_BYTES = 16 * 1024 * 1024
+DEFAULT_MAX_TOTAL_BYTES = 128 * 1024 * 1024
 
 
 @dataclass(frozen=True)
@@ -85,6 +88,20 @@ def _valid_client_request_id(value: str | None) -> bool:
     return bool(value) and len(value) <= 128 and bool(_CLIENT_REQUEST_ID_RE.fullmatch(value))
 
 
+def _payload_too_large(
+    pages: list[bytes],
+    *,
+    max_pages: int,
+    max_page_bytes: int,
+    max_total_bytes: int,
+) -> bool:
+    if len(pages) > max_pages:
+        return True
+    if any(len(page) > max_page_bytes for page in pages):
+        return True
+    return sum(len(page) for page in pages) > max_total_bytes
+
+
 def _normalize_pages(page_bytes: list[bytes]) -> list[RedactedPagePayload] | None:
     normalized: list[RedactedPagePayload] = []
     for page_index, image_bytes in enumerate(page_bytes):
@@ -100,7 +117,13 @@ def _normalize_pages(page_bytes: list[bytes]) -> list[RedactedPagePayload] | Non
     return normalized
 
 
-def create_app(handler: AnalyzeHandler | None = None) -> FastAPI:
+def create_app(
+    handler: AnalyzeHandler | None = None,
+    *,
+    max_pages: int = DEFAULT_MAX_PAGES,
+    max_page_bytes: int = DEFAULT_MAX_PAGE_BYTES,
+    max_total_bytes: int = DEFAULT_MAX_TOTAL_BYTES,
+) -> FastAPI:
     """Create the API app with an injectable analysis handler for tests and production wiring."""
 
     analyze_handler = handler or _unwired_handler
@@ -111,6 +134,7 @@ def create_app(handler: AnalyzeHandler | None = None) -> FastAPI:
         response_model=AnalyzeRedactedContractResponse,
         responses={
             400: {"model": APIErrorResponse},
+            413: {"model": APIErrorResponse},
             415: {"model": APIErrorResponse},
             422: {"model": APIErrorResponse},
             502: {"model": APIErrorResponse},
@@ -137,6 +161,18 @@ def create_app(handler: AnalyzeHandler | None = None) -> FastAPI:
                 status_code=400,
                 code="invalid_request",
                 message_ru="Не переданы подготовленные страницы договора.",
+            )
+        if _payload_too_large(
+            pages,
+            max_pages=max_pages,
+            max_page_bytes=max_page_bytes,
+            max_total_bytes=max_total_bytes,
+        ):
+            return _error_response(
+                request_id=request_id,
+                status_code=413,
+                code="payload_too_large",
+                message_ru="Превышен допустимый размер или количество страниц запроса.",
             )
         if not _valid_client_request_id(client_request_id):
             return _error_response(
