@@ -11,11 +11,19 @@ from fastapi import FastAPI, File, Form
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
+from .api_handler import ContractAnalysisHandler, OCRQualityPoorError, TextUnusableError
 from .api_models import (
     APIErrorBody,
     APIErrorResponse,
     AnalyzeRedactedContractResponse,
     AnalyzeRedactedMetadata,
+)
+from .config import load_gemini_api_key_from_local_config
+from .gemini_engine import (
+    GeminiAuthenticationError,
+    GeminiConfigurationError,
+    GeminiRateLimitError,
+    GeminiResponseError,
 )
 
 
@@ -93,7 +101,7 @@ def _normalize_pages(page_bytes: list[bytes]) -> list[RedactedPagePayload] | Non
 
 
 def create_app(handler: AnalyzeHandler | None = None) -> FastAPI:
-    """Create the API app with an injectable analysis handler for later wiring/tests."""
+    """Create the API app with an injectable analysis handler for tests and production wiring."""
 
     analyze_handler = handler or _unwired_handler
     app = FastAPI(title="Contract Checker API", version="0.1.0")
@@ -104,6 +112,8 @@ def create_app(handler: AnalyzeHandler | None = None) -> FastAPI:
         responses={
             400: {"model": APIErrorResponse},
             415: {"model": APIErrorResponse},
+            422: {"model": APIErrorResponse},
+            502: {"model": APIErrorResponse},
             503: {"model": APIErrorResponse},
         },
     )
@@ -160,15 +170,50 @@ def create_app(handler: AnalyzeHandler | None = None) -> FastAPI:
 
         try:
             return await analyze_handler(normalized_pages, metadata, request_id)
-        except APIServiceUnavailable:
+        except OCRQualityPoorError:
+            return _error_response(
+                request_id=request_id,
+                status_code=422,
+                code="ocr_quality_poor",
+                message_ru="Качество распознавания слишком низкое для надёжного анализа.",
+            )
+        except TextUnusableError:
+            return _error_response(
+                request_id=request_id,
+                status_code=422,
+                code="text_unusable",
+                message_ru="Распознанный текст непригоден для надёжного анализа договора.",
+            )
+        except GeminiRateLimitError:
+            return _error_response(
+                request_id=request_id,
+                status_code=503,
+                code="upstream_rate_limited",
+                message_ru="Сервис анализа временно перегружен. Повторите попытку позже.",
+            )
+        except (GeminiAuthenticationError, GeminiConfigurationError, APIServiceUnavailable):
             return _error_response(
                 request_id=request_id,
                 status_code=503,
                 code="upstream_unavailable",
                 message_ru="Сервис анализа временно недоступен.",
             )
+        except GeminiResponseError:
+            return _error_response(
+                request_id=request_id,
+                status_code=502,
+                code="upstream_invalid_response",
+                message_ru="Внешний сервис вернул ответ, непригодный для обработки.",
+            )
 
     return app
 
 
-app = create_app()
+def create_production_app() -> FastAPI:
+    """Create the production API app with the existing server-side Gemini key loader."""
+
+    key_config = load_gemini_api_key_from_local_config()
+    return create_app(ContractAnalysisHandler(api_key=key_config.value))
+
+
+app = create_production_app()
