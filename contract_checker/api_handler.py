@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from asyncio import to_thread
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from .analysis_pipeline import run_contract_analysis
-from .api_app import RedactedPagePayload
 from .api_models import (
     AnalyzeRedactedContractResponse,
     AnalyzeRedactedMetadata,
@@ -18,6 +18,9 @@ from .api_models import (
 )
 from .gemini_engine import DEFAULT_GEMINI_MODEL, ocr_redacted_pages_with_gemini
 from .ocr_pipeline import process_ocr_text
+
+if TYPE_CHECKING:
+    from .api_app import RedactedPagePayload
 
 
 class OCRQualityPoorError(RuntimeError):
