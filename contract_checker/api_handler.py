@@ -59,8 +59,7 @@ class ContractAnalysisHandler:
             self.api_key,
             self.model,
         )
-        processed = await to_thread(
-            process_ocr_text,
+        processed = process_ocr_text(
             ocr_text,
             expected_pages=len(pages),
         )
