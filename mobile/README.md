@@ -8,7 +8,42 @@ It does not include camera, gallery picker, or document-picker UI or packages.
 
 Do not use real contracts with this transport-test build.
 
-The app config explicitly adds no Android permissions. A local Expo prebuild inspection generated standard Expo/React Native permissions: `android.permission.INTERNET`, `android.permission.VIBRATE`, `android.permission.SYSTEM_ALERT_WINDOW`, `android.permission.READ_EXTERNAL_STORAGE` with `maxSdkVersion=32`, and `android.permission.WRITE_EXTERNAL_STORAGE` with `maxSdkVersion=32`. No `android.permission.CAMERA` permission was present. The generated native `android/` directory is not committed.
+## Local OCR Experiment
+
+The app includes an Android-only on-device OCR research block called `Local OCR Experiment`.
+
+It uses only bundled synthetic Hebrew PNG assets:
+
+- `assets/synthetic-hebrew-pii.png`;
+- `assets/synthetic-hebrew-layout.png`.
+
+Tap `Run local OCR` to run the local OCR module. The block shows:
+
+- OCR state;
+- duration in milliseconds;
+- recognized text;
+- OCR text item count;
+- deterministic local PII candidate count;
+- counts for `id_like`, `phone_like`, and `email_like`;
+- red overlay rectangles for detected candidates.
+
+This block does not use camera, gallery, document picker, backend calls, Gemini calls, model downloads, or telemetry. It is not production OCR and must not be tested with real contracts.
+
+The selected OCR stack and tradeoffs are documented in `docs/on-device-ocr-spike.md`.
+
+### Physical-Device Offline Check
+
+After installing a development build on a physical Android device:
+
+1. Open the app once if the development build needs initial setup.
+2. Enable airplane mode.
+3. Force close and reopen the app.
+4. Run `Local OCR Experiment` on both bundled synthetic images.
+5. Confirm that text, item counts, candidate counts, duration, and overlays appear without network access.
+
+Do not claim this check has passed until it has actually been run on a device.
+
+The app config explicitly adds no Android permissions and disables Android backup with `allowBackup: false`. A local Expo prebuild inspection generated `android.permission.INTERNET`, `android.permission.VIBRATE`, and `android.permission.SYSTEM_ALERT_WINDOW`. Legacy `READ_EXTERNAL_STORAGE` and `WRITE_EXTERNAL_STORAGE` entries are blocked with `tools:node="remove"`. No `CAMERA`, `READ_MEDIA_IMAGES`, `RECORD_AUDIO`, location, or contacts permission was present. The generated native `android/` directory is not committed.
 
 ## Requirements
 

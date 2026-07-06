@@ -1,0 +1,32 @@
+apply plugin: 'com.android.library'
+apply plugin: 'org.jetbrains.kotlin.android'
+
+group = 'com.jancoo.contractchecker.localocr'
+version = '0.1.0'
+
+def expoModulesCorePlugin = new File(project(":expo-modules-core").projectDir.absolutePath, "ExpoModulesCorePlugin.gradle")
+apply from: expoModulesCorePlugin
+applyKotlinExpoModulesCorePlugin()
+useCoreDependencies()
+
+repositories {
+  maven { url 'https://jitpack.io' }
+}
+
+android {
+  namespace "com.jancoo.contractchecker.localocr"
+
+  defaultConfig {
+    minSdkVersion 23
+  }
+
+  sourceSets {
+    main {
+      assets.srcDirs += ["../../../assets"]
+    }
+  }
+}
+
+dependencies {
+  implementation 'cz.adaptech.tesseract4android:tesseract4android:4.9.0'
+}

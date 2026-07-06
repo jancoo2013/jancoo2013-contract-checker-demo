@@ -1,0 +1,265 @@
+import React, { useMemo, useState } from "react";
+import {
+  Button,
+  Image,
+  ImageSourcePropType,
+  LayoutChangeEvent,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import LocalOcr, { LocalOcrResult } from "local-ocr";
+import {
+  countCandidatesByType,
+  detectPiiCandidates,
+  PiiCandidate,
+} from "./localOcrCandidates";
+import { Box, mapImageBoxToContainedViewBox, Size } from "./overlayGeometry";
+
+type OcrStatus = "idle" | "running" | "success" | "error";
+
+type SyntheticImage = {
+  label: string;
+  assetName: "synthetic-hebrew-pii.png" | "synthetic-hebrew-layout.png";
+  source: ImageSourcePropType;
+};
+
+const SYNTHETIC_IMAGES: SyntheticImage[] = [
+  {
+    label: "Hebrew PII markers",
+    assetName: "synthetic-hebrew-pii.png",
+    source: require("../assets/synthetic-hebrew-pii.png") as ImageSourcePropType,
+  },
+  {
+    label: "Hebrew layout",
+    assetName: "synthetic-hebrew-layout.png",
+    source: require("../assets/synthetic-hebrew-layout.png") as ImageSourcePropType,
+  },
+];
+
+export function LocalOcrExperiment() {
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [status, setStatus] = useState<OcrStatus>("idle");
+  const [result, setResult] = useState<LocalOcrResult | undefined>();
+  const [errorMessage, setErrorMessage] = useState<string | undefined>();
+  const [viewSize, setViewSize] = useState<Size>({ width: 0, height: 0 });
+  const selectedImage = SYNTHETIC_IMAGES[selectedIndex];
+
+  const candidates = useMemo<PiiCandidate[]>(
+    () => (result ? detectPiiCandidates(result.items) : []),
+    [result],
+  );
+  const countsByType = useMemo(() => countCandidatesByType(candidates), [candidates]);
+
+  async function handleRunOcr() {
+    setStatus("running");
+    setResult(undefined);
+    setErrorMessage(undefined);
+
+    try {
+      const nextResult = await LocalOcr.recognizeBundledImage(selectedImage.assetName);
+      setResult(nextResult);
+      setStatus("success");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Local OCR failed.";
+      setErrorMessage(message);
+      setStatus("error");
+    }
+  }
+
+  function handleImageLayout(event: LayoutChangeEvent) {
+    setViewSize({
+      width: event.nativeEvent.layout.width,
+      height: event.nativeEvent.layout.height,
+    });
+  }
+
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>Local OCR Experiment</Text>
+      <Text style={styles.notice}>
+        Android research spike. Uses bundled synthetic images and on-device OCR only. No camera,
+        gallery, backend, Gemini, model download, or telemetry is used by this block.
+      </Text>
+
+      <View style={styles.switchRow}>
+        {SYNTHETIC_IMAGES.map((image, index) => (
+          <View key={image.assetName} style={styles.switchButton}>
+            <Button
+              title={image.label}
+              onPress={() => {
+                setSelectedIndex(index);
+                setResult(undefined);
+                setErrorMessage(undefined);
+                setStatus("idle");
+              }}
+              disabled={selectedIndex === index || status === "running"}
+            />
+          </View>
+        ))}
+      </View>
+
+      <View style={styles.previewFrame} onLayout={handleImageLayout}>
+        <Image source={selectedImage.source} style={styles.previewImage} resizeMode="contain" />
+        {result
+          ? candidates.map((candidate, index) => (
+              <CandidateOverlay
+                key={`${candidate.type}-${candidate.text}-${index}`}
+                candidate={candidate}
+                imageSize={{ width: result.width, height: result.height }}
+                viewSize={viewSize}
+              />
+            ))
+          : null}
+      </View>
+
+      <Button
+        title={status === "running" ? "Running local OCR..." : "Run local OCR"}
+        onPress={handleRunOcr}
+        disabled={status === "running"}
+      />
+
+      <View style={styles.metricsBox}>
+        <Text style={styles.value}>OCR state: {status}</Text>
+        {result ? <Text style={styles.value}>duration: {result.durationMs} ms</Text> : null}
+        {result ? <Text style={styles.value}>text items: {result.items.length}</Text> : null}
+        {result ? <Text style={styles.value}>PII candidates: {candidates.length}</Text> : null}
+        {result ? (
+          <Text style={styles.value}>
+            id_like: {countsByType.id_like}; phone_like: {countsByType.phone_like}; email_like:{" "}
+            {countsByType.email_like}
+          </Text>
+        ) : null}
+      </View>
+
+      {result ? (
+        <View style={styles.resultBox}>
+          <Text style={styles.resultTitle}>Recognized text</Text>
+          <Text style={styles.value}>{result.text || "(empty)"}</Text>
+        </View>
+      ) : null}
+
+      {status === "error" ? (
+        <View style={styles.errorBox}>
+          <Text style={styles.resultTitle}>Local OCR error</Text>
+          <Text style={styles.errorText}>{errorMessage}</Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function CandidateOverlay({
+  candidate,
+  imageSize,
+  viewSize,
+}: {
+  candidate: PiiCandidate;
+  imageSize: Size;
+  viewSize: Size;
+}) {
+  const box = mapImageBoxToContainedViewBox(candidate.bbox, imageSize, viewSize);
+
+  if (!isVisibleBox(box)) {
+    return null;
+  }
+
+  return (
+    <View
+      pointerEvents="none"
+      style={[
+        styles.overlayBox,
+        {
+          left: box.x,
+          top: box.y,
+          width: box.width,
+          height: box.height,
+        },
+      ]}
+    />
+  );
+}
+
+function isVisibleBox(box: Box): boolean {
+  return box.width > 0 && box.height > 0;
+}
+
+const styles = StyleSheet.create({
+  section: {
+    gap: 12,
+  },
+  sectionTitle: {
+    color: "#111827",
+    fontSize: 20,
+    fontWeight: "700",
+  },
+  notice: {
+    color: "#334155",
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  switchRow: {
+    gap: 10,
+  },
+  switchButton: {
+    alignSelf: "stretch",
+  },
+  previewFrame: {
+    alignSelf: "stretch",
+    backgroundColor: "#ffffff",
+    borderColor: "#cbd5e1",
+    borderRadius: 6,
+    borderWidth: 1,
+    height: 320,
+    overflow: "hidden",
+  },
+  previewImage: {
+    height: "100%",
+    width: "100%",
+  },
+  overlayBox: {
+    backgroundColor: "rgba(220, 38, 38, 0.16)",
+    borderColor: "#dc2626",
+    borderWidth: 2,
+    position: "absolute",
+  },
+  metricsBox: {
+    backgroundColor: "#f1f5f9",
+    borderColor: "#cbd5e1",
+    borderRadius: 6,
+    borderWidth: 1,
+    gap: 4,
+    padding: 12,
+  },
+  resultBox: {
+    backgroundColor: "#ecfdf5",
+    borderColor: "#10b981",
+    borderRadius: 6,
+    borderWidth: 1,
+    gap: 6,
+    padding: 12,
+  },
+  errorBox: {
+    backgroundColor: "#fef2f2",
+    borderColor: "#ef4444",
+    borderRadius: 6,
+    borderWidth: 1,
+    gap: 6,
+    padding: 12,
+  },
+  resultTitle: {
+    color: "#111827",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  value: {
+    color: "#111827",
+    fontSize: 15,
+    lineHeight: 21,
+  },
+  errorText: {
+    color: "#b91c1c",
+    fontSize: 15,
+    lineHeight: 21,
+  },
+});
