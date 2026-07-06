@@ -30,6 +30,28 @@ test("does not duplicate phone as an ID-like value", () => {
   assert.equal(counts.id_like, 0);
 });
 
+test("keeps ID-like value next to a separate amount token", () => {
+  const candidates = detectPiiCandidates([
+    item("123-456-789", 10, 10, 120),
+    item("5000", 150, 10, 40),
+  ]);
+  const counts = countCandidatesByType(candidates);
+
+  assert.equal(counts.id_like, 1);
+  assert.equal(counts.phone_like, 0);
+});
+
+test("keeps two adjacent ID-like tokens", () => {
+  const candidates = detectPiiCandidates([
+    item("123-456-789", 10, 10, 120),
+    item("987-654-321", 150, 10, 120),
+  ]);
+  const counts = countCandidatesByType(candidates);
+
+  assert.equal(counts.id_like, 2);
+  assert.equal(counts.phone_like, 0);
+});
+
 test("detects split-token phone and unions only participating boxes", () => {
   const candidates = detectPiiCandidates([
     item("note", 0, 10, 20),
@@ -41,10 +63,12 @@ test("detects split-token phone and unions only participating boxes", () => {
     item("tail", 200, 10, 20),
   ]);
   const phone = candidates.find((candidate) => candidate.type === "phone_like");
+  const counts = countCandidatesByType(candidates);
 
   assert.ok(phone);
   assert.equal(phone.text, "050-123-4567");
   assert.deepEqual(phone.bbox, { x: 40, y: 10, width: 124, height: 20 });
+  assert.equal(counts.id_like, 0);
 });
 
 test("detects split-token email", () => {
