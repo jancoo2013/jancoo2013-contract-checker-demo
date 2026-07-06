@@ -10,6 +10,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { LocalOcrExperiment } from "./src/LocalOcrExperiment";
 
 const SYNTHETIC_ASSET = require("./assets/synthetic-redacted-contract.png") as ImageSourcePropType;
 const SYNTHETIC_FILENAME = "synthetic_page.png";
@@ -193,6 +194,8 @@ export default function App() {
           Synthetic test asset only. No camera, gallery, or personal document access is used in this
           build.
         </Text>
+
+        <LocalOcrExperiment />
 
         <View style={styles.section}>
           <Text style={styles.label}>Backend API URL</Text>

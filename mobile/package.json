@@ -12,6 +12,7 @@
     "expo": "~57.0.2",
     "expo-dev-client": "~57.0.5",
     "expo-status-bar": "~57.0.0",
+    "local-ocr": "file:./modules/local-ocr",
     "react": "19.2.3",
     "react-native": "0.86.0"
   },
