@@ -20,7 +20,7 @@ It uses only bundled synthetic Hebrew PNG assets:
 Tap `Run local OCR` to run the local OCR module. The block shows:
 
 - OCR state;
-- duration in milliseconds;
+- local OCR run duration in milliseconds;
 - recognized text;
 - OCR text item count;
 - deterministic local PII candidate count;
@@ -31,11 +31,23 @@ This block does not use camera, gallery, document picker, backend calls, Gemini 
 
 The selected OCR stack and tradeoffs are documented in `docs/on-device-ocr-spike.md`.
 
-### Physical-Device Offline Check
+`durationMs` is the local run duration for bitmap decode, Tesseract API setup/init, OCR, and iterator extraction. It does not include the first app-private `heb.traineddata` copy, because that happens before the timer starts.
 
-After installing a development build on a physical Android device:
+### Offline OCR Checks
 
-1. Open the app once if the development build needs initial setup.
+Test A checks only that the local OCR call does not need network during a Metro-backed development session:
+
+1. Start Metro.
+2. Open the development build.
+3. Wait until the app UI is loaded.
+4. Enable airplane mode.
+5. Keep the app open.
+6. Tap `Run local OCR`.
+7. Confirm that text, item counts, candidate counts, duration, and overlays appear.
+
+Test B checks cold-start offline behavior and should be run only with an installed build that has an embedded JS bundle or standalone-like packaging:
+
+1. Install the embedded-bundle build.
 2. Enable airplane mode.
 3. Force close and reopen the app.
 4. Run `Local OCR Experiment` on both bundled synthetic images.

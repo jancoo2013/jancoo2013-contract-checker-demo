@@ -39,9 +39,17 @@ class MobileOcrSpikeStaticTests(unittest.TestCase):
         )
 
         self.assertEqual(module_config["platforms"], ["android"])
+        self.assertIn("expo-module-gradle-plugin", build_gradle)
+        self.assertNotIn("ExpoModulesCorePlugin.gradle", build_gradle)
         self.assertIn("tesseract4android:4.9.0", build_gradle)
         self.assertTrue(traineddata.exists())
         self.assertGreater(traineddata.stat().st_size, 100_000)
+
+    def test_generated_native_directories_are_ignored(self) -> None:
+        gitignore = (MOBILE / ".gitignore").read_text(encoding="utf-8")
+
+        self.assertIn("android/", gitignore)
+        self.assertIn("ios/", gitignore)
 
     def test_local_ocr_experiment_stays_local(self) -> None:
         experiment = (MOBILE / "src" / "LocalOcrExperiment.tsx").read_text(encoding="utf-8")
