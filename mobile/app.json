@@ -1,0 +1,17 @@
+{
+  "expo": {
+    "name": "Contract Checker Transport Test",
+    "slug": "contract-checker-transport-test",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "platforms": [
+      "android"
+    ],
+    "scheme": "contractcheckertransport",
+    "userInterfaceStyle": "light",
+    "android": {
+      "package": "com.jancoo.contractcheckertransport",
+      "permissions": []
+    }
+  }
+}
