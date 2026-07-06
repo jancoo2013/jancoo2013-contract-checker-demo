@@ -20,6 +20,11 @@ type LineGroup = {
   text: string;
 };
 
+type TextSpan = {
+  start: number;
+  end: number;
+};
+
 const CANDIDATE_PATTERNS: Array<{ type: CandidateType; pattern: RegExp }> = [
   { type: "email_like", pattern: /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi },
   { type: "phone_like", pattern: /0\d{1,2}[\s.-]?\d{3}[\s.-]?\d{4}/g },
@@ -30,6 +35,8 @@ export function detectPiiCandidates(items: LocalOcrItem[]): PiiCandidate[] {
   const candidates: PiiCandidate[] = [];
 
   for (const line of buildLineGroups(items)) {
+    const phoneSpans = findMatchSpans(line.text, getPattern("phone_like"));
+
     for (const { type, pattern } of CANDIDATE_PATTERNS) {
       pattern.lastIndex = 0;
 
@@ -47,7 +54,9 @@ export function detectPiiCandidates(items: LocalOcrItem[]): PiiCandidate[] {
         const matchedText = match[0].trim();
         if (
           type === "id_like" &&
-          (countDigits(matchedText) !== 9 || hasAdjacentSequenceDigit(line.text, start, end))
+          (countDigits(matchedText) !== 9 ||
+            overlapsAnySpan(start, end, phoneSpans) ||
+            hasExtraDigitInsideBoundaryToken(tokens, start, end))
         ) {
           continue;
         }
@@ -136,22 +145,39 @@ function countDigits(value: string): number {
   return (value.match(/\d/g) ?? []).length;
 }
 
-function hasAdjacentSequenceDigit(text: string, start: number, end: number): boolean {
-  return hasNearestDigit(text, start - 1, -1) || hasNearestDigit(text, end, 1);
+function getPattern(type: CandidateType): RegExp {
+  const pattern = CANDIDATE_PATTERNS.find((candidate) => candidate.type === type)?.pattern;
+  if (!pattern) {
+    throw new Error(`Missing candidate pattern: ${type}`);
+  }
+  return pattern;
 }
 
-function hasNearestDigit(text: string, start: number, step: 1 | -1): boolean {
-  for (let index = start; index >= 0 && index < text.length; index += step) {
-    const char = text[index];
-    if (/\d/.test(char)) {
-      return true;
-    }
-    if (!/[\s.-]/.test(char)) {
-      return false;
-    }
-  }
+function findMatchSpans(text: string, pattern: RegExp): TextSpan[] {
+  pattern.lastIndex = 0;
+  return Array.from(text.matchAll(pattern), (match) => {
+    const start = match.index ?? 0;
+    return { start, end: start + match[0].length };
+  });
+}
 
-  return false;
+function overlapsAnySpan(start: number, end: number, spans: TextSpan[]): boolean {
+  return spans.some((span) => start < span.end && end > span.start);
+}
+
+function hasExtraDigitInsideBoundaryToken(
+  tokens: LineToken[],
+  start: number,
+  end: number,
+): boolean {
+  return tokens.some((token) => {
+    const text = token.text.trim();
+    const overlapStart = Math.max(start, token.charStart) - token.charStart;
+    const overlapEnd = Math.min(end, token.charEnd) - token.charStart;
+    const before = text.slice(0, Math.max(0, overlapStart));
+    const after = text.slice(Math.max(0, overlapEnd));
+    return /\d/.test(before) || /\d/.test(after);
+  });
 }
 
 function needsSeparator(previousText: string, currentText: string): boolean {
