@@ -12,6 +12,7 @@ export type PiiCandidate = {
 type LineToken = LocalOcrItem & {
   charStart: number;
   charEnd: number;
+  sourceIndex: number;
 };
 
 type LineGroup = {
@@ -44,7 +45,10 @@ export function detectPiiCandidates(items: LocalOcrItem[]): PiiCandidate[] {
         }
 
         const matchedText = match[0].trim();
-        if (type === "id_like" && countDigits(matchedText) !== 9) {
+        if (
+          type === "id_like" &&
+          (countDigits(matchedText) !== 9 || hasAdjacentSequenceDigit(line.text, start, end))
+        ) {
           continue;
         }
 
@@ -72,9 +76,10 @@ export function countCandidatesByType(candidates: PiiCandidate[]): Record<Candid
 
 function buildLineGroups(items: LocalOcrItem[]): LineGroup[] {
   const tokens = items
+    .map((item, sourceIndex) => ({ ...item, sourceIndex }))
     .filter((item) => item.text.trim())
     .sort((a, b) => centerY(a.bbox) - centerY(b.bbox) || a.bbox.x - b.bbox.x);
-  const groups: LocalOcrItem[][] = [];
+  const groups: Array<Array<LocalOcrItem & { sourceIndex: number }>> = [];
 
   for (const token of tokens) {
     const tokenCenter = centerY(token.bbox);
@@ -93,25 +98,28 @@ function buildLineGroups(items: LocalOcrItem[]): LineGroup[] {
     }
   }
 
-  return groups.map((group) => buildLineText(group.sort((a, b) => a.bbox.x - b.bbox.x)));
+  return groups.map((group) => buildLineText(group.sort((a, b) => a.sourceIndex - b.sourceIndex)));
 }
 
-function buildLineText(tokens: LocalOcrItem[]): LineGroup {
+function buildLineText(tokens: Array<LocalOcrItem & { sourceIndex: number }>): LineGroup {
   let cursor = 0;
   const lineTokens: LineToken[] = [];
   const pieces: string[] = [];
+  let previousText = "";
 
   for (const token of tokens) {
-    if (pieces.length > 0) {
-      pieces.push(" ");
-      cursor += 1;
+    const text = token.text.trim();
+    const separator = pieces.length > 0 && needsSeparator(previousText, text) ? " " : "";
+    if (separator) {
+      pieces.push(separator);
+      cursor += separator.length;
     }
 
-    const text = token.text.trim();
     const charStart = cursor;
     pieces.push(text);
     cursor += text.length;
-    lineTokens.push({ ...token, charStart, charEnd: cursor });
+    lineTokens.push({ ...token, charStart, charEnd: cursor, sourceIndex: token.sourceIndex });
+    previousText = text;
   }
 
   return {
@@ -126,6 +134,32 @@ function centerY(box: Box): number {
 
 function countDigits(value: string): number {
   return (value.match(/\d/g) ?? []).length;
+}
+
+function hasAdjacentSequenceDigit(text: string, start: number, end: number): boolean {
+  return hasNearestDigit(text, start - 1, -1) || hasNearestDigit(text, end, 1);
+}
+
+function hasNearestDigit(text: string, start: number, step: 1 | -1): boolean {
+  for (let index = start; index >= 0 && index < text.length; index += step) {
+    const char = text[index];
+    if (/\d/.test(char)) {
+      return true;
+    }
+    if (!/[\s.-]/.test(char)) {
+      return false;
+    }
+  }
+
+  return false;
+}
+
+function needsSeparator(previousText: string, currentText: string): boolean {
+  return !isJoinerToken(previousText) && !isJoinerToken(currentText);
+}
+
+function isJoinerToken(value: string): boolean {
+  return /^[.@-]$/.test(value);
 }
 
 function unionBoxes(boxes: Box[]): Box {
