@@ -24,20 +24,18 @@ type BackendErrorEnvelope = {
 };
 
 type AnalyzeRedactedResponse = {
-  status?: string;
-  ocr_quality?: {
-    status?: string;
+  status: string;
+  ocr_quality: {
+    status: string;
   };
-  text_validation?: {
-    usable?: boolean;
+  text_validation: {
+    usable: boolean;
   };
-  analysis?: {
-    risk_profile?: string;
-    risk_profile_summary_ru?: string;
+  report: {
+    risk_profile: string;
+    risk_profile_summary_ru: string;
   };
-  evidence_validation?: {
-    warnings?: unknown[];
-  };
+  evidence_warnings: string[];
 };
 
 type ResultState = {
@@ -64,6 +62,57 @@ function parseJsonSafely(text: string): unknown {
   } catch {
     return undefined;
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+function validateAnalyzeRedactedResponse(value: unknown): AnalyzeRedactedResponse {
+  if (!isRecord(value)) {
+    throw {
+      messageRu: "Backend returned malformed success response.",
+    };
+  }
+
+  const ocrQuality = value.ocr_quality;
+  const textValidation = value.text_validation;
+  const report = value.report;
+
+  if (
+    typeof value.status !== "string" ||
+    !isRecord(ocrQuality) ||
+    typeof ocrQuality.status !== "string" ||
+    !isRecord(textValidation) ||
+    typeof textValidation.usable !== "boolean" ||
+    !isRecord(report) ||
+    typeof report.risk_profile !== "string" ||
+    typeof report.risk_profile_summary_ru !== "string" ||
+    !isStringArray(value.evidence_warnings)
+  ) {
+    throw {
+      messageRu: "Backend returned malformed success response.",
+    };
+  }
+
+  return {
+    status: value.status,
+    ocr_quality: {
+      status: ocrQuality.status,
+    },
+    text_validation: {
+      usable: textValidation.usable,
+    },
+    report: {
+      risk_profile: report.risk_profile,
+      risk_profile_summary_ru: report.risk_profile_summary_ru,
+    },
+    evidence_warnings: value.evidence_warnings,
+  };
 }
 
 async function postSyntheticPage(apiBaseUrl: string): Promise<AnalyzeRedactedResponse> {
@@ -96,7 +145,7 @@ async function postSyntheticPage(apiBaseUrl: string): Promise<AnalyzeRedactedRes
     };
   }
 
-  return (parsed ?? {}) as AnalyzeRedactedResponse;
+  return validateAnalyzeRedactedResponse(parsed);
 }
 
 export default function App() {
@@ -132,7 +181,8 @@ export default function App() {
     }
   }
 
-  const warningCount = result.response?.evidence_validation?.warnings?.length ?? 0;
+  const successResponse = result.status === "success" ? result.response : undefined;
+  const warningCount = successResponse?.evidence_warnings.length ?? 0;
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -171,22 +221,17 @@ export default function App() {
           <Text style={styles.value}>{result.status}</Text>
         </View>
 
-        {result.status === "success" ? (
+        {successResponse ? (
           <View style={styles.resultBox}>
             <Text style={styles.resultTitle}>Safe response summary</Text>
-            <Text style={styles.value}>status: {result.response?.status ?? "not provided"}</Text>
+            <Text style={styles.value}>status: {successResponse.status}</Text>
+            <Text style={styles.value}>OCR quality: {successResponse.ocr_quality.status}</Text>
             <Text style={styles.value}>
-              OCR quality: {result.response?.ocr_quality?.status ?? "not provided"}
+              text usable: {String(successResponse.text_validation.usable)}
             </Text>
+            <Text style={styles.value}>risk_profile: {successResponse.report.risk_profile}</Text>
             <Text style={styles.value}>
-              text usable: {String(result.response?.text_validation?.usable ?? false)}
-            </Text>
-            <Text style={styles.value}>
-              risk_profile: {result.response?.analysis?.risk_profile ?? "not provided"}
-            </Text>
-            <Text style={styles.value}>
-              risk_profile_summary_ru: {" "}
-              {result.response?.analysis?.risk_profile_summary_ru ?? "not provided"}
+              risk_profile_summary_ru: {successResponse.report.risk_profile_summary_ru}
             </Text>
             <Text style={styles.value}>evidence warnings: {warningCount}</Text>
           </View>
