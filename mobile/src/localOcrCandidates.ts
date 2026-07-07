@@ -26,7 +26,7 @@ type AnchorMatch = {
   text: string;
 };
 
-const MAX_ANCHOR_WINDOW = 3;
+const MAX_ANCHOR_WINDOW = 4;
 const HORIZONTAL_GAP_PX = 4;
 
 const ANCHORS: Record<ProposalType, string[]> = {
@@ -40,7 +40,7 @@ const ANCHORS: Record<ProposalType, string[]> = {
     "מס' זהות",
     "מס׳ זהות",
   ],
-  phone_field: ["טלפון", "טל", "טל'", "טל׳", "נייד", "פלאפון"],
+  phone_field: ["טלפון", "טל'", "טל׳", "נייד", "פלאפון"],
   email_field: ['דוא"ל', "דוא״ל", "דואל", "דואר אלקטרוני", "אימייל"],
 };
 
@@ -193,6 +193,8 @@ function normalizeAnchorText(value: string): string {
   return value
     .normalize("NFKC")
     .replace(/[״׳"'\u2018\u2019\u201c\u201d`´]/g, '"')
+    .replace(/\s*"\s*/g, '"')
+    .replace(/\s*\.\s*/g, ".")
     .replace(/\./g, "")
     .replace(/^[\s:：;,]+|[\s:：;,]+$/g, "")
     .replace(/\s+/g, " ")
