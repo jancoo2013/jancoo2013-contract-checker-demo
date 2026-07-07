@@ -20,7 +20,10 @@ type OcrStatus = "idle" | "running" | "success" | "error";
 
 type SyntheticImage = {
   label: string;
-  assetName: "synthetic-hebrew-pii.png" | "synthetic-hebrew-layout.png";
+  assetName:
+    | "synthetic-hebrew-pii.png"
+    | "synthetic-hebrew-pii-large.png"
+    | "synthetic-hebrew-layout.png";
   source: ImageSourcePropType;
 };
 
@@ -29,6 +32,11 @@ const SYNTHETIC_IMAGES: SyntheticImage[] = [
     label: "Hebrew PII markers",
     assetName: "synthetic-hebrew-pii.png",
     source: require("../assets/synthetic-hebrew-pii.png") as ImageSourcePropType,
+  },
+  {
+    label: "Hebrew PII large",
+    assetName: "synthetic-hebrew-pii-large.png",
+    source: require("../assets/synthetic-hebrew-pii-large.png") as ImageSourcePropType,
   },
   {
     label: "Hebrew layout",
