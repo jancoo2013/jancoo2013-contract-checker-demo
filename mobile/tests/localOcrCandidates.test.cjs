@@ -111,6 +111,44 @@ test("normalizes ID punctuation and quote variants", () => {
   assert.equal(countProposalsByType(quoteVariant).id_field, 1);
 });
 
+test("detects ID abbreviation split around quote token", () => {
+  const proposals = proposalsFor([
+    item("ת", 740, 40, 20),
+    item('"', 720, 40, 10),
+    item("ז", 695, 40, 20),
+  ]);
+
+  assert.equal(countProposalsByType(proposals).id_field, 1);
+});
+
+test("detects dotted ID abbreviation split into four tokens", () => {
+  const proposals = proposalsFor([
+    item("ת", 760, 40, 20),
+    item(".", 742, 40, 8),
+    item("ז", 715, 40, 20),
+    item(".", 697, 40, 8),
+  ]);
+
+  assert.equal(countProposalsByType(proposals).id_field, 1);
+});
+
+test("detects email abbreviation split around quote token", () => {
+  const proposals = proposalsFor([
+    item("דוא", 760, 40, 45),
+    item('"', 738, 40, 10),
+    item("ל", 712, 40, 20),
+  ]);
+
+  assert.equal(countProposalsByType(proposals).email_field, 1);
+});
+
+test("does not treat bare טל as phone anchor", () => {
+  const proposals = proposalsFor([item("טל", 700, 40, 40)]);
+
+  assert.equal(countProposalsByType(proposals).phone_field, 0);
+  assert.equal(proposals.length, 0);
+});
+
 test("detects split-token anchor in source order when x order differs", () => {
   const proposals = proposalsFor([
     item("תעודת", 700, 40, 70),
