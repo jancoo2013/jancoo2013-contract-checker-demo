@@ -2,11 +2,13 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const {
-  countCandidatesByType,
-  detectPiiCandidates,
+  countProposalsByType,
+  detectPiiProposals,
 } = require("../.tmp-tests/localOcrCandidates.js");
 
-function item(text, x, y, width = text.length * 10, height = 20) {
+const IMAGE_SIZE = { width: 900, height: 220 };
+
+function item(text, x, y, width = text.length * 12, height = 24) {
   return {
     text,
     confidence: 90,
@@ -14,92 +16,166 @@ function item(text, x, y, width = text.length * 10, height = 20) {
   };
 }
 
-test("detects standalone ID-like values", () => {
-  const candidates = detectPiiCandidates([item("123-456-789", 10, 10, 120)]);
-  const counts = countCandidatesByType(candidates);
+function proposalsFor(items, imageSize = IMAGE_SIZE) {
+  return detectPiiProposals(items, imageSize);
+}
 
-  assert.equal(counts.id_like, 1);
-  assert.equal(counts.phone_like, 0);
+test("creates ID proposal from ID anchor with perfect digits", () => {
+  const proposals = proposalsFor([item('ת"ז:', 700, 40, 46), item("123456789", 470, 40, 150)]);
+  const counts = countProposalsByType(proposals);
+
+  assert.equal(counts.id_field, 1);
+  assert.equal(proposals[0].type, "id_field");
+  assert.ok(proposals[0].bbox.x + proposals[0].bbox.width <= proposals[0].anchorBbox.x);
 });
 
-test("does not duplicate phone as an ID-like value", () => {
-  const candidates = detectPiiCandidates([item("050-123-4567", 10, 10, 130)]);
-  const counts = countCandidatesByType(candidates);
+test("creates ID proposal from ID anchor with corrupted value OCR", () => {
+  const proposals = proposalsFor([item('ת"ז:', 700, 40, 46), item("12A?xx", 500, 40, 90)]);
+  const counts = countProposalsByType(proposals);
 
-  assert.equal(counts.phone_like, 1);
-  assert.equal(counts.id_like, 0);
+  assert.equal(counts.id_field, 1);
 });
 
-test("keeps ID-like value next to a separate amount token", () => {
-  const candidates = detectPiiCandidates([
-    item("123-456-789", 10, 10, 120),
-    item("5000", 150, 10, 40),
+test("creates ID proposal from anchor even when value token is missing", () => {
+  const proposals = proposalsFor([item('ת"ז:', 700, 40, 46)]);
+  const counts = countProposalsByType(proposals);
+
+  assert.equal(counts.id_field, 1);
+  assert.ok(proposals[0].bbox.width > 0);
+});
+
+test("detects full split-token ID anchor and unions anchor boxes", () => {
+  const proposals = proposalsFor([
+    item("תעודת", 700, 40, 70),
+    item("זהות", 620, 40, 58),
+    item("123456789", 380, 40, 150),
   ]);
-  const counts = countCandidatesByType(candidates);
+  const id = proposals.find((proposal) => proposal.type === "id_field");
 
-  assert.equal(counts.id_like, 1);
-  assert.equal(counts.phone_like, 0);
+  assert.ok(id);
+  assert.deepEqual(id.anchorBbox, { x: 620, y: 40, width: 150, height: 24 });
 });
 
-test("keeps two adjacent ID-like tokens", () => {
-  const candidates = detectPiiCandidates([
-    item("123-456-789", 10, 10, 120),
-    item("987-654-321", 150, 10, 120),
-  ]);
-  const counts = countCandidatesByType(candidates);
+test("creates phone proposal from phone anchor with corrupted value OCR", () => {
+  const proposals = proposalsFor([item("טלפון:", 680, 40, 90), item("05O-?xx", 470, 40, 100)]);
+  const counts = countProposalsByType(proposals);
 
-  assert.equal(counts.id_like, 2);
-  assert.equal(counts.phone_like, 0);
+  assert.equal(counts.phone_field, 1);
 });
 
-test("detects split-token phone and unions only participating boxes", () => {
-  const candidates = detectPiiCandidates([
-    item("note", 0, 10, 20),
-    item("050", 40, 10, 30),
-    item("-", 72, 10, 8),
-    item("123", 82, 10, 30),
-    item("-", 114, 10, 8),
-    item("4567", 124, 10, 40),
-    item("tail", 200, 10, 20),
-  ]);
-  const phone = candidates.find((candidate) => candidate.type === "phone_like");
-  const counts = countCandidatesByType(candidates);
+test("creates email proposal from email anchor with corrupted-looking value OCR", () => {
+  const proposals = proposalsFor([item("אימייל:", 680, 40, 90), item("t?st@??", 470, 40, 100)]);
+  const counts = countProposalsByType(proposals);
 
+  assert.equal(counts.email_field, 1);
+});
+
+test("does not create proposal for unrelated 9-digit value without anchor", () => {
+  const proposals = proposalsFor([item("123456789", 470, 40, 150)]);
+  const counts = countProposalsByType(proposals);
+
+  assert.equal(proposals.length, 0);
+  assert.equal(counts.id_field, 0);
+});
+
+test("does not create proposal for phone-looking value without anchor", () => {
+  const proposals = proposalsFor([item("050-123-4567", 470, 40, 150)]);
+  const counts = countProposalsByType(proposals);
+
+  assert.equal(proposals.length, 0);
+  assert.equal(counts.phone_field, 0);
+});
+
+test("keeps multiple same-line proposals distinct and away from neighbor labels", () => {
+  const proposals = proposalsFor([
+    item('ת"ז:', 760, 40, 48),
+    item("123456789", 555, 40, 135),
+    item("טלפון:", 390, 40, 90),
+    item("050-000-0000", 120, 40, 170),
+  ]);
+  const id = proposals.find((proposal) => proposal.type === "id_field");
+  const phone = proposals.find((proposal) => proposal.type === "phone_field");
+
+  assert.ok(id);
   assert.ok(phone);
-  assert.equal(phone.text, "050-123-4567");
-  assert.deepEqual(phone.bbox, { x: 40, y: 10, width: 124, height: 20 });
-  assert.equal(counts.id_like, 0);
+  assert.equal(proposals.length, 2);
+  assert.ok(id.bbox.x >= phone.anchorBbox.x + phone.anchorBbox.width);
+  assert.ok(phone.bbox.x + phone.bbox.width <= id.bbox.x);
 });
 
-test("detects split-token email", () => {
-  const candidates = detectPiiCandidates([
-    item("tenant", 10, 10, 60),
-    item("@", 72, 10, 10),
-    item("example", 84, 10, 70),
-    item(".", 156, 10, 6),
-    item("invalid", 164, 10, 70),
+test("normalizes ID punctuation and quote variants", () => {
+  const dotVariant = proposalsFor([item("ת.ז.:", 700, 40, 56)]);
+  const quoteVariant = proposalsFor([item("ת״ז:", 700, 80, 56)]);
+
+  assert.equal(countProposalsByType(dotVariant).id_field, 1);
+  assert.equal(countProposalsByType(quoteVariant).id_field, 1);
+});
+
+test("detects ID abbreviation split around quote token", () => {
+  const proposals = proposalsFor([
+    item("ת", 740, 40, 20),
+    item('"', 720, 40, 10),
+    item("ז", 695, 40, 20),
   ]);
-  const counts = countCandidatesByType(candidates);
 
-  assert.equal(counts.email_like, 1);
+  assert.equal(countProposalsByType(proposals).id_field, 1);
 });
 
-test("does not match ID-like value inside longer numeric sequence", () => {
-  const candidates = detectPiiCandidates([item("99123-456-78988", 10, 10, 160)]);
-  const counts = countCandidatesByType(candidates);
-
-  assert.equal(counts.id_like, 0);
-});
-
-test("preserves OCR iterator order instead of sorting RTL tokens by x", () => {
-  const candidates = detectPiiCandidates([
-    item("tenant", 300, 10, 60),
-    item("@", 260, 10, 10),
-    item("example", 180, 10, 70),
-    item(".", 168, 10, 6),
-    item("invalid", 90, 10, 70),
+test("detects dotted ID abbreviation split into four tokens", () => {
+  const proposals = proposalsFor([
+    item("ת", 760, 40, 20),
+    item(".", 742, 40, 8),
+    item("ז", 715, 40, 20),
+    item(".", 697, 40, 8),
   ]);
-  const counts = countCandidatesByType(candidates);
 
-  assert.equal(counts.email_like, 1);
+  assert.equal(countProposalsByType(proposals).id_field, 1);
+});
+
+test("detects email abbreviation split around quote token", () => {
+  const proposals = proposalsFor([
+    item("דוא", 760, 40, 45),
+    item('"', 738, 40, 10),
+    item("ל", 712, 40, 20),
+  ]);
+
+  assert.equal(countProposalsByType(proposals).email_field, 1);
+});
+
+test("does not treat bare טל as phone anchor", () => {
+  const proposals = proposalsFor([item("טל", 700, 40, 40)]);
+
+  assert.equal(countProposalsByType(proposals).phone_field, 0);
+  assert.equal(proposals.length, 0);
+});
+
+test("detects split-token anchor in source order when x order differs", () => {
+  const proposals = proposalsFor([
+    item("תעודת", 700, 40, 70),
+    item("זהות", 610, 40, 58),
+  ]);
+  const counts = countProposalsByType(proposals);
+
+  assert.equal(counts.id_field, 1);
+});
+
+test("detects split-token anchor in visual RTL order when iterator order differs", () => {
+  const proposals = proposalsFor([
+    item("זהות", 610, 40, 58),
+    item("תעודת", 700, 40, 70),
+  ]);
+  const counts = countProposalsByType(proposals);
+
+  assert.equal(counts.id_field, 1);
+});
+
+test("clamps proposal geometry to image bounds", () => {
+  const proposals = proposalsFor([item("טלפון:", 20, 5, 70, 24)], { width: 100, height: 30 });
+  const proposal = proposals[0];
+
+  assert.ok(proposal);
+  assert.equal(proposal.bbox.x, 0);
+  assert.ok(proposal.bbox.y >= 0);
+  assert.ok(proposal.bbox.y + proposal.bbox.height <= 30);
+  assert.ok(proposal.bbox.x + proposal.bbox.width <= 100);
 });

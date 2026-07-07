@@ -13,6 +13,10 @@ This run was performed in a Metro-backed development session. The separate airpl
 
 ## Synthetic Results
 
+These results were captured before the anchor-based proposal refactor. The `PII candidates`
+and `id_like` / `phone_like` / `email_like` labels below describe the earlier value-regex
+experiment, not the current anchor-based proposal path.
+
 ### Hebrew PII markers
 
 - OCR state: `success`.

@@ -1,85 +1,75 @@
 import type { LocalOcrItem } from "local-ocr";
-import type { Box } from "./overlayGeometry";
+import type { Box, Size } from "./overlayGeometry";
 
-export type CandidateType = "id_like" | "phone_like" | "email_like";
+export type ProposalType = "id_field" | "phone_field" | "email_field";
 
-export type PiiCandidate = {
-  type: CandidateType;
-  text: string;
+export type PiiProposal = {
+  type: ProposalType;
   bbox: Box;
+  anchorBbox: Box;
+  anchorText: string;
 };
 
-type LineToken = LocalOcrItem & {
-  charStart: number;
-  charEnd: number;
+type OcrToken = LocalOcrItem & {
   sourceIndex: number;
 };
 
 type LineGroup = {
-  tokens: LineToken[];
+  tokens: OcrToken[];
+  bbox: Box;
+};
+
+type AnchorMatch = {
+  type: ProposalType;
+  tokens: OcrToken[];
+  bbox: Box;
   text: string;
 };
 
-type TextSpan = {
-  start: number;
-  end: number;
+const MAX_ANCHOR_WINDOW = 4;
+const HORIZONTAL_GAP_PX = 4;
+
+const ANCHORS: Record<ProposalType, string[]> = {
+  id_field: [
+    'ת"ז',
+    "ת״ז",
+    "ת.ז.",
+    "תז",
+    "תעודת זהות",
+    "מספר זהות",
+    "מס' זהות",
+    "מס׳ זהות",
+  ],
+  phone_field: ["טלפון", "טל'", "טל׳", "נייד", "פלאפון"],
+  email_field: ['דוא"ל', "דוא״ל", "דואל", "דואר אלקטרוני", "אימייל"],
 };
 
-const CANDIDATE_PATTERNS: Array<{ type: CandidateType; pattern: RegExp }> = [
-  { type: "email_like", pattern: /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi },
-  { type: "phone_like", pattern: /0\d{1,2}[\s.-]?\d{3}[\s.-]?\d{4}/g },
-  { type: "id_like", pattern: /(?:\d[\s.-]?){9}/g },
-];
+const NORMALIZED_ANCHOR_TYPES = new Map<string, ProposalType>();
 
-export function detectPiiCandidates(items: LocalOcrItem[]): PiiCandidate[] {
-  const candidates: PiiCandidate[] = [];
-
-  for (const line of buildLineGroups(items)) {
-    const phoneSpans = findMatchSpans(line.text, getPattern("phone_like"));
-
-    for (const { type, pattern } of CANDIDATE_PATTERNS) {
-      pattern.lastIndex = 0;
-
-      for (const match of line.text.matchAll(pattern)) {
-        const start = match.index ?? 0;
-        const end = start + match[0].length;
-        const tokens = line.tokens.filter(
-          (token) => token.charStart < end && token.charEnd > start,
-        );
-
-        if (tokens.length === 0) {
-          continue;
-        }
-
-        const matchedText = match[0].trim();
-        if (
-          type === "id_like" &&
-          (countDigits(matchedText) !== 9 ||
-            overlapsAnySpan(start, end, phoneSpans) ||
-            hasExtraDigitInsideBoundaryToken(tokens, start, end))
-        ) {
-          continue;
-        }
-
-        candidates.push({
-          type,
-          text: matchedText,
-          bbox: unionBoxes(tokens.map((token) => token.bbox)),
-        });
-      }
-    }
+for (const [type, anchors] of Object.entries(ANCHORS) as Array<[ProposalType, string[]]>) {
+  for (const anchor of anchors) {
+    NORMALIZED_ANCHOR_TYPES.set(normalizeAnchorText(anchor), type);
   }
-
-  return candidates;
 }
 
-export function countCandidatesByType(candidates: PiiCandidate[]): Record<CandidateType, number> {
-  return candidates.reduce<Record<CandidateType, number>>(
-    (counts, candidate) => {
-      counts[candidate.type] += 1;
+export function detectPiiProposals(items: LocalOcrItem[], imageSize: Size): PiiProposal[] {
+  const proposals: PiiProposal[] = [];
+
+  for (const line of buildLineGroups(items)) {
+    const anchors = findAnchorMatches(line);
+    proposals.push(...buildValueRegionProposals(line, anchors, imageSize));
+  }
+
+  return proposals;
+}
+
+export function countProposalsByType(proposals: PiiProposal[]): Record<ProposalType, number> {
+  return proposals.reduce<Record<ProposalType, number>>(
+    (counts, proposal) => {
+      counts[proposal.type] += 1;
       return counts;
     },
-    { id_like: 0, phone_like: 0, email_like: 0 },
+    { id_field: 0, phone_field: 0, email_field: 0 },
   );
 }
 
@@ -88,7 +78,7 @@ function buildLineGroups(items: LocalOcrItem[]): LineGroup[] {
     .map((item, sourceIndex) => ({ ...item, sourceIndex }))
     .filter((item) => item.text.trim())
     .sort((a, b) => centerY(a.bbox) - centerY(b.bbox) || a.bbox.x - b.bbox.x);
-  const groups: Array<Array<LocalOcrItem & { sourceIndex: number }>> = [];
+  const groups: OcrToken[][] = [];
 
   for (const token of tokens) {
     const tokenCenter = centerY(token.bbox);
@@ -107,85 +97,112 @@ function buildLineGroups(items: LocalOcrItem[]): LineGroup[] {
     }
   }
 
-  return groups.map((group) => buildLineText(group.sort((a, b) => a.sourceIndex - b.sourceIndex)));
+  return groups.map((group) => ({
+    tokens: group,
+    bbox: unionBoxes(group.map((token) => token.bbox)),
+  }));
 }
 
-function buildLineText(tokens: Array<LocalOcrItem & { sourceIndex: number }>): LineGroup {
-  let cursor = 0;
-  const lineTokens: LineToken[] = [];
-  const pieces: string[] = [];
-  let previousText = "";
+function findAnchorMatches(line: LineGroup): AnchorMatch[] {
+  const matches = new Map<string, AnchorMatch>();
+  const sourceOrder = [...line.tokens].sort((a, b) => a.sourceIndex - b.sourceIndex);
+  const visualRtlOrder = [...line.tokens].sort(
+    (a, b) => b.bbox.x + b.bbox.width - (a.bbox.x + a.bbox.width),
+  );
 
-  for (const token of tokens) {
-    const text = token.text.trim();
-    const separator = pieces.length > 0 && needsSeparator(previousText, text) ? " " : "";
-    if (separator) {
-      pieces.push(separator);
-      cursor += separator.length;
+  for (const orderedTokens of [sourceOrder, visualRtlOrder]) {
+    for (let start = 0; start < orderedTokens.length; start += 1) {
+      for (
+        let size = 1;
+        size <= MAX_ANCHOR_WINDOW && start + size <= orderedTokens.length;
+        size += 1
+      ) {
+        const tokens = orderedTokens.slice(start, start + size);
+        const normalized = normalizeAnchorText(tokens.map((token) => token.text).join(" "));
+        const type = NORMALIZED_ANCHOR_TYPES.get(normalized);
+
+        if (!type) {
+          continue;
+        }
+
+        const key = `${type}:${tokens
+          .map((token) => token.sourceIndex)
+          .sort((a, b) => a - b)
+          .join(",")}`;
+
+        if (!matches.has(key)) {
+          matches.set(key, {
+            type,
+            tokens,
+            bbox: unionBoxes(tokens.map((token) => token.bbox)),
+            text: tokens.map((token) => token.text.trim()).join(" "),
+          });
+        }
+      }
     }
-
-    const charStart = cursor;
-    pieces.push(text);
-    cursor += text.length;
-    lineTokens.push({ ...token, charStart, charEnd: cursor, sourceIndex: token.sourceIndex });
-    previousText = text;
   }
 
-  return {
-    tokens: lineTokens,
-    text: pieces.join(""),
-  };
+  return Array.from(matches.values());
+}
+
+function buildValueRegionProposals(
+  line: LineGroup,
+  anchors: AnchorMatch[],
+  imageSize: Size,
+): PiiProposal[] {
+  const sortedAnchors = [...anchors].sort(
+    (a, b) => b.bbox.x + b.bbox.width - (a.bbox.x + a.bbox.width),
+  );
+  const proposals: PiiProposal[] = [];
+
+  for (let index = 0; index < sortedAnchors.length; index += 1) {
+    const anchor = sortedAnchors[index];
+    const nextAnchorOnLeft = sortedAnchors[index + 1];
+    const left = clamp(
+      nextAnchorOnLeft ? nextAnchorOnLeft.bbox.x + nextAnchorOnLeft.bbox.width + HORIZONTAL_GAP_PX : 0,
+      0,
+      imageSize.width,
+    );
+    const right = clamp(anchor.bbox.x - HORIZONTAL_GAP_PX, 0, imageSize.width);
+
+    if (right <= left) {
+      continue;
+    }
+
+    const verticalPadding = Math.min(12, Math.max(4, Math.round(line.bbox.height * 0.25)));
+    const top = clamp(line.bbox.y - verticalPadding, 0, imageSize.height);
+    const bottom = clamp(line.bbox.y + line.bbox.height + verticalPadding, 0, imageSize.height);
+
+    proposals.push({
+      type: anchor.type,
+      bbox: {
+        x: left,
+        y: top,
+        width: right - left,
+        height: Math.max(0, bottom - top),
+      },
+      anchorBbox: anchor.bbox,
+      anchorText: anchor.text,
+    });
+  }
+
+  return proposals;
+}
+
+function normalizeAnchorText(value: string): string {
+  return value
+    .normalize("NFKC")
+    .replace(/[״׳"'\u2018\u2019\u201c\u201d`´]/g, '"')
+    .replace(/\s*"\s*/g, '"')
+    .replace(/\s*\.\s*/g, ".")
+    .replace(/\./g, "")
+    .replace(/^[\s:：;,]+|[\s:：;,]+$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function centerY(box: Box): number {
   return box.y + box.height / 2;
-}
-
-function countDigits(value: string): number {
-  return (value.match(/\d/g) ?? []).length;
-}
-
-function getPattern(type: CandidateType): RegExp {
-  const pattern = CANDIDATE_PATTERNS.find((candidate) => candidate.type === type)?.pattern;
-  if (!pattern) {
-    throw new Error(`Missing candidate pattern: ${type}`);
-  }
-  return pattern;
-}
-
-function findMatchSpans(text: string, pattern: RegExp): TextSpan[] {
-  pattern.lastIndex = 0;
-  return Array.from(text.matchAll(pattern), (match) => {
-    const start = match.index ?? 0;
-    return { start, end: start + match[0].length };
-  });
-}
-
-function overlapsAnySpan(start: number, end: number, spans: TextSpan[]): boolean {
-  return spans.some((span) => start < span.end && end > span.start);
-}
-
-function hasExtraDigitInsideBoundaryToken(
-  tokens: LineToken[],
-  start: number,
-  end: number,
-): boolean {
-  return tokens.some((token) => {
-    const text = token.text.trim();
-    const overlapStart = Math.max(start, token.charStart) - token.charStart;
-    const overlapEnd = Math.min(end, token.charEnd) - token.charStart;
-    const before = text.slice(0, Math.max(0, overlapStart));
-    const after = text.slice(Math.max(0, overlapEnd));
-    return /\d/.test(before) || /\d/.test(after);
-  });
-}
-
-function needsSeparator(previousText: string, currentText: string): boolean {
-  return !isJoinerToken(previousText) && !isJoinerToken(currentText);
-}
-
-function isJoinerToken(value: string): boolean {
-  return /^[.@-]$/.test(value);
 }
 
 function unionBoxes(boxes: Box[]): Box {
@@ -200,4 +217,8 @@ function unionBoxes(boxes: Box[]): Box {
     width: right - left,
     height: bottom - top,
   };
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
 }

@@ -15,6 +15,7 @@ The app includes an Android-only on-device OCR research block called `Local OCR 
 It uses only bundled synthetic Hebrew PNG assets:
 
 - `assets/synthetic-hebrew-pii.png`;
+- `assets/synthetic-hebrew-pii-large.png`;
 - `assets/synthetic-hebrew-layout.png`.
 
 Tap `Run local OCR` to run the local OCR module. The block shows:
@@ -23,9 +24,9 @@ Tap `Run local OCR` to run the local OCR module. The block shows:
 - local OCR run duration in milliseconds;
 - recognized text;
 - OCR text item count;
-- deterministic local PII candidate count;
-- counts for `id_like`, `phone_like`, and `email_like`;
-- red overlay rectangles for detected candidates.
+- deterministic local PII proposal count;
+- counts for `id_field`, `phone_field`, and `email_field`;
+- red overlay rectangles for proposed value regions.
 
 This block does not use camera, gallery, document picker, backend calls, Gemini calls, model downloads, or telemetry. It is not production OCR and must not be tested with real contracts.
 
@@ -43,15 +44,15 @@ Test A checks only that the local OCR call does not need network during a Metro-
 4. Enable airplane mode.
 5. Keep the app open.
 6. Tap `Run local OCR`.
-7. Confirm that text, item counts, candidate counts, duration, and overlays appear.
+7. Confirm that text, item counts, proposal counts, duration, and overlays appear.
 
 Test B checks cold-start offline behavior and should be run only with an installed build that has an embedded JS bundle or standalone-like packaging:
 
 1. Install the embedded-bundle build.
 2. Enable airplane mode.
 3. Force close and reopen the app.
-4. Run `Local OCR Experiment` on both bundled synthetic images.
-5. Confirm that text, item counts, candidate counts, duration, and overlays appear without network access.
+4. Run `Local OCR Experiment` on the bundled synthetic images.
+5. Confirm that text, item counts, proposal counts, duration, and overlays appear without network access.
 
 Do not claim this check has passed until it has actually been run on a device.
 
