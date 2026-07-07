@@ -60,7 +60,28 @@ class MobileOcrSpikeStaticTests(unittest.TestCase):
         self.assertNotIn("GoogleGenerativeAI", experiment)
         self.assertNotIn("generateContent", experiment)
         self.assertIn("synthetic-hebrew-pii.png", experiment)
+        self.assertIn("synthetic-hebrew-pii-large.png", experiment)
         self.assertIn("synthetic-hebrew-layout.png", experiment)
+
+        native_module = (
+            MOBILE
+            / "modules"
+            / "local-ocr"
+            / "android"
+            / "src"
+            / "main"
+            / "java"
+            / "com"
+            / "jancoo"
+            / "contractchecker"
+            / "localocr"
+            / "LocalOcrModule.kt"
+        ).read_text(encoding="utf-8")
+        large_asset = MOBILE / "assets" / "synthetic-hebrew-pii-large.png"
+
+        self.assertIn("synthetic-hebrew-pii-large.png", native_module)
+        self.assertTrue(large_asset.exists())
+        self.assertGreater(large_asset.stat().st_size, 10_000)
 
 
 if __name__ == "__main__":

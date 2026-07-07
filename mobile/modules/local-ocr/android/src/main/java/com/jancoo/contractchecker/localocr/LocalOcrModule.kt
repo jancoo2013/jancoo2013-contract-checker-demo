@@ -22,7 +22,9 @@ class LocalOcrModule : Module() {
     val context = appContext.reactContext
       ?: throw IllegalStateException("React context is not available.")
     val safeAssetName = when (assetName) {
-      "synthetic-hebrew-pii.png", "synthetic-hebrew-layout.png" -> assetName
+      "synthetic-hebrew-pii.png",
+      "synthetic-hebrew-pii-large.png",
+      "synthetic-hebrew-layout.png" -> assetName
       else -> throw IllegalArgumentException("Unsupported bundled OCR asset.")
     }
 
