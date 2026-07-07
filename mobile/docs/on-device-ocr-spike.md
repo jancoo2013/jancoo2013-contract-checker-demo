@@ -36,17 +36,22 @@ The module copies `heb.traineddata` from APK assets into `context.filesDir/local
 ## Synthetic Assets
 
 - `mobile/assets/synthetic-hebrew-pii.png`: Hebrew synthetic test page with a 9-digit ID-like value, Israeli-phone-like value, `.invalid` email, and `SYNTHETIC_TEST_IMAGE_ONLY` marker.
+- `mobile/assets/synthetic-hebrew-pii-large.png`: large high-contrast calibration target for ID, phone, and email field anchors.
 - `mobile/assets/synthetic-hebrew-layout.png`: Hebrew synthetic layout page with numbered clauses and a small table-like region.
 
 These are not user documents.
 
-## Candidate Detection
+## Anchor-Based Proposal Detection
 
-The React Native layer groups OCR word items into approximate lines, runs deterministic local regex checks, and draws candidate overlays from the union of participating word boxes:
+The React Native layer groups OCR word items into approximate visual lines, finds exact normalized field anchors, and proposes geometric value regions to the visual left of those anchors. The proposal does not require OCR to correctly recognize the value text.
 
-- `id_like`
-- `phone_like`
-- `email_like`
+Supported proposal types:
+
+- `id_field`
+- `phone_field`
+- `email_field`
+
+This is a privacy-layer experiment for suggesting image regions to mask. It is not a production redaction system and does not classify the recognized value with legal or identity certainty.
 
 Out of scope for this spike:
 
@@ -75,7 +80,7 @@ The existing `Send synthetic redacted PNG` transport test remains separate and u
 
 - OCR quality on real Israeli lease photos is not proven by synthetic assets.
 - Hebrew rendering in these synthetic PNGs is sufficient for glyph coverage, but not a substitute for real layout testing.
-- No real-device RAM measurement is included. This PR records image dimensions, asset sizes, OCR duration, item count, and candidate count only.
+- No real-device RAM measurement is included. This PR records image dimensions, asset sizes, OCR duration, item count, and proposal count only.
 - Android native compile and physical-device behavior must be checked before treating this as a production direction.
 
 ## Manual Offline Check
@@ -86,6 +91,6 @@ After installing a development build on a physical Android device:
 2. Enable airplane mode.
 3. Force close and reopen the app.
 4. Run `Local OCR Experiment` on each bundled synthetic image.
-5. Verify that OCR text, item count, candidate counts, duration, and overlays appear without network access.
+5. Verify that OCR text, item count, proposal counts, duration, and overlays appear without network access.
 
 Only record this as passed after it has actually been run on a device.

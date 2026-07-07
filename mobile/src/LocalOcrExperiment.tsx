@@ -10,9 +10,9 @@ import {
 } from "react-native";
 import LocalOcr, { LocalOcrResult } from "local-ocr";
 import {
-  countCandidatesByType,
-  detectPiiCandidates,
-  PiiCandidate,
+  countProposalsByType,
+  detectPiiProposals,
+  PiiProposal,
 } from "./localOcrCandidates";
 import { Box, mapImageBoxToContainedViewBox, Size } from "./overlayGeometry";
 
@@ -53,11 +53,14 @@ export function LocalOcrExperiment() {
   const [viewSize, setViewSize] = useState<Size>({ width: 0, height: 0 });
   const selectedImage = SYNTHETIC_IMAGES[selectedIndex];
 
-  const candidates = useMemo<PiiCandidate[]>(
-    () => (result ? detectPiiCandidates(result.items) : []),
+  const proposals = useMemo<PiiProposal[]>(
+    () =>
+      result
+        ? detectPiiProposals(result.items, { width: result.width, height: result.height })
+        : [],
     [result],
   );
-  const countsByType = useMemo(() => countCandidatesByType(candidates), [candidates]);
+  const countsByType = useMemo(() => countProposalsByType(proposals), [proposals]);
 
   async function handleRunOcr() {
     setStatus("running");
@@ -110,10 +113,10 @@ export function LocalOcrExperiment() {
       <View style={styles.previewFrame} onLayout={handleImageLayout}>
         <Image source={selectedImage.source} style={styles.previewImage} resizeMode="contain" />
         {result
-          ? candidates.map((candidate, index) => (
-              <CandidateOverlay
-                key={`${candidate.type}-${candidate.text}-${index}`}
-                candidate={candidate}
+          ? proposals.map((proposal, index) => (
+              <ProposalOverlay
+                key={`${proposal.type}-${index}`}
+                proposal={proposal}
                 imageSize={{ width: result.width, height: result.height }}
                 viewSize={viewSize}
               />
@@ -131,11 +134,11 @@ export function LocalOcrExperiment() {
         <Text style={styles.value}>OCR state: {status}</Text>
         {result ? <Text style={styles.value}>duration: {result.durationMs} ms</Text> : null}
         {result ? <Text style={styles.value}>text items: {result.items.length}</Text> : null}
-        {result ? <Text style={styles.value}>PII candidates: {candidates.length}</Text> : null}
+        {result ? <Text style={styles.value}>PII proposals: {proposals.length}</Text> : null}
         {result ? (
           <Text style={styles.value}>
-            id_like: {countsByType.id_like}; phone_like: {countsByType.phone_like}; email_like:{" "}
-            {countsByType.email_like}
+            id_field: {countsByType.id_field}; phone_field: {countsByType.phone_field};
+            email_field: {countsByType.email_field}
           </Text>
         ) : null}
       </View>
@@ -157,16 +160,16 @@ export function LocalOcrExperiment() {
   );
 }
 
-function CandidateOverlay({
-  candidate,
+function ProposalOverlay({
+  proposal,
   imageSize,
   viewSize,
 }: {
-  candidate: PiiCandidate;
+  proposal: PiiProposal;
   imageSize: Size;
   viewSize: Size;
 }) {
-  const box = mapImageBoxToContainedViewBox(candidate.bbox, imageSize, viewSize);
+  const box = mapImageBoxToContainedViewBox(proposal.bbox, imageSize, viewSize);
 
   if (!isVisibleBox(box)) {
     return null;
