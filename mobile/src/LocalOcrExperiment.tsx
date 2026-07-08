@@ -158,6 +158,9 @@ export function LocalOcrExperiment() {
               result.items.map((item, index) => ({
                 index,
                 text: item.text,
+                codePoints: Array.from(item.text, (character) =>
+                  `U+${character.codePointAt(0)!.toString(16).toUpperCase().padStart(4, "0")}`,
+                ).join(" "),
                 bbox: item.bbox,
               })),
               null,
