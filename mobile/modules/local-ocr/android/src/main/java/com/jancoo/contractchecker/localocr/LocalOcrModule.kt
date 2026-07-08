@@ -97,7 +97,7 @@ class LocalOcrModule : Module() {
       do {
         if (iterator.isAtBeginningOf(PageIteratorLevel.RIL_WORD) && currentWord.isNotEmpty()) {
           words.add(currentWord.toString())
-          currentWord.setLength(0)
+          currentWord.clear()
         }
 
         val symbol = iterator.getUTF8Text(PageIteratorLevel.RIL_SYMBOL).orEmpty()
