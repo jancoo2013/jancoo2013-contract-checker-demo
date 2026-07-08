@@ -46,7 +46,8 @@ class LocalOcrModule : Module() {
       tess.setImage(bitmap)
 
       val recognizedText = tess.getUTF8Text() ?: ""
-      val items = readWordItems(tess)
+      val symbolWords = readSymbolWords(tess)
+      val items = readWordItems(tess, symbolWords)
       val durationMs = SystemClock.elapsedRealtime() - startedAt
 
       return mapOf(
@@ -85,21 +86,56 @@ class LocalOcrModule : Module() {
     return root
   }
 
-  private fun readWordItems(tess: TessBaseAPI): List<Map<String, Any>> {
+  private fun readSymbolWords(tess: TessBaseAPI): List<String> {
+    val iterator = tess.getResultIterator() ?: return emptyList()
+    val words = mutableListOf<String>()
+    val currentWord = StringBuilder()
+
+    try {
+      iterator.begin()
+
+      do {
+        if (iterator.isAtBeginningOf(PageIteratorLevel.RIL_WORD) && currentWord.isNotEmpty()) {
+          words.add(currentWord.toString())
+          currentWord.clear()
+        }
+
+        val symbol = iterator.getUTF8Text(PageIteratorLevel.RIL_SYMBOL).orEmpty()
+        currentWord.append(symbol)
+      } while (iterator.next(PageIteratorLevel.RIL_SYMBOL))
+
+      if (currentWord.isNotEmpty()) {
+        words.add(currentWord.toString())
+      }
+    } finally {
+      iterator.delete()
+    }
+
+    return words
+  }
+
+  private fun readWordItems(
+    tess: TessBaseAPI,
+    symbolWords: List<String>
+  ): List<Map<String, Any>> {
     val iterator = tess.getResultIterator() ?: return emptyList()
     val items = mutableListOf<Map<String, Any>>()
+    var wordIndex = 0
 
     try {
       iterator.begin()
 
       do {
         val word = iterator.getUTF8Text(PageIteratorLevel.RIL_WORD)?.trim().orEmpty()
+        val symbolText = symbolWords.getOrNull(wordIndex).orEmpty()
         val box = iterator.getBoundingBox(PageIteratorLevel.RIL_WORD)
+        wordIndex += 1
 
         if (word.isNotEmpty() && box.size >= 4) {
           items.add(
             mapOf(
               "text" to word,
+              "symbolText" to symbolText,
               "confidence" to iterator.confidence(PageIteratorLevel.RIL_WORD),
               "bbox" to mapOf(
                 "x" to box[0],
