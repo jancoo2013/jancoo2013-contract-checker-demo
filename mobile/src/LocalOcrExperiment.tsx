@@ -150,6 +150,23 @@ export function LocalOcrExperiment() {
         </View>
       ) : null}
 
+      {result ? (
+        <View style={styles.diagnosticsBox}>
+          <Text style={styles.resultTitle}>OCR item diagnostics</Text>
+          <Text style={styles.diagnosticText}>
+            {JSON.stringify(
+              result.items.map((item, index) => ({
+                index,
+                text: item.text,
+                bbox: item.bbox,
+              })),
+              null,
+              2,
+            )}
+          </Text>
+        </View>
+      ) : null}
+
       {status === "error" ? (
         <View style={styles.errorBox}>
           <Text style={styles.resultTitle}>Local OCR error</Text>
@@ -249,6 +266,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 6,
     padding: 12,
+  },
+  diagnosticsBox: {
+    backgroundColor: "#fff7ed",
+    borderColor: "#fb923c",
+    borderRadius: 6,
+    borderWidth: 1,
+    gap: 6,
+    padding: 12,
+  },
+  diagnosticText: {
+    color: "#111827",
+    fontFamily: "monospace",
+    fontSize: 12,
+    lineHeight: 17,
   },
   errorBox: {
     backgroundColor: "#fef2f2",
