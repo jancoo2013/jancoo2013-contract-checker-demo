@@ -45,6 +45,12 @@ const SYNTHETIC_IMAGES: SyntheticImage[] = [
   },
 ];
 
+function formatCodePoints(value: string): string {
+  return Array.from(value, (character) =>
+    `U+${character.codePointAt(0)!.toString(16).toUpperCase().padStart(4, "0")}`,
+  ).join(" ");
+}
+
 export function LocalOcrExperiment() {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [status, setStatus] = useState<OcrStatus>("idle");
@@ -155,14 +161,18 @@ export function LocalOcrExperiment() {
           <Text style={styles.resultTitle}>OCR item diagnostics</Text>
           <Text style={styles.diagnosticText}>
             {JSON.stringify(
-              result.items.map((item, index) => ({
-                index,
-                text: item.text,
-                codePoints: Array.from(item.text, (character) =>
-                  `U+${character.codePointAt(0)!.toString(16).toUpperCase().padStart(4, "0")}`,
-                ).join(" "),
-                bbox: item.bbox,
-              })),
+              result.items.map((item, index) => {
+                const symbolText = (item as typeof item & { symbolText?: string }).symbolText ?? "";
+
+                return {
+                  index,
+                  text: item.text,
+                  codePoints: formatCodePoints(item.text),
+                  symbolText,
+                  symbolCodePoints: formatCodePoints(symbolText),
+                  bbox: item.bbox,
+                };
+              }),
               null,
               2,
             )}
