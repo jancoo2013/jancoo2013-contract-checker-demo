@@ -8,7 +8,7 @@ import {
   Text,
   View,
 } from "react-native";
-import LocalOcr, { LocalOcrResult } from "local-ocr";
+import LocalOcr, { type LocalImagePickResult, type LocalOcrResult } from "local-ocr";
 import {
   countProposalsByType,
   detectPiiProposals,
@@ -53,11 +53,16 @@ function formatCodePoints(value: string): string {
 
 export function LocalOcrExperiment() {
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [localImage, setLocalImage] = useState<LocalImagePickResult | undefined>();
   const [status, setStatus] = useState<OcrStatus>("idle");
   const [result, setResult] = useState<LocalOcrResult | undefined>();
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
   const [viewSize, setViewSize] = useState<Size>({ width: 0, height: 0 });
   const selectedImage = SYNTHETIC_IMAGES[selectedIndex];
+  const previewSource = localImage
+    ? ({ uri: localImage.uri } as ImageSourcePropType)
+    : selectedImage.source;
+  const sourceLabel = localImage ? "Selected local image" : selectedImage.label;
 
   const proposals = useMemo<PiiProposal[]>(
     () =>
@@ -68,13 +73,32 @@ export function LocalOcrExperiment() {
   );
   const countsByType = useMemo(() => countProposalsByType(proposals), [proposals]);
 
+  async function handlePickLocalImage() {
+    setStatus("idle");
+    setResult(undefined);
+    setErrorMessage(undefined);
+
+    try {
+      const pickedImage = await LocalOcr.pickLocalImage();
+      if (pickedImage) {
+        setLocalImage(pickedImage);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not select local image.";
+      setErrorMessage(message);
+      setStatus("error");
+    }
+  }
+
   async function handleRunOcr() {
     setStatus("running");
     setResult(undefined);
     setErrorMessage(undefined);
 
     try {
-      const nextResult = await LocalOcr.recognizeBundledImage(selectedImage.assetName);
+      const nextResult = localImage
+        ? await LocalOcr.recognizeLocalImageUri(localImage.uri)
+        : await LocalOcr.recognizeBundledImage(selectedImage.assetName);
       setResult(nextResult);
       setStatus("success");
     } catch (error) {
@@ -95,8 +119,9 @@ export function LocalOcrExperiment() {
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Local OCR Experiment</Text>
       <Text style={styles.notice}>
-        Android research spike. Uses bundled synthetic images and on-device OCR only. No camera,
-        gallery, backend, Gemini, model download, or telemetry is used by this block.
+        Android research spike. Uses bundled synthetic images or a locally selected Android image
+        URI with on-device OCR only. No backend, Gemini, upload, cloud OCR, telemetry, or model
+        download is used by this block.
       </Text>
 
       <View style={styles.switchRow}>
@@ -106,18 +131,26 @@ export function LocalOcrExperiment() {
               title={image.label}
               onPress={() => {
                 setSelectedIndex(index);
+                setLocalImage(undefined);
                 setResult(undefined);
                 setErrorMessage(undefined);
                 setStatus("idle");
               }}
-              disabled={selectedIndex === index || status === "running"}
+              disabled={(!localImage && selectedIndex === index) || status === "running"}
             />
           </View>
         ))}
+        <View style={styles.switchButton}>
+          <Button
+            title="Choose local image"
+            onPress={handlePickLocalImage}
+            disabled={status === "running"}
+          />
+        </View>
       </View>
 
       <View style={styles.previewFrame} onLayout={handleImageLayout}>
-        <Image source={selectedImage.source} style={styles.previewImage} resizeMode="contain" />
+        <Image source={previewSource} style={styles.previewImage} resizeMode="contain" />
         {result
           ? proposals.map((proposal, index) => (
               <ProposalOverlay
@@ -137,6 +170,7 @@ export function LocalOcrExperiment() {
       />
 
       <View style={styles.metricsBox}>
+        <Text style={styles.value}>source: {sourceLabel}</Text>
         <Text style={styles.value}>OCR state: {status}</Text>
         {result ? <Text style={styles.value}>duration: {result.durationMs} ms</Text> : null}
         {result ? <Text style={styles.value}>text items: {result.items.length}</Text> : null}
