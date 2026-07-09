@@ -19,8 +19,14 @@ export type LocalOcrResult = {
   items: LocalOcrItem[];
 };
 
+export type LocalImagePickResult = {
+  uri: string;
+};
+
 type LocalOcrModule = {
   recognizeBundledImage(assetName: string): Promise<LocalOcrResult>;
+  pickLocalImage(): Promise<LocalImagePickResult | null>;
+  recognizeLocalImageUri(uri: string): Promise<LocalOcrResult>;
 };
 
 export default requireNativeModule<LocalOcrModule>("LocalOcr");
