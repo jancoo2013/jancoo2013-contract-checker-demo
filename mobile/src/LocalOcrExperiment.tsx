@@ -23,9 +23,18 @@ type SyntheticImage = {
   assetName:
     | "synthetic-hebrew-pii.png"
     | "synthetic-hebrew-pii-large.png"
-    | "synthetic-hebrew-layout.png";
-  source: ImageSourcePropType;
+    | "synthetic-hebrew-layout.png"
+    | "synthetic-hebrew-phone-punctuation-matrix";
+  source?: ImageSourcePropType;
+  previewLines?: string[];
 };
+
+const PHONE_PUNCTUATION_MATRIX_LINES = [
+  "טלפון: 050-000-0000",
+  "טלפון 050-000-0000",
+  "טלפון : 050-000-0000",
+  "טלפון - 050-000-0000",
+];
 
 const SYNTHETIC_IMAGES: SyntheticImage[] = [
   {
@@ -42,6 +51,11 @@ const SYNTHETIC_IMAGES: SyntheticImage[] = [
     label: "Hebrew layout",
     assetName: "synthetic-hebrew-layout.png",
     source: require("../assets/synthetic-hebrew-layout.png") as ImageSourcePropType,
+  },
+  {
+    label: "Phone punctuation matrix",
+    assetName: "synthetic-hebrew-phone-punctuation-matrix",
+    previewLines: PHONE_PUNCTUATION_MATRIX_LINES,
   },
 ];
 
@@ -117,7 +131,17 @@ export function LocalOcrExperiment() {
       </View>
 
       <View style={styles.previewFrame} onLayout={handleImageLayout}>
-        <Image source={selectedImage.source} style={styles.previewImage} resizeMode="contain" />
+        {selectedImage.source ? (
+          <Image source={selectedImage.source} style={styles.previewImage} resizeMode="contain" />
+        ) : (
+          <View style={styles.matrixPreview}>
+            {selectedImage.previewLines?.map((line) => (
+              <Text key={line} style={styles.matrixPreviewLine}>
+                {line}
+              </Text>
+            ))}
+          </View>
+        )}
         {result
           ? proposals.map((proposal, index) => (
               <ProposalOverlay
@@ -257,6 +281,17 @@ const styles = StyleSheet.create({
   previewImage: {
     height: "100%",
     width: "100%",
+  },
+  matrixPreview: {
+    flex: 1,
+    justifyContent: "space-evenly",
+    paddingHorizontal: 20,
+  },
+  matrixPreviewLine: {
+    color: "#111827",
+    fontSize: 22,
+    textAlign: "right",
+    writingDirection: "rtl",
   },
   overlayBox: {
     backgroundColor: "rgba(220, 38, 38, 0.16)",

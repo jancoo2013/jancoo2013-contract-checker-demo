@@ -1,8 +1,17 @@
 package com.jancoo.contractchecker.localocr
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Typeface
 import android.os.SystemClock
+import android.text.Layout
+import android.text.StaticLayout
+import android.text.TextDirectionHeuristics
+import android.text.TextPaint
 import com.googlecode.tesseract.android.TessBaseAPI
 import com.googlecode.tesseract.android.TessBaseAPI.PageIteratorLevel
 import expo.modules.kotlin.modules.Module
@@ -24,15 +33,14 @@ class LocalOcrModule : Module() {
     val safeAssetName = when (assetName) {
       "synthetic-hebrew-pii.png",
       "synthetic-hebrew-pii-large.png",
-      "synthetic-hebrew-layout.png" -> assetName
+      "synthetic-hebrew-layout.png",
+      "synthetic-hebrew-phone-punctuation-matrix" -> assetName
       else -> throw IllegalArgumentException("Unsupported bundled OCR asset.")
     }
 
     val dataPath = ensureHebrewTrainedData(context)
     val startedAt = SystemClock.elapsedRealtime()
-    val bitmap = context.assets.open(safeAssetName).use { input ->
-      BitmapFactory.decodeStream(input)
-    } ?: throw IllegalStateException("Could not decode bundled OCR asset.")
+    val bitmap = loadOcrBitmap(context, safeAssetName)
 
     val tess = TessBaseAPI()
     try {
@@ -61,6 +69,50 @@ class LocalOcrModule : Module() {
       tess.recycle()
       bitmap.recycle()
     }
+  }
+
+  private fun loadOcrBitmap(context: Context, assetName: String): Bitmap {
+    if (assetName == "synthetic-hebrew-phone-punctuation-matrix") {
+      return createPhonePunctuationMatrix()
+    }
+
+    return context.assets.open(assetName).use { input ->
+      BitmapFactory.decodeStream(input)
+    } ?: throw IllegalStateException("Could not decode bundled OCR asset.")
+  }
+
+  private fun createPhonePunctuationMatrix(): Bitmap {
+    val bitmap = Bitmap.createBitmap(1600, 1000, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    canvas.drawColor(Color.WHITE)
+
+    val textPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+      color = Color.BLACK
+      textSize = 86f
+      typeface = Typeface.create("sans-serif", Typeface.NORMAL)
+    }
+
+    val lines = listOf(
+      "טלפון: 050-000-0000",
+      "טלפון 050-000-0000",
+      "טלפון : 050-000-0000",
+      "טלפון - 050-000-0000"
+    )
+
+    lines.forEachIndexed { index, line ->
+      val layout = StaticLayout.Builder.obtain(line, 0, line.length, textPaint, 1300)
+        .setAlignment(Layout.Alignment.ALIGN_NORMAL)
+        .setTextDirection(TextDirectionHeuristics.RTL)
+        .setIncludePad(false)
+        .build()
+
+      canvas.save()
+      canvas.translate(150f, (120 + index * 200).toFloat())
+      layout.draw(canvas)
+      canvas.restore()
+    }
+
+    return bitmap
   }
 
   private fun ensureHebrewTrainedData(context: Context): File {
