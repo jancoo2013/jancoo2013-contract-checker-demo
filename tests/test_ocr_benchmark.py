@@ -138,7 +138,7 @@ class OCRBenchmarkTests(unittest.TestCase):
                 "surya_ocr",
                 "dataset",
                 "--output_dir",
-                "artifacts/raw/surya2",
+                str(Path("artifacts/raw/surya2")),
                 "--keep_server",
             ],
         )
@@ -147,7 +147,7 @@ class OCRBenchmarkTests(unittest.TestCase):
             [
                 "chandra",
                 "dataset",
-                "artifacts/raw/chandra2",
+                str(Path("artifacts/raw/chandra2")),
                 "--method",
                 "hf",
                 "--no-images",
