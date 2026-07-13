@@ -1,34 +1,73 @@
-# Contract Checker Mobile Transport Test
+# Contract Checker Mobile Android Tests
 
-This is the first Android-first mobile transport slice for the contract checker backend.
+This Android-only mobile project now contains two intentionally separate test slices:
 
-This build uses a bundled synthetic test image only.
+1. a local Hebrew OCR spike using Tesseract on the Android device;
+2. the existing backend transport test using only a bundled synthetic redacted PNG.
 
-It does not include camera, gallery picker, or document-picker UI or packages.
+The locally selected OCR image is never passed to the backend transport function.
 
-Do not use real contracts with this transport-test build.
+## Android-only Tesseract OCR spike
 
-The app config explicitly adds no Android permissions. A local Expo prebuild inspection generated standard Expo/React Native permissions: `android.permission.INTERNET`, `android.permission.VIBRATE`, `android.permission.SYSTEM_ALERT_WINDOW`, `android.permission.READ_EXTERNAL_STORAGE` with `maxSdkVersion=32`, and `android.permission.WRITE_EXTERNAL_STORAGE` with `maxSdkVersion=32`. No `android.permission.CAMERA` permission was present. The generated native `android/` directory is not committed.
+The spike uses a local Expo native module backed by Tesseract4Android. It can:
+
+- open the Android system document picker for one image;
+- copy the selected image into the app cache;
+- download the static `tessdata_fast` Hebrew model once;
+- run Hebrew OCR locally on the Android device;
+- display raw text, elapsed time, decoded bitmap size, and Tesseract mean confidence.
+
+The contract image is not uploaded. The only network operation in this spike is the explicit one-time download of `heb.traineddata` from the official `tesseract-ocr/tessdata_fast` GitHub repository.
+
+This is an OCR feasibility test, not a privacy gate or legal-analysis implementation. It does not yet:
+
+- detect or redact PII;
+- detect handwriting or manual edits;
+- guarantee reading order for RTL legal documents;
+- verify OCR text against a gold transcription;
+- send locally selected images or OCR output to any backend.
 
 ## Requirements
 
 - Node.js LTS.
-- A local FastAPI backend from this repository.
-- Android development environment for `expo run:android`.
+- Android Studio and an Android SDK suitable for `expo run:android`.
+- A physical Android device or emulator.
+- A local FastAPI backend only when testing the separate transport slice.
 
 ## Install
 
-```bash
-npm install
-```
-
-After `package-lock.json` is present, use the reproducible install path:
+From `mobile/`:
 
 ```bash
 npm ci
 ```
 
-## Configure Backend URL
+The native `android/` directory is generated and remains outside version control. Regenerate it so Expo discovers the local Tesseract module and applies the JitPack repository config plugin:
+
+```bash
+npx expo prebuild --clean --platform android
+```
+
+Then build and install the development app:
+
+```bash
+npm run android
+```
+
+Native module changes require rebuilding the Android app; restarting Metro alone is not enough.
+
+## Test local Hebrew OCR
+
+1. Open the app on Android.
+2. Tap `Download Hebrew OCR model` and wait for the status to become `ready`.
+3. Tap `Select one image from Android`.
+4. Select one JPG or PNG page.
+5. Tap `Run Hebrew OCR on device`.
+6. Inspect the raw Hebrew text, elapsed time, mean confidence, and decoded bitmap dimensions.
+
+For the first run, use a clean test page without filled personal details. The spike keeps the selected image in app-local cache, but PII detection and redaction have not been implemented yet.
+
+## Configure backend transport URL
 
 Create `mobile/.env` from `.env.example` and set:
 
@@ -52,7 +91,7 @@ EXPO_PUBLIC_API_BASE_URL=http://192.168.1.100:8000
 
 These local HTTP URLs are for development and debug testing only. Production or release deployment should use HTTPS.
 
-## Run The Backend Locally
+## Run the backend locally
 
 From the repository root, start FastAPI on all interfaces so an emulator or phone can reach it:
 
@@ -66,38 +105,25 @@ For a local startup/import check on the development machine, binding to localhos
 uvicorn contract_checker.api_app:app --host 127.0.0.1 --port 8000
 ```
 
-The mobile screen posts to:
+The transport test posts to:
 
 ```text
 POST /v1/contracts/analyze-redacted
 ```
 
-## Run Mobile
+## Test the existing transport slice
 
-From `mobile/`:
-
-```bash
-npm run android
-```
-
-For an already installed development build, start Metro with:
-
-```bash
-npm run start
-```
-
-## Test The Transport Slice
-
-1. Open the app.
-2. Confirm the backend API URL is configured.
-3. Confirm the synthetic asset name is `synthetic_page.png`.
-4. Tap `Send synthetic redacted PNG`.
+1. Confirm the backend API URL is configured.
+2. Confirm the synthetic asset name is `synthetic_page.png`.
+3. Tap `Send synthetic redacted PNG`.
 
 The app sends a multipart request with:
 
 - `pages`: bundled synthetic PNG;
 - `privacy_review_confirmed`: `true`;
 - `client_request_id`: a generated smoke-test identifier.
+
+The transport button never uses the image selected for local Tesseract OCR.
 
 Expected result: the screen shows a minimal safe response summary with request status, OCR quality status, text usability, risk profile, risk profile summary, and evidence warning count.
 
