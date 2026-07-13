@@ -1,0 +1,6 @@
+{
+  "name": "contract-checker-tesseract-ocr",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.ts"
+}
