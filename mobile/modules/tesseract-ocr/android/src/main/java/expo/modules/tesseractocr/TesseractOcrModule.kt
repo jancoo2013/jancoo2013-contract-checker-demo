@@ -42,7 +42,7 @@ class TesseractOcrModule : Module() {
       isModelInstalled()
     }
 
-    AsyncFunction("downloadHebrewModelAsync") Coroutine {
+    AsyncFunction("downloadHebrewModelAsync") Coroutine { ->
       downloadHebrewModel()
     }
 
