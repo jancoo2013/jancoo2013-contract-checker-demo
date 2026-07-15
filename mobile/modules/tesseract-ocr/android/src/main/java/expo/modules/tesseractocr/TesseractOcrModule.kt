@@ -29,6 +29,15 @@ private const val MIN_MODEL_BYTES = 500_000L
 private const val MAX_MODEL_BYTES = 30_000_000L
 private const val MAX_IMAGE_PIXELS = 12_000_000L
 
+private data class OcrRegion(
+  val region: String,
+  val left: Int,
+  val top: Int,
+  val width: Int,
+  val height: Int,
+  val pageSegmentationMode: HebrewOcrPageSegmentationMode
+)
+
 private enum class HebrewOcrPageSegmentationMode(
   val id: String,
   val tesseractMode: Int
@@ -103,6 +112,10 @@ class TesseractOcrModule : Module() {
     AsyncFunction("recognizeAsync") Coroutine { uriString: String, pageSegmentationMode: String ->
       recognize(uriString, parsePageSegmentationMode(pageSegmentationMode))
     }
+
+    AsyncFunction("recognizeZonedAsync") Coroutine { uriString: String, splitPercent: Int ->
+      recognizeZoned(uriString, parseSplitPercent(splitPercent))
+    }
   }
 
   private fun tesseractRoot(): File = File(context.filesDir, "tesseract")
@@ -120,6 +133,13 @@ class TesseractOcrModule : Module() {
       HebrewOcrPageSegmentationMode.SINGLE_BLOCK.id -> HebrewOcrPageSegmentationMode.SINGLE_BLOCK
       HebrewOcrPageSegmentationMode.SPARSE_TEXT.id -> HebrewOcrPageSegmentationMode.SPARSE_TEXT
       else -> throw IllegalArgumentException("Unsupported Hebrew OCR page segmentation mode.")
+    }
+  }
+
+  private fun parseSplitPercent(value: Int): Int {
+    return when (value) {
+      35, 40, 45 -> value
+      else -> throw IllegalArgumentException("Unsupported Hebrew OCR split percentage.")
     }
   }
 
@@ -352,6 +372,86 @@ class TesseractOcrModule : Module() {
     } finally {
       tesseract.recycle()
       bitmap.recycle()
+    }
+  }
+
+  private fun recognizeZoned(uriString: String, splitPercent: Int): Map<String, Any> {
+    val model = modelFile()
+    if (!isModelInstalled()) {
+      throw IllegalStateException("The Hebrew OCR model is not installed.")
+    }
+
+    val imageFile = materializeImage(uriString)
+    val bitmap = decodeSampledBitmap(imageFile)
+    val totalStartedAt = SystemClock.elapsedRealtime()
+
+    try {
+      val splitY = Math.round(bitmap.height * splitPercent / 100.0).toInt()
+      val headerRegion = OcrRegion(
+        region = "header",
+        left = 0,
+        top = 0,
+        width = bitmap.width,
+        height = splitY,
+        pageSegmentationMode = HebrewOcrPageSegmentationMode.SPARSE_TEXT
+      )
+      val bodyRegion = OcrRegion(
+        region = "body",
+        left = 0,
+        top = splitY,
+        width = bitmap.width,
+        height = bitmap.height - splitY,
+        pageSegmentationMode = HebrewOcrPageSegmentationMode.SINGLE_COLUMN
+      )
+
+      val header = recognizeBitmapRegion(bitmap, headerRegion)
+      val body = recognizeBitmapRegion(bitmap, bodyRegion)
+      val totalElapsedMs = SystemClock.elapsedRealtime() - totalStartedAt
+
+      return mapOf(
+        "splitPercent" to splitPercent,
+        "modelBytes" to model.length(),
+        "decodedWidth" to bitmap.width,
+        "decodedHeight" to bitmap.height,
+        "totalElapsedMs" to totalElapsedMs,
+        "header" to header,
+        "body" to body
+      )
+    } finally {
+      bitmap.recycle()
+    }
+  }
+
+  private fun recognizeBitmapRegion(bitmap: Bitmap, region: OcrRegion): Map<String, Any> {
+    val startedAt = SystemClock.elapsedRealtime()
+    val tesseract = TessBaseAPI()
+
+    try {
+      if (!tesseract.init(bestModelRoot().absolutePath, HEBREW_LANGUAGE)) {
+        throw IllegalStateException("Tesseract failed to initialize the Hebrew language model.")
+      }
+
+      tesseract.setPageSegMode(region.pageSegmentationMode.tesseractMode)
+      tesseract.setVariable("preserve_interword_spaces", "1")
+      tesseract.setImage(bitmap)
+      tesseract.setRectangle(region.left, region.top, region.width, region.height)
+
+      val text = tesseract.getUTF8Text().orEmpty()
+      val elapsedMs = SystemClock.elapsedRealtime() - startedAt
+
+      return mapOf(
+        "region" to region.region,
+        "pageSegmentationMode" to region.pageSegmentationMode.id,
+        "left" to region.left,
+        "top" to region.top,
+        "width" to region.width,
+        "height" to region.height,
+        "text" to text,
+        "elapsedMs" to elapsedMs,
+        "meanConfidence" to tesseract.meanConfidence()
+      )
+    } finally {
+      tesseract.recycle()
     }
   }
 }

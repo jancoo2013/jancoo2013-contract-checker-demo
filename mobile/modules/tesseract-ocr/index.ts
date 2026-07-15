@@ -25,6 +25,10 @@ export type HebrewOcrPageSegmentationMode =
   | "single_block"
   | "sparse_text";
 
+export type HebrewOcrSplitPercent = 35 | 40 | 45;
+
+export type HebrewOcrRegionKind = "header" | "body";
+
 export type HebrewOcrResult = {
   pageSegmentationMode: HebrewOcrPageSegmentationMode;
   modelBytes: number;
@@ -35,11 +39,34 @@ export type HebrewOcrResult = {
   height: number;
 };
 
+export type HebrewOcrRegionResult = {
+  region: HebrewOcrRegionKind;
+  pageSegmentationMode: HebrewOcrPageSegmentationMode;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  text: string;
+  elapsedMs: number;
+  meanConfidence: number;
+};
+
+export type HebrewZonedOcrResult = {
+  splitPercent: HebrewOcrSplitPercent;
+  modelBytes: number;
+  decodedWidth: number;
+  decodedHeight: number;
+  totalElapsedMs: number;
+  header: HebrewOcrRegionResult;
+  body: HebrewOcrRegionResult;
+};
+
 type TesseractOcrNativeModule = {
   isModelInstalledAsync(): Promise<HebrewModelStatus>;
   downloadHebrewModelAsync(): Promise<HebrewModelDownloadResult>;
   pickImageAsync(): Promise<PickedImage>;
   recognizeAsync(uri: string, pageSegmentationMode: HebrewOcrPageSegmentationMode): Promise<HebrewOcrResult>;
+  recognizeZonedAsync(uri: string, splitPercent: HebrewOcrSplitPercent): Promise<HebrewZonedOcrResult>;
 };
 
 export default requireNativeModule<TesseractOcrNativeModule>("TesseractOcr");

@@ -15,7 +15,7 @@ The spike uses a local Expo native module backed by Tesseract4Android. It can:
 - copy the selected image into the app cache;
 - download the official `tessdata_best` Hebrew model once;
 - run Hebrew OCR locally on the Android device;
-- display raw text, elapsed time, decoded bitmap size, Tesseract mean confidence, and model file size.
+- display raw text, elapsed time, decoded bitmap size, Tesseract mean confidence, and model file size;
 - run the same selected image through controlled page segmentation mode variants.
 
 The contract image is not uploaded. OCR output is not uploaded. The only network operation in this spike is an explicit model download from the official Tesseract repository:
@@ -50,12 +50,39 @@ This Best-model OCR spike is not a legal-quality benchmark. There is no gold tra
 
 Physical Samsung A55 testing confirmed that the Best model can be downloaded and used on-device. In the tested page, switching from the earlier Fast model to `tessdata_best` did not materially improve the OCR result, and deterministic 3x Lanczos upscale from 905 x 1280 to 2715 x 3840 produced effectively identical OCR output. That suggests image resolution is not the main current limitation.
 
-The current experiment isolates Tesseract page segmentation behavior while keeping the model and image processing unchanged. Available modes:
+Samsung A55 testing with the same 2715 x 3840 Hebrew rental-contract page found:
+
+- `Auto` has poor reading order.
+- `Single column` is currently the best global mode for connected body text.
+- `Single block` is very similar to `Single column` and is slightly worse in several places.
+- `Sparse text` is genuinely applied and measured at 1519 ms with mean confidence 90 in the manual run.
+- `Single column` measured at 1543 ms with mean confidence 88 in the manual run.
+- `Sparse text` fragments the full page heavily, but may be useful for the sparse party/form header.
+- No global PSM solves header layout, body text, clause numbering, Hebrew spacing, and mixed Hebrew/Latin text simultaneously.
+
+The current experiment isolates Tesseract page segmentation behavior while keeping the model and image processing unchanged. Global baseline modes:
 
 - `Auto`: `TessBaseAPI.PageSegMode.PSM_AUTO`
 - `Single column`: `TessBaseAPI.PageSegMode.PSM_SINGLE_COLUMN`
 - `Single block`: `TessBaseAPI.PageSegMode.PSM_SINGLE_BLOCK`
 - `Sparse text`: `TessBaseAPI.PageSegMode.PSM_SPARSE_TEXT`
+
+The zoned OCR experiment is a manual research path, not automatic layout analysis. It uses one explicit vertical split over the decoded bitmap:
+
+```text
+splitY = round(decodedBitmapHeight * splitPercent / 100)
+```
+
+Supported split presets are exactly `35%`, `40%`, and `45%`.
+
+For each preset:
+
+- header region: `left = 0`, `top = 0`, `width = decoded bitmap width`, `height = splitY`;
+- body region: `left = 0`, `top = splitY`, `width = decoded bitmap width`, `height = decoded bitmap height - splitY`;
+- header OCR uses `Sparse text`;
+- body OCR uses `Single column`;
+- no crop files are saved;
+- header and body outputs are returned and displayed as separate raw texts.
 
 All other OCR variables are intentionally unchanged, including the Best model path, bitmap decoding, image sampling, preprocessing behavior, `preserve_interword_spaces=1`, and absence of OCR post-processing.
 
@@ -99,11 +126,20 @@ Native module changes require rebuilding the Android app; restarting Metro alone
 7. Run `Single block`.
 8. Run `Sparse text`.
 9. Confirm all four raw results remain visible at the same time.
-10. Restart the app and verify that the Best model installation state and file size are still shown correctly.
+10. Run zoned OCR at `35%`.
+11. Run zoned OCR at `40%`.
+12. Run zoned OCR at `45%`.
+13. Confirm all three zoned results remain visible at the same time.
+14. Confirm every global and zoned result reports decoded bitmap `2715 x 3840`.
+15. Confirm each zoned header result reports PSM `Sparse text`.
+16. Confirm each zoned body result reports PSM `Single column`.
+17. Confirm rectangle coordinates match each selected percentage.
+18. Restart the app and verify that the Best model installation state and file size are still shown correctly.
+19. Confirm no selected image or OCR output reaches the backend transport test.
 
 For the first run, use a clean test page without filled personal details. The spike keeps the selected image in app-local cache, but PII detection and redaction have not been implemented yet.
 
-Compare these metrics and observations across all four page segmentation modes:
+Compare these metrics and observations across global and zoned OCR runs:
 
 - downloaded model file size;
 - elapsed time;
@@ -111,8 +147,10 @@ Compare these metrics and observations across all four page segmentation modes:
 - decoded bitmap width and height;
 - raw OCR text;
 - header and party-field reading order;
+- header tokens such as `בין` / `לבין`, party numbering, `ת.ז.`, `מרחוב`, `מצד אחד`, and `מצד שני`;
 - word spacing and merged Hebrew words;
 - clause numbering quality, especially `1.1` and `2.1.1`;
+- paragraph continuity and headings;
 - mixed Hebrew/Latin text, for example `As-Is`.
 
 ## Configure backend transport URL

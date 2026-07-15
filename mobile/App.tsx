@@ -13,7 +13,10 @@ import {
 
 import TesseractOcr, {
   HebrewOcrPageSegmentationMode,
+  HebrewOcrRegionResult,
   HebrewOcrResult,
+  HebrewOcrSplitPercent,
+  HebrewZonedOcrResult,
   PickedImage,
 } from "./modules/tesseract-ocr";
 
@@ -25,6 +28,7 @@ const PSM_OPTIONS: Array<{ mode: HebrewOcrPageSegmentationMode; label: string }>
   { mode: "single_block", label: "Single block" },
   { mode: "sparse_text", label: "Sparse text" },
 ];
+const SPLIT_OPTIONS: HebrewOcrSplitPercent[] = [35, 40, 45];
 
 type RequestStatus = "idle" | "sending" | "success" | "error";
 type ModelStatus = "checking" | "missing" | "downloading" | "ready" | "error";
@@ -77,6 +81,14 @@ type LocalOcrState = {
 
 type LocalOcrStates = Record<HebrewOcrPageSegmentationMode, LocalOcrState>;
 
+type ZonedOcrState = {
+  status: LocalOcrStatus;
+  result?: HebrewZonedOcrResult;
+  error?: string;
+};
+
+type ZonedOcrStates = Record<HebrewOcrSplitPercent, ZonedOcrState>;
+
 function initialLocalOcrStates(): LocalOcrStates {
   return {
     auto: { status: "idle" },
@@ -86,8 +98,20 @@ function initialLocalOcrStates(): LocalOcrStates {
   };
 }
 
+function initialZonedOcrStates(): ZonedOcrStates {
+  return {
+    35: { status: "idle" },
+    40: { status: "idle" },
+    45: { status: "idle" },
+  };
+}
+
 function psmLabel(mode: HebrewOcrPageSegmentationMode): string {
   return PSM_OPTIONS.find((option) => option.mode === mode)?.label ?? mode;
+}
+
+function regionLabel(region: HebrewOcrRegionResult): string {
+  return region.region === "header" ? "Header" : "Body";
 }
 
 function formatBytes(bytes?: number): string {
@@ -215,6 +239,8 @@ export default function App() {
   const [selectedImage, setSelectedImage] = useState<SelectedImage>();
   const [selectedPsm, setSelectedPsm] = useState<HebrewOcrPageSegmentationMode>("auto");
   const [localOcrByPsm, setLocalOcrByPsm] = useState<LocalOcrStates>(initialLocalOcrStates);
+  const [selectedSplitPercent, setSelectedSplitPercent] = useState<HebrewOcrSplitPercent>(40);
+  const [zonedOcrBySplit, setZonedOcrBySplit] = useState<ZonedOcrStates>(initialZonedOcrStates);
 
   useEffect(() => {
     let active = true;
@@ -279,10 +305,45 @@ export default function App() {
         height: picked.height,
       });
       setLocalOcrByPsm(initialLocalOcrStates());
+      setZonedOcrBySplit(initialZonedOcrStates());
     } catch (error: unknown) {
       setLocalOcrByPsm((current) => ({
         ...current,
         [selectedPsm]: { status: "error", error: errorMessage(error) },
+      }));
+    }
+  }
+
+  async function handleRunZonedOcr(splitPercent: HebrewOcrSplitPercent) {
+    if (modelStatus !== "ready") {
+      setZonedOcrBySplit((current) => ({
+        ...current,
+        [splitPercent]: { status: "error", error: "Install the Best Hebrew OCR model first." },
+      }));
+      return;
+    }
+    if (!selectedImage) {
+      setZonedOcrBySplit((current) => ({
+        ...current,
+        [splitPercent]: { status: "error", error: "Select one local contract image first." },
+      }));
+      return;
+    }
+
+    setZonedOcrBySplit((current) => ({
+      ...current,
+      [splitPercent]: { status: "running" },
+    }));
+    try {
+      const zonedResult = await TesseractOcr.recognizeZonedAsync(selectedImage.uri, splitPercent);
+      setZonedOcrBySplit((current) => ({
+        ...current,
+        [splitPercent]: { status: "success", result: zonedResult },
+      }));
+    } catch (error: unknown) {
+      setZonedOcrBySplit((current) => ({
+        ...current,
+        [splitPercent]: { status: "error", error: errorMessage(error) },
       }));
     }
   }
@@ -352,8 +413,11 @@ export default function App() {
 
   const successResponse = result.status === "success" ? result.response : undefined;
   const warningCount = successResponse?.evidence_warnings.length ?? 0;
-  const anyOcrRunning = PSM_OPTIONS.some(({ mode }) => localOcrByPsm[mode].status === "running");
+  const anyGlobalOcrRunning = PSM_OPTIONS.some(({ mode }) => localOcrByPsm[mode].status === "running");
+  const anyZonedOcrRunning = SPLIT_OPTIONS.some((splitPercent) => zonedOcrBySplit[splitPercent].status === "running");
+  const anyOcrRunning = anyGlobalOcrRunning || anyZonedOcrRunning;
   const selectedOcr = localOcrByPsm[selectedPsm];
+  const selectedZonedOcr = zonedOcrBySplit[selectedSplitPercent];
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -438,6 +502,74 @@ export default function App() {
                     <Text selectable style={styles.ocrText}>
                       {state.result.text || "(empty OCR result)"}
                     </Text>
+                  </>
+                ) : null}
+                {state.status === "error" ? <Text style={styles.errorText}>{state.error}</Text> : null}
+              </View>
+            );
+          })}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.secondaryTitle}>Zoned OCR experiment</Text>
+          <Text style={styles.notice}>
+            Runs Header with Sparse text and Body with Single column on the same decoded bitmap. Header and body raw outputs stay separate.
+          </Text>
+          <View style={styles.modeGrid}>
+            {SPLIT_OPTIONS.map((splitPercent) => (
+              <View key={splitPercent} style={styles.modeButton}>
+                <Button
+                  title={selectedSplitPercent === splitPercent ? `${splitPercent}% selected` : `${splitPercent}% split`}
+                  onPress={() => setSelectedSplitPercent(splitPercent)}
+                  disabled={anyOcrRunning}
+                />
+              </View>
+            ))}
+          </View>
+          <Text style={styles.caption}>Selected split: {selectedSplitPercent}% of decoded bitmap height</Text>
+        </View>
+
+        <Button
+          title={
+            selectedZonedOcr.status === "running"
+              ? `Running zoned OCR ${selectedSplitPercent}%...`
+              : `Run zoned OCR ${selectedSplitPercent}%`
+          }
+          onPress={() => handleRunZonedOcr(selectedSplitPercent)}
+          disabled={anyOcrRunning || modelStatus !== "ready" || !selectedImage}
+        />
+
+        <View style={styles.section}>
+          <Text style={styles.label}>Zoned OCR results by split</Text>
+          {SPLIT_OPTIONS.map((splitPercent) => {
+            const state = zonedOcrBySplit[splitPercent];
+            const result = state.result;
+            return (
+              <View key={splitPercent} style={state.status === "error" ? styles.errorBox : styles.resultBox}>
+                <Text style={styles.resultTitle}>{splitPercent}% split</Text>
+                <Text style={state.status === "error" ? styles.errorText : styles.value}>state: {state.status}</Text>
+                {state.status === "success" && result ? (
+                  <>
+                    <Text style={styles.value}>split: {result.splitPercent}%</Text>
+                    <Text style={styles.value}>model file: {formatBytes(result.modelBytes)}</Text>
+                    <Text style={styles.value}>
+                      decoded bitmap: {result.decodedWidth} x {result.decodedHeight}
+                    </Text>
+                    <Text style={styles.value}>total elapsed: {result.totalElapsedMs} ms</Text>
+                    {[result.header, result.body].map((region) => (
+                      <View key={region.region} style={styles.regionSection}>
+                        <Text style={styles.resultTitle}>{regionLabel(region)}</Text>
+                        <Text style={styles.value}>PSM: {psmLabel(region.pageSegmentationMode)}</Text>
+                        <Text style={styles.value}>
+                          rectangle: left {region.left}, top {region.top}, width {region.width}, height {region.height}
+                        </Text>
+                        <Text style={styles.value}>elapsed: {region.elapsedMs} ms</Text>
+                        <Text style={styles.value}>mean confidence: {region.meanConfidence}</Text>
+                        <Text selectable style={styles.ocrText}>
+                          {region.text || "(empty OCR result)"}
+                        </Text>
+                      </View>
+                    ))}
                   </>
                 ) : null}
                 {state.status === "error" ? <Text style={styles.errorText}>{state.error}</Text> : null}
@@ -593,6 +725,12 @@ const styles = StyleSheet.create({
     color: "#111827",
     fontSize: 16,
     fontWeight: "700",
+  },
+  regionSection: {
+    borderTopColor: "#a7f3d0",
+    borderTopWidth: 1,
+    gap: 6,
+    paddingTop: 10,
   },
   ocrText: {
     backgroundColor: "#ffffff",
