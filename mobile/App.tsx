@@ -12,12 +12,19 @@ import {
 } from "react-native";
 
 import TesseractOcr, {
+  HebrewOcrPageSegmentationMode,
   HebrewOcrResult,
   PickedImage,
 } from "./modules/tesseract-ocr";
 
 const SYNTHETIC_ASSET = require("./assets/synthetic-redacted-contract.png") as ImageSourcePropType;
 const SYNTHETIC_FILENAME = "synthetic_page.png";
+const PSM_OPTIONS: Array<{ mode: HebrewOcrPageSegmentationMode; label: string }> = [
+  { mode: "auto", label: "Auto" },
+  { mode: "single_column", label: "Single column" },
+  { mode: "single_block", label: "Single block" },
+  { mode: "sparse_text", label: "Sparse text" },
+];
 
 type RequestStatus = "idle" | "sending" | "success" | "error";
 type ModelStatus = "checking" | "missing" | "downloading" | "ready" | "error";
@@ -67,6 +74,21 @@ type LocalOcrState = {
   result?: HebrewOcrResult;
   error?: string;
 };
+
+type LocalOcrStates = Record<HebrewOcrPageSegmentationMode, LocalOcrState>;
+
+function initialLocalOcrStates(): LocalOcrStates {
+  return {
+    auto: { status: "idle" },
+    single_column: { status: "idle" },
+    single_block: { status: "idle" },
+    sparse_text: { status: "idle" },
+  };
+}
+
+function psmLabel(mode: HebrewOcrPageSegmentationMode): string {
+  return PSM_OPTIONS.find((option) => option.mode === mode)?.label ?? mode;
+}
 
 function formatBytes(bytes?: number): string {
   if (!bytes) {
@@ -191,7 +213,8 @@ export default function App() {
   const [modelMessage, setModelMessage] = useState<string>("");
   const [modelBytes, setModelBytes] = useState<number>(0);
   const [selectedImage, setSelectedImage] = useState<SelectedImage>();
-  const [localOcr, setLocalOcr] = useState<LocalOcrState>({ status: "idle" });
+  const [selectedPsm, setSelectedPsm] = useState<HebrewOcrPageSegmentationMode>("auto");
+  const [localOcrByPsm, setLocalOcrByPsm] = useState<LocalOcrStates>(initialLocalOcrStates);
 
   useEffect(() => {
     let active = true;
@@ -255,28 +278,46 @@ export default function App() {
         width: picked.width,
         height: picked.height,
       });
-      setLocalOcr({ status: "idle" });
+      setLocalOcrByPsm(initialLocalOcrStates());
     } catch (error: unknown) {
-      setLocalOcr({ status: "error", error: errorMessage(error) });
+      setLocalOcrByPsm((current) => ({
+        ...current,
+        [selectedPsm]: { status: "error", error: errorMessage(error) },
+      }));
     }
   }
 
-  async function handleRunLocalOcr() {
+  async function handleRunLocalOcr(mode: HebrewOcrPageSegmentationMode) {
     if (modelStatus !== "ready") {
-      setLocalOcr({ status: "error", error: "Install the Best Hebrew OCR model first." });
+      setLocalOcrByPsm((current) => ({
+        ...current,
+        [mode]: { status: "error", error: "Install the Best Hebrew OCR model first." },
+      }));
       return;
     }
     if (!selectedImage) {
-      setLocalOcr({ status: "error", error: "Select one local contract image first." });
+      setLocalOcrByPsm((current) => ({
+        ...current,
+        [mode]: { status: "error", error: "Select one local contract image first." },
+      }));
       return;
     }
 
-    setLocalOcr({ status: "running" });
+    setLocalOcrByPsm((current) => ({
+      ...current,
+      [mode]: { status: "running" },
+    }));
     try {
-      const ocrResult = await TesseractOcr.recognizeAsync(selectedImage.uri);
-      setLocalOcr({ status: "success", result: ocrResult });
+      const ocrResult = await TesseractOcr.recognizeAsync(selectedImage.uri, mode);
+      setLocalOcrByPsm((current) => ({
+        ...current,
+        [mode]: { status: "success", result: ocrResult },
+      }));
     } catch (error: unknown) {
-      setLocalOcr({ status: "error", error: errorMessage(error) });
+      setLocalOcrByPsm((current) => ({
+        ...current,
+        [mode]: { status: "error", error: errorMessage(error) },
+      }));
     }
   }
 
@@ -311,6 +352,8 @@ export default function App() {
 
   const successResponse = result.status === "success" ? result.response : undefined;
   const warningCount = successResponse?.evidence_warnings.length ?? 0;
+  const anyOcrRunning = PSM_OPTIONS.some(({ mode }) => localOcrByPsm[mode].status === "running");
+  const selectedOcr = localOcrByPsm[selectedPsm];
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -335,7 +378,7 @@ export default function App() {
 
         <View style={styles.section}>
           <Text style={styles.label}>Local input image</Text>
-          <Button title="Select one image from Android" onPress={handlePickImage} disabled={localOcr.status === "running"} />
+          <Button title="Select one image from Android" onPress={handlePickImage} disabled={anyOcrRunning} />
           {selectedImage ? (
             <>
               <Text style={styles.value}>{selectedImage.name ?? "selected image"}</Text>
@@ -349,38 +392,59 @@ export default function App() {
           )}
         </View>
 
+        <View style={styles.section}>
+          <Text style={styles.label}>Page segmentation mode</Text>
+          <View style={styles.modeGrid}>
+            {PSM_OPTIONS.map(({ mode, label }) => (
+              <View key={mode} style={styles.modeButton}>
+                <Button
+                  title={selectedPsm === mode ? `${label} selected` : label}
+                  onPress={() => setSelectedPsm(mode)}
+                  disabled={anyOcrRunning}
+                />
+              </View>
+            ))}
+          </View>
+          <Text style={styles.caption}>Selected PSM: {psmLabel(selectedPsm)}</Text>
+        </View>
+
         <Button
-          title={localOcr.status === "running" ? "Recognizing locally..." : "Run Best Hebrew OCR on device"}
-          onPress={handleRunLocalOcr}
-          disabled={localOcr.status === "running" || modelStatus !== "ready" || !selectedImage}
+          title={
+            selectedOcr.status === "running"
+              ? `Running ${psmLabel(selectedPsm)}...`
+              : `Run ${psmLabel(selectedPsm)} OCR`
+          }
+          onPress={() => handleRunLocalOcr(selectedPsm)}
+          disabled={anyOcrRunning || modelStatus !== "ready" || !selectedImage}
         />
 
         <View style={styles.section}>
-          <Text style={styles.label}>Local OCR state</Text>
-          <Text style={localOcr.status === "error" ? styles.errorText : styles.value}>{localOcr.status}</Text>
+          <Text style={styles.label}>Local OCR results by PSM</Text>
+          {PSM_OPTIONS.map(({ mode, label }) => {
+            const state = localOcrByPsm[mode];
+            return (
+              <View key={mode} style={state.status === "error" ? styles.errorBox : styles.resultBox}>
+                <Text style={styles.resultTitle}>{label}</Text>
+                <Text style={state.status === "error" ? styles.errorText : styles.value}>state: {state.status}</Text>
+                {state.status === "success" && state.result ? (
+                  <>
+                    <Text style={styles.value}>PSM: {psmLabel(state.result.pageSegmentationMode)}</Text>
+                    <Text style={styles.value}>model file: {formatBytes(state.result.modelBytes)}</Text>
+                    <Text style={styles.value}>elapsed: {state.result.elapsedMs} ms</Text>
+                    <Text style={styles.value}>mean confidence: {state.result.meanConfidence}</Text>
+                    <Text style={styles.value}>
+                      decoded bitmap: {state.result.width} x {state.result.height}
+                    </Text>
+                    <Text selectable style={styles.ocrText}>
+                      {state.result.text || "(empty OCR result)"}
+                    </Text>
+                  </>
+                ) : null}
+                {state.status === "error" ? <Text style={styles.errorText}>{state.error}</Text> : null}
+              </View>
+            );
+          })}
         </View>
-
-        {localOcr.status === "success" && localOcr.result ? (
-          <View style={styles.resultBox}>
-            <Text style={styles.resultTitle}>Raw Tesseract Best result</Text>
-            <Text style={styles.value}>model file: {formatBytes(localOcr.result.modelBytes)}</Text>
-            <Text style={styles.value}>elapsed: {localOcr.result.elapsedMs} ms</Text>
-            <Text style={styles.value}>mean confidence: {localOcr.result.meanConfidence}</Text>
-            <Text style={styles.value}>
-              decoded bitmap: {localOcr.result.width} x {localOcr.result.height}
-            </Text>
-            <Text selectable style={styles.ocrText}>
-              {localOcr.result.text || "(empty OCR result)"}
-            </Text>
-          </View>
-        ) : null}
-
-        {localOcr.status === "error" ? (
-          <View style={styles.errorBox}>
-            <Text style={styles.resultTitle}>Local OCR error</Text>
-            <Text style={styles.errorText}>{localOcr.error}</Text>
-          </View>
-        ) : null}
 
         <View style={styles.divider} />
 
@@ -472,7 +536,13 @@ const styles = StyleSheet.create({
     lineHeight: 23,
   },
   section: {
-    gap: 6,
+    gap: 8,
+  },
+  modeGrid: {
+    gap: 10,
+  },
+  modeButton: {
+    alignSelf: "stretch",
   },
   label: {
     color: "#475569",

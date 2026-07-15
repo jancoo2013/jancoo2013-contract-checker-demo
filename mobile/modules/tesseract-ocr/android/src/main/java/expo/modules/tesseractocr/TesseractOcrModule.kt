@@ -29,6 +29,16 @@ private const val MIN_MODEL_BYTES = 500_000L
 private const val MAX_MODEL_BYTES = 30_000_000L
 private const val MAX_IMAGE_PIXELS = 12_000_000L
 
+private enum class HebrewOcrPageSegmentationMode(
+  val id: String,
+  val tesseractMode: Int
+) {
+  AUTO("auto", TessBaseAPI.PageSegMode.PSM_AUTO),
+  SINGLE_COLUMN("single_column", TessBaseAPI.PageSegMode.PSM_SINGLE_COLUMN),
+  SINGLE_BLOCK("single_block", TessBaseAPI.PageSegMode.PSM_SINGLE_BLOCK),
+  SPARSE_TEXT("sparse_text", TessBaseAPI.PageSegMode.PSM_SPARSE_TEXT)
+}
+
 class TesseractOcrModule : Module() {
   private val context: Context
     get() = appContext.reactContext ?: throw Exceptions.ReactContextLost()
@@ -90,8 +100,8 @@ class TesseractOcrModule : Module() {
       }
     }
 
-    AsyncFunction("recognizeAsync") Coroutine { uriString: String ->
-      recognize(uriString)
+    AsyncFunction("recognizeAsync") Coroutine { uriString: String, pageSegmentationMode: String ->
+      recognize(uriString, parsePageSegmentationMode(pageSegmentationMode))
     }
   }
 
@@ -102,6 +112,16 @@ class TesseractOcrModule : Module() {
   private fun modelFile(): File = File(File(bestModelRoot(), "tessdata"), HEBREW_MODEL_FILENAME)
 
   private fun legacyFastModelFile(): File = File(File(tesseractRoot(), "tessdata"), HEBREW_MODEL_FILENAME)
+
+  private fun parsePageSegmentationMode(value: String): HebrewOcrPageSegmentationMode {
+    return when (value) {
+      HebrewOcrPageSegmentationMode.AUTO.id -> HebrewOcrPageSegmentationMode.AUTO
+      HebrewOcrPageSegmentationMode.SINGLE_COLUMN.id -> HebrewOcrPageSegmentationMode.SINGLE_COLUMN
+      HebrewOcrPageSegmentationMode.SINGLE_BLOCK.id -> HebrewOcrPageSegmentationMode.SINGLE_BLOCK
+      HebrewOcrPageSegmentationMode.SPARSE_TEXT.id -> HebrewOcrPageSegmentationMode.SPARSE_TEXT
+      else -> throw IllegalArgumentException("Unsupported Hebrew OCR page segmentation mode.")
+    }
+  }
 
   private fun isModelInstalled(): Boolean {
     val model = modelFile()
@@ -295,7 +315,10 @@ class TesseractOcrModule : Module() {
     throw IllegalArgumentException("Only local file and content image URIs are supported.")
   }
 
-  private fun recognize(uriString: String): Map<String, Any> {
+  private fun recognize(
+    uriString: String,
+    pageSegmentationMode: HebrewOcrPageSegmentationMode
+  ): Map<String, Any> {
     val model = modelFile()
     if (!isModelInstalled()) {
       throw IllegalStateException("The Hebrew OCR model is not installed.")
@@ -311,13 +334,14 @@ class TesseractOcrModule : Module() {
         throw IllegalStateException("Tesseract failed to initialize the Hebrew language model.")
       }
 
-      tesseract.setPageSegMode(TessBaseAPI.PageSegMode.PSM_AUTO)
+      tesseract.setPageSegMode(pageSegmentationMode.tesseractMode)
       tesseract.setVariable("preserve_interword_spaces", "1")
       tesseract.setImage(bitmap)
 
       val text = tesseract.getUTF8Text().orEmpty()
       val elapsedMs = SystemClock.elapsedRealtime() - startedAt
       return mapOf(
+        "pageSegmentationMode" to pageSegmentationMode.id,
         "modelBytes" to model.length(),
         "text" to text,
         "elapsedMs" to elapsedMs,

@@ -19,7 +19,14 @@ export type HebrewModelDownloadResult = {
   bytes: number;
 };
 
+export type HebrewOcrPageSegmentationMode =
+  | "auto"
+  | "single_column"
+  | "single_block"
+  | "sparse_text";
+
 export type HebrewOcrResult = {
+  pageSegmentationMode: HebrewOcrPageSegmentationMode;
   modelBytes: number;
   text: string;
   elapsedMs: number;
@@ -32,7 +39,7 @@ type TesseractOcrNativeModule = {
   isModelInstalledAsync(): Promise<HebrewModelStatus>;
   downloadHebrewModelAsync(): Promise<HebrewModelDownloadResult>;
   pickImageAsync(): Promise<PickedImage>;
-  recognizeAsync(uri: string): Promise<HebrewOcrResult>;
+  recognizeAsync(uri: string, pageSegmentationMode: HebrewOcrPageSegmentationMode): Promise<HebrewOcrResult>;
 };
 
 export default requireNativeModule<TesseractOcrNativeModule>("TesseractOcr");
