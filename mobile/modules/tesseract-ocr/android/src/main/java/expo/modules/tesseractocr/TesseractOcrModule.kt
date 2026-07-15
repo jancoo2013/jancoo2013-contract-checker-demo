@@ -23,18 +23,11 @@ import java.net.URL
 private const val PICK_IMAGE_REQUEST_CODE = 7412
 private const val HEBREW_LANGUAGE = "heb"
 private const val HEBREW_MODEL_FILENAME = "heb.traineddata"
-private const val HEBREW_FAST_MODEL_URL =
-  "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/main/heb.traineddata"
 private const val HEBREW_BEST_MODEL_URL =
   "https://raw.githubusercontent.com/tesseract-ocr/tessdata_best/main/heb.traineddata"
 private const val MIN_MODEL_BYTES = 500_000L
 private const val MAX_MODEL_BYTES = 30_000_000L
 private const val MAX_IMAGE_PIXELS = 12_000_000L
-
-private enum class HebrewModelVariant(val id: String, val url: String) {
-  FAST("fast", HEBREW_FAST_MODEL_URL),
-  BEST("best", HEBREW_BEST_MODEL_URL)
-}
 
 class TesseractOcrModule : Module() {
   private val context: Context
@@ -45,12 +38,12 @@ class TesseractOcrModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("TesseractOcr")
 
-    AsyncFunction("isModelInstalledAsync") { variant: String ->
-      modelStatus(parseModelVariant(variant))
+    AsyncFunction("isModelInstalledAsync") {
+      modelStatus()
     }
 
-    AsyncFunction("downloadHebrewModelAsync") Coroutine { variant: String ->
-      downloadHebrewModel(parseModelVariant(variant))
+    AsyncFunction("downloadHebrewModelAsync") Coroutine { ->
+      downloadHebrewModel()
     }
 
     AsyncFunction("pickImageAsync") { promise: Promise ->
@@ -97,51 +90,38 @@ class TesseractOcrModule : Module() {
       }
     }
 
-    AsyncFunction("recognizeAsync") Coroutine { uriString: String, variant: String ->
-      recognize(uriString, parseModelVariant(variant))
+    AsyncFunction("recognizeAsync") Coroutine { uriString: String ->
+      recognize(uriString)
     }
   }
 
   private fun tesseractRoot(): File = File(context.filesDir, "tesseract")
 
-  private fun modelRoot(variant: HebrewModelVariant): File {
-    return when (variant) {
-      HebrewModelVariant.FAST -> tesseractRoot()
-      HebrewModelVariant.BEST -> File(tesseractRoot(), "best")
-    }
-  }
+  private fun bestModelRoot(): File = File(tesseractRoot(), "best")
 
-  private fun modelFile(variant: HebrewModelVariant): File =
-    File(File(modelRoot(variant), "tessdata"), HEBREW_MODEL_FILENAME)
+  private fun modelFile(): File = File(File(bestModelRoot(), "tessdata"), HEBREW_MODEL_FILENAME)
 
-  private fun parseModelVariant(value: String): HebrewModelVariant {
-    return when (value) {
-      HebrewModelVariant.FAST.id -> HebrewModelVariant.FAST
-      HebrewModelVariant.BEST.id -> HebrewModelVariant.BEST
-      else -> throw IllegalArgumentException("Unsupported Hebrew OCR model variant.")
-    }
-  }
+  private fun legacyFastModelFile(): File = File(File(tesseractRoot(), "tessdata"), HEBREW_MODEL_FILENAME)
 
-  private fun isModelInstalled(variant: HebrewModelVariant): Boolean {
-    val model = modelFile(variant)
+  private fun isModelInstalled(): Boolean {
+    val model = modelFile()
     return model.isFile && model.length() in MIN_MODEL_BYTES..MAX_MODEL_BYTES
   }
 
-  private fun modelStatus(variant: HebrewModelVariant): Map<String, Any> {
-    val model = modelFile(variant)
-    val installed = isModelInstalled(variant)
+  private fun modelStatus(): Map<String, Any> {
+    val model = modelFile()
+    val installed = isModelInstalled()
     return mapOf(
-      "variant" to variant.id,
       "installed" to installed,
       "bytes" to if (model.isFile) model.length() else 0L
     )
   }
 
-  private fun downloadHebrewModel(variant: HebrewModelVariant): Map<String, Any> {
-    val target = modelFile(variant)
-    if (isModelInstalled(variant)) {
+  private fun downloadHebrewModel(): Map<String, Any> {
+    val target = modelFile()
+    if (isModelInstalled()) {
+      deleteLegacyFastModel()
       return mapOf(
-        "variant" to variant.id,
         "installed" to true,
         "downloaded" to false,
         "bytes" to target.length()
@@ -149,10 +129,10 @@ class TesseractOcrModule : Module() {
     }
 
     target.parentFile?.mkdirs()
-    val temporary = File(target.parentFile, "${HEBREW_MODEL_FILENAME}.${variant.id}.part")
+    val temporary = File(target.parentFile, "$HEBREW_MODEL_FILENAME.best.part")
     temporary.delete()
 
-    val connection = URL(variant.url).openConnection() as HttpURLConnection
+    val connection = URL(HEBREW_BEST_MODEL_URL).openConnection() as HttpURLConnection
     connection.requestMethod = "GET"
     connection.instanceFollowRedirects = true
     connection.connectTimeout = 15_000
@@ -177,9 +157,9 @@ class TesseractOcrModule : Module() {
       }
 
       replaceModelFile(temporary, target)
+      deleteLegacyFastModel()
 
       return mapOf(
-        "variant" to variant.id,
         "installed" to true,
         "downloaded" to true,
         "bytes" to target.length()
@@ -189,6 +169,13 @@ class TesseractOcrModule : Module() {
       if (temporary.exists() && !target.exists()) {
         temporary.delete()
       }
+    }
+  }
+
+  private fun deleteLegacyFastModel() {
+    val legacy = legacyFastModelFile()
+    if (legacy.isFile) {
+      legacy.delete()
     }
   }
 
@@ -308,9 +295,9 @@ class TesseractOcrModule : Module() {
     throw IllegalArgumentException("Only local file and content image URIs are supported.")
   }
 
-  private fun recognize(uriString: String, variant: HebrewModelVariant): Map<String, Any> {
-    val model = modelFile(variant)
-    if (!isModelInstalled(variant)) {
+  private fun recognize(uriString: String): Map<String, Any> {
+    val model = modelFile()
+    if (!isModelInstalled()) {
       throw IllegalStateException("The Hebrew OCR model is not installed.")
     }
 
@@ -320,7 +307,7 @@ class TesseractOcrModule : Module() {
     val tesseract = TessBaseAPI()
 
     try {
-      if (!tesseract.init(modelRoot(variant).absolutePath, HEBREW_LANGUAGE)) {
+      if (!tesseract.init(bestModelRoot().absolutePath, HEBREW_LANGUAGE)) {
         throw IllegalStateException("Tesseract failed to initialize the Hebrew language model.")
       }
 
@@ -331,8 +318,6 @@ class TesseractOcrModule : Module() {
       val text = tesseract.getUTF8Text().orEmpty()
       val elapsedMs = SystemClock.elapsedRealtime() - startedAt
       return mapOf(
-        "variant" to variant.id,
-        "modelInstalled" to true,
         "modelBytes" to model.length(),
         "text" to text,
         "elapsedMs" to elapsedMs,
