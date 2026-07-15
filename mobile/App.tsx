@@ -1,5 +1,5 @@
 import { StatusBar } from "expo-status-bar";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Button,
   Image,
@@ -11,10 +11,17 @@ import {
   View,
 } from "react-native";
 
+import TesseractOcr, {
+  HebrewOcrResult,
+  PickedImage,
+} from "./modules/tesseract-ocr";
+
 const SYNTHETIC_ASSET = require("./assets/synthetic-redacted-contract.png") as ImageSourcePropType;
 const SYNTHETIC_FILENAME = "synthetic_page.png";
 
 type RequestStatus = "idle" | "sending" | "success" | "error";
+type ModelStatus = "checking" | "missing" | "downloading" | "ready" | "error";
+type LocalOcrStatus = "idle" | "running" | "success" | "error";
 
 type BackendErrorEnvelope = {
   error?: {
@@ -48,6 +55,19 @@ type ResultState = {
   };
 };
 
+type SelectedImage = {
+  uri: string;
+  name?: string;
+  width?: number;
+  height?: number;
+};
+
+type LocalOcrState = {
+  status: LocalOcrStatus;
+  result?: HebrewOcrResult;
+  error?: string;
+};
+
 function resolveApiBaseUrl(): string {
   return (process.env.EXPO_PUBLIC_API_BASE_URL ?? "").trim().replace(/\/+$/, "");
 }
@@ -70,6 +90,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+function errorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  return String(error || "Unknown error");
 }
 
 function validateAnalyzeRedactedResponse(value: unknown): AnalyzeRedactedResponse {
@@ -151,6 +178,91 @@ async function postSyntheticPage(apiBaseUrl: string): Promise<AnalyzeRedactedRes
 export default function App() {
   const apiBaseUrl = useMemo(resolveApiBaseUrl, []);
   const [result, setResult] = useState<ResultState>({ status: "idle" });
+  const [modelStatus, setModelStatus] = useState<ModelStatus>("checking");
+  const [modelMessage, setModelMessage] = useState<string>("");
+  const [selectedImage, setSelectedImage] = useState<SelectedImage>();
+  const [localOcr, setLocalOcr] = useState<LocalOcrState>({ status: "idle" });
+
+  useEffect(() => {
+    let active = true;
+
+    void TesseractOcr.isModelInstalledAsync()
+      .then((installed) => {
+        if (!active) {
+          return;
+        }
+        setModelStatus(installed ? "ready" : "missing");
+        setModelMessage(installed ? "Hebrew model is installed on this device." : "Hebrew model is not installed yet.");
+      })
+      .catch((error: unknown) => {
+        if (!active) {
+          return;
+        }
+        setModelStatus("error");
+        setModelMessage(errorMessage(error));
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  async function handleDownloadModel() {
+    setModelStatus("downloading");
+    setModelMessage("Downloading the Hebrew OCR model. No contract image is uploaded.");
+
+    try {
+      const download = await TesseractOcr.downloadHebrewModelAsync();
+      setModelStatus("ready");
+      setModelMessage(
+        `${download.downloaded ? "Downloaded" : "Already installed"}: ${Math.round(download.bytes / 1024)} KB`,
+      );
+    } catch (error: unknown) {
+      setModelStatus("error");
+      setModelMessage(errorMessage(error));
+    }
+  }
+
+  async function handlePickImage() {
+    try {
+      const picked: PickedImage = await TesseractOcr.pickImageAsync();
+      if (picked.canceled) {
+        return;
+      }
+      if (!picked.uri) {
+        throw new Error("Android returned no image URI.");
+      }
+
+      setSelectedImage({
+        uri: picked.uri,
+        name: picked.name,
+        width: picked.width,
+        height: picked.height,
+      });
+      setLocalOcr({ status: "idle" });
+    } catch (error: unknown) {
+      setLocalOcr({ status: "error", error: errorMessage(error) });
+    }
+  }
+
+  async function handleRunLocalOcr() {
+    if (modelStatus !== "ready") {
+      setLocalOcr({ status: "error", error: "Install the Hebrew OCR model first." });
+      return;
+    }
+    if (!selectedImage) {
+      setLocalOcr({ status: "error", error: "Select one local contract image first." });
+      return;
+    }
+
+    setLocalOcr({ status: "running" });
+    try {
+      const ocrResult = await TesseractOcr.recognizeAsync(selectedImage.uri);
+      setLocalOcr({ status: "success", result: ocrResult });
+    } catch (error: unknown) {
+      setLocalOcr({ status: "error", error: errorMessage(error) });
+    }
+  }
 
   async function handleSend() {
     if (!apiBaseUrl) {
@@ -188,10 +300,75 @@ export default function App() {
     <SafeAreaView style={styles.screen}>
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Contract Checker Mobile Transport Test</Text>
+        <Text style={styles.title}>Android-only Tesseract OCR spike</Text>
         <Text style={styles.notice}>
-          Synthetic test asset only. No camera, gallery, or personal document access is used in this
-          build.
+          The selected image is copied into the app cache and processed locally on Android. The only network action in this spike is downloading the static Hebrew language model once.
+        </Text>
+
+        <View style={styles.section}>
+          <Text style={styles.label}>Hebrew model</Text>
+          <Text style={modelStatus === "error" ? styles.errorText : styles.value}>{modelStatus}</Text>
+          <Text style={modelStatus === "error" ? styles.errorText : styles.caption}>{modelMessage}</Text>
+          <Button
+            title={modelStatus === "downloading" ? "Downloading model..." : "Download Hebrew OCR model"}
+            onPress={handleDownloadModel}
+            disabled={modelStatus === "checking" || modelStatus === "downloading" || modelStatus === "ready"}
+          />
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.label}>Local input image</Text>
+          <Button title="Select one image from Android" onPress={handlePickImage} disabled={localOcr.status === "running"} />
+          {selectedImage ? (
+            <>
+              <Text style={styles.value}>{selectedImage.name ?? "selected image"}</Text>
+              <Text style={styles.caption}>
+                Source size: {selectedImage.width ?? "?"} × {selectedImage.height ?? "?"}
+              </Text>
+              <Image source={{ uri: selectedImage.uri }} style={styles.preview} resizeMode="contain" />
+            </>
+          ) : (
+            <Text style={styles.caption}>No image selected.</Text>
+          )}
+        </View>
+
+        <Button
+          title={localOcr.status === "running" ? "Recognizing locally..." : "Run Hebrew OCR on device"}
+          onPress={handleRunLocalOcr}
+          disabled={localOcr.status === "running" || modelStatus !== "ready" || !selectedImage}
+        />
+
+        <View style={styles.section}>
+          <Text style={styles.label}>Local OCR state</Text>
+          <Text style={localOcr.status === "error" ? styles.errorText : styles.value}>{localOcr.status}</Text>
+        </View>
+
+        {localOcr.status === "success" && localOcr.result ? (
+          <View style={styles.resultBox}>
+            <Text style={styles.resultTitle}>Raw Tesseract result</Text>
+            <Text style={styles.value}>elapsed: {localOcr.result.elapsedMs} ms</Text>
+            <Text style={styles.value}>mean confidence: {localOcr.result.meanConfidence}</Text>
+            <Text style={styles.value}>
+              decoded bitmap: {localOcr.result.width} × {localOcr.result.height}
+            </Text>
+            <Text selectable style={styles.ocrText}>
+              {localOcr.result.text || "(empty OCR result)"}
+            </Text>
+          </View>
+        ) : null}
+
+        {localOcr.status === "error" ? (
+          <View style={styles.errorBox}>
+            <Text style={styles.resultTitle}>Local OCR error</Text>
+            <Text style={styles.errorText}>{localOcr.error}</Text>
+          </View>
+        ) : null}
+
+        <View style={styles.divider} />
+
+        <Text style={styles.secondaryTitle}>Existing backend transport test</Text>
+        <Text style={styles.notice}>
+          This separate test still sends only the bundled synthetic redacted PNG. It never sends the locally selected OCR image.
         </Text>
 
         <View style={styles.section}>
@@ -266,6 +443,11 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: "700",
   },
+  secondaryTitle: {
+    color: "#111827",
+    fontSize: 21,
+    fontWeight: "700",
+  },
   notice: {
     color: "#334155",
     fontSize: 16,
@@ -298,6 +480,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     height: 260,
   },
+  divider: {
+    backgroundColor: "#cbd5e1",
+    height: 1,
+    marginVertical: 6,
+  },
   resultBox: {
     backgroundColor: "#ecfdf5",
     borderColor: "#10b981",
@@ -318,6 +505,20 @@ const styles = StyleSheet.create({
     color: "#111827",
     fontSize: 16,
     fontWeight: "700",
+  },
+  ocrText: {
+    backgroundColor: "#ffffff",
+    borderColor: "#a7f3d0",
+    borderRadius: 4,
+    borderWidth: 1,
+    color: "#111827",
+    fontSize: 16,
+    lineHeight: 24,
+    marginTop: 6,
+    minHeight: 120,
+    padding: 10,
+    textAlign: "right",
+    writingDirection: "rtl",
   },
   errorText: {
     color: "#b91c1c",

@@ -9,6 +9,9 @@
     ],
     "scheme": "contractcheckertransport",
     "userInterfaceStyle": "light",
+    "plugins": [
+      "./plugins/with-tesseract-jitpack"
+    ],
     "android": {
       "allowBackup": false,
       "blockedPermissions": [
