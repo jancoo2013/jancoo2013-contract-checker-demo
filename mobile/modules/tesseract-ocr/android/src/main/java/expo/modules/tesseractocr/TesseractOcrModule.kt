@@ -23,11 +23,18 @@ import java.net.URL
 private const val PICK_IMAGE_REQUEST_CODE = 7412
 private const val HEBREW_LANGUAGE = "heb"
 private const val HEBREW_MODEL_FILENAME = "heb.traineddata"
-private const val HEBREW_MODEL_URL =
+private const val HEBREW_FAST_MODEL_URL =
   "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/main/heb.traineddata"
+private const val HEBREW_BEST_MODEL_URL =
+  "https://raw.githubusercontent.com/tesseract-ocr/tessdata_best/main/heb.traineddata"
 private const val MIN_MODEL_BYTES = 500_000L
-private const val MAX_MODEL_BYTES = 5_000_000L
+private const val MAX_MODEL_BYTES = 30_000_000L
 private const val MAX_IMAGE_PIXELS = 12_000_000L
+
+private enum class HebrewModelVariant(val id: String, val url: String) {
+  FAST("fast", HEBREW_FAST_MODEL_URL),
+  BEST("best", HEBREW_BEST_MODEL_URL)
+}
 
 class TesseractOcrModule : Module() {
   private val context: Context
@@ -38,12 +45,12 @@ class TesseractOcrModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("TesseractOcr")
 
-    AsyncFunction("isModelInstalledAsync") {
-      isModelInstalled()
+    AsyncFunction("isModelInstalledAsync") { variant: String ->
+      modelStatus(parseModelVariant(variant))
     }
 
-    AsyncFunction("downloadHebrewModelAsync") Coroutine { ->
-      downloadHebrewModel()
+    AsyncFunction("downloadHebrewModelAsync") Coroutine { variant: String ->
+      downloadHebrewModel(parseModelVariant(variant))
     }
 
     AsyncFunction("pickImageAsync") { promise: Promise ->
@@ -90,24 +97,51 @@ class TesseractOcrModule : Module() {
       }
     }
 
-    AsyncFunction("recognizeAsync") Coroutine { uriString: String ->
-      recognize(uriString)
+    AsyncFunction("recognizeAsync") Coroutine { uriString: String, variant: String ->
+      recognize(uriString, parseModelVariant(variant))
     }
   }
 
   private fun tesseractRoot(): File = File(context.filesDir, "tesseract")
 
-  private fun modelFile(): File = File(File(tesseractRoot(), "tessdata"), HEBREW_MODEL_FILENAME)
+  private fun modelRoot(variant: HebrewModelVariant): File {
+    return when (variant) {
+      HebrewModelVariant.FAST -> tesseractRoot()
+      HebrewModelVariant.BEST -> File(tesseractRoot(), "best")
+    }
+  }
 
-  private fun isModelInstalled(): Boolean {
-    val model = modelFile()
+  private fun modelFile(variant: HebrewModelVariant): File =
+    File(File(modelRoot(variant), "tessdata"), HEBREW_MODEL_FILENAME)
+
+  private fun parseModelVariant(value: String): HebrewModelVariant {
+    return when (value) {
+      HebrewModelVariant.FAST.id -> HebrewModelVariant.FAST
+      HebrewModelVariant.BEST.id -> HebrewModelVariant.BEST
+      else -> throw IllegalArgumentException("Unsupported Hebrew OCR model variant.")
+    }
+  }
+
+  private fun isModelInstalled(variant: HebrewModelVariant): Boolean {
+    val model = modelFile(variant)
     return model.isFile && model.length() in MIN_MODEL_BYTES..MAX_MODEL_BYTES
   }
 
-  private fun downloadHebrewModel(): Map<String, Any> {
-    val target = modelFile()
-    if (isModelInstalled()) {
+  private fun modelStatus(variant: HebrewModelVariant): Map<String, Any> {
+    val model = modelFile(variant)
+    val installed = isModelInstalled(variant)
+    return mapOf(
+      "variant" to variant.id,
+      "installed" to installed,
+      "bytes" to if (model.isFile) model.length() else 0L
+    )
+  }
+
+  private fun downloadHebrewModel(variant: HebrewModelVariant): Map<String, Any> {
+    val target = modelFile(variant)
+    if (isModelInstalled(variant)) {
       return mapOf(
+        "variant" to variant.id,
         "installed" to true,
         "downloaded" to false,
         "bytes" to target.length()
@@ -115,10 +149,10 @@ class TesseractOcrModule : Module() {
     }
 
     target.parentFile?.mkdirs()
-    val temporary = File(target.parentFile, "$HEBREW_MODEL_FILENAME.part")
+    val temporary = File(target.parentFile, "${HEBREW_MODEL_FILENAME}.${variant.id}.part")
     temporary.delete()
 
-    val connection = URL(HEBREW_MODEL_URL).openConnection() as HttpURLConnection
+    val connection = URL(variant.url).openConnection() as HttpURLConnection
     connection.requestMethod = "GET"
     connection.instanceFollowRedirects = true
     connection.connectTimeout = 15_000
@@ -142,17 +176,10 @@ class TesseractOcrModule : Module() {
         throw IllegalStateException("Downloaded Hebrew OCR model has an unexpected size.")
       }
 
-      if (target.exists() && !target.delete()) {
-        temporary.delete()
-        throw IllegalStateException("Unable to replace the existing Hebrew OCR model.")
-      }
-
-      if (!temporary.renameTo(target)) {
-        temporary.copyTo(target, overwrite = true)
-        temporary.delete()
-      }
+      replaceModelFile(temporary, target)
 
       return mapOf(
+        "variant" to variant.id,
         "installed" to true,
         "downloaded" to true,
         "bytes" to target.length()
@@ -162,6 +189,33 @@ class TesseractOcrModule : Module() {
       if (temporary.exists() && !target.exists()) {
         temporary.delete()
       }
+    }
+  }
+
+  private fun replaceModelFile(temporary: File, target: File) {
+    val backup = File(target.parentFile, "${target.name}.backup")
+    backup.delete()
+
+    if (target.exists() && !target.renameTo(backup)) {
+      throw IllegalStateException("Unable to prepare the existing Hebrew OCR model for replacement.")
+    }
+
+    try {
+      if (!temporary.renameTo(target)) {
+        temporary.copyTo(target, overwrite = false)
+        temporary.delete()
+      }
+      if (backup.exists()) {
+        backup.delete()
+      }
+    } catch (error: Exception) {
+      if (target.exists()) {
+        target.delete()
+      }
+      if (backup.exists()) {
+        backup.renameTo(target)
+      }
+      throw error
     }
   }
 
@@ -254,8 +308,9 @@ class TesseractOcrModule : Module() {
     throw IllegalArgumentException("Only local file and content image URIs are supported.")
   }
 
-  private fun recognize(uriString: String): Map<String, Any> {
-    if (!isModelInstalled()) {
+  private fun recognize(uriString: String, variant: HebrewModelVariant): Map<String, Any> {
+    val model = modelFile(variant)
+    if (!isModelInstalled(variant)) {
       throw IllegalStateException("The Hebrew OCR model is not installed.")
     }
 
@@ -265,7 +320,7 @@ class TesseractOcrModule : Module() {
     val tesseract = TessBaseAPI()
 
     try {
-      if (!tesseract.init(tesseractRoot().absolutePath, HEBREW_LANGUAGE)) {
+      if (!tesseract.init(modelRoot(variant).absolutePath, HEBREW_LANGUAGE)) {
         throw IllegalStateException("Tesseract failed to initialize the Hebrew language model.")
       }
 
@@ -276,6 +331,9 @@ class TesseractOcrModule : Module() {
       val text = tesseract.getUTF8Text().orEmpty()
       val elapsedMs = SystemClock.elapsedRealtime() - startedAt
       return mapOf(
+        "variant" to variant.id,
+        "modelInstalled" to true,
+        "modelBytes" to model.length(),
         "text" to text,
         "elapsedMs" to elapsedMs,
         "meanConfidence" to tesseract.meanConfidence(),

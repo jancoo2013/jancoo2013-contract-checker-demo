@@ -8,13 +8,25 @@ export type PickedImage = {
   height?: number;
 };
 
+export type HebrewModelVariant = "fast" | "best";
+
+export type HebrewModelStatus = {
+  variant: HebrewModelVariant;
+  installed: boolean;
+  bytes: number;
+};
+
 export type HebrewModelDownloadResult = {
+  variant: HebrewModelVariant;
   installed: boolean;
   downloaded: boolean;
   bytes: number;
 };
 
 export type HebrewOcrResult = {
+  variant: HebrewModelVariant;
+  modelInstalled: boolean;
+  modelBytes: number;
   text: string;
   elapsedMs: number;
   meanConfidence: number;
@@ -23,10 +35,10 @@ export type HebrewOcrResult = {
 };
 
 type TesseractOcrNativeModule = {
-  isModelInstalledAsync(): Promise<boolean>;
-  downloadHebrewModelAsync(): Promise<HebrewModelDownloadResult>;
+  isModelInstalledAsync(variant: HebrewModelVariant): Promise<HebrewModelStatus>;
+  downloadHebrewModelAsync(variant: HebrewModelVariant): Promise<HebrewModelDownloadResult>;
   pickImageAsync(): Promise<PickedImage>;
-  recognizeAsync(uri: string): Promise<HebrewOcrResult>;
+  recognizeAsync(uri: string, variant: HebrewModelVariant): Promise<HebrewOcrResult>;
 };
 
 export default requireNativeModule<TesseractOcrNativeModule>("TesseractOcr");

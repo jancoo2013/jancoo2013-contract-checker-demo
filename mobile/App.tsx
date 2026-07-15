@@ -12,12 +12,17 @@ import {
 } from "react-native";
 
 import TesseractOcr, {
+  HebrewModelVariant,
   HebrewOcrResult,
   PickedImage,
 } from "./modules/tesseract-ocr";
 
 const SYNTHETIC_ASSET = require("./assets/synthetic-redacted-contract.png") as ImageSourcePropType;
 const SYNTHETIC_FILENAME = "synthetic_page.png";
+const MODEL_VARIANTS: Array<{ variant: HebrewModelVariant; label: string }> = [
+  { variant: "fast", label: "Fast" },
+  { variant: "best", label: "Best" },
+];
 
 type RequestStatus = "idle" | "sending" | "success" | "error";
 type ModelStatus = "checking" | "missing" | "downloading" | "ready" | "error";
@@ -62,11 +67,47 @@ type SelectedImage = {
   height?: number;
 };
 
+type ModelState = {
+  status: ModelStatus;
+  message: string;
+  bytes?: number;
+};
+
 type LocalOcrState = {
   status: LocalOcrStatus;
   result?: HebrewOcrResult;
   error?: string;
 };
+
+type ModelStates = Record<HebrewModelVariant, ModelState>;
+type LocalOcrStates = Record<HebrewModelVariant, LocalOcrState>;
+
+function initialModelStates(): ModelStates {
+  return {
+    fast: { status: "checking", message: "" },
+    best: { status: "checking", message: "" },
+  };
+}
+
+function initialLocalOcrStates(): LocalOcrStates {
+  return {
+    fast: { status: "idle" },
+    best: { status: "idle" },
+  };
+}
+
+function modelLabel(variant: HebrewModelVariant): string {
+  return variant === "fast" ? "Fast" : "Best";
+}
+
+function formatBytes(bytes?: number): string {
+  if (!bytes) {
+    return "0 KB";
+  }
+  return bytes >= 1024 * 1024
+    ? `${(bytes / 1024 / 1024).toFixed(1)} MB`
+    : `${Math.round(bytes / 1024)} KB`;
+}
 
 function resolveApiBaseUrl(): string {
   return (process.env.EXPO_PUBLIC_API_BASE_URL ?? "").trim().replace(/\/+$/, "");
@@ -178,48 +219,82 @@ async function postSyntheticPage(apiBaseUrl: string): Promise<AnalyzeRedactedRes
 export default function App() {
   const apiBaseUrl = useMemo(resolveApiBaseUrl, []);
   const [result, setResult] = useState<ResultState>({ status: "idle" });
-  const [modelStatus, setModelStatus] = useState<ModelStatus>("checking");
-  const [modelMessage, setModelMessage] = useState<string>("");
+  const [modelStates, setModelStates] = useState<ModelStates>(initialModelStates);
+  const [selectedModelVariant, setSelectedModelVariant] = useState<HebrewModelVariant>("fast");
   const [selectedImage, setSelectedImage] = useState<SelectedImage>();
-  const [localOcr, setLocalOcr] = useState<LocalOcrState>({ status: "idle" });
+  const [localOcrByVariant, setLocalOcrByVariant] = useState<LocalOcrStates>(initialLocalOcrStates);
 
   useEffect(() => {
     let active = true;
 
-    void TesseractOcr.isModelInstalledAsync()
-      .then((installed) => {
-        if (!active) {
-          return;
-        }
-        setModelStatus(installed ? "ready" : "missing");
-        setModelMessage(installed ? "Hebrew model is installed on this device." : "Hebrew model is not installed yet.");
-      })
-      .catch((error: unknown) => {
-        if (!active) {
-          return;
-        }
-        setModelStatus("error");
-        setModelMessage(errorMessage(error));
-      });
+    for (const { variant } of MODEL_VARIANTS) {
+      void TesseractOcr.isModelInstalledAsync(variant)
+        .then((model) => {
+          if (!active) {
+            return;
+          }
+          setModelStates((current) => ({
+            ...current,
+            [variant]: {
+              status: model.installed ? "ready" : "missing",
+              bytes: model.bytes,
+              message: model.installed
+                ? `${modelLabel(variant)} Hebrew model is installed on this device.`
+                : `${modelLabel(variant)} Hebrew model is not installed yet.`,
+            },
+          }));
+        })
+        .catch((error: unknown) => {
+          if (!active) {
+            return;
+          }
+          setModelStates((current) => ({
+            ...current,
+            [variant]: {
+              ...current[variant],
+              status: "error",
+              message: errorMessage(error),
+            },
+          }));
+        });
+    }
 
     return () => {
       active = false;
     };
   }, []);
 
-  async function handleDownloadModel() {
-    setModelStatus("downloading");
-    setModelMessage("Downloading the Hebrew OCR model. No contract image is uploaded.");
+  async function handleDownloadModel(variant: HebrewModelVariant) {
+    setModelStates((current) => ({
+      ...current,
+      [variant]: {
+        ...current[variant],
+        status: "downloading",
+        message: `Downloading the ${modelLabel(variant)} Hebrew OCR model. No contract image is uploaded.`,
+      },
+    }));
 
     try {
-      const download = await TesseractOcr.downloadHebrewModelAsync();
-      setModelStatus("ready");
-      setModelMessage(
-        `${download.downloaded ? "Downloaded" : "Already installed"}: ${Math.round(download.bytes / 1024)} KB`,
-      );
+      const download = await TesseractOcr.downloadHebrewModelAsync(variant);
+      setModelStates((current) => ({
+        ...current,
+        [variant]: {
+          status: "ready",
+          bytes: download.bytes,
+          message: `${download.downloaded ? "Downloaded" : "Already installed"} ${modelLabel(
+            variant,
+          )}: ${formatBytes(download.bytes)}`,
+        },
+      }));
     } catch (error: unknown) {
-      setModelStatus("error");
-      setModelMessage(errorMessage(error));
+      setModelStates((current) => ({
+        ...current,
+        [variant]: {
+          ...current[variant],
+          status: "error",
+          message: errorMessage(error),
+        },
+      }));
     }
   }
 
@@ -239,28 +314,47 @@ export default function App() {
         width: picked.width,
         height: picked.height,
       });
-      setLocalOcr({ status: "idle" });
+      setLocalOcrByVariant(initialLocalOcrStates());
     } catch (error: unknown) {
-      setLocalOcr({ status: "error", error: errorMessage(error) });
+      setLocalOcrByVariant((current) => ({
+        ...current,
+        [selectedModelVariant]: { status: "error", error: errorMessage(error) },
+      }));
     }
   }
 
-  async function handleRunLocalOcr() {
-    if (modelStatus !== "ready") {
-      setLocalOcr({ status: "error", error: "Install the Hebrew OCR model first." });
+  async function handleRunLocalOcr(variant: HebrewModelVariant) {
+    const modelState = modelStates[variant];
+    if (modelState.status !== "ready") {
+      setLocalOcrByVariant((current) => ({
+        ...current,
+        [variant]: { status: "error", error: `Install the ${modelLabel(variant)} Hebrew OCR model first.` },
+      }));
       return;
     }
     if (!selectedImage) {
-      setLocalOcr({ status: "error", error: "Select one local contract image first." });
+      setLocalOcrByVariant((current) => ({
+        ...current,
+        [variant]: { status: "error", error: "Select one local contract image first." },
+      }));
       return;
     }
 
-    setLocalOcr({ status: "running" });
+    setLocalOcrByVariant((current) => ({
+      ...current,
+      [variant]: { status: "running" },
+    }));
     try {
-      const ocrResult = await TesseractOcr.recognizeAsync(selectedImage.uri);
-      setLocalOcr({ status: "success", result: ocrResult });
+      const ocrResult = await TesseractOcr.recognizeAsync(selectedImage.uri, variant);
+      setLocalOcrByVariant((current) => ({
+        ...current,
+        [variant]: { status: "success", result: ocrResult },
+      }));
     } catch (error: unknown) {
-      setLocalOcr({ status: "error", error: errorMessage(error) });
+      setLocalOcrByVariant((current) => ({
+        ...current,
+        [variant]: { status: "error", error: errorMessage(error) },
+      }));
     }
   }
 
@@ -295,6 +389,9 @@ export default function App() {
 
   const successResponse = result.status === "success" ? result.response : undefined;
   const warningCount = successResponse?.evidence_warnings.length ?? 0;
+  const selectedModelState = modelStates[selectedModelVariant];
+  const selectedOcrState = localOcrByVariant[selectedModelVariant];
+  const anyOcrRunning = MODEL_VARIANTS.some(({ variant }) => localOcrByVariant[variant].status === "running");
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -302,28 +399,37 @@ export default function App() {
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>Android-only Tesseract OCR spike</Text>
         <Text style={styles.notice}>
-          The selected image is copied into the app cache and processed locally on Android. The only network action in this spike is downloading the static Hebrew language model once.
+          The selected image is copied into the app cache and processed locally on Android. The only network action in this spike is downloading official Hebrew language models for local OCR comparison.
         </Text>
 
         <View style={styles.section}>
-          <Text style={styles.label}>Hebrew model</Text>
-          <Text style={modelStatus === "error" ? styles.errorText : styles.value}>{modelStatus}</Text>
-          <Text style={modelStatus === "error" ? styles.errorText : styles.caption}>{modelMessage}</Text>
-          <Button
-            title={modelStatus === "downloading" ? "Downloading model..." : "Download Hebrew OCR model"}
-            onPress={handleDownloadModel}
-            disabled={modelStatus === "checking" || modelStatus === "downloading" || modelStatus === "ready"}
-          />
+          <Text style={styles.label}>Hebrew models</Text>
+          {MODEL_VARIANTS.map(({ variant, label }) => {
+            const state = modelStates[variant];
+            return (
+              <View key={variant} style={styles.modelBox}>
+                <Text style={styles.resultTitle}>{label}</Text>
+                <Text style={state.status === "error" ? styles.errorText : styles.value}>status: {state.status}</Text>
+                <Text style={styles.value}>file size: {formatBytes(state.bytes)}</Text>
+                <Text style={state.status === "error" ? styles.errorText : styles.caption}>{state.message}</Text>
+                <Button
+                  title={state.status === "downloading" ? `Downloading ${label}...` : `Download ${label} model`}
+                  onPress={() => handleDownloadModel(variant)}
+                  disabled={state.status === "checking" || state.status === "downloading" || state.status === "ready"}
+                />
+              </View>
+            );
+          })}
         </View>
 
         <View style={styles.section}>
           <Text style={styles.label}>Local input image</Text>
-          <Button title="Select one image from Android" onPress={handlePickImage} disabled={localOcr.status === "running"} />
+          <Button title="Select one image from Android" onPress={handlePickImage} disabled={anyOcrRunning} />
           {selectedImage ? (
             <>
               <Text style={styles.value}>{selectedImage.name ?? "selected image"}</Text>
               <Text style={styles.caption}>
-                Source size: {selectedImage.width ?? "?"} × {selectedImage.height ?? "?"}
+                Source size: {selectedImage.width ?? "?"} x {selectedImage.height ?? "?"}
               </Text>
               <Image source={{ uri: selectedImage.uri }} style={styles.preview} resizeMode="contain" />
             </>
@@ -332,37 +438,62 @@ export default function App() {
           )}
         </View>
 
+        <View style={styles.section}>
+          <Text style={styles.label}>OCR model to run</Text>
+          <View style={styles.variantRow}>
+            {MODEL_VARIANTS.map(({ variant, label }) => (
+              <View key={variant} style={styles.variantButton}>
+                <Button
+                  title={selectedModelVariant === variant ? `${label} selected` : `Use ${label}`}
+                  onPress={() => setSelectedModelVariant(variant)}
+                  disabled={anyOcrRunning}
+                />
+              </View>
+            ))}
+          </View>
+          <Text style={selectedModelState.status === "error" ? styles.errorText : styles.caption}>
+            Selected model: {modelLabel(selectedModelVariant)}; status: {selectedModelState.status}; size:{" "}
+            {formatBytes(selectedModelState.bytes)}
+          </Text>
+        </View>
+
         <Button
-          title={localOcr.status === "running" ? "Recognizing locally..." : "Run Hebrew OCR on device"}
-          onPress={handleRunLocalOcr}
-          disabled={localOcr.status === "running" || modelStatus !== "ready" || !selectedImage}
+          title={
+            selectedOcrState.status === "running"
+              ? `Recognizing with ${modelLabel(selectedModelVariant)}...`
+              : `Run ${modelLabel(selectedModelVariant)} OCR on device`
+          }
+          onPress={() => handleRunLocalOcr(selectedModelVariant)}
+          disabled={selectedOcrState.status === "running" || selectedModelState.status !== "ready" || !selectedImage}
         />
 
         <View style={styles.section}>
-          <Text style={styles.label}>Local OCR state</Text>
-          <Text style={localOcr.status === "error" ? styles.errorText : styles.value}>{localOcr.status}</Text>
+          <Text style={styles.label}>Local OCR results</Text>
+          {MODEL_VARIANTS.map(({ variant, label }) => {
+            const state = localOcrByVariant[variant];
+            return (
+              <View key={variant} style={state.status === "error" ? styles.errorBox : styles.resultBox}>
+                <Text style={styles.resultTitle}>{label} raw Tesseract result</Text>
+                <Text style={state.status === "error" ? styles.errorText : styles.value}>state: {state.status}</Text>
+                {state.status === "success" && state.result ? (
+                  <>
+                    <Text style={styles.value}>model variant: {state.result.variant}</Text>
+                    <Text style={styles.value}>model file: {formatBytes(state.result.modelBytes)}</Text>
+                    <Text style={styles.value}>elapsed: {state.result.elapsedMs} ms</Text>
+                    <Text style={styles.value}>mean confidence: {state.result.meanConfidence}</Text>
+                    <Text style={styles.value}>
+                      decoded bitmap: {state.result.width} x {state.result.height}
+                    </Text>
+                    <Text selectable style={styles.ocrText}>
+                      {state.result.text || "(empty OCR result)"}
+                    </Text>
+                  </>
+                ) : null}
+                {state.status === "error" ? <Text style={styles.errorText}>{state.error}</Text> : null}
+              </View>
+            );
+          })}
         </View>
-
-        {localOcr.status === "success" && localOcr.result ? (
-          <View style={styles.resultBox}>
-            <Text style={styles.resultTitle}>Raw Tesseract result</Text>
-            <Text style={styles.value}>elapsed: {localOcr.result.elapsedMs} ms</Text>
-            <Text style={styles.value}>mean confidence: {localOcr.result.meanConfidence}</Text>
-            <Text style={styles.value}>
-              decoded bitmap: {localOcr.result.width} × {localOcr.result.height}
-            </Text>
-            <Text selectable style={styles.ocrText}>
-              {localOcr.result.text || "(empty OCR result)"}
-            </Text>
-          </View>
-        ) : null}
-
-        {localOcr.status === "error" ? (
-          <View style={styles.errorBox}>
-            <Text style={styles.resultTitle}>Local OCR error</Text>
-            <Text style={styles.errorText}>{localOcr.error}</Text>
-          </View>
-        ) : null}
 
         <View style={styles.divider} />
 
@@ -454,7 +585,22 @@ const styles = StyleSheet.create({
     lineHeight: 23,
   },
   section: {
+    gap: 8,
+  },
+  modelBox: {
+    backgroundColor: "#eef2ff",
+    borderColor: "#c7d2fe",
+    borderRadius: 6,
+    borderWidth: 1,
     gap: 6,
+    padding: 12,
+  },
+  variantRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  variantButton: {
+    flex: 1,
   },
   label: {
     color: "#475569",

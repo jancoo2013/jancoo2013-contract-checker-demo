@@ -13,11 +13,16 @@ The spike uses a local Expo native module backed by Tesseract4Android. It can:
 
 - open the Android system document picker for one image;
 - copy the selected image into the app cache;
-- download the static `tessdata_fast` Hebrew model once;
+- download the official `tessdata_fast` and `tessdata_best` Hebrew models separately;
 - run Hebrew OCR locally on the Android device;
-- display raw text, elapsed time, decoded bitmap size, and Tesseract mean confidence.
+- display raw text, elapsed time, decoded bitmap size, Tesseract mean confidence, selected model variant, and model file size.
 
-The contract image is not uploaded. The only network operation in this spike is the explicit one-time download of `heb.traineddata` from the official `tesseract-ocr/tessdata_fast` GitHub repository.
+The contract image is not uploaded. OCR output is not uploaded. The only network operations in this spike are explicit model downloads from the official Tesseract repositories:
+
+- Fast: `https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/main/heb.traineddata`
+- Best: `https://raw.githubusercontent.com/tesseract-ocr/tessdata_best/main/heb.traineddata`
+
+The two models are stored independently on device. The Fast model keeps compatibility with the original legacy path used by the first Android OCR spike, so an already downloaded Fast model should not need to be downloaded again.
 
 This is an OCR feasibility test, not a privacy gate or legal-analysis implementation. It does not yet:
 
@@ -26,6 +31,8 @@ This is an OCR feasibility test, not a privacy gate or legal-analysis implementa
 - guarantee reading order for RTL legal documents;
 - verify OCR text against a gold transcription;
 - send locally selected images or OCR output to any backend.
+
+The Fast versus Best comparison is not a legal-quality benchmark. There is no gold transcription yet, so the comparison is manual and observational.
 
 ## Requirements
 
@@ -59,13 +66,29 @@ Native module changes require rebuilding the Android app; restarting Metro alone
 ## Test local Hebrew OCR
 
 1. Open the app on Android.
-2. Tap `Download Hebrew OCR model` and wait for the status to become `ready`.
+2. Download both `Fast` and `Best` models and wait for both statuses to become `ready`.
 3. Tap `Select one image from Android`.
-4. Select one JPG or PNG page.
-5. Tap `Run Hebrew OCR on device`.
-6. Inspect the raw Hebrew text, elapsed time, mean confidence, and decoded bitmap dimensions.
+4. Select one clean Hebrew rental-contract page.
+5. Select `Fast` and tap `Run Fast OCR on device`.
+6. Select `Best` and tap `Run Best OCR on device` without reselecting the image.
+7. Compare the two raw outputs on the same selected image.
 
 For the first run, use a clean test page without filled personal details. The spike keeps the selected image in app-local cache, but PII detection and redaction have not been implemented yet.
+
+Record these metrics and observations for each model:
+
+- model variant;
+- downloaded model file size;
+- elapsed time;
+- mean confidence;
+- decoded bitmap width and height;
+- raw OCR text;
+- word spacing and merged Hebrew words;
+- clause numbering quality;
+- reading order in headers and party details;
+- mixed Hebrew/Latin text, for example `As-Is`.
+
+After running both models, restart the app and verify that both installation states and file sizes are still shown correctly. The same image should be reused for the Fast and Best runs within one app session.
 
 ## Configure backend transport URL
 
