@@ -65,7 +65,13 @@ Work in this order:
 6. Compare with the fixed baseline on the same gold set.
 7. Consider Android export only after a measurable feasibility result.
 
-The active work item in this PR is step 1. It does not train a model and does not change application runtime behavior.
+Current state:
+
+- step 1 is implemented by the deterministic synthetic-line generator;
+- step 2 exists locally as the 170-row silver archive and remains explicitly silver;
+- step 3 is the active work item: build a stratified review pack and obtain exact human verification from a Hebrew-capable reviewer.
+
+The review-pack collector does not turn teacher labels into gold. A row becomes gold only after the reviewer marks its exact transcription as approved or corrected. This work does not train a model and does not change application runtime behavior.
 
 ## Evaluation gates
 

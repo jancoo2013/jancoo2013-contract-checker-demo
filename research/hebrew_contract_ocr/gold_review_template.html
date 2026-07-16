@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gold Set v0 — Hebrew line review</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Arial, sans-serif;
+      background: #eef1f5;
+      color: #18202a;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    button, input, textarea, select { font: inherit; }
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      padding: 12px 18px;
+      background: #ffffff;
+      border-bottom: 1px solid #c9d1dc;
+    }
+    header h1 { margin: 0 16px 0 0; font-size: 20px; }
+    header label { display: flex; gap: 8px; align-items: center; }
+    header input, header select { padding: 8px; border: 1px solid #aeb9c7; border-radius: 6px; }
+    header button { padding: 8px 12px; }
+    #progress { font-weight: 700; margin-left: auto; }
+    main {
+      max-width: 1500px;
+      margin: 18px auto;
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(360px, 0.8fr);
+      gap: 18px;
+      padding: 0 18px 30px;
+    }
+    .card { background: #fff; border: 1px solid #c9d1dc; border-radius: 10px; padding: 16px; }
+    .meta { color: #526173; margin-bottom: 12px; }
+    .image-panel { background: #dce1e8; padding: 14px; border-radius: 8px; margin-bottom: 14px; overflow: auto; }
+    .image-panel h2 { margin: 0 0 8px; font-size: 16px; }
+    .image-panel img { display: block; max-width: none; margin: 0 auto; background: #fff; }
+    #cropImage { min-height: 60px; }
+    #contextImage { max-width: 100%; height: auto; }
+    .preliminary { direction: rtl; text-align: right; background: #f3f5f8; padding: 12px; border-radius: 6px; font-size: 20px; }
+    textarea { width: 100%; min-height: 150px; padding: 12px; border: 1px solid #aeb9c7; border-radius: 7px; }
+    #finalText { direction: rtl; text-align: right; font-size: 24px; line-height: 1.5; }
+    .field { margin-bottom: 16px; }
+    .field label { display: block; margin-bottom: 6px; font-weight: 700; }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0; }
+    button { cursor: pointer; border: 0; border-radius: 7px; background: #e2e7ed; padding: 10px 14px; }
+    button.primary { background: #2468ad; color: white; }
+    button.corrected { background: #8a5a00; color: white; }
+    button.exclude { background: #a3342e; color: white; }
+    button:disabled { cursor: default; opacity: 0.45; }
+    .status { padding: 10px; border-radius: 6px; background: #f3f5f8; font-weight: 700; }
+    .help { color: #526173; font-size: 14px; line-height: 1.45; }
+    .downloads { border-top: 1px solid #d5dbe3; margin-top: 18px; padding-top: 14px; }
+    @media (max-width: 980px) {
+      main { grid-template-columns: 1fr; }
+      #progress { margin-left: 0; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Gold Set v0 — בדיקת תמלול</h1>
+    <button id="previousButton">← Previous</button>
+    <label>Position <input id="positionInput" type="number" min="1" value="1" style="width: 82px"></label>
+    <button id="nextButton">Next →</button>
+    <label>Show
+      <select id="filterSelect">
+        <option value="all">all</option>
+        <option value="pending">pending</option>
+        <option value="accepted">approved/corrected</option>
+        <option value="excluded">excluded</option>
+      </select>
+    </label>
+    <label>Reviewer <input id="reviewerInput" placeholder="name or initials"></label>
+    <span id="progress"></span>
+  </header>
+
+  <main>
+    <section class="card">
+      <div id="meta" class="meta"></div>
+      <div class="image-panel">
+        <h2>Target crop / קטע לבדיקה</h2>
+        <img id="cropImage" alt="Target line crop">
+      </div>
+      <div class="image-panel">
+        <h2>Page context / הקשר בעמוד</h2>
+        <img id="contextImage" alt="Page context with the target line outlined in red">
+      </div>
+      <h2>Preliminary transcription / תמלול ראשוני</h2>
+      <div id="preliminaryText" class="preliminary"></div>
+    </section>
+
+    <section class="card">
+      <div class="field">
+        <label for="finalText">Exact printed text / הטקסט המדויק</label>
+        <textarea id="finalText" spellcheck="false"></textarea>
+      </div>
+      <div class="field">
+        <label for="notes">Notes (optional) / הערות</label>
+        <textarea id="notes" style="min-height: 85px"></textarea>
+      </div>
+      <div class="actions">
+        <button id="approveButton" class="primary">Correct / נכון</button>
+        <button id="correctButton" class="corrected">Save correction / שמור תיקון</button>
+        <button id="excludeButton" class="exclude">Exclude / לא קריא</button>
+      </div>
+      <div id="status" class="status"></div>
+      <p class="help">
+        Verify characters and punctuation against the image. Do not improve grammar or wording.
+        If even one character is genuinely ambiguous, exclude the row instead of guessing.
+      </p>
+      <p class="help">
+        Ctrl+Enter: correct · Ctrl+Shift+Enter: corrected · Ctrl+Shift+X: exclude · Alt+←/→: navigation
+      </p>
+
+      <div class="downloads">
+        <h2>Export</h2>
+        <div class="actions">
+          <button id="downloadAcceptedButton" class="primary">Download accepted gold JSONL</button>
+          <button id="downloadAllButton">Download full review JSONL</button>
+          <button id="importButton">Import previous review JSONL</button>
+          <input id="importInput" type="file" accept=".jsonl,.txt" hidden>
+        </div>
+        <p class="help">Work is also saved locally in this browser. The accepted export contains only approved and corrected rows.</p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const ITEMS = __GOLD_ITEMS_JSON__;
+    const PACK_ID = __GOLD_PACK_ID__;
+    const STORAGE_KEY = `hebrew-contract-gold-set-v0-review:${PACK_ID}`;
+    const REVIEWER_KEY = `${STORAGE_KEY}:reviewer`;
+    let reviews = loadReviews();
+    let visibleIndices = [];
+    let visiblePosition = 0;
+
+    const elements = {
+      previous: document.getElementById("previousButton"),
+      next: document.getElementById("nextButton"),
+      position: document.getElementById("positionInput"),
+      filter: document.getElementById("filterSelect"),
+      reviewer: document.getElementById("reviewerInput"),
+      progress: document.getElementById("progress"),
+      meta: document.getElementById("meta"),
+      crop: document.getElementById("cropImage"),
+      context: document.getElementById("contextImage"),
+      preliminary: document.getElementById("preliminaryText"),
+      finalText: document.getElementById("finalText"),
+      notes: document.getElementById("notes"),
+      status: document.getElementById("status"),
+      approve: document.getElementById("approveButton"),
+      correct: document.getElementById("correctButton"),
+      exclude: document.getElementById("excludeButton"),
+      downloadAccepted: document.getElementById("downloadAcceptedButton"),
+      downloadAll: document.getElementById("downloadAllButton"),
+      importButton: document.getElementById("importButton"),
+      importInput: document.getElementById("importInput")
+    };
+
+    elements.reviewer.value = localStorage.getItem(REVIEWER_KEY) || "";
+
+    function loadReviews() {
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }
+      catch (_) { return {}; }
+    }
+
+    function saveReviews() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(reviews));
+      localStorage.setItem(REVIEWER_KEY, elements.reviewer.value.trim());
+    }
+
+    function reviewFor(item) {
+      return reviews[item.gold_id] || {
+        review_status: "pending",
+        text: item.preliminary_text,
+        reviewer_notes: "",
+        reviewed_at: null
+      };
+    }
+
+    function rowFor(item) {
+      const review = reviewFor(item);
+      return {
+        ...item,
+        review_status: review.review_status,
+        text: review.text,
+        reviewer_notes: review.reviewer_notes,
+        reviewer: elements.reviewer.value.trim(),
+        reviewed_at: review.reviewed_at
+      };
+    }
+
+    function matchesFilter(item) {
+      const status = reviewFor(item).review_status;
+      if (elements.filter.value === "pending") return status === "pending";
+      if (elements.filter.value === "accepted") return status === "approved" || status === "corrected";
+      if (elements.filter.value === "excluded") return status === "excluded";
+      return true;
+    }
+
+    function rebuildVisible(keepGoldId = null) {
+      visibleIndices = ITEMS.map((_, index) => index).filter(index => matchesFilter(ITEMS[index]));
+      if (keepGoldId) {
+        const found = visibleIndices.findIndex(index => ITEMS[index].gold_id === keepGoldId);
+        if (found >= 0) visiblePosition = found;
+      }
+      visiblePosition = Math.max(0, Math.min(visiblePosition, Math.max(0, visibleIndices.length - 1)));
+      render();
+    }
+
+    function currentItem() {
+      return visibleIndices.length ? ITEMS[visibleIndices[visiblePosition]] : null;
+    }
+
+    function render() {
+      const approvedCount = ITEMS.filter(item => ["approved", "corrected"].includes(reviewFor(item).review_status)).length;
+      const excludedCount = ITEMS.filter(item => reviewFor(item).review_status === "excluded").length;
+      elements.progress.textContent = `Accepted ${approvedCount}/${ITEMS.length} · Excluded ${excludedCount}`;
+      const item = currentItem();
+      const disabled = !item;
+      [elements.previous, elements.next, elements.approve, elements.correct, elements.exclude].forEach(button => button.disabled = disabled);
+      if (!item) {
+        elements.meta.textContent = "No rows match the selected filter.";
+        elements.crop.removeAttribute("src");
+        elements.context.removeAttribute("src");
+        elements.preliminary.textContent = "";
+        elements.finalText.value = "";
+        elements.notes.value = "";
+        elements.status.textContent = "";
+        elements.position.value = 0;
+        return;
+      }
+      const review = reviewFor(item);
+      elements.position.max = visibleIndices.length;
+      elements.position.value = visiblePosition + 1;
+      elements.meta.textContent = `${item.gold_id} · page ${item.page}, line ${item.line} · ${item.selection_category}`;
+      elements.crop.src = item.review_crop;
+      elements.context.src = item.context_image;
+      elements.preliminary.textContent = item.preliminary_text;
+      elements.finalText.value = review.text;
+      elements.notes.value = review.reviewer_notes;
+      elements.status.textContent = `Status: ${review.review_status}`;
+      elements.previous.disabled = visiblePosition === 0;
+      elements.next.disabled = visiblePosition >= visibleIndices.length - 1;
+    }
+
+    function storeCurrent(status, moveNext = true) {
+      const item = currentItem();
+      if (!item) return;
+      const text = elements.finalText.value.trim();
+      if (status !== "excluded" && !text) {
+        alert("Exact text cannot be empty. Exclude the row if it is unreadable.");
+        return;
+      }
+      if (status === "approved" && text !== item.preliminary_text) {
+        status = "corrected";
+      }
+      reviews[item.gold_id] = {
+        review_status: status,
+        text,
+        reviewer_notes: elements.notes.value.trim(),
+        reviewed_at: new Date().toISOString()
+      };
+      saveReviews();
+      const oldGoldId = item.gold_id;
+      if (moveNext && visiblePosition < visibleIndices.length - 1) visiblePosition += 1;
+      if (elements.filter.value !== "all") rebuildVisible(oldGoldId);
+      else render();
+    }
+
+    function move(delta) {
+      visiblePosition = Math.max(0, Math.min(visiblePosition + delta, visibleIndices.length - 1));
+      render();
+    }
+
+    function download(name, rows) {
+      const payload = rows.map(row => JSON.stringify(row)).join("\n") + (rows.length ? "\n" : "");
+      const url = URL.createObjectURL(new Blob([payload], {type: "application/x-ndjson;charset=utf-8"}));
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = name;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    }
+
+    elements.previous.addEventListener("click", () => move(-1));
+    elements.next.addEventListener("click", () => move(1));
+    elements.position.addEventListener("change", () => {
+      visiblePosition = Math.max(0, Math.min(Number(elements.position.value) - 1, visibleIndices.length - 1));
+      render();
+    });
+    elements.filter.addEventListener("change", () => { visiblePosition = 0; rebuildVisible(); });
+    elements.reviewer.addEventListener("change", saveReviews);
+    elements.approve.addEventListener("click", () => storeCurrent("approved"));
+    elements.correct.addEventListener("click", () => storeCurrent("corrected"));
+    elements.exclude.addEventListener("click", () => storeCurrent("excluded"));
+    elements.downloadAccepted.addEventListener("click", () => {
+      saveReviews();
+      download("gold_accepted_v0.jsonl", ITEMS.map(rowFor).filter(row => ["approved", "corrected"].includes(row.review_status)));
+    });
+    elements.downloadAll.addEventListener("click", () => {
+      saveReviews();
+      download("gold_review_all_v0.jsonl", ITEMS.map(rowFor));
+    });
+    elements.importButton.addEventListener("click", () => elements.importInput.click());
+    elements.importInput.addEventListener("change", async () => {
+      const file = elements.importInput.files[0];
+      if (!file) return;
+      const imported = {};
+      for (const line of (await file.text()).split(/\r?\n/)) {
+        if (!line.trim()) continue;
+        const row = JSON.parse(line);
+        if (!row.gold_id) throw new Error("Imported row is missing gold_id");
+        imported[row.gold_id] = {
+          review_status: row.review_status || "pending",
+          text: row.text || row.preliminary_text || "",
+          reviewer_notes: row.reviewer_notes || "",
+          reviewed_at: row.reviewed_at || null
+        };
+        if (row.reviewer && !elements.reviewer.value) elements.reviewer.value = row.reviewer;
+      }
+      reviews = {...reviews, ...imported};
+      saveReviews();
+      rebuildVisible();
+    });
+    document.addEventListener("keydown", event => {
+      if (event.ctrlKey && event.shiftKey && event.key === "Enter") { event.preventDefault(); storeCurrent("corrected"); }
+      else if (event.ctrlKey && event.key === "Enter") { event.preventDefault(); storeCurrent("approved"); }
+      else if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === "x") { event.preventDefault(); storeCurrent("excluded"); }
+      else if (event.altKey && event.key === "ArrowLeft") { event.preventDefault(); move(-1); }
+      else if (event.altKey && event.key === "ArrowRight") { event.preventDefault(); move(1); }
+    });
+
+    rebuildVisible();
+  </script>
+</body>
+</html>
