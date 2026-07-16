@@ -62,3 +62,31 @@ generated/mixed_v0/
 Each manifest row contains the exact logical Unicode target text, the train/validation split, the template or local-corpus source, the font path, a per-sample seed, and all degradation parameters. The same seed, fonts, arguments, and dependency versions produce the same files.
 
 This generator creates training data; it does not measure OCR quality. Quality is measured separately as exact CER on a fixed real gold test set that is never used for training.
+
+## Build the Gold Set v0 review pack
+
+The existing silver archive is not a real accuracy benchmark until a Hebrew-capable person checks the exact characters. Build a local, stratified review package from that archive:
+
+```bash
+python -m research.hebrew_contract_ocr.build_gold_review_pack \
+  --dataset-dir /local/path/hebrew_contract_lines_v0 \
+  --output-dir research/hebrew_contract_ocr/generated/gold_review_v0
+```
+
+The default package selects 60 unique real crops:
+
+- 30 ordinary body lines without a leading clause number;
+- 10 clause-number lines;
+- 10 lines with amounts, dates, or other numeric content;
+- 10 lines with Latin text or heavier punctuation.
+
+Selection combines teacher agreement, crop clarity, label status, and page diversity. Rows with obvious PII fields, long identifier-like numbers, or placeholders are excluded before selection.
+
+Open `generated/gold_review_v0/review.html` directly in a browser. The interface is self-contained, works without a server or network connection, saves progress in browser storage, and exports:
+
+- `gold_accepted_v0.jsonl` with only human-approved or human-corrected rows;
+- `gold_review_all_v0.jsonl` as a complete review backup.
+
+The package contains exact unmodified crops for evaluation plus enlarged crops and page-context images for the reviewer. A generated candidate manifest is not gold. Only the accepted export from a Hebrew-capable reviewer qualifies as Gold Set v0.
+
+The package may still contain contract context. Keep it local and never commit it. The existing `generated/` ignore rule covers the recommended output location.
