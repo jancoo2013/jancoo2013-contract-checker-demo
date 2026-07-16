@@ -4,6 +4,7 @@
 
 - Before making changes, read `docs/ARCHITECTURE.md`.
 - Treat `docs/ARCHITECTURE.md` as the product architecture source of truth.
+- For OCR work, also read `docs/CUSTOM_OCR_PIPELINE.md` and treat its OCR decisions and milestone order as binding.
 - If a requested task conflicts with `docs/ARCHITECTURE.md`, do not silently override it. Explain the conflict in the PR summary or ask for clarification.
 - Do not treat older PR behavior as canonical if it conflicts with the current architecture document.
 
@@ -122,7 +123,9 @@ Use cautious wording such as:
 
 ## 8. Current Priority Order
 
-When asked to continue product work, prefer this order unless the user explicitly changes priority:
+The user has explicitly made project-owned Hebrew contract OCR research the active track. Follow `docs/CUSTOM_OCR_PIPELINE.md` for that track.
+
+For work outside the active OCR track, prefer this order unless the user explicitly changes priority:
 
 1. Structured text audit.
 2. Evidence blocks.
@@ -131,7 +134,11 @@ When asked to continue product work, prefer this order unless the user explicitl
 5. Three-card report + `Разбор по пунктам`.
 6. Future privacy-safe image/OCR pipeline.
 
-Do not let OCR work outrun the privacy architecture.
+Offline OCR research may proceed with synthetic, redacted, or locally controlled data. Production integration with raw user photos must not outrun the privacy architecture.
+
+The finished product must not depend on Surya, Chandra, Tesseract, or a cloud OCR provider. Those engines may be used only as offline teachers or baselines. Only the project-owned compact model and project-owned weights may ship to Android.
+
+Do not switch back to tuning a teacher OCR engine unless the user explicitly changes the direction recorded in `docs/CUSTOM_OCR_PIPELINE.md`.
 
 Do not add runtime Airtable API integration before local JSON/YAML risk configuration is stable.
 
