@@ -12,6 +12,7 @@ This file records the OCR direction chosen for the product so that later work do
 4. A temporary OCR engine may be used offline only as a teacher for candidate labels or as a research baseline. Its output is never automatically gold.
 5. The privacy layer, handwriting gate, OCR recognizer, layout parser, and legal analyzer are separate components. A result from one component does not prove another component works.
 6. OCR quality claims require exact comparison against a fixed human-verified gold set. Character count, visual plausibility, model confidence, and teacher agreement are not accuracy metrics.
+7. Dataset manifests, charset IDs, split rules, leakage checks, and CER follow `research/hebrew_contract_ocr/DATASET_CONTRACT_V0.md`.
 
 Changing any of these decisions requires an explicit user decision and an update to this file in the same PR.
 
@@ -70,6 +71,8 @@ Current state:
 - step 1 is implemented by the deterministic synthetic-line generator;
 - step 2 exists locally as the 170-row silver archive and remains explicitly silver;
 - step 3 is the active work item: build a stratified review pack and obtain exact human verification from a Hebrew-capable reviewer.
+
+While human verification is pending, the framework-independent Dataset & Evaluation Contract v0 may be implemented and smoke-tested on synthetic/silver data. This preparation must not be presented as a real quality result.
 
 The review-pack collector does not turn teacher labels into gold. A row becomes gold only after the reviewer marks its exact transcription as approved or corrected. This work does not train a model and does not change application runtime behavior.
 

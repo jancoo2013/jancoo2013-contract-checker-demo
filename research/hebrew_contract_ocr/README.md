@@ -90,3 +90,15 @@ Open `generated/gold_review_v0/review.html` directly in a browser. The interface
 The package contains exact unmodified crops for evaluation plus enlarged crops and page-context images for the reviewer. A generated candidate manifest is not gold. Only the accepted export from a Hebrew-capable reviewer qualifies as Gold Set v0.
 
 The package may still contain contract context. Keep it local and never commit it. The existing `generated/` ignore rule covers the recommended output location.
+
+## Dataset and evaluation contract
+
+Before training any recognizer, read `DATASET_CONTRACT_V0.md`. The framework-independent tools are:
+
+```text
+charset_v0.json       stable characters and CTC IDs
+dataset_contract.py   materialization, validation, split rules, and leakage gate
+evaluate_ocr.py       exact logical-order CER and character-class slices
+```
+
+These tools deliberately keep Gold Set v0 out of training and refuse to call silver diagnostics real OCR accuracy. The full commands and canonical JSONL schema are documented in `DATASET_CONTRACT_V0.md`.
