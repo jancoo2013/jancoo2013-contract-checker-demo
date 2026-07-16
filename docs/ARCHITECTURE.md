@@ -51,7 +51,7 @@ The target MVP should move in this order:
 
 ```text
 redacted/anonymized input
-→ OCR or text extraction
+→ project-owned on-device OCR or text extraction
 → secondary text PII redaction
 → numbered evidence blocks
 → structured LLM risk extraction
@@ -62,7 +62,9 @@ redacted/anonymized input
 → optional Hebrew source expansion
 ```
 
-Do not connect OCR before the privacy-safe preprocessing layer is ready.
+Production OCR is a project-owned compact on-device model. Surya, Chandra, Tesseract, and cloud OCR may be research teachers or baselines but are not production dependencies. The detailed development contract is `docs/CUSTOM_OCR_PIPELINE.md`.
+
+Do not connect raw-photo OCR to the product before the privacy-safe preprocessing layer is ready. Offline recognizer research may proceed independently on synthetic, redacted, or locally controlled data.
 
 Do not connect runtime Airtable API before the local JSON/YAML risk configuration is stable. Airtable is a project knowledge base and control table, not the runtime MVP backend.
 
@@ -103,9 +105,9 @@ Production target pipeline:
 
 ```text
 raw image/document
-→ local/browser/mobile PII masking
+→ local/browser/mobile privacy handling
 → anonymized image/document
-→ OCR
+→ project-owned on-device OCR
 → secondary text PII redaction
 → LLM audit
 → Russian report
@@ -496,7 +498,7 @@ Rejected for MVP:
 Deferred:
 
 - automatic PII-line detection by Hebrew field labels and layout;
-- OCR after local image anonymization;
+- production connection of raw photos to the project-owned OCR after local privacy handling;
 - runtime Airtable API integration;
 - template/reference comparison;
 - curated legal/risk knowledge base RAG;
@@ -506,7 +508,7 @@ Deferred:
 
 Keep the architecture conservative.
 
-Build the product in this order:
+For non-OCR product work, build in this order:
 
 1. Structured text audit.
 2. Evidence blocks.
@@ -515,7 +517,7 @@ Build the product in this order:
 5. Three-card report + `Разбор по пунктам`.
 6. Future privacy-safe image/OCR pipeline.
 
-Do not let OCR work outrun the privacy architecture.
+The user has explicitly selected project-owned Hebrew OCR research as the current active track. Follow `docs/CUSTOM_OCR_PIPELINE.md` for its milestone order. Offline research may use synthetic, redacted, or locally controlled data; production integration with raw user photos must not outrun the privacy architecture.
 
 Do not let the LLM become the source of truth.
 
