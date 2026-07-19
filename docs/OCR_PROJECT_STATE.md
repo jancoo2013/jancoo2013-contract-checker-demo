@@ -1,6 +1,6 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-07-19, после слияния PR #115.
+Последнее обновление: 2026-07-19, после реализации Automatic Line Segmentation v0.
 
 Это каноническая точка восстановления текущего OCR-проекта. Она отвечает на практические вопросы: что уже сделано, что действительно проверено, что пока только предполагается и какой шаг разрешён следующим.
 
@@ -57,7 +57,7 @@ Surya, Chandra, Tesseract и мультимодальные LLM могут бы�
 | Image Resolution Contract v0 | Реализован | Зафиксированы preview 1800 px, master 2480×3508, ceiling 4096 px, line height 64 px, запрет искусственного upscale | Эти размеры ещё не подтверждены сравнением нескольких обученных recognizer-вариантов |
 | Нормализатор страницы v0 | Реализован | Из четырёх углов строит ограниченный grayscale master; пиксели за четырёхугольником удаляются; есть тесты безопасности вывода | Это Python reference, а не Android memory implementation |
 | Детектор границ страницы v0 | Реализован | Fail-closed геометрия, `frame_clipped`, mapping preview→source и QA-артефакты покрыты тестами; текущие 9 страниц локально приняты 9/9 и нормализованы 9/9 | Один договор не доказывает production-качество на разных камерах, фонах и ракурсах |
-| Сегментация строк | Не реализована | Входной page master уже определён контрактом | Нет алгоритма, manifest-контракта и метрики качества кропов |
+| Сегментация строк | Reference v0 реализован | Детерминированный fail-closed CLI, line/page manifests, хеши, QA overlays, foreground accounting, mask/table/redaction/ambiguity gates и synthetic IoU/order/repeatability tests реализованы; локальный fixture из 9 страниц обработан без аварии | Smoke на одном договоре и synthetic gates не являются общей precision/recall; нет фиксированного human-annotated bbox benchmark и Android implementation |
 | Собственный recognizer | Не реализован | Charset, синтетический генератор и evaluator готовы | Нет обученных весов, Gold CER, latency и размера модели |
 | RTL/layout и структура пунктов | Не реализованы | Требование разделено от распознавания символов | Нет кода и измерений reading order |
 | Android OCR integration | Не начата | Целевое ограничение on-device зафиксировано | Python reference-код не доказывает мобильную скорость и память |
@@ -70,52 +70,32 @@ Surya, Chandra, Tesseract и мультимодальные LLM могут бы�
 1. **Gold Set v0.** Нужна посимвольная проверка выбранных реальных строк человеком, уверенно читающим иврит. Пока её нет, запрещено заявлять реальную CER или превосходство нашей модели над baseline.
 2. **Production privacy design.** Пока он не утверждён, запрещено подключать сырые пользовательские фотографии к готовому приложению.
 
-Эти блокеры не мешают следующему локальному инженерному шагу — сегментации строк на контролируемых полноразмерных страницах.
+Сегментация строк на контролируемых полноразмерных страницах завершена как offline reference v0. Gold-блокер теперь снова определяет следующий шаг recognizer-feasibility; privacy-блокер по-прежнему запрещает production-подключение сырых фотографий.
 
-## 6. Единственный следующий шаг
+## 6. Завершённый шаг: Automatic Line Segmentation v0
 
-**Automatic Line Segmentation v0.** Другой активный OCR-шаг нельзя начинать без явного изменения этого файла и решения владельца продукта.
+Контракт `research/hebrew_contract_ocr/LINE_SEGMENTATION_V0.md` и reference-модуль `line_segmenter.py` реализуют единственную ранее разрешённую задачу. CLI проверяет normalizer manifest, hashes, grayscale mode и размеры; отказывается перезаписывать непустой output; пишет line PNG, canonical `manifest.jsonl`, explicit `pages.jsonl`, `summary.json` и overlay каждой страницы.
+
+Synthetic tests доказали ровно ограниченные gates v0: ожидаемое число обычных/heading/clause-number bands, top-to-bottom order, vertical IoU не ниже `0.90`, bboxes внутри страницы с положительной площадью, полное foreground accounting, одинаковые manifest bytes и line-image hashes при повторе, strict normalizer schema/type/status validation, exact consumed-byte provenance, decoded-header/pixel-limit checks before load, active Pillow bomb safety, separate geometric/final pass-review/fail propagation, recognizer eligibility и fail-closed reasons для blank page, isolated speck, 6–7 px rule, insufficient/thin/near-edge geometry, close/merged lines, table, external mask, opaque redaction и edge crop.
+
+Контролируемый fixture `different_lease_fullres_rectified_v0` был повторно проверен до запуска: 9 masters, normalization manifest SHA-256 `b7724facd98c44932f14e905082febb46c5ea2bbbe07d7e09193af78324c63e2`, summary SHA-256 `7d7a8740a3b382b0c8e32889cdc79b6570719502dd7447ceaf4cf68ac8124af2`. Два локальных smoke-прогона завершились без аварии, создали byte-identical manifests/page reports/summaries и 9/9 overlays. Получено 268 candidate regions: geometric и final counts совпали — 130 `accepted`, 63 `review`, 75 `reject`; 130 lines имеют `recognizer_eligible: true`. Все 9 страниц имеют geometric и final `review` status. Единственная upstream resolution review page, P0009, получила `upstream_resolution_review` на всех 15 line rows и page row; её 4 review/11 reject final statuses не улучшились. После исправления review-находок среди accepted-кандидатов минимальные наблюдаемые geometry/foreground составили 52 px width, 25 px height и 402 foreground pixels; ранее принятые 9×10, 1507×7, 47×6 и 635×6 artifacts теперь имеют explicit review/reject reasons. Overlays страниц с обычным body text, таблицей, логотипом, плотными закрывающими областями и подписью были выборочно осмотрены. Это fixture QA, не line-detection precision/recall и не OCR accuracy. Реальные страницы, кропы, overlays и manifests не коммитятся.
+
+## 7. Единственный следующий шаг
+
+**Human verification and materialization of Gold Set v0.** Другой OCR-шаг нельзя начинать без явного изменения этого файла и решения владельца продукта.
 
 Граница задачи:
 
-- вход: нормализованный grayscale page master и его manifest;
-- выход: отдельные изображения строк, JSONL manifest с `page_id`, `line_id`, bbox и порядком, а также QA overlay;
-- строки хранятся в логическом порядке страницы сверху вниз; RTL относится к содержимому строки и не требует переворачивать пиксели или Unicode;
-- сомнительные, склеенные, обрезанные, табличные, зачёркнутые или закрытые маской области получают явный review/reject status;
-- алгоритм работает локально, детерминированно и fail-closed;
-- задача не распознаёт текст, не создаёт gold labels, не обучает модель, не вызывает внешние API и не меняет runtime приложения;
-- сырые страницы, кропы и manifest с реальным текстом не коммитятся.
+- вход: локальный архив из 170 silver rows и автономный Gold review pack, созданный существующим `build_gold_review_pack.py`; перед следующим handoff оркестрирующий ассистент обязан проверить и передать точные локальные пути и hashes;
+- действие: человек, уверенно читающий иврит, посимвольно отмечает каждую строку как `approved`, `corrected`, `excluded` или оставляет `pending`; teacher label никогда не принимается автоматически;
+- выход: локальный `gold_accepted_v0.jsonl`, затем materialized ignored `gold_v0` через существующий `dataset_contract.py`;
+- проверка: принимаются только `approved`/`corrected`, все изображения и тексты проходят charset/hash/schema validation, Gold остаётся только `test`, затем выполняется leakage gate против training data;
+- реальные кропы, тексты, review exports и Gold manifest не коммитятся;
+- этот шаг не тренирует recognizer, не измеряет CER без predictions нашей модели, не вызывает внешний OCR/API и не меняет приложение.
 
-Definition of Done:
+Это ручной verification gate, а не задача, которую Codex может честно завершить самостоятельно. Если qualified reviewer или локальный review pack недоступен, состояние остаётся заблокированным; нельзя подменять проверку teacher agreement, визуальной правдоподобностью или LLM-транскрипцией.
 
-1. Версионированный контракт входа/выхода и причин review/reject.
-2. Reference CLI, который отказывается перезаписывать непустой output directory.
-3. Тесты на обычные строки, заголовок, номер пункта, пустую страницу, слишком близкие строки, внешнюю маску и стабильный порядок.
-4. Локальный QA-прогон на текущих девяти нормализованных страницах с отчётом о количестве строк и review/reject, без заявления OCR accuracy.
-5. Документы состояния обновлены в том же PR.
-
-Минимальные измеримые gates v0:
-
-- на синтетических fixtures — точное ожидаемое число строк, правильный порядок сверху вниз и vertical IoU каждого ожидаемого line band не ниже `0.90`;
-- повторный запуск на тех же байтах и параметрах — идентичные manifest и line-image hashes;
-- bbox всегда находится внутри page master, имеет положительную площадь и не создаёт неотмеченных конфликтующих вертикальных line bands;
-- каждая входная страница завершается явным page status; ни одна foreground-область не исчезает молча, а относится к строке или получает машинно-читаемый review/reject reason;
-- текущие девять страниц обрабатываются без аварии, для каждой создаётся QA overlay, а таблицы, маски и неоднозначные слияния не принимаются как обычные строки без review status.
-
-Эти gates проверяют целостность сегментатора, но не являются production-метрикой. Общая line-detection precision/recall потребует отдельного фиксированного набора с размеченными bbox.
-
-Разрешённые изменения этого шага:
-
-- новый `research/hebrew_contract_ocr/LINE_SEGMENTATION_V0.md`;
-- новый reference-модуль сегментации под `research/hebrew_contract_ocr/`;
-- его тесты и необходимые ссылки в OCR README;
-- `docs/OCR_PROJECT_STATE.md` и `docs/CUSTOM_OCR_PIPELINE.md` для фиксации результата и следующего шага.
-
-Без отдельного решения запрещено менять `app.py`, `mobile/`, recognizer/training-код, dataset/Gold contracts, privacy flow и юридический анализ.
-
-Контролируемый локальный fixture для QA имеет ID `different_lease_fullres_rectified_v0`: 9 masters, normalization manifest SHA-256 `b7724facd98c44932f14e905082febb46c5ea2bbbe07d7e09193af78324c63e2`, summary SHA-256 `7d7a8740a3b382b0c8e32889cdc79b6570719502dd7447ceaf4cf68ac8124af2`. Сами страницы и manifest не коммитятся. Перед запуском новой рабочей сессии оркестрирующий ассистент обязан найти локальный каталог, проверить этот hash и передать точный путь во входе задачи. Если fixture недоступен, можно реализовать и проверить синтетическую часть, но DoD №4 остаётся незавершённым.
-
-## 7. Протокол восстановления новой сессии
+## 8. Протокол восстановления новой сессии
 
 Новая рабочая сессия до изменения кода обязана:
 
@@ -133,7 +113,7 @@ Definition of Done:
 
 Первый cold-start audit проведён 2026-07-19 до публикации этого файла. Чистая сессия правильно восстановила архитектуру, уровни доказательности, два блокера и Automatic Line Segmentation v0. Найденные ею пробелы в идентификации локального fixture и измеримых gates были исправлены до коммита. Следующий audit требуется не позднее третьего слитого OCR PR после этого.
 
-## 8. Обязательный формат передачи задачи Codex
+## 9. Обязательный формат передачи задачи Codex
 
 ```text
 Источник истины: AGENTS.md + docs/OCR_PROJECT_STATE.md.
@@ -146,7 +126,7 @@ Definition of Done:
 Готовность: diff, результаты проверок, ограничения, готовый к review PR без auto-merge.
 ```
 
-## 9. Воспроизводимые команды
+## 10. Воспроизводимые команды
 
 Установка и базовая проверка чистого checkout:
 
@@ -167,13 +147,17 @@ python -m research.hebrew_contract_ocr.page_normalizer \
   --input-dir /local/contract_pages \
   --corners-json research/hebrew_contract_ocr/generated/page_boundaries_v0/page_corners.json \
   --output-dir research/hebrew_contract_ocr/generated/normalized_pages_v0
+
+python -m research.hebrew_contract_ocr.line_segmenter \
+  --input-dir research/hebrew_contract_ocr/generated/normalized_pages_v0 \
+  --output-dir research/hebrew_contract_ocr/generated/line_segmentation_v0
 ```
 
 Для файлов с уже правильной матрицей пикселей и заведомо устаревшим EXIF orientation в обе команды добавляется `--ignore-exif-orientation`. Это нельзя включать по умолчанию.
 
 Синтетические данные, review pack, Gold materialization и CER описаны в `research/hebrew_contract_ocr/README.md` и `research/hebrew_contract_ocr/DATASET_CONTRACT_V0.md`.
 
-## 10. Правило обновления состояния
+## 11. Правило обновления состояния
 
 Каждый OCR PR обязан обновить этот файл, если изменились реализованный компонент, доказательство, блокер или следующий шаг. Одновременно разрешён только один следующий шаг.
 

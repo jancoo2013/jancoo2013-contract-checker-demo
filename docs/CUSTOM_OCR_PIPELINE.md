@@ -15,6 +15,7 @@ This file records the OCR direction chosen for the product so that later work do
 7. Dataset manifests, charset IDs, split rules, leakage checks, and CER follow `research/hebrew_contract_ocr/DATASET_CONTRACT_V0.md`.
 8. Page previews, rectified masters, resolution gates, and recognizer line height follow `research/hebrew_contract_ocr/IMAGE_RESOLUTION_CONTRACT_V0.md`.
 9. Automatic corner proposals, fail-closed rejection, `frame_clipped` handling, and outside-page deletion follow `research/hebrew_contract_ocr/PAGE_BOUNDARY_DETECTOR_V0.md`.
+10. Automatic line crops, top-to-bottom order, upstream resolution composition, recognizer eligibility, explicit page/line statuses, foreground accounting, masks, and ambiguity gates follow `research/hebrew_contract_ocr/LINE_SEGMENTATION_V0.md`.
 
 Changing any of these decisions requires an explicit user decision and an update to this file in the same PR.
 
@@ -24,6 +25,7 @@ Changing any of these decisions requires an explicit user decision and an update
 raw phone photo
 → on-device geometric and image preprocessing
 → on-device privacy handling according to the approved privacy design
+→ on-device line segmentation with coordinates and explicit ambiguity status
 → project-owned compact OCR recognizer
 → RTL line and page reconstruction with coordinates
 → contract structure and clause parser
@@ -81,7 +83,7 @@ Recognizer-feasibility state:
 
 While human verification is pending, the framework-independent Dataset & Evaluation Contract v0 may be implemented and smoke-tested on synthetic/silver data. This preparation must not be presented as a real quality result.
 
-The Dataset & Evaluation Contract, bounded page normalizer, and automatic page-boundary detector are implemented as offline references. Human verification remains the blocker for recognizer accuracy claims, but it does not block local preprocessing research. The single active engineering step while that verification is pending is Automatic Line Segmentation v0, as bounded in `docs/OCR_PROJECT_STATE.md`.
+The Dataset & Evaluation Contract, bounded page normalizer, automatic page-boundary detector, and Automatic Line Segmentation v0 are implemented as offline references. The segmenter has deterministic synthetic integrity gates and a nine-page local fixture smoke, but no general bbox precision/recall claim. Human verification is again the first incomplete recognizer-feasibility milestone and remains the blocker for recognizer training and accuracy claims. The exact single permitted next step is recorded in `docs/OCR_PROJECT_STATE.md`.
 
 The review-pack collector does not turn teacher labels into gold. A row becomes gold only after the reviewer marks its exact transcription as approved or corrected. This work does not train a model and does not change application runtime behavior.
 
