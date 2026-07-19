@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import numpy as np
 from PIL import Image, ImageDraw
 
 from research.hebrew_contract_ocr.page_normalizer import (
@@ -13,6 +14,7 @@ from research.hebrew_contract_ocr.page_normalizer import (
     MIN_PAGE_LONG_SIDE,
     MIN_TEXT_BAND_HEIGHT,
     PREVIEW_LONG_SIDE,
+    QUAD_SAMPLING_INSET_PIXELS,
     STANDARD_MASTER_LONG_SIDE,
     PageNormalizationError,
     estimate_text_band_height,
@@ -46,6 +48,7 @@ class OCRPageNormalizerTests(unittest.TestCase):
         self.assertEqual(MIN_PAGE_LONG_SIDE, 2200)
         self.assertEqual(MIN_TEXT_BAND_HEIGHT, 24)
         self.assertEqual(LINE_RECOGNIZER_HEIGHT, 64)
+        self.assertEqual(QUAD_SAMPLING_INSET_PIXELS, 4.0)
 
     def test_standard_a4_page_produces_bounded_grayscale_master(self) -> None:
         source = _page_with_text_bands(2480, 3508)
@@ -96,9 +99,24 @@ class OCRPageNormalizerTests(unittest.TestCase):
 
         self.assertFalse(result.report["used_full_frame"])
         self.assertEqual(result.report["corners_tl_tr_br_bl"], [list(point) for point in corners])
+        self.assertEqual(result.report["crop_policy"], "discard_outside_quadrilateral")
+        self.assertTrue(result.report["outside_quadrilateral_discarded"])
+        self.assertEqual(result.report["quad_sampling_inset_pixels"], QUAD_SAMPLING_INSET_PIXELS)
         self.assertLessEqual(max(result.master.size), STANDARD_MASTER_LONG_SIDE)
         self.assertGreater(max(result.master.size), MIN_PAGE_LONG_SIDE)
         self.assertEqual(result.master.mode, "L")
+
+    def test_pixels_outside_explicit_quadrilateral_do_not_bleed_into_master(self) -> None:
+        source = Image.new("RGB", (900, 1200), (255, 0, 0))
+        corners = ((100, 80), (800, 110), (780, 1120), (120, 1100))
+        ImageDraw.Draw(source).polygon(corners, fill="white")
+
+        result = normalize_page(source, corners=corners)
+        pixels = np.asarray(result.master)
+        border = np.concatenate((pixels[0], pixels[-1], pixels[:, 0], pixels[:, -1]))
+
+        self.assertTrue(np.all(border == 255))
+        self.assertTrue(result.report["outside_quadrilateral_discarded"])
 
     def test_invalid_crossed_corners_are_rejected(self) -> None:
         source = Image.new("RGB", (1000, 1400), "white")
@@ -155,6 +173,10 @@ class OCRPageNormalizerTests(unittest.TestCase):
             self.assertTrue(all((output_dir / row["master_image"]).is_file() for row in rows))
             self.assertTrue(all((output_dir / row["preview_image"]).is_file() for row in rows))
             self.assertTrue((output_dir / "summary.json").is_file())
+            self.assertEqual(summary["crop_policy"], "discard_outside_quadrilateral")
+            for row in rows:
+                with Image.open(output_dir / row["master_image"]) as saved_master:
+                    saved_master.load()
 
     def test_nonempty_output_directory_is_never_overwritten(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:

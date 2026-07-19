@@ -63,6 +63,10 @@ source photo
 
 The page-boundary detector and the normalizer are separate components. The normalizer consumes four ordered source-image corners: top-left, top-right, bottom-right, bottom-left. Full-frame mode is permitted only for an already cropped scan or an explicit research fixture.
 
+The detector follows `PAGE_BOUNDARY_DETECTOR_V0.md`. For an explicit quadrilateral, the OCR master contains only that mapped page region: all source pixels outside the quadrilateral are discarded. The reference normalizer uses a four-source-pixel inward sampling inset so bicubic interpolation cannot bleed surrounding table, floor, folder, or another sheet into the master edge. Detector previews and overlays may retain context for QA; they are not OCR inputs.
+
+When the sheet continues beyond a camera edge, the detector may use that image edge and must record the side as `frame_clipped`. Missing pixels cannot be reconstructed. A later capture-quality gate may require recapture rather than applying an aggressive crop that could delete document content.
+
 EXIF orientation is applied by default. An explicit stale-orientation override is allowed for an exported image whose pixel matrix is already upright but whose metadata still requests rotation. The override must be recorded in the normalization manifest; silently guessing or deleting orientation metadata is forbidden.
 
 The v0 master uses grayscale without binarization, sharpening, or automatic contrast expansion. Those operations may later belong to a versioned recognizer-input adapter, but must not silently alter the page master.
@@ -83,7 +87,15 @@ Camera sensor resolution therefore does not propagate through the OCR system. A 
 
 ## 7. Reference CLI
 
-The local reference implementation is `page_normalizer.py`. Phone photos require a JSON object keyed by exact source filename:
+The local detector implementation is `page_boundary_detector.py`; it writes the required JSON object keyed by exact source filename:
+
+```bash
+python -m research.hebrew_contract_ocr.page_boundary_detector \
+  --input-dir /local/contract_pages \
+  --output-dir research/hebrew_contract_ocr/generated/page_boundaries_v0
+```
+
+The local normalizer implementation is `page_normalizer.py`. Its corner JSON has this shape:
 
 ```json
 {
@@ -117,6 +129,6 @@ Generated pages, previews, reports, source photos, and corner files may contain 
 
 ## 8. Scope boundary
 
-This contract does not implement automatic page-boundary detection, privacy masking, line segmentation, OCR, page ordering, or legal analysis. Those stages must consume or precede this contract without redefining its dimensions silently.
+This contract does not implement privacy masking, line segmentation, OCR, page ordering, or legal analysis. Automatic page-boundary detection is a separate reference component governed by `PAGE_BOUNDARY_DETECTOR_V0.md`; downstream stages must not redefine its accepted crop silently.
 
 Changing canonical sizes, minimum gates, grayscale policy, corner order, or no-upscale behavior requires a new contract version and an explicit project decision.

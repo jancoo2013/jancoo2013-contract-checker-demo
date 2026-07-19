@@ -107,13 +107,25 @@ These tools deliberately keep Gold Set v0 out of training and refuse to call sil
 
 Read `IMAGE_RESOLUTION_CONTRACT_V0.md` before cutting line images from phone photos. It fixes the 1800-pixel detector preview, the default A4/300-DPI grayscale page master, the 4096-pixel high-detail ceiling, the 64-pixel recognizer line height, and resolution quality gates.
 
-The framework-independent reference normalizer consumes page corners from a separate boundary detector and writes only local ignored artifacts:
+The framework-independent local detector proposes page corners on the bounded preview:
+
+```bash
+python -m research.hebrew_contract_ocr.page_boundary_detector \
+  --input-dir /local/contract_pages \
+  --output-dir research/hebrew_contract_ocr/generated/page_boundaries_v0
+```
+
+Inspect the overlays and rejection reasons. Only accepted corners are written to `page_corners.json`. The detector fails closed and marks a side `frame_clipped` when the sheet continues beyond the photograph.
+
+The reference normalizer consumes those corners and writes only local ignored artifacts:
 
 ```bash
 python -m research.hebrew_contract_ocr.page_normalizer \
   --input-dir /local/contract_pages \
-  --corners-json /local/page_corners.json \
+  --corners-json research/hebrew_contract_ocr/generated/page_boundaries_v0/page_corners.json \
   --output-dir research/hebrew_contract_ocr/generated/normalized_pages_v0
 ```
 
-It does not call OCR or any external service. Its Pillow implementation is an offline behavioral reference, not the future Android memory implementation.
+Everything outside the accepted quadrilateral is discarded from the OCR master. A four-pixel inward sampling inset prevents bicubic edge bleed. Detector QA images may retain surrounding context and must not be used as OCR input.
+
+Neither tool calls OCR or any external service. Their Pillow implementations are offline behavioral references, not the future Android memory implementation. Full detector behavior and limitations are binding in `PAGE_BOUNDARY_DETECTOR_V0.md`.
