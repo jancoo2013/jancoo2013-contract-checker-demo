@@ -26,6 +26,7 @@ MIN_TEXT_BAND_HEIGHT = 24
 PREFERRED_TEXT_BAND_HEIGHT = (30, 48)
 LINE_RECOGNIZER_HEIGHT = 64
 MAX_SOURCE_PIXELS = 150_000_000
+QUAD_SAMPLING_INSET_PIXELS = 4.0
 SUPPORTED_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp", ".tif", ".tiff"}
 
 Point = tuple[float, float]
@@ -54,6 +55,17 @@ def _full_frame_corners(width: int, height: int) -> Corners:
         (float(width - 1), float(height - 1)),
         (0.0, float(height - 1)),
     )
+
+
+def _inset_corners(corners: Corners, pixels: float) -> Corners:
+    center_x = sum(point[0] for point in corners) / 4.0
+    center_y = sum(point[1] for point in corners) / 4.0
+    inset: list[Point] = []
+    for x, y in corners:
+        distance = math.hypot(center_x - x, center_y - y)
+        scale = min(1.0, pixels / max(distance, 1e-9))
+        inset.append((x + (center_x - x) * scale, y + (center_y - y) * scale))
+    return tuple(inset)  # type: ignore[return-value]
 
 
 def _validate_corners(corners: Sequence[Sequence[float]], width: int, height: int) -> Corners:
@@ -247,7 +259,12 @@ def normalize_page(
         source_height,
     )
     output_width, output_height, geometry = _target_size(normalized_corners, profile)
-    top_left, top_right, bottom_right, bottom_left = normalized_corners
+    sampling_corners = (
+        normalized_corners
+        if used_full_frame
+        else _inset_corners(normalized_corners, QUAD_SAMPLING_INSET_PIXELS)
+    )
+    top_left, top_right, bottom_right, bottom_left = sampling_corners
     quad = (
         top_left[0],
         top_left[1],
@@ -282,7 +299,13 @@ def normalize_page(
         "master_height": master.height,
         "master_mode": master.mode,
         "corners_tl_tr_br_bl": [[round(x, 3), round(y, 3)] for x, y in normalized_corners],
+        "sampling_corners_tl_tr_br_bl": [
+            [round(x, 3), round(y, 3)] for x, y in sampling_corners
+        ],
+        "quad_sampling_inset_pixels": 0.0 if used_full_frame else QUAD_SAMPLING_INSET_PIXELS,
         "used_full_frame": used_full_frame,
+        "crop_policy": "discard_outside_quadrilateral",
+        "outside_quadrilateral_discarded": not used_full_frame,
         "estimated_text_band_height": text_band_height,
         "minimum_text_band_height": MIN_TEXT_BAND_HEIGHT,
         "preferred_text_band_height": list(PREFERRED_TEXT_BAND_HEIGHT),
@@ -320,6 +343,22 @@ def _check_output_directory(output_dir: Path) -> None:
             raise PageNormalizationError(f"output path is not a directory: {output_dir}")
         if any(output_dir.iterdir()):
             raise PageNormalizationError(f"output directory must be empty: {output_dir}")
+
+
+def _save_verified_png(image: Image.Image, path: Path) -> None:
+    temporary_path = path.with_name(f".{path.name}.tmp")
+    try:
+        image.save(temporary_path, format="PNG", optimize=True)
+        with Image.open(temporary_path) as decoded:
+            decoded.load()
+            if decoded.size != image.size or decoded.mode != image.mode:
+                raise PageNormalizationError(f"saved page master changed shape or mode: {path.name}")
+        temporary_path.replace(path)
+    except Exception as exc:
+        temporary_path.unlink(missing_ok=True)
+        if isinstance(exc, PageNormalizationError):
+            raise
+        raise PageNormalizationError(f"saved page master failed decode verification: {path.name}") from exc
 
 
 def normalize_directory(
@@ -384,7 +423,7 @@ def normalize_directory(
         preview_name = f"page_{page_index:04d}_preview.jpg"
         master_path = pages_dir / page_name
         preview_path = previews_dir / preview_name
-        result.master.save(master_path, format="PNG", optimize=True)
+        _save_verified_png(result.master, master_path)
         result.preview.save(preview_path, format="JPEG", quality=88, optimize=True)
         rows.append(
             {
@@ -420,6 +459,7 @@ def normalize_directory(
         "minimum_page_long_side": MIN_PAGE_LONG_SIDE,
         "minimum_text_band_height": MIN_TEXT_BAND_HEIGHT,
         "line_recognizer_height": LINE_RECOGNIZER_HEIGHT,
+        "crop_policy": "discard_outside_quadrilateral",
     }
     (output_dir / "summary.json").write_text(
         json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
