@@ -13,6 +13,7 @@ This file records the OCR direction chosen for the product so that later work do
 5. The privacy layer, handwriting gate, OCR recognizer, layout parser, and legal analyzer are separate components. A result from one component does not prove another component works.
 6. OCR quality claims require exact comparison against a fixed human-verified gold set. Character count, visual plausibility, model confidence, and teacher agreement are not accuracy metrics.
 7. Dataset manifests, charset IDs, split rules, leakage checks, and CER follow `research/hebrew_contract_ocr/DATASET_CONTRACT_V0.md`.
+8. Page previews, rectified masters, resolution gates, and recognizer line height follow `research/hebrew_contract_ocr/IMAGE_RESOLUTION_CONTRACT_V0.md`.
 
 Changing any of these decisions requires an explicit user decision and an update to this file in the same PR.
 
@@ -31,6 +32,8 @@ raw phone photo
 ```
 
 Only our exported model weights and our preprocessing/postprocessing code ship in the Android application. Research teachers do not.
+
+Geometric preprocessing is bounded by the Image Resolution Contract v0. Native camera resolution does not flow directly into OCR: a sampled preview drives page-boundary detection, and the source is rectified directly into a bounded grayscale page master without materializing a full high-megapixel RGBA bitmap.
 
 Production integration with raw user photos remains blocked until the privacy design is approved. That block does not prevent offline OCR research on synthetic data, redacted crops, or locally controlled datasets.
 
