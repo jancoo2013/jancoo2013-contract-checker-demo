@@ -102,3 +102,18 @@ evaluate_ocr.py       exact logical-order CER and character-class slices
 ```
 
 These tools deliberately keep Gold Set v0 out of training and refuse to call silver diagnostics real OCR accuracy. The full commands and canonical JSONL schema are documented in `DATASET_CONTRACT_V0.md`.
+
+## Page resolution and normalization
+
+Read `IMAGE_RESOLUTION_CONTRACT_V0.md` before cutting line images from phone photos. It fixes the 1800-pixel detector preview, the default A4/300-DPI grayscale page master, the 4096-pixel high-detail ceiling, the 64-pixel recognizer line height, and resolution quality gates.
+
+The framework-independent reference normalizer consumes page corners from a separate boundary detector and writes only local ignored artifacts:
+
+```bash
+python -m research.hebrew_contract_ocr.page_normalizer \
+  --input-dir /local/contract_pages \
+  --corners-json /local/page_corners.json \
+  --output-dir research/hebrew_contract_ocr/generated/normalized_pages_v0
+```
+
+It does not call OCR or any external service. Its Pillow implementation is an offline behavioral reference, not the future Android memory implementation.
