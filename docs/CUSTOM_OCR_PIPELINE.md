@@ -1,6 +1,6 @@
 # Project-owned Hebrew contract OCR pipeline
 
-Status: active development contract. Read together with `docs/ARCHITECTURE.md`.
+Status: active development contract. Read together with `docs/ARCHITECTURE.md`. The current implementation status, blockers, continuity rules, and single next step are recorded in `docs/OCR_PROJECT_STATE.md`.
 
 This file records the OCR direction chosen for the product so that later work does not silently return to temporary OCR engines or confuse label creation with production inference.
 
@@ -72,13 +72,16 @@ Work in this order:
 6. Compare with the fixed baseline on the same gold set.
 7. Consider Android export only after a measurable feasibility result.
 
-Current state:
+Recognizer-feasibility state:
 
 - step 1 is implemented by the deterministic synthetic-line generator;
 - step 2 exists locally as the 170-row silver archive and remains explicitly silver;
-- step 3 is the active work item: build a stratified review pack and obtain exact human verification from a Hebrew-capable reviewer.
+- the stratified review-pack builder for step 3 is implemented, but exact human verification by a Hebrew-capable reviewer is still pending;
+- no real Gold Set CER or project-owned model quality claim exists yet.
 
 While human verification is pending, the framework-independent Dataset & Evaluation Contract v0 may be implemented and smoke-tested on synthetic/silver data. This preparation must not be presented as a real quality result.
+
+The Dataset & Evaluation Contract, bounded page normalizer, and automatic page-boundary detector are implemented as offline references. Human verification remains the blocker for recognizer accuracy claims, but it does not block local preprocessing research. The single active engineering step while that verification is pending is Automatic Line Segmentation v0, as bounded in `docs/OCR_PROJECT_STATE.md`.
 
 The review-pack collector does not turn teacher labels into gold. A row becomes gold only after the reviewer marks its exact transcription as approved or corrected. This work does not train a model and does not change application runtime behavior.
 
@@ -108,12 +111,14 @@ No Android work is justified by a teacher model looking good on its own labels. 
 
 ## Repository workflow
 
-Use one small branch and one draft PR per measurable step. Each OCR PR states:
+Use one small branch and one ready-for-review PR per measurable step; do not auto-merge it. Each OCR PR states:
 
 - which numbered milestone step it implements;
 - which data tier it reads or writes;
 - which metric changed;
 - which external engines, APIs, or dependencies were used;
 - whether any runtime application behavior changed.
+
+Each OCR PR also updates `docs/OCR_PROJECT_STATE.md` when implementation status, evidence, blockers, or the single next step changes. A working session is not allowed to derive current project state from chat history when the repository can carry it.
 
 When the next action is ambiguous, return to this file and choose the first incomplete milestone step instead of opening a new OCR direction.
