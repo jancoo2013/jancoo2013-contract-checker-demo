@@ -4,7 +4,9 @@
 
 - Before making changes, read `docs/ARCHITECTURE.md`.
 - Treat `docs/ARCHITECTURE.md` as the product architecture source of truth.
-- For OCR work, also read `docs/CUSTOM_OCR_PIPELINE.md` and treat its OCR decisions and milestone order as binding.
+- For OCR work, also read `docs/OCR_PROJECT_STATE.md` and `docs/CUSTOM_OCR_PIPELINE.md`.
+- Treat `docs/OCR_PROJECT_STATE.md` as the operational source of truth for what is implemented, what is proven, the current blockers, and the single permitted next OCR step.
+- Treat the OCR decisions and milestone order in `docs/CUSTOM_OCR_PIPELINE.md` as binding.
 - If a requested task conflicts with `docs/ARCHITECTURE.md`, do not silently override it. Explain the conflict in the PR summary or ask for clarification.
 - Do not treat older PR behavior as canonical if it conflicts with the current architecture document.
 
@@ -142,6 +144,16 @@ Do not switch back to tuning a teacher OCR engine unless the user explicitly cha
 
 Do not add runtime Airtable API integration before local JSON/YAML risk configuration is stable.
 
+## 8.1 OCR Continuity Protocol
+
+- The repository, not a chat transcript or one agent's memory, is the durable project context.
+- The product owner is not responsible for opening Codex work sessions or repeating project history to them. The orchestrating assistant owns session creation, bounded handoff, diff review, test review, and state updates.
+- Give each Codex session exactly one bounded step with explicit input, output, allowed scope, prohibited detours, and validation.
+- Only the single next step recorded in `docs/OCR_PROJECT_STATE.md` may be active. Changing it requires an explicit product decision and a state update in the same PR.
+- Every OCR PR that changes implementation status, evidence, blockers, or the next step must update `docs/OCR_PROJECT_STATE.md`.
+- Every 3–5 merged OCR PRs, run the cold-start audit defined in `docs/OCR_PROJECT_STATE.md` using a clean session that has only the repository as context.
+- Never accept a session's claim that work is complete without inspecting its diff and validation results.
+
 ## 9. Tests and Validation
 
 For code changes, run when practical:
@@ -158,6 +170,7 @@ For documentation-only changes, tests are not required, but the PR summary shoul
 ## 10. Pull Request Behavior
 
 - Create a Pull Request to `main`.
+- Open OCR Pull Requests ready for review, not as drafts, unless the user explicitly requests a draft.
 - In the PR summary, list changed files.
 - State whether the change is code or documentation only.
 - State whether tests were run.
