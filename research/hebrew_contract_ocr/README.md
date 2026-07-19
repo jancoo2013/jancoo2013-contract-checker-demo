@@ -129,3 +129,17 @@ python -m research.hebrew_contract_ocr.page_normalizer \
 Everything outside the accepted quadrilateral is discarded from the OCR master. A four-pixel inward sampling inset prevents bicubic edge bleed. Detector QA images may retain surrounding context and must not be used as OCR input.
 
 Neither tool calls OCR or any external service. Their Pillow implementations are offline behavioral references, not the future Android memory implementation. Full detector behavior and limitations are binding in `PAGE_BOUNDARY_DETECTOR_V0.md`.
+
+## Automatic line segmentation v0
+
+Read `LINE_SEGMENTATION_V0.md` before cutting recognizer lines. The reference segmenter consumes the normalizer directory and verifies each grayscale master against its manifest hash and dimensions:
+
+```bash
+python -m research.hebrew_contract_ocr.line_segmenter \
+  --input-dir research/hebrew_contract_ocr/generated/normalized_pages_v0 \
+  --output-dir research/hebrew_contract_ocr/generated/line_segmentation_v0
+```
+
+It strictly validates the normalizer schema, types, known resolution statuses, exact master bytes, decoded header dimensions, pixel limit, and grayscale mode before loading pixels; Pillow decompression-bomb safety remains active. It writes grayscale line candidates, a top-to-bottom JSONL manifest, one explicit page-status row per input page, and QA overlays. Geometric `segmentation_status` remains separate from final upstream-composed `status`; `recognizer_eligible` is true only for final accepted lines whose upstream resolution passed. Tiny or thin geometry, sparse wide artifacts, near-edge bands, tables, close or merged bands, edge crops, opaque redactions, strike-through-like strokes, and optional external masks are never silently accepted as ordinary lines. Use `--masks-json /local/masks_v0.json` only with inspected local mask geometry.
+
+The segmenter is deterministic, local, refuses a non-empty output directory, calls no OCR or external service, and does not reverse RTL pixels. Its synthetic gates and a smoke run are integrity checks, not segmentation accuracy or OCR accuracy. Keep all real crops, overlays, manifests, and masks local under the ignored `generated/` directory.
