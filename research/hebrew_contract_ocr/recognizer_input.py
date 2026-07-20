@@ -18,6 +18,7 @@ from .dataset_contract import (
     read_jsonl,
     unknown_characters,
 )
+from .text_order import TextOrderError, logical_to_visual_rtl
 
 
 RECOGNIZER_HEIGHT = 64
@@ -130,11 +131,21 @@ def load_manifest_lines(
     return tuple(examples)
 
 
-def encode_text(text: str, charset: CharsetContract | None = None) -> np.ndarray:
+def encode_text(
+    text: str,
+    charset: CharsetContract | None = None,
+    *,
+    rtl: bool = True,
+) -> np.ndarray:
     charset = charset or load_charset()
     normalized = _validated_text(text, charset, "text")
+    try:
+        target_text = logical_to_visual_rtl(normalized) if rtl else normalized
+    except TextOrderError as exc:
+        raise RecognizerInputError(f"unsupported CTC target order: {exc}") from exc
     return np.asarray(
-        [charset.character_to_id[character] for character in normalized], dtype=np.int64
+        [charset.character_to_id[character] for character in target_text],
+        dtype=np.int64,
     )
 
 
