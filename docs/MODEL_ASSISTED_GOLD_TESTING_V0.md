@@ -128,6 +128,20 @@ need.
   Gold text is created and a reason is retained.
 - `pending`: no decision yet; the row is not Gold.
 
+These are reviewer-workflow statuses, not the direct input vocabulary of the
+existing `materialize_gold_dataset` implementation. Before materialization, one
+explicit local adapter must produce its canonical review rows:
+
+- `confirmed` maps to `review_status: approved` and `text: final_text`;
+- `corrected` maps to `review_status: corrected` and `text: final_text`;
+- `unreadable` and `pending` produce no materializer row and remain only in the
+  auditable review backup.
+
+The adapter must preserve the stable row/image identifiers and hashes. It must not
+infer approval from unchanged text, a model confidence value, or a missing status.
+The current materializer accepts only `approved` and `corrected`; sending
+`confirmed` directly would silently omit that row.
+
 The reviewer may describe spacing, crop, or typography problems in Russian. The
 comment is diagnostic metadata only. It never substitutes for an exact correction
 and never changes CER automatically.
@@ -139,12 +153,14 @@ Each result must retain at least:
 - stable row ID and line-image SHA-256;
 - model and prediction-set identifiers;
 - original frozen prediction;
-- review status;
+- reviewer-workflow status;
 - exact complete `final_text` for `confirmed` and `corrected` rows;
 - optional reviewer comment.
 
 The export format may add app version and timestamps, but v0 must not require a
-complex edit-operation schema. The materializer validates hashes, charset, status,
+complex edit-operation schema. A separate deterministic adapter creates the
+`review_status` and `text` fields required by the existing Gold materializer using
+the mapping above. The materializer then validates paths, hashes, charset, status,
 and required text before admitting a row to Gold. Raw images, real Hebrew text,
 review exports, and PII are never committed to GitHub.
 
@@ -167,8 +183,9 @@ problem and preserve which rows and model results have already been viewed.
 ## 9. Gold materialization and evaluation
 
 Only exact `confirmed` and `corrected` rows from the designated evaluation cohort
-enter Gold Set v0. `unreadable` and `pending` rows do not. Exclusions and their
-reasons remain auditable.
+enter the adapter input for Gold Set v0. The adapter maps them to canonical
+`approved` and `corrected` materializer rows respectively. `unreadable` and
+`pending` rows do not enter Gold. Exclusions and their reasons remain auditable.
 
 CER is calculated against the original frozen prediction, not a prediction rerun
 after the reviewer corrections are known. Report overall CER and the slices already
