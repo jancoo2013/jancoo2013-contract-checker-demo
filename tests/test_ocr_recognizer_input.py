@@ -5,12 +5,17 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import numpy as np
 from PIL import Image, ImageDraw
 
+from research.hebrew_contract_ocr import recognizer_input as recognizer_input_module
 from research.hebrew_contract_ocr.dataset_contract import load_charset
 from research.hebrew_contract_ocr.recognizer_input import (
+    MAX_RESIZED_WIDTH,
+    RECOGNIZER_HEIGHT,
+    LineExample,
     RecognizerInputError,
     encode_text,
     load_manifest_lines,
@@ -88,6 +93,65 @@ class RecognizerInputTests(unittest.TestCase):
 
         with self.assertRaisesRegex(RecognizerInputError, "ASCII-space boundary"):
             encode_text("אA")
+
+    def test_resized_width_boundary_and_oversize_fail_before_resize(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            boundary = root / "boundary.png"
+            oversize = root / "oversize.png"
+            _write_line(boundary, (4096, 24), 5)
+            _write_line(oversize, (4097, 24), 5)
+
+            batch = prepare_batch([LineExample("boundary", boundary, "אב")])
+            self.assertEqual(batch.input_widths.tolist(), [MAX_RESIZED_WIDTH])
+
+            with patch.object(
+                Image.Image,
+                "resize",
+                side_effect=AssertionError("resize must not run for rejected width"),
+            ):
+                with self.assertRaisesRegex(RecognizerInputError, "resized width"):
+                    prepare_batch([LineExample("oversize", oversize, "אב")])
+
+    def test_batch_working_allocation_boundary_is_checked_before_resize(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            image = root / "line.png"
+            _write_line(image, (100, 20), 5)
+            examples = (
+                LineExample("one", image, "אב"),
+                LineExample("two", image, "גד"),
+            )
+            resized_width = 320
+            per_image_bytes = (
+                RECOGNIZER_HEIGHT
+                * resized_width
+                * np.dtype(np.float32).itemsize
+            )
+            exact_working_bytes = 2 * per_image_bytes + 2 * per_image_bytes
+
+            with patch.object(
+                recognizer_input_module,
+                "MAX_BATCH_WORKING_BYTES",
+                exact_working_bytes,
+            ):
+                batch = prepare_batch(examples)
+            self.assertEqual(batch.pixels.shape, (2, 1, 64, resized_width))
+
+            with patch.object(
+                recognizer_input_module,
+                "MAX_BATCH_WORKING_BYTES",
+                exact_working_bytes - 1,
+            ), patch.object(
+                Image.Image,
+                "resize",
+                side_effect=AssertionError("resize must not run for rejected batch"),
+            ):
+                with self.assertRaisesRegex(
+                    RecognizerInputError,
+                    "batch working allocation",
+                ):
+                    prepare_batch(examples)
 
     def test_invalid_text_hash_mode_and_path_fail_closed(self) -> None:
         cases = ("unknown", "hash", "mode", "path")

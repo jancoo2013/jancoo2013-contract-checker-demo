@@ -23,6 +23,15 @@ from .text_order import TextOrderError, logical_to_visual_rtl
 
 RECOGNIZER_HEIGHT = 64
 MAX_LINE_PIXELS = 4_000_000
+MAX_PAGE_MASTER_LONG_SIDE = 4_096
+MIN_ACCEPTED_TEXT_BAND_HEIGHT = 24
+MAX_RESIZED_WIDTH = (
+    MAX_PAGE_MASTER_LONG_SIDE * RECOGNIZER_HEIGHT
+    + MIN_ACCEPTED_TEXT_BAND_HEIGHT
+    - 1
+) // MIN_ACCEPTED_TEXT_BAND_HEIGHT
+MAX_BATCH_WORKING_BYTES = 256 * 1024 * 1024
+FLOAT32_BYTES = np.dtype(np.float32).itemsize
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
@@ -149,7 +158,7 @@ def encode_text(
     )
 
 
-def _adapt_image(example: LineExample, target_height: int) -> np.ndarray:
+def _read_image_bytes(example: LineExample) -> bytes:
     try:
         image_bytes = example.image_path.read_bytes()
     except OSError as exc:
@@ -158,6 +167,10 @@ def _adapt_image(example: LineExample, target_height: int) -> np.ndarray:
         digest = hashlib.sha256(image_bytes).hexdigest()
         if digest != example.image_sha256:
             raise RecognizerInputError(f"image hash mismatch for {example.sample_id}")
+    return image_bytes
+
+
+def _validated_dimensions(example: LineExample, image_bytes: bytes) -> tuple[int, int]:
     try:
         with io.BytesIO(image_bytes) as buffer, Image.open(buffer) as image:
             width, height = image.size
@@ -167,8 +180,44 @@ def _adapt_image(example: LineExample, target_height: int) -> np.ndarray:
                 raise RecognizerInputError(f"image must use grayscale L for {example.sample_id}")
             if example.width is not None and (width, height) != (example.width, example.height):
                 raise RecognizerInputError(f"image dimensions mismatch for {example.sample_id}")
+            return width, height
+    except Image.DecompressionBombError as exc:
+        raise RecognizerInputError(f"unsafe image for {example.sample_id}") from exc
+    except (UnidentifiedImageError, OSError) as exc:
+        raise RecognizerInputError(f"could not decode image for {example.sample_id}") from exc
+
+
+def _resized_width(example: LineExample, width: int, height: int, target_height: int) -> int:
+    target_width = max(1, int(round(width * target_height / height)))
+    if target_width > MAX_RESIZED_WIDTH:
+        raise RecognizerInputError(
+            f"resized width {target_width} exceeds {MAX_RESIZED_WIDTH} "
+            f"for {example.sample_id}"
+        )
+    return target_width
+
+
+def _preflight_width(example: LineExample, target_height: int) -> int:
+    image_bytes = _read_image_bytes(example)
+    width, height = _validated_dimensions(example, image_bytes)
+    return _resized_width(example, width, height, target_height)
+
+
+def _adapt_image(
+    example: LineExample,
+    target_height: int,
+    expected_width: int,
+) -> np.ndarray:
+    image_bytes = _read_image_bytes(example)
+    width, height = _validated_dimensions(example, image_bytes)
+    target_width = _resized_width(example, width, height, target_height)
+    if target_width != expected_width:
+        raise RecognizerInputError(
+            f"image dimensions changed during preparation for {example.sample_id}"
+        )
+    try:
+        with io.BytesIO(image_bytes) as buffer, Image.open(buffer) as image:
             image.load()
-            target_width = max(1, int(round(width * target_height / height)))
             resized = image.resize((target_width, target_height), Image.Resampling.LANCZOS)
             grayscale = np.asarray(resized, dtype=np.float32)
     except Image.DecompressionBombError as exc:
@@ -176,6 +225,12 @@ def _adapt_image(example: LineExample, target_height: int) -> np.ndarray:
     except (UnidentifiedImageError, OSError) as exc:
         raise RecognizerInputError(f"could not decode image for {example.sample_id}") from exc
     return 1.0 - grayscale / 255.0
+
+
+def _batch_working_bytes(widths: Sequence[int], target_height: int) -> int:
+    adapted_bytes = sum(int(width) * target_height * FLOAT32_BYTES for width in widths)
+    padded_bytes = len(widths) * target_height * max(widths) * FLOAT32_BYTES
+    return adapted_bytes + padded_bytes
 
 
 def prepare_batch(
@@ -189,10 +244,20 @@ def prepare_batch(
     if target_height != RECOGNIZER_HEIGHT:
         raise RecognizerInputError(f"recognizer height must be {RECOGNIZER_HEIGHT}")
     charset = charset or load_charset()
-    images = [_adapt_image(example, target_height) for example in examples]
     texts = [_validated_text(example.text, charset, example.sample_id) for example in examples]
     targets = [encode_text(text, charset) for text in texts]
-    widths = np.asarray([image.shape[1] for image in images], dtype=np.int64)
+    planned_widths = tuple(_preflight_width(example, target_height) for example in examples)
+    working_bytes = _batch_working_bytes(planned_widths, target_height)
+    if working_bytes > MAX_BATCH_WORKING_BYTES:
+        raise RecognizerInputError(
+            f"batch working allocation {working_bytes} bytes exceeds "
+            f"{MAX_BATCH_WORKING_BYTES}"
+        )
+    images = [
+        _adapt_image(example, target_height, expected_width)
+        for example, expected_width in zip(examples, planned_widths)
+    ]
+    widths = np.asarray(planned_widths, dtype=np.int64)
     batch = np.zeros((len(images), 1, target_height, int(widths.max())), dtype=np.float32)
     for index, image in enumerate(images):
         batch[index, 0, :, : image.shape[1]] = image

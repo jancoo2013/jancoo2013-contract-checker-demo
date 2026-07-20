@@ -72,12 +72,9 @@ EXIF orientation is applied by default. An explicit stale-orientation override i
 
 The v0 master uses grayscale without binarization, sharpening, or automatic contrast expansion. Those operations may later belong to a versioned recognizer-input adapter, but must not silently alter the page master.
 
-Recognizer input adapter v0 keeps the source pixel direction and logical Unicode
-order unchanged. It resizes a strict grayscale `L` line to height 64 with Lanczos
-and a rounded aspect-preserving width, then emits ink strength `1 - gray / 255` as
-`float32`. A batch has shape `[B, 1, 64, max_width]`, uses zero/white right padding,
-and carries each unpadded width. Targets are the logical-order CTC character IDs;
-blank ID 0 is reserved and never inserted into a target.
+Recognizer input adapter v0 keeps the source pixel direction unchanged. It resizes a strict grayscale `L` line to height 64 with Lanczos and a rounded aspect-preserving width, then emits ink strength `1 - gray / 255` as `float32`. A batch has shape `[B, 1, 64, max_width]`, uses zero/white right padding, and carries each unpadded width.
+
+Dataset text remains logical Unicode. CTC targets use the monotonic alignment order defined by `CTC_TEXT_ORDER_V0.md`; blank ID 0 is reserved and never inserted into a target. Per-line resized width and dominant float32 batch allocations follow `RECOGNIZER_INPUT_MEMORY_V0.md`: width is bounded at 10,923 px and the combined resized-plus-padded working budget is checked before resize and `np.zeros`.
 
 ## 6. Mobile memory contract
 
