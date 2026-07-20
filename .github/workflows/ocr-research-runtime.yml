@@ -1,0 +1,33 @@
+name: OCR research runtime
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/ocr-research-runtime.yml"
+      - "research/hebrew_contract_ocr/**"
+      - "tests/test_ocr_*.py"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/ocr-research-runtime.yml"
+      - "research/hebrew_contract_ocr/**"
+      - "tests/test_ocr_*.py"
+
+permissions:
+  contents: read
+
+jobs:
+  cpu-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install OCR training dependencies
+        run: python -m pip install -r research/hebrew_contract_ocr/requirements-training.txt
+      - name: Verify CPU training runtime
+        run: python -m research.hebrew_contract_ocr.training_runtime_smoke
+      - name: Run framework-independent recognizer tests
+        run: python -m unittest tests.test_ocr_recognizer_input tests.test_ocr_ctc_decoder
