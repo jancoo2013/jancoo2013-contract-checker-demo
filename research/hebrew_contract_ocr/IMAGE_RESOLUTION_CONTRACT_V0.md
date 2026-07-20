@@ -23,7 +23,7 @@ Original source photos remain unchanged. Every preview, page master, and line im
 
 The standard profile is mandatory by default. The high-detail profile is not a general quality boost and must not be selected merely because a camera advertises more megapixels.
 
-For a detected page whose aspect ratio is plausibly A-series paper, the master snaps to the A4 ratio. Other document shapes preserve their measured rectified ratio.
+Every page master preserves its measured rectified ratio. The standard A4 dimensions are a ceiling and reference scale, not a target that permits stretching a smaller source side.
 
 ## 3. No invented resolution
 
@@ -31,6 +31,7 @@ The normalizer never enlarges a source page to reach the requested master size.
 
 ```text
 output long side = min(measured rectified page long side, profile long side)
+output width and height = floor(measured width and height × one shared scale ≤ 1)
 ```
 
 Upscaling a small or blurred page does not create ground-truth detail. A page below the quality gate remains below the gate and should be recaptured.

@@ -91,6 +91,22 @@ class OCRPageNormalizerTests(unittest.TestCase):
         self.assertEqual(result.report["requested_long_side"], STANDARD_MASTER_LONG_SIDE)
         self.assertFalse(result.report["upscaled"])
 
+    def test_near_a4_pages_preserve_dimensions_instead_of_upscaling_short_side(self) -> None:
+        for width, height in ((2400, 3508), (2350, 3508), (800, 1200), (3508, 2350)):
+            with self.subTest(size=(width, height)):
+                source = _page_with_text_bands(width, height)
+
+                result = normalize_page(source)
+
+                self.assertLessEqual(result.master.width, width)
+                self.assertLessEqual(result.master.height, height)
+                self.assertAlmostEqual(
+                    result.master.width / result.master.height,
+                    width / height,
+                    delta=1 / min(result.master.size),
+                )
+                self.assertFalse(result.report["upscaled"])
+
     def test_explicit_page_corners_are_rectified_in_tl_tr_br_bl_order(self) -> None:
         source = _page_with_text_bands(1800, 2800)
         corners = ((180, 160), (1610, 100), (1700, 2620), (120, 2700))
