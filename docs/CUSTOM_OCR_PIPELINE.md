@@ -68,24 +68,26 @@ Work in this order:
 
 1. Generate deterministic synthetic Hebrew contract lines.
 2. Keep the existing 170 locally verified crops as silver data; do not claim they are gold.
-3. Create a small fixed real gold test set with help from a Hebrew-capable verifier.
-4. Train one simple compact line recognizer architecture; do not invent a new neural architecture.
-5. Measure exact character error rate (CER), separately for Hebrew letters, digits, punctuation, and mixed `AS-IS` lines.
-6. Compare with the fixed baseline on the same gold set.
-7. Consider Android export only after a measurable feasibility result.
+3. Freeze a candidate set from the latest full-resolution contract before model predictions are reviewed, and exclude its sources from training.
+4. Train one simple bootstrap line recognizer on synthetic and, only after candidate-manifest leakage enforcement exists, permitted non-Gold silver data; do not invent a new neural architecture or claim accuracy yet.
+5. Precompute frozen predictions and let a Hebrew-capable reviewer confirm or minimally edit them in the offline reviewer APK defined by `docs/MODEL_ASSISTED_GOLD_TESTING_V0.md`.
+6. Materialize the held-out confirmed rows as Gold Set v0 and measure exact character error rate (CER), separately for Hebrew letters, digits, punctuation, and mixed `AS-IS` lines.
+7. Compare with the fixed baseline on the same gold set.
+8. Consider production Android export only after a measurable feasibility result.
 
 Recognizer-feasibility state:
 
 - step 1 is implemented by the deterministic synthetic-line generator;
 - step 2 exists locally as the 170-row silver archive and remains explicitly silver;
-- the stratified review-pack builder for step 3 is implemented, but exact human verification by a Hebrew-capable reviewer is still pending;
+- page normalization and segmentation produced the current high-resolution candidate pool, but its fixed pilot/evaluation manifest has not yet been created;
+- the older browser review-pack builder remains available for the silver archive, but that low-resolution archive is not the source of Gold Set v0;
 - no real Gold Set CER or project-owned model quality claim exists yet.
 
 While human verification is pending, the framework-independent Dataset & Evaluation Contract v0 may be implemented and smoke-tested on synthetic/silver data. This preparation must not be presented as a real quality result.
 
-The Dataset & Evaluation Contract, bounded page normalizer, automatic page-boundary detector, and Automatic Line Segmentation v0 are implemented as offline references. The segmenter has deterministic synthetic integrity gates and a nine-page local fixture smoke, but no general bbox precision/recall claim. Human verification is again the first incomplete recognizer-feasibility milestone and remains the blocker for recognizer training and accuracy claims. The exact single permitted next step is recorded in `docs/OCR_PROJECT_STATE.md`.
+The Dataset & Evaluation Contract, bounded page normalizer, automatic page-boundary detector, and Automatic Line Segmentation v0 are implemented as offline references. The segmenter has deterministic synthetic integrity gates and a nine-page local fixture smoke, but no general bbox precision/recall claim. The next incomplete step is to freeze the high-resolution Gold candidates before bootstrap predictions exist. Bootstrap training is then allowed only to make reviewer verification efficient; accuracy claims remain blocked until human verification and CER. The exact single permitted next step is recorded in `docs/OCR_PROJECT_STATE.md`.
 
-The review-pack collector does not turn teacher labels into gold. A row becomes gold only after the reviewer marks its exact transcription as approved or corrected. This work does not train a model and does not change application runtime behavior.
+The reviewer corrects a prefilled prediction instead of transcribing pages from scratch. A row becomes gold only after the reviewer confirms the exact complete line as unchanged or corrected. The correction workflow, frozen-model rule, minimal APK scope, pilot gate, and local export are defined in `docs/MODEL_ASSISTED_GOLD_TESTING_V0.md`.
 
 ## Evaluation gates
 

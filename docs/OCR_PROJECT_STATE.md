@@ -1,6 +1,6 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-07-20, после исправления атомарности output Automatic Line Segmentation v0.
+Последнее обновление: 2026-07-20, после утверждения model-assisted Gold testing v0.
 
 Это каноническая точка восстановления текущего OCR-проекта. Она отвечает на практические вопросы: что уже сделано, что действительно проверено, что пока только предполагается и какой шаг разрешён следующим.
 
@@ -52,7 +52,7 @@ Surya, Chandra, Tesseract и мультимодальные LLM могут бы�
 |---|---|---|---|
 | Генератор синтетических строк | Реализован | Детерминированная генерация, точный synthetic ground truth, локальные шрифты и деградации покрыты кодом и тестами | Синтетика сама по себе не доказывает качество на фотографиях |
 | Локальный архив из 170 строк | Существует вне репозитория как `silver` | Кропы и предварительные подписи пригодны для bootstrap и диагностики | Это не Gold Set и не источник реальной CER |
-| Сборщик Gold Set v0 | Реализован | Создаёт стратифицированный автономный review pack и принимает только approved/corrected экспорт | Ивритоговорящий проверяющий ещё не сформировал итоговый Gold Set v0 |
+| Gold review workflow | Контракт утверждён, новый pack не собран | `docs/MODEL_ASSISTED_GOLD_TESTING_V0.md` фиксирует high-resolution candidate freeze, bootstrap prediction, минимальный offline APK и held-out CER | Кандидаты ещё не заморожены; recognizer, APK и итоговый Gold Set v0 отсутствуют |
 | Dataset & Evaluation Contract v0 | Реализован | Training builder требует непустой test-only Gold, исключает совпадения по source crop/image/text, пишет exclusion artifact и повторно запускает leakage gate; charset/CTC ID, split и CER покрыты тестами | Реального результата CER пока нет без Gold Set и предсказаний нашей модели; один договор доказывает только feasibility, не generalization |
 | Image Resolution Contract v0 | Реализован | Зафиксированы preview 1800 px, master 2480×3508, ceiling 4096 px, line height 64 px, запрет искусственного upscale | Эти размеры ещё не подтверждены сравнением нескольких обученных recognizer-вариантов |
 | Нормализатор страницы v0 | Реализован | Из принятых четырёх углов строит ограниченный grayscale master и удаляет внешние пиксели; при явном fallback сохраняет полный кадр; единый scale не увеличивает ни одну измеренную сторону | Это Python reference, а не Android memory implementation |
@@ -67,7 +67,7 @@ Surya, Chandra, Tesseract и мультимодальные LLM могут бы�
 
 ## 5. Два независимых блокера
 
-1. **Gold Set v0.** Нужна посимвольная проверка выбранных реальных строк человеком, уверенно читающим иврит. Пока её нет, запрещено заявлять реальную CER или превосходство нашей модели над baseline.
+1. **Gold Set v0.** Нужны прогнозы замороженной собственной модели и проверка их точного полного результата человеком, уверенно читающим иврит. Bootstrap recognizer разрешено обучить до Gold только для подготовки этих прогнозов; заявлять реальную CER или превосходство над baseline до held-out проверки запрещено.
 2. **Production privacy design.** Пока он не утверждён, запрещено подключать сырые пользовательские фотографии к готовому приложению.
 
 Сегментация строк на контролируемых полноразмерных страницах завершена как offline reference v0. Gold-блокер теперь снова определяет следующий шаг recognizer-feasibility; privacy-блокер по-прежнему запрещает production-подключение сырых фотографий.
@@ -82,20 +82,20 @@ Synthetic tests доказали ровно ограниченные gates v0: �
 
 ## 7. Единственный следующий шаг
 
-**Human verification and materialization of Gold Set v0.** Другой OCR-шаг нельзя начинать без явного изменения этого файла и решения владельца продукта.
+**Freeze the high-resolution Gold candidate set and its pilot/evaluation cohorts.** Другой OCR-шаг нельзя начинать без явного изменения этого файла и решения владельца продукта.
 
-Разрешённые владельцем corrective-исключения от 2026-07-20 ограничены передачей `rejected boundary → full frame`, исправлением no-upscale, закрытием Gold/Silver leakage, удалением ложной recognizer eligibility, восстановлением согласованности state/контрактов с фактическим per-page `crop_policy` и устранением partial output после ошибки сегментатора. Они не добавляют новый OCR-компонент; после их слияния единственным следующим шагом остаётся Gold Set v0.
+Владелец продукта изменил прежний порядок «сначала ручная транскрипция Gold, затем recognizer»: проверяющий должен сверять и минимально исправлять предварительно рассчитанный текст нашей модели, а не перепечатывать договор. Полный порядок и минимальная граница APK зафиксированы в `docs/MODEL_ASSISTED_GOLD_TESTING_V0.md`.
 
 Граница задачи:
 
-- вход: локальный архив из 170 silver rows и автономный Gold review pack, созданный существующим `build_gold_review_pack.py`; перед следующим handoff оркестрирующий ассистент обязан проверить и передать точные локальные пути и hashes;
-- действие: человек, уверенно читающий иврит, посимвольно отмечает каждую строку как `approved`, `corrected`, `excluded` или оставляет `pending`; teacher label никогда не принимается автоматически;
-- выход: локальный `gold_accepted_v0.jsonl`, затем materialized ignored `gold_v0` через существующий `dataset_contract.py`;
-- проверка: принимаются только `approved`/`corrected`, все изображения и тексты проходят charset/hash/schema validation, Gold остаётся только `test`; последующая сборка training обязана получить этот Gold, исключить source/image/text matches и завершиться чистым leakage gate;
+- вход: только локальные line candidates из последнего полноразмерного девятистраничного договора; старый низкоразрешённый архив запрещён как источник Gold;
+- действие: до появления model predictions детерминированно выбрать кандидаты и заранее назначить pilot/held-out evaluation cohorts, записав stable IDs, provenance, crop coordinates и image hashes;
+- выход: локальный immutable candidate manifest без человеческих labels и без model predictions; реальные изображения и manifest с данными договора не коммитятся;
+- проверка: все rows проходят schema/hash/source validation, не зависят от качества OCR prediction и передаются training builder как запрещённые source/image matches;
 - реальные кропы, тексты, review exports и Gold manifest не коммитятся;
-- этот шаг не тренирует recognizer, не измеряет CER без predictions нашей модели, не вызывает внешний OCR/API и не меняет приложение.
+- этот шаг не тренирует recognizer, не строит APK, не вызывает внешний OCR/API и не меняет приложение.
 
-Это ручной verification gate, а не задача, которую Codex может честно завершить самостоятельно. Если qualified reviewer или локальный review pack недоступен, состояние остаётся заблокированным; нельзя подменять проверку teacher agreement, визуальной правдоподобностью или LLM-транскрипцией.
+После candidate freeze следующим отдельным шагом станет bootstrap recognizer, затем precomputed predictions и минимальный offline APK. Human verification по-прежнему обязательна для Gold и CER, но не должна требовать ручного переписывания уже правильно распознанного текста.
 
 ## 8. Протокол восстановления новой сессии
 
