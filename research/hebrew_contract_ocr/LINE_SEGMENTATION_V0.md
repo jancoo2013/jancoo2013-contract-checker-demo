@@ -75,16 +75,15 @@ line_segmentation_v0/
 | `status` | Final composed `accepted`, `review`, or `reject` |
 | `reasons` | Sorted geometric and upstream machine-readable reasons; empty only for a final accepted ordinary band |
 | `upstream_resolution_status` | Exact validated status inherited from the normalizer row |
-| `recognizer_eligible` | `true` only when final `status` is `accepted` and upstream resolution is `pass` |
 | `foreground_pixels` | Thresholded foreground inside the bbox |
 | `line_image`, `line_sha256` | Safe relative crop path and SHA-256 of its exact PNG bytes |
 | `source_master_sha256` | Normalized master provenance |
 
-Every candidate, including review/reject regions, gets a line image for local QA. Downstream recognizer data builders must consume only explicitly eligible rows; v0 does not make that training decision.
+Every candidate, including review/reject regions, gets a line image for local QA. This component does not decide training eligibility. Downstream builders must combine segmentation status with handwriting, privacy, capture-quality, and human-label gates.
 
-`pages.jsonl` has exactly one row per input page, including blank pages. `segmentation_status` preserves geometric `accepted`, `review`, `reject`, or `blank`; `page_status` is the final upstream-composed status. `segmentation_reasons` preserves geometric page reasons, while `reasons` also contains upstream reasons. The row additionally records dimensions, threshold, total/accounted foreground, final and geometric line-status counts, recognizer-eligible line count, upstream resolution status, source hash, external-mask count, and overlay path/hash.
+`pages.jsonl` has exactly one row per input page, including blank pages. `segmentation_status` preserves geometric `accepted`, `review`, `reject`, or `blank`; `page_status` is the final upstream-composed status. `segmentation_reasons` preserves geometric page reasons, while `reasons` also contains upstream reasons. The row additionally records dimensions, threshold, total/accounted foreground, final and geometric line-status counts, upstream resolution status, source hash, external-mask count, and overlay path/hash.
 
-`summary.json` records input and masks hashes plus separate final/geometric page and line status counts, reasons, and recognizer-eligible line count. It contains no OCR text or accuracy result.
+`summary.json` records input and masks hashes plus separate final/geometric page and line status counts and reasons. It contains no OCR text, training-eligibility decision, or accuracy result.
 
 QA overlay colors and labels use final composed line status so an upstream resolution failure cannot appear green; geometric status remains available in JSONL.
 
@@ -117,7 +116,7 @@ Upstream resolution composition is also fail-closed:
 - `review_no_text_measurement` adds `upstream_resolution_review`; accepted/review lines finish as `review`, rejected lines remain `reject`, and an accepted/review/blank geometric page finishes as `review`;
 - `fail_page_too_small` or `fail_text_too_small` adds `upstream_resolution_failure` and forces every line and page to final `reject`;
 - a geometrically rejected page is never improved by an upstream review status;
-- no line is recognizer-eligible unless both its final status is `accepted` and upstream resolution is `pass`.
+- final line status composes geometric segmentation with upstream resolution without claiming training eligibility.
 
 Page statuses are:
 
@@ -140,7 +139,7 @@ The reference and its tests enforce:
 - explicit blank-page status and explicit accounting of every thresholded foreground pixel;
 - review/reject behavior for isolated specks, 6–7 px rules, insufficient text geometry, near-edge bands, close lines, merged bands, tables, masks, opaque redactions, and edge crops;
 - strict normalizer-manifest schema/types/status validation and rejection when a master mutates before exact-byte decode;
-- separate geometric/final pass-review-fail propagation, recognizer eligibility, and explicit blank-page composition;
+- separate geometric/final pass-review-fail propagation and explicit blank-page composition without a training-eligibility claim;
 - rejection of mismatched or oversized decoded headers before pixel load and wrapping of Pillow decompression-bomb errors;
 - refusal to overwrite a non-empty output directory.
 
