@@ -151,6 +151,30 @@ class OCRPageNormalizerTests(unittest.TestCase):
             with self.assertRaisesRegex(PageNormalizationError, "page corners are required"):
                 normalize_directory(input_dir, root / "output")
 
+    def test_rejected_boundary_preserves_full_frame_and_text(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            input_dir = root / "input"
+            output_dir = root / "output"
+            input_dir.mkdir()
+            source = _page_with_text_bands(1200, 2400)
+            source.save(input_dir / "white-on-white.png")
+            corners_json = root / "page_corners.json"
+            corners_json.write_text('{"white-on-white.png": null}\n', encoding="utf-8")
+
+            summary = normalize_directory(input_dir, output_dir, corners_json=corners_json)
+            row = json.loads(
+                (output_dir / "manifest.jsonl").read_text(encoding="utf-8").splitlines()[0]
+            )
+            with Image.open(output_dir / row["master_image"]) as master:
+                master.load()
+                dark_pixels = np.count_nonzero(np.asarray(master) < 128)
+
+            self.assertTrue(row["used_full_frame"])
+            self.assertFalse(row["outside_quadrilateral_discarded"])
+            self.assertGreater(dark_pixels, 0)
+            self.assertEqual(summary["crop_policy"], "accepted_quadrilateral_else_full_frame")
+
     def test_directory_writes_manifest_hashes_and_summary(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
@@ -173,7 +197,7 @@ class OCRPageNormalizerTests(unittest.TestCase):
             self.assertTrue(all((output_dir / row["master_image"]).is_file() for row in rows))
             self.assertTrue(all((output_dir / row["preview_image"]).is_file() for row in rows))
             self.assertTrue((output_dir / "summary.json").is_file())
-            self.assertEqual(summary["crop_policy"], "discard_outside_quadrilateral")
+            self.assertEqual(summary["crop_policy"], "accepted_quadrilateral_else_full_frame")
             for row in rows:
                 with Image.open(output_dir / row["master_image"]) as saved_master:
                     saved_master.load()

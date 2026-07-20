@@ -700,7 +700,7 @@ def detect_directory(
     previews_dir.mkdir()
     overlays_dir.mkdir()
     rows: list[dict[str, Any]] = []
-    accepted_corners: dict[str, list[list[float]]] = {}
+    boundary_decisions: dict[str, list[list[float]] | None] = {}
     for page_index, source_path in enumerate(sources, start=1):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", Image.DecompressionBombWarning)
@@ -727,15 +727,18 @@ def detect_directory(
             "overlay_image": overlay_path.relative_to(output_dir).as_posix(),
         }
         rows.append(row)
-        if detection.status == "detected" and detection.source_corners is not None:
-            accepted_corners[source_path.name] = [[x, y] for x, y in detection.source_corners]
+        boundary_decisions[source_path.name] = (
+            [[x, y] for x, y in detection.source_corners]
+            if detection.status == "detected" and detection.source_corners is not None
+            else None
+        )
 
     (output_dir / "manifest.jsonl").write_text(
         "".join(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n" for row in rows),
         encoding="utf-8",
     )
     (output_dir / "page_corners.json").write_text(
-        json.dumps(accepted_corners, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        json.dumps(boundary_decisions, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
     statuses = dict(sorted(Counter(str(row["status"]) for row in rows).items()))
@@ -747,7 +750,7 @@ def detect_directory(
         "statuses": statuses,
         "minimum_confidence": MIN_CONFIDENCE,
         "exif_orientation_applied": apply_exif_orientation,
-        "crop_policy": "discard_outside_quadrilateral",
+        "crop_policy": "accepted_quadrilateral_else_full_frame",
     }
     (output_dir / "summary.json").write_text(
         json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
@@ -778,7 +781,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         apply_exif_orientation=not args.ignore_exif_orientation,
     )
     print(json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True))
-    return 1 if summary["rejected"] else 0
+    return 0
 
 
 if __name__ == "__main__":

@@ -115,7 +115,7 @@ python -m research.hebrew_contract_ocr.page_boundary_detector \
   --output-dir research/hebrew_contract_ocr/generated/page_boundaries_v0
 ```
 
-Inspect the overlays and rejection reasons. Only accepted corners are written to `page_corners.json`. The detector fails closed and marks a side `frame_clipped` when the sheet continues beyond the photograph.
+Inspect the overlays and rejection reasons. `page_corners.json` records accepted corners and writes `null` for a rejected proposal, causing the normalizer to preserve the full frame. A `frame_clipped` side records that the sheet continues beyond the photograph without making visible text unusable by itself.
 
 The reference normalizer consumes those corners and writes only local ignored artifacts:
 

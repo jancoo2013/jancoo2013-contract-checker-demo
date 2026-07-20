@@ -95,7 +95,7 @@ class OCRPageBoundaryDetectorTests(unittest.TestCase):
         self.assertIsNone(result.source_corners)
         self.assertTrue(result.reasons)
 
-    def test_directory_writes_only_accepted_corners_and_crop_policy(self) -> None:
+    def test_directory_records_rejected_page_for_full_frame_fallback(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             input_dir = root / "input"
@@ -118,8 +118,10 @@ class OCRPageBoundaryDetectorTests(unittest.TestCase):
 
             self.assertEqual(summary["detected"], 1)
             self.assertEqual(summary["rejected"], 1)
-            self.assertEqual(summary["crop_policy"], "discard_outside_quadrilateral")
-            self.assertEqual(set(corners), {"1.png"})
+            self.assertEqual(summary["crop_policy"], "accepted_quadrilateral_else_full_frame")
+            self.assertEqual(set(corners), {"1.png", "2.png"})
+            self.assertIsNotNone(corners["1.png"])
+            self.assertIsNone(corners["2.png"])
             self.assertEqual([row["status"] for row in rows], ["detected", "rejected"])
             self.assertTrue(all((output_dir / row["overlay_image"]).is_file() for row in rows))
 
