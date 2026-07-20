@@ -12,10 +12,13 @@ by a left-to-right CTC recognizer over the source pixels.
    CER.
 2. **CTC alignment order** is the character sequence encountered while scanning a
    rendered line from the left edge of the image to the right edge.
-3. CTC repeat collapse and blank removal operate in alignment order.
-4. Only after collapse is alignment order converted to logical order.
+3. `recognizer_input.py` converts logical labels to alignment-order CTC targets.
+4. CTC repeat collapse and blank removal operate in alignment order.
+5. Only after collapse is alignment order converted back to logical order.
 
 The conversion must never reverse padded time steps or treat bidi controls as data.
+`RecognizerBatch.texts` remains logical Unicode; only its encoded `targets` use
+alignment order.
 
 ## Supported RTL v0 grammar
 
@@ -41,7 +44,8 @@ Examples such as `אA` or `Aא` must not be guessed.
 
 If real contract data shows that such tokens are common, the contract must be
 extended with explicit fixtures before training or evaluation accepts them. The
-decoder must not silently reorder an unsupported token into plausible text.
+training adapter and decoder must not silently reorder an unsupported token into
+plausible text.
 
 ## Decoder output
 
