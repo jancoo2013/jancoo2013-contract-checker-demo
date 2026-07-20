@@ -6,6 +6,7 @@ from typing import Sequence
 import numpy as np
 
 from .dataset_contract import CharsetContract, load_charset
+from .text_order import TextOrderError, visual_to_logical_rtl
 
 
 class CTCDecoderError(ValueError):
@@ -51,9 +52,9 @@ def greedy_decode(
 ) -> tuple[DecodedLine, ...]:
     """Decode `[time, batch, classes]` logits into logical-order text.
 
-    The recognizer scans source pixels left-to-right. For Hebrew lines, only each
-    sample's valid time prefix is reversed before CTC collapse; padded time steps
-    are never moved into or decoded as content.
+    CTC repeat collapse and blank removal happen in the recognizer's left-to-right
+    source scan order. RTL lines are then reordered by the bounded text-order v0
+    contract; padded time steps are never decoded as content.
     """
 
     values = np.asarray(logits)
@@ -71,12 +72,22 @@ def greedy_decode(
     best_paths = values.argmax(axis=2)
 
     decoded: list[DecodedLine] = []
+    character_to_id = charset.character_to_id
     for batch_index, length_value in enumerate(lengths):
         length = int(length_value)
-        path = best_paths[:length, batch_index]
-        if rtl:
-            path = path[::-1]
-        class_ids = _collapse_path(path, charset.ctc_blank_id)
-        text = "".join(charset.characters[class_id - 1] for class_id in class_ids)
-        decoded.append(DecodedLine(text=text, class_ids=class_ids, input_length=length))
+        visual_class_ids = _collapse_path(
+            best_paths[:length, batch_index],
+            charset.ctc_blank_id,
+        )
+        visual_text = "".join(
+            charset.characters[class_id - 1] for class_id in visual_class_ids
+        )
+        try:
+            text = visual_to_logical_rtl(visual_text) if rtl else visual_text
+        except TextOrderError as exc:
+            raise CTCDecoderError(f"unsupported RTL text order: {exc}") from exc
+        class_ids = tuple(character_to_id[character] for character in text)
+        decoded.append(
+            DecodedLine(text=text, class_ids=class_ids, input_length=length)
+        )
     return tuple(decoded)

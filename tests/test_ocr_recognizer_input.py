@@ -12,6 +12,7 @@ from PIL import Image, ImageDraw
 from research.hebrew_contract_ocr.dataset_contract import load_charset
 from research.hebrew_contract_ocr.recognizer_input import (
     RecognizerInputError,
+    encode_text,
     load_manifest_lines,
     prepare_batch,
 )
@@ -25,6 +26,11 @@ def _write_line(path: Path, size: tuple[int, int], dark_x: int) -> None:
 
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _decode_ids(values: np.ndarray) -> str:
+    charset = load_charset()
+    return "".join(charset.characters[int(value) - 1] for value in values)
 
 
 class RecognizerInputTests(unittest.TestCase):
@@ -66,16 +72,22 @@ class RecognizerInputTests(unittest.TestCase):
             self.assertGreater(first.pixels[1, 0, :, 90:120].max(), 0.9)
             self.assertEqual(float(first.pixels[1, 0, :, 128:].max()), 0.0)
 
-            charset = load_charset()
             lengths = first.target_lengths.tolist()
             decoded = []
             offset = 0
             for length in lengths:
-                ids = first.targets[offset : offset + length]
-                decoded.append("".join(charset.characters[int(value) - 1] for value in ids))
+                values = first.targets[offset : offset + length]
+                decoded.append(_decode_ids(values))
                 offset += length
-            self.assertEqual(decoded, ["אב", "2.1 השוכר"])
-            self.assertNotIn(charset.ctc_blank_id, first.targets)
+            self.assertEqual(decoded, ["בא", "רכושה 2.1"])
+            self.assertNotIn(load_charset().ctc_blank_id, first.targets)
+
+    def test_ctc_targets_use_reversible_alignment_order(self) -> None:
+        encoded = encode_text("השוכר 2.1 AS-IS")
+        self.assertEqual(_decode_ids(encoded), "AS-IS 2.1 רכושה")
+
+        with self.assertRaisesRegex(RecognizerInputError, "ASCII-space boundary"):
+            encode_text("אA")
 
     def test_invalid_text_hash_mode_and_path_fail_closed(self) -> None:
         cases = ("unknown", "hash", "mode", "path")
