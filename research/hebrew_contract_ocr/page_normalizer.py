@@ -20,7 +20,6 @@ SCHEMA_VERSION = 1
 PREVIEW_LONG_SIDE = 1800
 STANDARD_MASTER_LONG_SIDE = 3508
 HIGH_DETAIL_MASTER_LONG_SIDE = 4096
-STANDARD_A4_SHORT_SIDE = 2480
 MIN_PAGE_LONG_SIDE = 2200
 MIN_TEXT_BAND_HEIGHT = 24
 PREFERRED_TEXT_BAND_HEIGHT = (30, 48)
@@ -126,30 +125,17 @@ def _target_size(corners: Corners, profile: str) -> tuple[int, int, dict[str, An
         raise PageNormalizationError(f"unsupported normalization profile: {profile}")
 
     measured_long = max(measured_width, measured_height)
-    output_long = max(1, int(round(min(measured_long, requested_long_side))))
-    measured_ratio = measured_long / min(measured_width, measured_height)
-    a4_like = 1.32 <= measured_ratio <= 1.50
-    if a4_like and output_long == STANDARD_MASTER_LONG_SIDE:
-        output_short = STANDARD_A4_SHORT_SIDE
-    elif a4_like:
-        output_short = int(round(output_long / math.sqrt(2.0)))
-    else:
-        output_short = int(round(output_long / measured_ratio))
-    output_short = max(1, output_short)
-    output_size = (
-        (output_short, output_long)
-        if measured_height >= measured_width
-        else (output_long, output_short)
-    )
+    scale = min(1.0, requested_long_side / measured_long)
+    output_width = max(1, int(math.floor(measured_width * scale)))
+    output_height = max(1, int(math.floor(measured_height * scale)))
     geometry = {
         "measured_quad_width": round(measured_width, 3),
         "measured_quad_height": round(measured_height, 3),
         "measured_long_side": round(measured_long, 3),
-        "a4_ratio_applied": a4_like,
         "requested_long_side": requested_long_side,
         "upscaled": False,
     }
-    return output_size[0], output_size[1], geometry
+    return output_width, output_height, geometry
 
 
 def _preview(image: Image.Image) -> Image.Image:

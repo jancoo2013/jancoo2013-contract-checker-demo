@@ -1,6 +1,6 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-07-20, после уточнения full-frame fallback для границ страницы.
+Последнее обновление: 2026-07-20, после исправления no-upscale нормализатора.
 
 Это каноническая точка восстановления текущего OCR-проекта. Она отвечает на практические вопросы: что уже сделано, что действительно проверено, что пока только предполагается и какой шаг разрешён следующим.
 
@@ -55,7 +55,7 @@ Surya, Chandra, Tesseract и мультимодальные LLM могут бы�
 | Сборщик Gold Set v0 | Реализован | Создаёт стратифицированный автономный review pack и принимает только approved/corrected экспорт | Ивритоговорящий проверяющий ещё не сформировал итоговый Gold Set v0 |
 | Dataset & Evaluation Contract v0 | Реализован | Зафиксированы charset/CTC ID, уровни данных, split, leakage gate и точный CER; инструменты покрыты тестами | Реального результата CER пока нет без Gold Set и предсказаний нашей модели |
 | Image Resolution Contract v0 | Реализован | Зафиксированы preview 1800 px, master 2480×3508, ceiling 4096 px, line height 64 px, запрет искусственного upscale | Эти размеры ещё не подтверждены сравнением нескольких обученных recognizer-вариантов |
-| Нормализатор страницы v0 | Реализован | Из принятых четырёх углов строит ограниченный grayscale master и удаляет внешние пиксели; при явном fallback сохраняет полный кадр; есть тесты безопасности вывода | Это Python reference, а не Android memory implementation |
+| Нормализатор страницы v0 | Реализован | Из принятых четырёх углов строит ограниченный grayscale master и удаляет внешние пиксели; при явном fallback сохраняет полный кадр; единый scale не увеличивает ни одну измеренную сторону | Это Python reference, а не Android memory implementation |
 | Детектор границ страницы v0 | Реализован | Сомнительная граница не применяется: detector handoff явно выбирает принятый четырёхугольник или полный кадр; `frame_clipped`, mapping preview→source и QA-артефакты покрыты тестами | Один договор не доказывает production-качество на разных камерах, фонах и ракурсах; full-frame fallback ещё не означает, что границы текста найдены |
 | Сегментация строк | Reference v0 реализован | Детерминированный fail-closed CLI, line/page manifests, хеши, QA overlays, foreground accounting, mask/table/redaction/ambiguity gates и synthetic IoU/order/repeatability tests реализованы; локальный fixture из 9 страниц обработан без аварии | Smoke на одном договоре и synthetic gates не являются общей precision/recall; нет фиксированного human-annotated bbox benchmark и Android implementation |
 | Собственный recognizer | Не реализован | Charset, синтетический генератор и evaluator готовы | Нет обученных весов, Gold CER, latency и размера модели |
@@ -84,7 +84,7 @@ Synthetic tests доказали ровно ограниченные gates v0: �
 
 **Human verification and materialization of Gold Set v0.** Другой OCR-шаг нельзя начинать без явного изменения этого файла и решения владельца продукта.
 
-Разрешённое владельцем corrective-исключение от 2026-07-20 ограничено передачей `rejected boundary → full frame` и не добавляет новый OCR-компонент. После его слияния единственным следующим шагом остаётся Gold Set v0.
+Разрешённые владельцем corrective-исключения от 2026-07-20 ограничены передачей `rejected boundary → full frame` и исправлением нарушения no-upscale. Они не добавляют новый OCR-компонент; после их слияния единственным следующим шагом остаётся Gold Set v0.
 
 Граница задачи:
 
