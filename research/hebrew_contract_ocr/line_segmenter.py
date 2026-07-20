@@ -63,7 +63,7 @@ def _compose_line_status(
     segmentation_status: str,
     segmentation_reasons: Sequence[str],
     upstream_resolution_status: str,
-) -> tuple[str, tuple[str, ...], bool]:
+) -> tuple[str, tuple[str, ...]]:
     reasons = set(segmentation_reasons)
     if upstream_resolution_status == UPSTREAM_REVIEW_STATUS:
         reasons.add("upstream_resolution_review")
@@ -73,8 +73,7 @@ def _compose_line_status(
         final_status = "reject"
     else:
         final_status = segmentation_status
-    recognizer_eligible = final_status == "accepted" and upstream_resolution_status == "pass"
-    return final_status, tuple(sorted(reasons)), recognizer_eligible
+    return final_status, tuple(sorted(reasons))
 
 
 def _compose_page_status(
@@ -691,7 +690,7 @@ def segment_directory(
                         reasons=final_reasons,
                         foreground_pixels=line.foreground_pixels,
                     )
-                    for line, (final_status, final_reasons, _eligible) in zip(
+                    for line, (final_status, final_reasons) in zip(
                         page.lines, composed_lines
                     )
                 )
@@ -703,7 +702,7 @@ def segment_directory(
                     relative_image = Path("lines") / f"{line_id}.png"
                     output_path = output_dir / relative_image
                     _save_verified_png(source.crop(line.bbox), output_path)
-                    final_status, final_reasons, recognizer_eligible = composed
+                    final_status, final_reasons = composed
                     line_rows.append(
                         {
                             "schema_version": SCHEMA_VERSION,
@@ -716,7 +715,6 @@ def segment_directory(
                             "status": final_status,
                             "reasons": list(final_reasons),
                             "upstream_resolution_status": upstream_resolution_status,
-                            "recognizer_eligible": recognizer_eligible,
                             "foreground_pixels": line.foreground_pixels,
                             "line_image": relative_image.as_posix(),
                             "line_sha256": _sha256_file(output_path),
@@ -761,9 +759,6 @@ def segment_directory(
                 "line_statuses": dict(sorted(status_counts.items())),
                 "line_segmentation_statuses": dict(sorted(segmentation_status_counts.items())),
                 "line_reasons": dict(sorted(reason_counts.items())),
-                "recognizer_eligible_lines": sum(
-                    bool(row["recognizer_eligible"]) for row in current_line_rows
-                ),
                 "external_mask_count": len(masks_by_page.get(page_id, [])),
                 "upstream_resolution_status": upstream_resolution_status,
                 "source_master": input_row["master_image"],
@@ -794,9 +789,6 @@ def segment_directory(
         "page_segmentation_statuses": dict(sorted(page_segmentation_statuses.items())),
         "line_statuses": dict(sorted(line_statuses.items())),
         "line_segmentation_statuses": dict(sorted(line_segmentation_statuses.items())),
-        "recognizer_eligible_lines": sum(
-            bool(row["recognizer_eligible"]) for row in line_rows
-        ),
         "line_reasons": dict(sorted(line_reasons.items())),
         "bbox_convention": "xyxy_half_open",
         "order": "top_to_bottom",

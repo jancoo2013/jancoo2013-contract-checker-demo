@@ -239,7 +239,6 @@ class OCRLineSegmenterTests(unittest.TestCase):
             self.assertEqual(
                 [row["segmentation_status"] for row in page_rows], ["accepted", "blank"]
             )
-            self.assertTrue(all(row["recognizer_eligible"] for row in line_rows))
             self.assertTrue(all(row["segmentation_status"] == "accepted" for row in line_rows))
             self.assertTrue(all(row["upstream_resolution_status"] == "pass" for row in line_rows))
             self.assertTrue(all((output_dir / row["line_image"]).is_file() for row in line_rows))
@@ -388,27 +387,24 @@ class OCRLineSegmenterTests(unittest.TestCase):
 
     def test_upstream_pass_review_and_failure_compose_line_and_page_statuses(self) -> None:
         cases = {
-            "pass": ("accepted", "accepted", True, None),
+            "pass": ("accepted", "accepted", None),
             "review_no_text_measurement": (
                 "review",
                 "review",
-                False,
                 "upstream_resolution_review",
             ),
             "fail_page_too_small": (
                 "reject",
                 "reject",
-                False,
                 "upstream_resolution_failure",
             ),
             "fail_text_too_small": (
                 "reject",
                 "reject",
-                False,
                 "upstream_resolution_failure",
             ),
         }
-        for upstream, (line_status, page_status, eligible, reason) in cases.items():
+        for upstream, (line_status, page_status, reason) in cases.items():
             with self.subTest(upstream=upstream), tempfile.TemporaryDirectory() as temporary_directory:
                 root = Path(temporary_directory)
                 page = Image.new("L", (600, 800), 255)
@@ -426,14 +422,15 @@ class OCRLineSegmenterTests(unittest.TestCase):
                 self.assertEqual(line_row["segmentation_status"], "accepted")
                 self.assertEqual(line_row["status"], line_status)
                 self.assertEqual(line_row["upstream_resolution_status"], upstream)
-                self.assertIs(line_row["recognizer_eligible"], eligible)
+                self.assertNotIn("recognizer_eligible", line_row)
                 self.assertEqual(page_row["segmentation_status"], "accepted")
                 self.assertEqual(page_row["page_status"], page_status)
+                self.assertNotIn("recognizer_eligible_lines", page_row)
                 self.assertEqual(summary["line_segmentation_statuses"], {"accepted": 1})
                 self.assertEqual(summary["line_statuses"], {line_status: 1})
                 self.assertEqual(summary["page_segmentation_statuses"], {"accepted": 1})
                 self.assertEqual(summary["page_statuses"], {page_status: 1})
-                self.assertEqual(summary["recognizer_eligible_lines"], int(eligible))
+                self.assertNotIn("recognizer_eligible_lines", summary)
                 if reason is None:
                     self.assertNotIn("upstream_resolution_review", line_row["reasons"])
                     self.assertNotIn("upstream_resolution_failure", line_row["reasons"])
