@@ -6,6 +6,7 @@ import io
 import json
 import math
 import re
+import tempfile
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -610,7 +611,7 @@ def _overlay(image: Image.Image, page_id: str, lines: Sequence[LineRegion]) -> I
     return overlay
 
 
-def segment_directory(
+def _segment_directory_to_output(
     input_dir: Path,
     output_dir: Path,
     *,
@@ -798,6 +799,42 @@ def segment_directory(
         json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
+    return summary
+
+
+def segment_directory(
+    input_dir: Path,
+    output_dir: Path,
+    *,
+    masks_json: Path | None = None,
+) -> dict[str, Any]:
+    _check_output_directory(output_dir)
+    output_dir.parent.mkdir(parents=True, exist_ok=True)
+    prefix = f".{output_dir.name}.staging-"
+    with tempfile.TemporaryDirectory(prefix=prefix, dir=output_dir.parent) as temporary_directory:
+        staging_dir = Path(temporary_directory)
+        summary = _segment_directory_to_output(
+            input_dir,
+            staging_dir,
+            masks_json=masks_json,
+        )
+        destination_existed = output_dir.exists()
+        try:
+            staging_dir.replace(output_dir)
+        except OSError as exc:
+            if not destination_existed:
+                raise LineSegmentationError(
+                    f"could not publish completed output directory: {output_dir}"
+                ) from exc
+            try:
+                output_dir.rmdir()
+                staging_dir.replace(output_dir)
+            except OSError as publish_error:
+                if not output_dir.exists():
+                    output_dir.mkdir()
+                raise LineSegmentationError(
+                    f"could not publish completed output directory: {output_dir}"
+                ) from publish_error
     return summary
 
 

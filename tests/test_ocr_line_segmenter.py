@@ -288,6 +288,42 @@ class OCRLineSegmenterTests(unittest.TestCase):
             with self.assertRaisesRegex(LineSegmentationError, "hash mismatch"):
                 segment_directory(input_dir, root / "fresh")
 
+    def test_late_failure_leaves_output_retryable_and_cleans_staging(self) -> None:
+        for precreate_output in (False, True):
+            with self.subTest(precreate_output=precreate_output), tempfile.TemporaryDirectory() as temporary_directory:
+                root = Path(temporary_directory)
+                pages = [Image.new("L", (600, 800), 255) for _ in range(2)]
+                for page in pages:
+                    _draw_text_band(ImageDraw.Draw(page), (80, 100, 520, 124))
+                input_dir = _write_normalized_input(root, pages)
+                output_dir = root / "output"
+                if precreate_output:
+                    output_dir.mkdir()
+                original_save = line_segmenter_module._save_verified_png
+
+                def fail_on_second_page(image: Image.Image, path: Path) -> None:
+                    if path.name == "P0002-L0001.png":
+                        raise LineSegmentationError("injected late failure")
+                    original_save(image, path)
+
+                with patch.object(
+                    line_segmenter_module,
+                    "_save_verified_png",
+                    side_effect=fail_on_second_page,
+                ):
+                    with self.assertRaisesRegex(LineSegmentationError, "injected late failure"):
+                        segment_directory(input_dir, output_dir)
+
+                if precreate_output:
+                    self.assertEqual(list(output_dir.iterdir()), [])
+                else:
+                    self.assertFalse(output_dir.exists())
+                self.assertEqual(list(root.glob(".output.staging-*")), [])
+                summary = segment_directory(input_dir, output_dir)
+                self.assertEqual(summary["pages"], 2)
+                self.assertEqual(summary["lines"], 2)
+                self.assertEqual(list(root.glob(".output.staging-*")), [])
+
     def test_external_mask_file_is_hashed_and_unknown_page_fails(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)

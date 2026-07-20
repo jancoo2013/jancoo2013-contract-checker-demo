@@ -43,7 +43,8 @@ The Pillow/NumPy reference implementation:
 5. merges external masks with every candidate in the same vertical line band;
 6. applies conservative text-geometry, thin/sparse noise, near-edge, ambiguity, table, opaque-redaction, edge-crop, rule, and strike-through gates;
 7. sorts all regions top-to-bottom and assigns stable page-local line IDs;
-8. writes exact grayscale crops, canonical JSONL, and a colored QA overlay.
+8. writes exact grayscale crops, canonical JSONL, and a colored QA overlay into a sibling staging directory;
+9. publishes the completed directory only after every page and final manifest has succeeded.
 
 This is deliberately conservative. It does not use OCR language, connected Unicode, learned layout models, randomness, timestamps, network calls, or machine-specific absolute paths in outputs.
 
@@ -86,6 +87,8 @@ Every candidate, including review/reject regions, gets a line image for local QA
 `summary.json` records input and masks hashes plus separate final/geometric page and line status counts and reasons. It contains no OCR text, training-eligibility decision, or accuracy result.
 
 QA overlay colors and labels use final composed line status so an upstream resolution failure cannot appear green; geometric status remains available in JSONL.
+
+Output publication is fail-closed. A late decode, segmentation, image-write, or manifest-write failure removes the staging directory and leaves the requested output absent or empty, so the same command can be retried. A completed result is exposed by one directory rename; an existing non-empty output is never deleted or overwritten.
 
 ## 4. Status and reason gates
 
@@ -141,6 +144,7 @@ The reference and its tests enforce:
 - strict normalizer-manifest schema/types/status validation and rejection when a master mutates before exact-byte decode;
 - separate geometric/final pass-review-fail propagation and explicit blank-page composition without a training-eligibility claim;
 - rejection of mismatched or oversized decoded headers before pixel load and wrapping of Pillow decompression-bomb errors;
+- cleanup of staged files after a late-page failure and a successful retry into the same empty output;
 - refusal to overwrite a non-empty output directory.
 
 These are implementation-integrity gates, not line-detection precision/recall and not OCR accuracy. A separate fixed, human-annotated page/bbox set is required before general segmentation quality can be claimed.
@@ -162,7 +166,7 @@ python -m research.hebrew_contract_ocr.line_segmenter \
   --output-dir research/hebrew_contract_ocr/generated/line_segmentation_masked_v0
 ```
 
-The output directory must be absent or empty. The builder never deletes or overwrites an existing dataset. Generated line crops, overlays, manifests, masks, and real page content stay under an ignored local directory and must not be committed.
+The output directory must be absent or empty. The builder never deletes or overwrites an existing dataset, and a failed build never leaves a partial dataset in the requested output. Generated line crops, overlays, manifests, masks, and real page content stay under an ignored local directory and must not be committed.
 
 ## 7. Scope boundary
 
