@@ -6,31 +6,87 @@ import numpy as np
 
 from research.hebrew_contract_ocr.ctc_decoder import CTCDecoderError, greedy_decode
 from research.hebrew_contract_ocr.dataset_contract import load_charset
+from research.hebrew_contract_ocr.text_order import (
+    TextOrderError,
+    logical_to_visual_rtl,
+    visual_to_logical_rtl,
+)
+
+
+def _path_for_text(text: str, character_to_id: dict[str, int]) -> list[int]:
+    path: list[int] = []
+    previous: int | None = None
+    for character in text:
+        class_id = character_to_id[character]
+        if class_id == previous:
+            path.append(0)
+        path.extend((class_id, class_id))
+        previous = class_id
+    return path
+
+
+def _logits_for_paths(
+    paths: list[list[int]],
+    classes: int,
+    padding_id: int,
+) -> tuple[np.ndarray, list[int]]:
+    time = max(len(path) for path in paths) + 3
+    logits = np.full((time, len(paths), classes), -10.0, dtype=np.float32)
+    lengths: list[int] = []
+    for batch_index, path in enumerate(paths):
+        lengths.append(len(path))
+        for time_index, class_id in enumerate(path):
+            logits[time_index, batch_index, class_id] = 10.0
+        logits[len(path) :, batch_index, padding_id] = 100.0
+    return logits, lengths
 
 
 class OCRCTCDecoderTests(unittest.TestCase):
-    def test_rtl_decode_reverses_only_valid_time_and_collapses_ctc(self) -> None:
+    def test_rtl_decode_restores_supported_logical_runs_and_ignores_padding(self) -> None:
         charset = load_charset()
         ids = charset.character_to_id
-        classes = len(charset.characters) + 1
-        logits = np.full((8, 2, classes), -10.0, dtype=np.float32)
+        visual_texts = [
+            "בא",
+            "123",
+            "AS-IS",
+            "AS-IS 2.1 רכושה",
+            "%12 :(בא)",
+        ]
+        paths = [_path_for_text(text, ids) for text in visual_texts]
+        logits, lengths = _logits_for_paths(
+            paths,
+            len(charset.characters) + 1,
+            ids["ג"],
+        )
 
-        # Left-to-right feature paths. Reversing valid time yields raw CTC paths
-        # [א, א, blank, ב, ב] and [1, 1, 2, 2].
-        first_visual = [ids["ב"], ids["ב"], 0, ids["א"], ids["א"]]
-        second_visual = [ids["2"], ids["2"], ids["1"], ids["1"]]
-        for time, class_id in enumerate(first_visual):
-            logits[time, 0, class_id] = 10.0
-        for time, class_id in enumerate(second_visual):
-            logits[time, 1, class_id] = 10.0
-        logits[5:, 0, ids["ג"]] = 100.0  # misleading padding must be ignored
-        logits[4:, 1, ids["9"]] = 100.0
+        result = greedy_decode(logits, lengths, charset=charset)
 
-        result = greedy_decode(logits, [5, 4], charset=charset)
+        expected = [
+            "אב",
+            "123",
+            "AS-IS",
+            "השוכר 2.1 AS-IS",
+            "(אב): 12%",
+        ]
+        self.assertEqual([line.text for line in result], expected)
+        self.assertEqual(
+            result[3].class_ids,
+            tuple(ids[character] for character in expected[3]),
+        )
+        self.assertEqual([line.input_length for line in result], lengths)
 
-        self.assertEqual([line.text for line in result], ["אב", "12"])
-        self.assertEqual(result[0].class_ids, (ids["א"], ids["ב"]))
-        self.assertEqual([line.input_length for line in result], [5, 4])
+    def test_supported_rtl_contract_is_reversible(self) -> None:
+        logical_lines = (
+            "אב",
+            "השוכר 2.1 AS-IS",
+            "(אב): 12%",
+            "א - ב",
+            "אב  (AS-IS)",
+        )
+        for logical in logical_lines:
+            with self.subTest(logical=logical):
+                visual = logical_to_visual_rtl(logical)
+                self.assertEqual(visual_to_logical_rtl(visual), logical)
 
     def test_blank_separates_repeated_characters_and_ltr_is_explicit(self) -> None:
         charset = load_charset()
@@ -43,6 +99,22 @@ class OCRCTCDecoderTests(unittest.TestCase):
         result = greedy_decode(logits, [5], charset=charset, rtl=False)
 
         self.assertEqual(result[0].text, "AA")
+        self.assertEqual(result[0].class_ids, (ids["A"], ids["A"]))
+
+    def test_no_space_mixed_direction_token_fails_closed(self) -> None:
+        charset = load_charset()
+        ids = charset.character_to_id
+        path = _path_for_text("Aא", ids)
+        logits, lengths = _logits_for_paths(
+            [path],
+            len(charset.characters) + 1,
+            ids["ג"],
+        )
+
+        with self.assertRaisesRegex(CTCDecoderError, "ASCII-space boundary"):
+            greedy_decode(logits, lengths, charset=charset)
+        with self.assertRaises(TextOrderError):
+            logical_to_visual_rtl("אA")
 
     def test_invalid_shapes_lengths_classes_and_values_fail_closed(self) -> None:
         charset = load_charset()
