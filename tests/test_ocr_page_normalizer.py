@@ -115,7 +115,9 @@ class OCRPageNormalizerTests(unittest.TestCase):
 
         self.assertFalse(result.report["used_full_frame"])
         self.assertEqual(result.report["corners_tl_tr_br_bl"], [list(point) for point in corners])
-        self.assertEqual(result.report["crop_policy"], "discard_outside_quadrilateral")
+        self.assertEqual(
+            result.report["crop_policy"], "accepted_quadrilateral_else_full_frame"
+        )
         self.assertTrue(result.report["outside_quadrilateral_discarded"])
         self.assertEqual(result.report["quad_sampling_inset_pixels"], QUAD_SAMPLING_INSET_PIXELS)
         self.assertLessEqual(max(result.master.size), STANDARD_MASTER_LONG_SIDE)
@@ -187,6 +189,9 @@ class OCRPageNormalizerTests(unittest.TestCase):
                 dark_pixels = np.count_nonzero(np.asarray(master) < 128)
 
             self.assertTrue(row["used_full_frame"])
+            self.assertEqual(
+                row["crop_policy"], "accepted_quadrilateral_else_full_frame"
+            )
             self.assertFalse(row["outside_quadrilateral_discarded"])
             self.assertGreater(dark_pixels, 0)
             self.assertEqual(summary["crop_policy"], "accepted_quadrilateral_else_full_frame")

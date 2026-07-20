@@ -62,7 +62,7 @@ source photo
 → recognizer adapter resizes each line to height 64
 ```
 
-The page-boundary detector and the normalizer are separate components. The normalizer consumes four ordered source-image corners: top-left, top-right, bottom-right, bottom-left. Full-frame mode is permitted only for an already cropped scan or an explicit research fixture.
+The page-boundary detector and the normalizer are separate components. The normalizer consumes either four ordered source-image corners — top-left, top-right, bottom-right, bottom-left — or an explicit `null` fallback decision from the detector. Full-frame mode is permitted for an already cropped scan, an explicit research fixture, or a rejected/uncertain phone-photo boundary decision. A missing source-image key remains invalid and must not silently select full-frame mode.
 
 The detector follows `PAGE_BOUNDARY_DETECTOR_V0.md`. For an explicit quadrilateral, the OCR master contains only that mapped page region: all source pixels outside the quadrilateral are discarded. The reference normalizer uses a four-source-pixel inward sampling inset so bicubic interpolation cannot bleed surrounding table, floor, folder, or another sheet into the master edge. Detector previews and overlays may retain context for QA; they are not OCR inputs.
 
