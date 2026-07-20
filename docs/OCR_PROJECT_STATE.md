@@ -1,6 +1,6 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-07-20, после реализации high-resolution Gold candidate freeze v0.
+Последнее обновление: 2026-07-20, после реализации recognizer input adapter v0.
 
 Это каноническая точка восстановления текущего OCR-проекта. Она отвечает на практические вопросы: что уже сделано, что действительно проверено, что пока только предполагается и какой шаг разрешён следующим.
 
@@ -58,7 +58,7 @@ Surya, Chandra, Tesseract и мультимодальные LLM могут бы�
 | Нормализатор страницы v0 | Реализован | Из принятых четырёх углов строит ограниченный grayscale master и удаляет внешние пиксели; при явном fallback сохраняет полный кадр; единый scale не увеличивает ни одну измеренную сторону | Это Python reference, а не Android memory implementation |
 | Детектор границ страницы v0 | Реализован | Сомнительная граница не применяется: detector handoff явно выбирает принятый четырёхугольник или полный кадр; `frame_clipped`, mapping preview→source и QA-артефакты покрыты тестами | Один договор не доказывает production-качество на разных камерах, фонах и ракурсах; full-frame fallback ещё не означает, что границы текста найдены |
 | Сегментация строк | Reference v0 реализован | Детерминированный fail-closed CLI с публикацией только полностью собранного output, line/page manifests, хеши, QA overlays, foreground accounting, mask/table/redaction/ambiguity gates и synthetic IoU/order/repeatability tests реализованы; локальный fixture из 9 страниц обработан без аварии | Smoke на одном договоре и synthetic gates не являются общей precision/recall; нет фиксированного human-annotated bbox benchmark и Android implementation |
-| Собственный recognizer | Не реализован | Charset, синтетический генератор и evaluator готовы | Нет обученных весов, Gold CER, latency и размера модели |
+| Собственный recognizer | Input adapter v0 реализован, neural model отсутствует | Strict grayscale line детерминированно преобразуется в `[B,1,64,W]` float32 ink tensor; logical text — в CTC IDs и lengths; widths сохраняют границу padding | Нет architecture, training loop, весов, predictions, Gold CER, latency и размера модели |
 | RTL/layout и структура пунктов | Не реализованы | Требование разделено от распознавания символов | Нет кода и измерений reading order |
 | Android OCR integration | Не начата | Целевое ограничение on-device зафиксировано | Python reference-код не доказывает мобильную скорость и память |
 | Production privacy gate | Не утверждён | Ограничения на внешнюю передачу данных зафиксированы | Подключение сырых фотографий к production заблокировано |
@@ -84,19 +84,19 @@ Gold candidate freeze v0 реализован отдельным fail-closed bui
 
 ## 7. Единственный следующий шаг
 
-**Implement the framework-independent recognizer input adapter v0.** Другой OCR-шаг нельзя начинать без явного изменения этого файла и решения владельца продукта.
+**Implement the minimal compact CRNN-CTC model v0 forward/decode boundary.** Другой OCR-шаг нельзя начинать без явного изменения этого файла и решения владельца продукта.
 
-Candidate set уже заморожен до появления model predictions. Следующий маленький PR начинает bootstrap recognizer с его детерминированной границы входа, не выбирая пока ML framework и не добавляя training loop.
+Framework-independent input adapter завершён. На 8 строках настоящего synthetic-generator output он создал deterministic batch `[8,1,64,1201]`, 337 target IDs, `float32` range `[0,1]`; unit tests отдельно проверяют aspect ratio, logical order, padding, hashes, modes и unsafe paths.
 
 Граница задачи:
 
-- вход: canonical synthetic line images/manifests, `charset_v0.json` и фиксированная recognizer height 64 из Image Resolution Contract;
-- действие: проверить image/text/charset contract, resize grayscale line к height 64 с сохранением пропорций, преобразовать logical-order text в CTC character IDs и детерминированно pad variable-width batch;
-- выход: маленький NumPy/Pillow adapter с явными tensor shapes/lengths и synthetic unit tests;
-- проверка: aspect ratio, no RTL reversal, charset IDs, padding и повторяемость покрыты точными тестами;
-- этот шаг не выбирает neural architecture, не добавляет PyTorch/TensorFlow/ONNX, не обучает recognizer, не читает Gold candidates, не вызывает внешний OCR/API и не меняет приложение.
+- вход: output `RecognizerBatch`, valid input widths, charset size и CTC blank ID 0;
+- действие: добавить одну компактную CRNN-CTC architecture с forward pass и greedy decode; RTL logical output обеспечивается reversal только valid feature-time axis, не Unicode и не padded tail;
+- выход: research-only model module и unit tests формы logits, рассчитанных time lengths, RTL decode и ограниченного parameter count;
+- проверка: mixed-width batch не читает padding как текст, decode удаляет blank/repeats по CTC и возвращает logical-order Unicode;
+- этот шаг не добавляет training loop, optimizer/checkpoints, не обучает weights, не читает Gold candidates, не строит APK, не вызывает внешний OCR/API и не меняет приложение.
 
-После adapter отдельными PR последуют минимальная recognizer architecture, training loop, frozen predictions и reviewer APK. Human verification по-прежнему обязательна для Gold и CER, но не должна требовать ручного переписывания уже правильно распознанного текста.
+После model boundary отдельными PR последуют training loop, frozen predictions и reviewer APK. Human verification по-прежнему обязательна для Gold и CER, но не должна требовать ручного переписывания уже правильно распознанного текста.
 
 ## 8. Протокол восстановления новой сессии
 
