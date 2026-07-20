@@ -1,6 +1,6 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-07-20, после реализации CTC greedy decoder v0.
+Последнее обновление: 2026-07-20, после подтверждения isolated CPU ML research runtime v0.
 
 Это каноническая точка восстановления текущего OCR-проекта. Она отвечает на практические вопросы: что уже сделано, что действительно проверено, что пока только предполагается и какой шаг разрешён следующим.
 
@@ -58,7 +58,7 @@ Surya, Chandra, Tesseract и мультимодальные LLM могут бы�
 | Нормализатор страницы v0 | Реализован | Из принятых четырёх углов строит ограниченный grayscale master и удаляет внешние пиксели; при явном fallback сохраняет полный кадр; единый scale не увеличивает ни одну измеренную сторону | Это Python reference, а не Android memory implementation |
 | Детектор границ страницы v0 | Реализован | Сомнительная граница не применяется: detector handoff явно выбирает принятый четырёхугольник или полный кадр; `frame_clipped`, mapping preview→source и QA-артефакты покрыты тестами | Один договор не доказывает production-качество на разных камерах, фонах и ракурсах; full-frame fallback ещё не означает, что границы текста найдены |
 | Сегментация строк | Reference v0 реализован | Детерминированный fail-closed CLI с публикацией только полностью собранного output, line/page manifests, хеши, QA overlays, foreground accounting, mask/table/redaction/ambiguity gates и synthetic IoU/order/repeatability tests реализованы; локальный fixture из 9 страниц обработан без аварии | Smoke на одном договоре и synthetic gates не являются общей precision/recall; нет фиксированного human-annotated bbox benchmark и Android implementation |
-| Собственный recognizer | Input adapter и CTC decoder v0 реализованы, neural model отсутствует | Strict grayscale line преобразуется в `[B,1,64,W]`; decoder разворачивает только valid RTL time prefix, игнорирует padding и выполняет standard CTC blank/repeat collapse в logical Unicode | Нет neural architecture, training runtime/loop, весов, predictions, Gold CER, latency и размера модели; mixed-script BiDi quality не измерена |
+| Собственный recognizer | Input adapter, CTC decoder и isolated CPU runtime v0 реализованы; neural model отсутствует | Strict grayscale line преобразуется в `[B,1,64,W]`; decoder разворачивает только valid RTL time prefix; clean GitHub Actions runner установил `torch 2.8.0+cpu` и выполнил deterministic convolution на CPU без CUDA | Нет neural architecture, training loop, весов, predictions, Gold CER, latency и размера модели; mixed-script BiDi quality не измерена |
 | RTL/layout и структура пунктов | Не реализованы | Требование разделено от распознавания символов | Нет кода и измерений reading order |
 | Android OCR integration | Не начата | Целевое ограничение on-device зафиксировано | Python reference-код не доказывает мобильную скорость и память |
 | Production privacy gate | Не утверждён | Ограничения на внешнюю передачу данных зафиксированы | Подключение сырых фотографий к production заблокировано |
@@ -84,19 +84,19 @@ Gold candidate freeze v0 реализован отдельным fail-closed bui
 
 ## 7. Единственный следующий шаг
 
-**Establish an isolated CPU ML research runtime v0.** Другой OCR-шаг нельзя начинать без явного изменения этого файла и решения владельца продукта.
+**Conduct the overdue cold-start OCR continuity audit before neural model code.** Другой OCR-шаг нельзя начинать без явного изменения этого файла и решения владельца продукта.
 
-Framework-independent decoder завершён и тестами доказывает только границу postprocessing: per-sample valid-length RTL reversal, padding exclusion, CTC blank/repeat collapse, explicit LTR mode и fail-closed shape/class/value validation. ML framework в текущем окружении отсутствует, а недоступная package network не позволяет честно проверить neural forward в этом PR; непроверенный framework code не добавлен.
+Isolated training-only environment подтверждён на clean GitHub Actions runner с Python 3.12: установлен `torch 2.8.0+cpu`, `torch.version.cuda` равен `null`, output device равен `cpu`, deterministic convolution вернул форму `[1,1,6,6]` и конечные значения. Основной `requirements.txt` и production runtime не изменены. Neural model и training loop не добавлены.
 
 Граница задачи:
 
-- вход: отдельная research dependency specification; основной `requirements.txt` и production runtime остаются неизменными;
-- действие: зафиксировать CPU-capable PyTorch research environment и автоматический smoke, который действительно устанавливает framework и запускает import/tensor operation;
-- выход: маленький training-only requirements file и изолированная проверка, не импортируемые приложением;
-- проверка: clean environment устанавливает зависимости и выполняет deterministic CPU tensor smoke; версия framework видна в логе;
-- этот шаг не добавляет neural architecture, training loop, optimizer/checkpoints, не читает Gold candidates, не строит APK и не меняет приложение.
+- вход: текущее состояние `main`, `AGENTS.md`, архитектурные документы, component contracts и изменения OCR PR после PR 122;
+- действие: новая чистая сессия только читает репозиторий, восстанавливает pipeline, проверяет согласованность контрактов, фактический scope кода, тесты, ponytail/YAGNI и называет первый разрешённый следующий шаг;
+- выход: список находок с приоритетом и доказательствами; сам audit не меняет код или документы;
+- проверка: вывод audit независимо сопоставляется с diff и тестами оркестрирующим ассистентом;
+- этот шаг не добавляет neural architecture, training loop, зависимости, weights, predictions, APK или внешние OCR/API.
 
-После подтверждённого research runtime отдельными PR последуют compact CRNN forward, training loop, frozen predictions и reviewer APK. Human verification по-прежнему обязательна для Gold и CER, но не должна требовать ручного переписывания уже правильно распознанного текста.
+Если audit не выявит критического блокера, следующим отдельным маленьким PR станет compact CRNN-CTC v0 forward boundary без обучения. Затем отдельными PR последуют training loop, frozen predictions и reviewer APK. Human verification по-прежнему обязательна для Gold и CER, но не должна требовать ручного переписывания уже правильно распознанного текста.
 
 ## 8. Протокол восстановления новой сессии
 
