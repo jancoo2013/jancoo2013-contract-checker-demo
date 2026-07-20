@@ -1,6 +1,6 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-07-20, после cold-start continuity audit OCR PR 123–128 и исправления документационных расхождений.
+Последнее обновление: 2026-07-20, после mixed-script CTC Text Order Contract v0.
 
 Это каноническая точка восстановления текущего OCR-проекта. Она отвечает на практические вопросы: что уже сделано, что действительно проверено, что пока только предполагается и какой шаг разрешён следующим.
 
@@ -58,7 +58,7 @@ Surya, Chandra, Tesseract и мультимодальные LLM могут бы�
 | Нормализатор страницы v0 | Реализован | Из принятых четырёх углов строит ограниченный grayscale master и удаляет внешние пиксели; при явном fallback сохраняет полный кадр; единый scale не увеличивает ни одну измеренную сторону | Это Python reference, а не Android memory implementation |
 | Детектор границ страницы v0 | Реализован | Сомнительная граница не применяется: detector handoff явно выбирает принятый четырёхугольник или полный кадр; `frame_clipped`, mapping preview→source и QA-артефакты покрыты тестами | Один договор не доказывает production-качество на разных камерах, фонах и ракурсах; full-frame fallback ещё не означает, что границы текста найдены |
 | Сегментация строк | Reference v0 реализован | Детерминированный fail-closed CLI с публикацией только полностью собранного output, line/page manifests, хеши, QA overlays, foreground accounting, mask/table/redaction/ambiguity gates и synthetic IoU/order/repeatability tests реализованы; локальный fixture из 9 страниц обработан без аварии | Smoke на одном договоре и synthetic gates не являются общей precision/recall; нет фиксированного human-annotated bbox benchmark и Android implementation |
-| Собственный recognizer | Input adapter, provisional CTC decoder и isolated CPU runtime v0 реализованы; neural model отсутствует | Strict grayscale line преобразуется в `[B,1,64,W]`; padding и standard CTC blank/repeat collapse имеют focused tests; clean GitHub Actions runner установил `torch 2.8.0+cpu` и выполнил deterministic convolution на CPU без CUDA | Глобальное RTL-разворачивание time-axis неверно для цифр и латиницы; нет утверждённого mixed-script visual/logical-order contract, memory bounds, neural architecture, training loop, весов, predictions, Gold CER, latency и размера модели |
+| Собственный recognizer | Input adapter, mixed-script CTC decoder/order contract и isolated CPU runtime v0 реализованы; neural model отсутствует | CTC collapse выполняется в visual alignment order до reorder; поддержаны pure Hebrew, digits, Latin, clause numbers, punctuation, spaces и mixed `AS-IS`; logical↔alignment round trip и padding/blank/repeat behavior покрыты focused tests | Слитные Hebrew+LTR strong tokens без ASCII-пробела намеренно fail closed; отсутствуют memory bounds, neural architecture, training loop, веса, predictions, Gold CER, latency и размер модели |
 | RTL/layout и структура пунктов | Не реализованы | Требование разделено от распознавания символов | Нет кода и измерений reading order |
 | Android OCR integration | Не начата | Целевое ограничение on-device зафиксировано | Python reference-код не доказывает мобильную скорость и память |
 | Production privacy gate | Не утверждён | Ограничения на внешнюю передачу данных зафиксированы | Подключение сырых фотографий к production заблокировано |
@@ -70,9 +70,9 @@ Surya, Chandra, Tesseract и мультимодальные LLM могут бы�
 1. **Gold Set v0.** Нужны прогнозы замороженной собственной модели и проверка их точного полного результата человеком, уверенно читающим иврит. Bootstrap recognizer разрешено обучить до Gold только для подготовки этих прогнозов; заявлять реальную CER или превосходство над baseline до held-out проверки запрещено.
 2. **Production privacy design.** Пока он не утверждён, запрещено подключать сырые пользовательские фотографии к готовому приложению.
 
-Сегментация строк на контролируемых полноразмерных страницах завершена как offline reference v0. Gold-блокер определяет recognizer-feasibility; privacy-блокер по-прежнему запрещает production-подключение сырых фотографий. Внутри recognizer-feasibility дополнительно действует технический blocker: neural model нельзя добавлять поверх неверного mixed-script CTC direction contract.
+Сегментация строк на контролируемых полноразмерных страницах завершена как offline reference v0. Gold-блокер определяет recognizer-feasibility; privacy-блокер по-прежнему запрещает production-подключение сырых пользовательских фотографий. Mixed-script CTC Text Order Contract v0 устранил глобальное time-axis reversal; неоднозначные слитные Hebrew+LTR tokens теперь явно отклоняются, а не преобразуются в правдоподобный текст.
 
-## 6. Завершённая preprocessing и candidate-freeze база
+## 6. Завершённая preprocessing, candidate-freeze и recognizer-boundary база
 
 Контракт `research/hebrew_contract_ocr/LINE_SEGMENTATION_V0.md` и reference-модуль `line_segmenter.py` реализуют Automatic Line Segmentation v0. CLI проверяет normalizer manifest, hashes, grayscale mode и размеры; отказывается перезаписывать непустой output; пишет line PNG, canonical `manifest.jsonl`, explicit `pages.jsonl`, `summary.json` и overlay каждой страницы.
 
@@ -82,21 +82,23 @@ Synthetic tests доказали ровно ограниченные gates v0: �
 
 Gold candidate freeze v0 реализован отдельным fail-closed builder. Он принимает только final/geometric `accepted` строки с upstream resolution `pass`, повторно проверяет потребляемые source fields, provenance, exact PNG hashes, grayscale mode и bbox dimensions, копирует исходные PNG bytes без изменения и до model predictions назначает page-round-robin pilot и held-out evaluation cohorts. На текущем локальном fixture два независимых запуска дали одинаковый manifest SHA-256 `dce33991f8eee55b03c8e4eb26fabd3030e6e6c6907849ae5e4f42cfe9ce2dc2`: из 269 segmentation rows заморожены 129 candidates, 10 pilot и 119 evaluation. Manifest не содержит текста или predictions; это candidate set, не Gold и не доказательство OCR accuracy.
 
+`CTC_TEXT_ORDER_V0.md`, `text_order.py` и `ctc_decoder.py` разделяют logical Unicode и monotonic CTC alignment order. Standard CTC collapse выполняется до reorder. Поддерживаемый v0 transform обратим для whitespace-separated Hebrew/LTR tokens, сохраняет внутренний порядок digits/Latin и зеркалит парные скобки; чистые LTR lines остаются identity. Token с Hebrew и LTR strong characters без ASCII-space boundary блокируется как неподдерживаемый.
+
 ## 7. Единственный следующий шаг
 
-**Correct and test the mixed-script CTC visual/logical-order contract before neural model code.** Другой OCR-шаг нельзя начинать без явного изменения этого файла и решения владельца продукта.
+**Bound recognizer input resized width and total batch allocation before neural model code.** Другой OCR-шаг нельзя начинать без явного изменения этого файла и решения владельца продукта.
 
-Cold-start audit подтвердил isolated CPU runtime, но заблокировал прежний compact CRNN-forward. Текущий `ctc_decoder.py` глобально разворачивает valid time-axis при `rtl=True`. Это может восстановить logical order для чистой ивритской строки, но одновременно обращает порядок цифр и латинских символов внутри LTR runs. Существующий digit test закрепляет ошибочное предположение и не является доказательством mixed-script correctness.
+Cold-start audit выявил, что `recognizer_input.py` ограничивает decoded source pixels, но не ограничивает ширину после resize к высоте 64 и не проверяет суммарную float32 allocation перед `np.zeros`. Патологическая узкая и очень высокая или очень широкая строка может пройти source-pixel gate и запросить недопустимый tensor.
 
 Граница задачи:
 
-- вход: `research/hebrew_contract_ocr/ctc_decoder.py`, фиксированный charset, logical-order dataset contract и focused decoder tests;
-- действие: зафиксировать явное разделение source-pixel visual order, CTC target order и final logical Unicode; заменить глобальное разворачивание на решение, которое сохраняет внутренний порядок digit/Latin runs и корректно обрабатывает Hebrew-only и mixed `AS-IS` строки;
-- выход: один маленький framework-independent decoder/order module и focused tests без neural architecture;
-- обязательные проверки: pure Hebrew, pure digits, pure Latin, punctuation/spaces, clause numbers и mixed Hebrew/Latin `AS-IS`; padding и CTC blank/repeat collapse не должны регрессировать;
-- этот шаг не добавляет CRNN, training loop, dependencies, weights, predictions, APK, silver ingestion или production integration.
+- вход: `research/hebrew_contract_ocr/recognizer_input.py`, Image Resolution Contract v0 и focused input-adapter tests;
+- действие: добавить явный maximum resized width и maximum total batch elements/bytes, вычисляемые и проверяемые до materialization/`np.zeros`;
+- выход: fail-closed input adapter с неизменным normal-batch output contract;
+- обязательные проверки: точная допустимая граница, oversize single line, aggregate batch overflow, прежний normal batch, widths/targets/padding и deterministic repeated preparation;
+- этот шаг не добавляет CRNN, training loop, dependencies, weights, predictions, APK, dataset ingestion или production integration.
 
-После исправления CTC-контракта отдельными PR последуют memory bounds recognizer input, minimal CRNN forward с расширением CI, training loop, frozen predictions и reviewer APK. Pilot content stratification нужно исправить до сборки APK. Document-level provenance gate обязателен до подключения старого silver-архива, но не нужен synthetic-only bootstrap.
+После memory bounds отдельными PR последуют minimal CRNN forward с расширением CI, training loop, frozen predictions и reviewer APK. Pilot content stratification нужно исправить до сборки APK. Document-level provenance gate обязателен до подключения старого silver-архива, но не нужен synthetic-only bootstrap.
 
 ## 8. Протокол восстановления новой сессии
 
@@ -118,7 +120,7 @@ Cold-start audit подтвердил isolated CPU runtime, но заблоки�
 
 Второй repository continuity audit проведён 2026-07-20 после PR 117–121. Он выявил устаревшее fixture evidence после изменения no-upscale, конфликт full-frame fallback в Image Resolution Contract и неверный per-page `crop_policy`; PR 122 исправил эти связанные несогласованности. Audit также выявил высокий риск partial output: поздняя ошибка сегментатора оставляла уже записанные кропы и блокировала retry. Риск исправлен через sibling staging, cleanup при ошибке и публикацию только полностью собранного результата. Audit состоялся после пяти слитых OCR PR, то есть на два PR позже более строгого локального срока «не позднее третьего»; это зафиксировано как процессная ошибка.
 
-Третий cold-start continuity audit проведён 2026-07-20 после PR 123–128. Он подтвердил candidate freeze, recognizer input boundary и isolated CPU runtime, но выявил blocking global RTL reversal, отсутствие post-resize/batch memory bounds, неполный OCR test command в CI, stale candidate-freeze documentation, несовместимые reviewer/materializer status names и отсутствие гарантии mixed-script строки в pilot. Этот corrective documentation PR устраняет только stale state, старый low-resolution Gold path и status mapping. Кодовые исправления остаются отдельными маленькими PR в порядке раздела 7.
+Третий cold-start continuity audit проведён 2026-07-20 после PR 123–128. Он подтвердил candidate freeze, recognizer input boundary и isolated CPU runtime, но выявил blocking global RTL reversal, отсутствие post-resize/batch memory bounds, неполный OCR test command в CI, stale candidate-freeze documentation, несовместимые reviewer/materializer status names и отсутствие гарантии mixed-script строки в pilot. PR 129 устранил stale state, старый low-resolution Gold path и status mapping; следующий corrective PR устранил global RTL reversal через bounded mixed-script CTC Text Order Contract v0. Остальные кодовые исправления остаются отдельными маленькими PR в порядке раздела 7.
 
 Следующий cold-start audit требуется не позднее третьего слитого OCR PR после завершения corrective-серии, либо немедленно при новом конфликте контрактов.
 
@@ -166,7 +168,7 @@ python -m research.hebrew_contract_ocr.line_segmenter \
 
 Для файлов с уже правильной матрицей пикселей и заведомо устаревшим EXIF orientation в обе команды добавляется `--ignore-exif-orientation`. Это нельзя включать по умолчанию.
 
-Синтетические данные, legacy silver review pack, current Gold workflow, Gold materialization и CER описаны в `research/hebrew_contract_ocr/README.md`, `docs/MODEL_ASSISTED_GOLD_TESTING_V0.md` и `research/hebrew_contract_ocr/DATASET_CONTRACT_V0.md`.
+Синтетические данные, legacy silver review pack, current Gold workflow, Gold materialization и CER описаны в `research/hebrew_contract_ocr/README.md`, `docs/MODEL_ASSISTED_GOLD_TESTING_V0.md` и `research/hebrew_contract_ocr/DATASET_CONTRACT_V0.md`. CTC alignment/logical order зафиксирован в `research/hebrew_contract_ocr/CTC_TEXT_ORDER_V0.md`.
 
 ## 11. Правило обновления состояния
 
