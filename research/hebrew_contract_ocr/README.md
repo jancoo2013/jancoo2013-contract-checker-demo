@@ -63,33 +63,23 @@ Each manifest row contains the exact logical Unicode target text, the train/vali
 
 This generator creates training data; it does not measure OCR quality. Quality is measured separately as exact CER on a fixed real gold test set that is never used for training.
 
-## Build the Gold Set v0 review pack
+## Legacy low-resolution silver review pack
 
-The existing silver archive is not a real accuracy benchmark until a Hebrew-capable person checks the exact characters. Build a local, stratified review package from that archive:
+`build_gold_review_pack.py` and its browser UI were created for the older approximately 1000-pixel line archive. Despite the historical name, that archive is now explicitly `silver` and must not be used as the source of Gold Set v0 or its held-out CER.
+
+The legacy tool may still be used locally to inspect silver labels, diagnose crops, or exercise its review UI:
 
 ```bash
 python -m research.hebrew_contract_ocr.build_gold_review_pack \
   --dataset-dir /local/path/hebrew_contract_lines_v0 \
-  --output-dir research/hebrew_contract_ocr/generated/gold_review_v0
+  --output-dir research/hebrew_contract_ocr/generated/silver_review_legacy_v0
 ```
 
-The default package selects 60 unique real crops:
+Its default package selects 60 unique real crops across ordinary body lines, clause-number lines, numeric content, and Latin/punctuation-heavy lines. Selection uses teacher agreement, crop clarity, label status, and page diversity, so it is not an untouched model-independent evaluation cohort.
 
-- 30 ordinary body lines without a leading clause number;
-- 10 clause-number lines;
-- 10 lines with amounts, dates, or other numeric content;
-- 10 lines with Latin text or heavier punctuation.
+The current Gold Set v0 path instead uses the full-resolution candidate set frozen by `freeze_gold_candidates.py` before model predictions are reviewed. The candidate manifest already assigns pilot and held-out evaluation cohorts. After a project-owned model is frozen, the reviewer confirms or minimally corrects its prefilled predictions according to `docs/MODEL_ASSISTED_GOLD_TESTING_V0.md`.
 
-Selection combines teacher agreement, crop clarity, label status, and page diversity. Rows with obvious PII fields, long identifier-like numbers, or placeholders are excluded before selection.
-
-Open `generated/gold_review_v0/review.html` directly in a browser. The interface is self-contained, works without a server or network connection, saves progress in browser storage, and exports:
-
-- `gold_accepted_v0.jsonl` with only human-approved or human-corrected rows;
-- `gold_review_all_v0.jsonl` as a complete review backup.
-
-The package contains exact unmodified crops for evaluation plus enlarged crops and page-context images for the reviewer. A generated candidate manifest is not gold. Only the accepted export from a Hebrew-capable reviewer qualifies as Gold Set v0.
-
-The package may still contain contract context. Keep it local and never commit it. The existing `generated/` ignore rule covers the recommended output location.
+The legacy browser export uses `approved` and `corrected`, which are also the statuses accepted by the existing Gold materializer. This schema compatibility does not upgrade old low-resolution rows from silver to Gold. A generated review package, accepted export, contract context, or real text must remain local and must never be committed.
 
 ## Dataset and evaluation contract
 
