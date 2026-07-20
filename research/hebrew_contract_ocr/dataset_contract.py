@@ -277,7 +277,15 @@ def _collect_source_records(
             label_status = f"human_{review_status}"
         optional_metadata = {
             key: row[key]
-            for key in ("pack_id", "selection_category", "page", "line", "template_id", "text_source")
+            for key in (
+                "pack_id",
+                "selection_category",
+                "page",
+                "line",
+                "template_id",
+                "text_source",
+                "source_crop",
+            )
             if key in row
         }
         records.append(
@@ -409,6 +417,8 @@ def build_training_dataset(
     synthetic_root: Path,
     silver_manifest: Path,
     silver_root: Path,
+    gold_manifest: Path,
+    gold_root: Path,
     output_dir: Path,
     dataset_id: str = "hebrew_contract_ocr_training_v0",
     synthetic_dataset_id: str = "synthetic_v0",
@@ -423,6 +433,17 @@ def build_training_dataset(
     if not 0.0 < validation_fraction < 1.0:
         raise DatasetContractError("validation_fraction must be between 0 and 1")
     charset = load_charset(charset_path)
+    gold_validation = validate_manifest(gold_manifest, gold_root, charset_path=charset_path)
+    if not gold_validation["valid"]:
+        raise DatasetContractError(f"invalid gold manifest: {gold_validation['errors']}")
+    gold_rows = read_jsonl(gold_manifest)
+    if not gold_rows:
+        raise DatasetContractError("gold manifest must contain at least one reviewed test row")
+    if any(row.get("data_tier") != "gold" or row.get("split") != "test" for row in gold_rows):
+        raise DatasetContractError("gold manifest must contain only test-only Gold rows")
+    gold_image_hashes = {str(row["image_sha256"]) for row in gold_rows}
+    gold_text_hashes = {str(row["text_sha256"]) for row in gold_rows}
+    gold_source_ids = {str(row["source_crop"]) for row in gold_rows if row.get("source_crop")}
     synthetic = _collect_source_records(
         read_jsonl(synthetic_manifest),
         synthetic_root,
@@ -439,18 +460,57 @@ def build_training_dataset(
         charset,
         validation_fraction,
     )
-    records = [*synthetic, *silver]
+    records: list[SourceRecord] = []
+    exclusions: list[dict[str, Any]] = []
+    for record in (*synthetic, *silver):
+        reasons = [
+            reason
+            for reason, matched in (
+                ("image_sha256", record.image_sha256 in gold_image_hashes),
+                ("text_sha256", record.text_sha256 in gold_text_hashes),
+                (
+                    "source_id",
+                    record.data_tier == "silver" and record.source_id in gold_source_ids,
+                ),
+            )
+            if matched
+        ]
+        if reasons:
+            exclusions.append(
+                {
+                    "data_tier": record.data_tier,
+                    "source_dataset": record.source_dataset,
+                    "source_id": record.source_id,
+                    "image_sha256": record.image_sha256,
+                    "text_sha256": record.text_sha256,
+                    "reasons": reasons,
+                }
+            )
+        else:
+            records.append(record)
+    if not records:
+        raise DatasetContractError("no training records remain after Gold exclusions")
     split_by_source, reassignments = _final_training_splits(records)
     _prepare_output(output_dir)
     rows = _materialize_records(records, output_dir, split_by_source, dataset_id)
     write_jsonl(output_dir / "manifest.jsonl", rows)
+    write_jsonl(output_dir / "gold_exclusions.jsonl", exclusions)
     source_charset = charset_path or default_charset_path()
     shutil.copy2(source_charset, output_dir / "charset_v0.json")
     summary = _dataset_summary(rows, dataset_id, charset, reassignments)
+    summary["gold_manifest_sha256"] = sha256_file(gold_manifest)
+    summary["gold_exclusions"] = len(exclusions)
+    summary["gold_exclusion_reasons"] = dict(
+        sorted(Counter(reason for row in exclusions for reason in row["reasons"]).items())
+    )
     validation = validate_manifest(output_dir / "manifest.jsonl", output_dir, charset_path=source_charset)
     if not validation["valid"]:
         raise DatasetContractError(f"materialized training dataset failed validation: {validation['errors']}")
+    leakage = check_training_gold_leakage(output_dir / "manifest.jsonl", gold_manifest)
+    if not leakage["clean"]:
+        raise DatasetContractError("materialized training dataset still overlaps Gold")
     summary["validation"] = validation
+    summary["gold_leakage"] = leakage
     (output_dir / "summary.json").write_text(
         json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
@@ -660,6 +720,8 @@ def build_parser() -> argparse.ArgumentParser:
     training.add_argument("--synthetic-root", type=Path, required=True)
     training.add_argument("--silver-manifest", type=Path, required=True)
     training.add_argument("--silver-root", type=Path, required=True)
+    training.add_argument("--gold-manifest", type=Path, required=True)
+    training.add_argument("--gold-root", type=Path, required=True)
     training.add_argument("--output-dir", type=Path, required=True)
     training.add_argument("--dataset-id", default="hebrew_contract_ocr_training_v0")
     training.add_argument("--synthetic-dataset-id", required=True)
@@ -696,6 +758,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.synthetic_root,
             args.silver_manifest,
             args.silver_root,
+            args.gold_manifest,
+            args.gold_root,
             args.output_dir,
             dataset_id=args.dataset_id,
             synthetic_dataset_id=args.synthetic_dataset_id,

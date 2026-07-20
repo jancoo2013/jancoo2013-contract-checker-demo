@@ -101,7 +101,7 @@ dataset_contract.py   materialization, validation, split rules, and leakage gate
 evaluate_ocr.py       exact logical-order CER and character-class slices
 ```
 
-These tools deliberately keep Gold Set v0 out of training and refuse to call silver diagnostics real OCR accuracy. The full commands and canonical JSONL schema are documented in `DATASET_CONTRACT_V0.md`.
+These tools deliberately keep Gold Set v0 out of training: training materialization requires the canonical Gold manifest, excludes source/image/text matches, records those exclusions, and reruns the leakage gate. They also refuse to call silver diagnostics real OCR accuracy. The full commands and canonical JSONL schema are documented in `DATASET_CONTRACT_V0.md`.
 
 ## Page resolution and normalization
 

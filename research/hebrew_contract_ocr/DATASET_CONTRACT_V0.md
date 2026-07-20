@@ -36,7 +36,7 @@ Changing character order, normalization, or blank ID creates a new charset versi
 | Tier | Meaning | Permitted splits |
 |---|---|---|
 | `synthetic` | Exact generated text and generated pixels | `train`, `validation` |
-| `silver` | Real crop with teacher/consensus label that may still be wrong | `train` only |
+| `silver` | Real crop with teacher/consensus label that may still be wrong | `train` only after Gold exclusions |
 | `gold` | Real crop checked character-by-character by a Hebrew-capable reviewer | `test` only |
 
 Silver metrics are pipeline diagnostics, not real OCR accuracy. Only a clean test-only gold evaluation may be reported as real CER.
@@ -67,14 +67,18 @@ Canonical datasets copy exact source images into their own ignored output direct
 
 ## 5. Split and leakage rules
 
-- Silver rows always join `train`.
+- Silver rows not reserved for Gold join `train`.
 - Synthetic rows may join `train` or `validation`.
 - All rows with identical normalized text are forced into one training split.
 - Duplicate image bytes are rejected.
 - Gold rows never join the training dataset.
+- Training materialization requires a non-empty canonical Gold manifest and excludes matching
+  source crops, exact image bytes, and normalized text before copying any training image.
 - Evaluation is blocked if gold and training contain an identical image hash or identical normalized text hash.
 
 Exact text overlap is intentionally strict for v0. It prevents a narrow legal-language recognizer from receiving the exact evaluation sequence during training.
+
+Gold from one contract is a fixed recognizer-feasibility fixture, not evidence of generalization. A general quality claim additionally requires held-out contracts separated at source-document level.
 
 ## 6. Build and validate training data
 
@@ -86,8 +90,14 @@ python -m research.hebrew_contract_ocr.dataset_contract build-training \
   --silver-manifest /local/hebrew_contract_lines_v0/silver_verified_v1.jsonl \
   --silver-root /local/hebrew_contract_lines_v0 \
   --silver-dataset-id different_lease_01_silver_v1 \
+  --gold-manifest research/hebrew_contract_ocr/generated/gold_v0/manifest.jsonl \
+  --gold-root research/hebrew_contract_ocr/generated/gold_v0 \
   --output-dir research/hebrew_contract_ocr/generated/training_v0
 ```
+
+Gold must be materialized first using the next section. The builder writes
+`gold_exclusions.jsonl` with source IDs and hashes, but no contract text, then reruns the exact
+Gold/training leakage gate before accepting the training output.
 
 Validate any canonical dataset:
 
