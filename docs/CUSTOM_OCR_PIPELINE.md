@@ -14,7 +14,7 @@ This file records the OCR direction chosen for the product so that later work do
 6. OCR quality claims require exact comparison against a fixed human-verified gold set. Character count, visual plausibility, model confidence, and teacher agreement are not accuracy metrics.
 7. Dataset manifests, charset IDs, split rules, leakage checks, and CER follow `research/hebrew_contract_ocr/DATASET_CONTRACT_V0.md`.
 8. Page previews, rectified masters, resolution gates, and recognizer line height follow `research/hebrew_contract_ocr/IMAGE_RESOLUTION_CONTRACT_V0.md`.
-9. Automatic corner proposals, fail-closed rejection, `frame_clipped` handling, and outside-page deletion follow `research/hebrew_contract_ocr/PAGE_BOUNDARY_DETECTOR_V0.md`.
+9. Automatic corner proposals, conservative full-frame fallback, `frame_clipped` handling, and outside-page deletion for accepted corners follow `research/hebrew_contract_ocr/PAGE_BOUNDARY_DETECTOR_V0.md`.
 10. Automatic line crops, top-to-bottom order, upstream resolution composition, recognizer eligibility, explicit page/line statuses, foreground accounting, masks, and ambiguity gates follow `research/hebrew_contract_ocr/LINE_SEGMENTATION_V0.md`.
 
 Changing any of these decisions requires an explicit user decision and an update to this file in the same PR.
@@ -38,7 +38,7 @@ Only our exported model weights and our preprocessing/postprocessing code ship i
 
 Geometric preprocessing is bounded by the Image Resolution Contract v0. Native camera resolution does not flow directly into OCR: a sampled preview drives page-boundary detection, and the source is rectified directly into a bounded grayscale page master without materializing a full high-megapixel RGBA bitmap.
 
-The accepted page quadrilateral is destructive by design for derived OCR input: pixels outside it are discarded. Raw source photos remain unchanged. A frame-clipped page is recorded explicitly and may require recapture; the pipeline must not move an internal edge inward merely to force an A4-looking crop.
+An accepted page quadrilateral is destructive by design for derived OCR input: pixels outside it are discarded. If paper edges are not reliably visible, the complete frame is preserved and later text segmentation does not depend on paper boundaries. Raw source photos remain unchanged. A frame-clipped page is recorded explicitly, but does not by itself make the visible text unusable; the pipeline must not move an internal edge inward merely to force an A4-looking crop.
 
 Production integration with raw user photos remains blocked until the privacy design is approved. That block does not prevent offline OCR research on synthetic data, redacted crops, or locally controlled datasets.
 

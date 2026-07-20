@@ -24,6 +24,9 @@
 - Add dependencies only when clearly needed for the requested task.
 - If adding a dependency, explain why the standard library or existing dependencies are insufficient.
 - Refactor only when it directly supports the requested task or fixes a concrete bug.
+- Target no more than 300 changed implementation lines per PR and treat 400 as the normal
+  hard limit. Tests and documentation must remain proportional. If a larger PR is genuinely
+  unavoidable, its handoff must include a second, independent diff and test review before merge.
 
 ## 3. Privacy and Data Handling
 

@@ -328,12 +328,15 @@ def _natural_key(path: Path) -> list[object]:
     return [int(part) if part.isdigit() else part.casefold() for part in re.split(r"(\d+)", path.name)]
 
 
-def _load_corners(path: Path | None) -> dict[str, Sequence[Sequence[float]]]:
+def _load_corners(path: Path | None) -> dict[str, Sequence[Sequence[float]] | None]:
     if path is None:
         return {}
     payload = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
         raise PageNormalizationError("corners JSON must be an object keyed by source filename")
+    invalid = [key for key, value in payload.items() if value is not None and not isinstance(value, list)]
+    if invalid:
+        raise PageNormalizationError(f"corners JSON entries must be arrays or null: {invalid}")
     return {str(key): value for key, value in payload.items()}
 
 
@@ -459,7 +462,7 @@ def normalize_directory(
         "minimum_page_long_side": MIN_PAGE_LONG_SIDE,
         "minimum_text_band_height": MIN_TEXT_BAND_HEIGHT,
         "line_recognizer_height": LINE_RECOGNIZER_HEIGHT,
-        "crop_policy": "discard_outside_quadrilateral",
+        "crop_policy": "accepted_quadrilateral_else_full_frame",
     }
     (output_dir / "summary.json").write_text(
         json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
