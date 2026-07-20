@@ -79,15 +79,16 @@ Recognizer-feasibility state:
 
 - step 1 is implemented by the deterministic synthetic-line generator;
 - step 2 exists locally as the 170-row silver archive and remains explicitly silver;
-- page normalization and segmentation produced the current high-resolution candidate pool, but its fixed pilot/evaluation manifest has not yet been created;
-- the older browser review-pack builder remains available for the silver archive, but that low-resolution archive is not the source of Gold Set v0;
+- step 3 is implemented by the fail-closed high-resolution candidate freezer: the current local fixture contains 129 frozen candidates assigned before predictions to a 10-line pilot and a 119-line held-out evaluation cohort;
+- step 4 is not complete: the recognizer input adapter, a provisional CTC decoder, and an isolated CPU PyTorch runtime exist, but the continuity audit found that global RTL time-axis reversal is invalid for digits and Latin fragments; neural model code remains blocked until that contract is corrected;
+- the older browser review-pack builder remains available only for the low-resolution silver archive and is not the source of Gold Set v0;
 - no real Gold Set CER or project-owned model quality claim exists yet.
 
-While human verification is pending, the framework-independent Dataset & Evaluation Contract v0 may be implemented and smoke-tested on synthetic/silver data. This preparation must not be presented as a real quality result.
+While human verification is pending, framework-independent dataset, preprocessing, and recognizer-boundary infrastructure may be implemented and smoke-tested on synthetic or controlled local data. This preparation must not be presented as a real quality result.
 
-The Dataset & Evaluation Contract, bounded page normalizer, automatic page-boundary detector, and Automatic Line Segmentation v0 are implemented as offline references. The segmenter has deterministic synthetic integrity gates and a nine-page local fixture smoke, but no general bbox precision/recall claim. The next incomplete step is to freeze the high-resolution Gold candidates before bootstrap predictions exist. Bootstrap training is then allowed only to make reviewer verification efficient; accuracy claims remain blocked until human verification and CER. The exact single permitted next step is recorded in `docs/OCR_PROJECT_STATE.md`.
+The Dataset & Evaluation Contract, bounded page normalizer, automatic page-boundary detector, Automatic Line Segmentation v0, and high-resolution candidate freeze are implemented as offline references. The input adapter and isolated CPU research runtime are also implemented. Before any neural forward pass is added, the mixed-script CTC direction contract must be corrected and covered by focused Hebrew, digit, Latin, punctuation, and `AS-IS` tests. The exact single permitted next step is recorded in `docs/OCR_PROJECT_STATE.md`.
 
-The reviewer corrects a prefilled prediction instead of transcribing pages from scratch. A row becomes gold only after the reviewer confirms the exact complete line as unchanged or corrected. The correction workflow, frozen-model rule, minimal APK scope, pilot gate, and local export are defined in `docs/MODEL_ASSISTED_GOLD_TESTING_V0.md`.
+The reviewer corrects a prefilled prediction instead of transcribing pages from scratch. A row becomes gold only after the reviewer confirms the exact complete line as unchanged or corrected. The correction workflow, frozen-model rule, minimal APK scope, pilot gate, local export, and status mapping into the existing Gold materializer are defined in `docs/MODEL_ASSISTED_GOLD_TESTING_V0.md`.
 
 ## Evaluation gates
 
