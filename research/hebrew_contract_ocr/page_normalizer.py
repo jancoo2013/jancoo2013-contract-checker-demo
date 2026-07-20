@@ -26,6 +26,7 @@ PREFERRED_TEXT_BAND_HEIGHT = (30, 48)
 LINE_RECOGNIZER_HEIGHT = 64
 MAX_SOURCE_PIXELS = 150_000_000
 QUAD_SAMPLING_INSET_PIXELS = 4.0
+CROP_POLICY = "accepted_quadrilateral_else_full_frame"
 SUPPORTED_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp", ".tif", ".tiff"}
 
 Point = tuple[float, float]
@@ -290,7 +291,7 @@ def normalize_page(
         ],
         "quad_sampling_inset_pixels": 0.0 if used_full_frame else QUAD_SAMPLING_INSET_PIXELS,
         "used_full_frame": used_full_frame,
-        "crop_policy": "discard_outside_quadrilateral",
+        "crop_policy": CROP_POLICY,
         "outside_quadrilateral_discarded": not used_full_frame,
         "estimated_text_band_height": text_band_height,
         "minimum_text_band_height": MIN_TEXT_BAND_HEIGHT,
@@ -448,7 +449,7 @@ def normalize_directory(
         "minimum_page_long_side": MIN_PAGE_LONG_SIDE,
         "minimum_text_band_height": MIN_TEXT_BAND_HEIGHT,
         "line_recognizer_height": LINE_RECOGNIZER_HEIGHT,
-        "crop_policy": "accepted_quadrilateral_else_full_frame",
+        "crop_policy": CROP_POLICY,
     }
     (output_dir / "summary.json").write_text(
         json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
