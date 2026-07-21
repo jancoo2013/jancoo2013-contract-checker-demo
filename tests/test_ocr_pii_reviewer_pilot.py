@@ -111,11 +111,15 @@ class PIIReviewerPilotTests(unittest.TestCase):
             pages = load_review_pages(predictions, image_root, renderer)[0]
             row = make_review_row(pages[0], "needs_review", [])
             altered = dict(row); altered["source_image_sha256"] = "0" * 64
-            with self.assertRaisesRegex(PIIReviewerPilotError, "identity or canonical"):
+            with self.assertRaisesRegex(PIIReviewerPilotError, "identity"):
                 validate_review_rows([altered], pages)
             row = make_review_row(pages[0], "fail", [{"category": "incomplete_mask", "geometry": {"type": "bbox", "coordinates": [1, 1, 3, 3]}}])
             row["findings"][0]["finding_id"] = "custom"
             with self.assertRaisesRegex(PIIReviewerPilotError, "identity or canonical"):
+                validate_review_rows([row], pages)
+            row = make_review_row(pages[0], "pass", [])
+            row["schema_version"] = True
+            with self.assertRaisesRegex(PIIReviewerPilotError, "schema_version"):
                 validate_review_rows([row], pages)
 
     def test_page_mutation_before_publication_is_rejected(self):
@@ -128,6 +132,53 @@ class PIIReviewerPilotTests(unittest.TestCase):
             with self.assertRaisesRegex(PIIReviewerPilotError, "hash mismatch"):
                 write_review_manifest(output, rows, pages)
             self.assertFalse(output.exists())
+
+    def test_nested_candidate_and_strict_integer_guards(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp); predictions, image_root, renderer = _fixture(root, pages=1)
+            prediction = json.loads(predictions.read_text())
+            prediction["schema_version"] = True
+            _jsonl(predictions, [prediction])
+            with self.assertRaisesRegex(PIIReviewerPilotError, "prediction schema"):
+                load_review_pages(predictions, image_root, renderer)
+
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp); predictions, image_root, renderer = _fixture(root, pages=1)
+            prediction = json.loads(predictions.read_text())
+            prediction["candidates"][0]["review_status"] = ["needs_review"]
+            _jsonl(predictions, [prediction])
+            renderer_row = json.loads((renderer / "manifest.jsonl").read_text())
+            renderer_row["prediction_manifest_sha256"] = _sha(predictions)
+            _jsonl(renderer / "manifest.jsonl", [renderer_row])
+            with self.assertRaisesRegex(PIIReviewerPilotError, "review_status"):
+                load_review_pages(predictions, image_root, renderer)
+
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp); predictions, image_root, renderer = _fixture(root, pages=1)
+            renderer_row = json.loads((renderer / "manifest.jsonl").read_text())
+            renderer_row["mask_count"] = True
+            _jsonl(renderer / "manifest.jsonl", [renderer_row])
+            with self.assertRaisesRegex(PIIReviewerPilotError, "renderer binding"):
+                load_review_pages(predictions, image_root, renderer)
+
+    def test_atomic_publication_does_not_overwrite_racing_output(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp); predictions, image_root, renderer = _fixture(root, pages=1)
+            pages = load_review_pages(predictions, image_root, renderer)[0]
+            rows = [make_review_row(pages[0], "pass", [])]
+            output = root / "review.jsonl"
+            original_link = __import__("os").link
+
+            def race(source, destination):
+                Path(destination).write_text("existing", encoding="utf-8")
+                return original_link(source, destination)
+
+            from unittest.mock import patch
+            with patch("research.hebrew_contract_ocr.pii_reviewer_pilot.os.link", side_effect=race):
+                with self.assertRaisesRegex(PIIReviewerPilotError, "already exists"):
+                    write_review_manifest(output, rows, pages)
+            self.assertEqual(output.read_text(encoding="utf-8"), "existing")
+            self.assertFalse(any(path.name.startswith(".review.jsonl.tmp-") for path in root.iterdir()))
 
     def test_hash_path_mode_and_manifest_binding_fail_closed(self):
         with tempfile.TemporaryDirectory() as temp:
