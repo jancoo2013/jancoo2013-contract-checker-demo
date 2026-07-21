@@ -37,6 +37,13 @@ export function newSession(packKey, pages) {
     })),
   };
 }
+export function setPageIndex(session, index) {
+  if (!Number.isInteger(index) || index < 0 || index >= session.pages.length) throw new Error('invalid page index');
+  return { ...session, pageIndex: index, selectionError: null };
+}
+export function isComplete(session) {
+  return session.pages.every((page) => page.status !== 'needs_review');
+}
 export function setCategory(session, category) {
   if (!CATEGORIES.includes(category)) throw new Error('invalid category');
   return { ...session, category, selectionError: null };
@@ -93,9 +100,10 @@ export function undoFinding(session) {
 export function reviewRows(session) {
   return session.pages.map((page) => ({
     schema_version: 1,
+    pilot: 'controlled_pii_reviewer_v0',
     image_id: page.imageId,
     source_image_sha256: page.sourceSha256,
-    derivative_sha256: page.derivativeSha256,
+    derivative_image_sha256: page.derivativeSha256,
     prediction_manifest_sha256: session.packKey,
     width: page.width,
     height: page.height,

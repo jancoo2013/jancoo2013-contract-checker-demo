@@ -1,6 +1,6 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-07-21, после Android PII Reviewer Harness Scaffold v0.
+Последнее обновление: 2026-07-21, после Android Reviewer Pack I/O v0.
 
 Это каноническая точка восстановления текущего privacy/OCR-проекта. Она отвечает на практические вопросы: что уже сделано, что действительно проверено, что пока только предполагается и какой шаг разрешён следующим.
 
@@ -64,7 +64,7 @@
 | Local PII detector | Deterministic marker/layout baseline v0 реализован | Без OCR и ground-truth leakage предлагаются bounded candidate regions; manifest читается один раз, image bytes повторно проверяются при consumption, output детерминирован и сохраняет immutable page identity | Нет controlled recall/coverage/over-redaction metrics, Android implementation или production privacy result |
 | Local PII mask renderer | Python reference v0 реализован в PR 135 | Все candidates физически заменяются значением `0` в новом grayscale PNG `L`; удаляются alpha/EXIF/ICC/text metadata; страницы потребляются последовательно; staging derivatives повторно проверяются по фактическим bytes, hashes, dimensions, mode и bbox coverage перед atomic publication; mutation/late/rename failures очищаются и допускают retry | Не доказаны PII recall, корректность candidate boxes, полнота privacy coverage, over-redaction, внешняя передача, Android behavior или production privacy safety; threat model ограничен process-controlled staging |
 | Controlled PII reviewer manifest core | Reference v0 реализован | Core связывает exact source/prediction/derivative hashes, проверяет strict top-level и nested candidate schemas, принимает только closed findings `missed_pii`, `incomplete_mask`, `over_redaction` и canonical `xyxy_half_open` bbox, повторно проверяет source/derivative непосредственно перед публикацией и атомарно создаёт deterministic JSONL без перезаписи, PII values, свободного текста, reviewer identity или timestamps | Human pilot run ещё не выполнен; не получены recall, complete-mask-coverage, over-redaction или unsafe-page metrics |
-| Android PII reviewer harness | Expo SDK 56 scaffold v0 реализован | Android-first экран работает на синтетической странице: source/masked toggle, три closed categories, одно касание с автоматической привязкой к detector-proposed строке или существующей маске, undo, pass/fail invariants и deterministic JSONL; reviewer не рисует bbox и не исправляет маски | Ещё нет импорта repository-external review pack, on-device SHA-256 проверки, локальной no-overwrite записи файла, установленного APK/device smoke или real reviewer run |
+| Android PII reviewer harness | Pack I/O v0 реализован | Android выбирает repository-external pack, строго связывает prediction/renderer/line manifests, проверяет relative paths, SHA-256, dimensions, grayscale derivative и page order, показывает app-private snapshots точных проверенных bytes, сбрасывает session при смене prediction SHA и создаёт canonical review JSONL без перезаписи | APK ещё не установлен на Samsung A55; не выполнен real reviewer run; не доказаны Android automasking, PII recall, complete coverage, over-redaction или production privacy safety |
 | Внешний OCR handoff | Не подключён | Разрешён только после локальной необратимой редакции и privacy validation | Не доказано, что derivative не содержит PII и не сохраняет восстанавливаемые пиксели |
 | RTL/layout и структура пунктов | Не реализованы | Это downstream-задача после обезличенного OCR | Нет кода и измерений reading order |
 
@@ -72,7 +72,7 @@
 
 ## 5. Активные блокеры и paused research
 
-1. **Production privacy validation.** Renderer, reviewer-manifest core и синтетический Android reviewer scaffold реализованы, но Android ещё не потребляет реальный controlled review pack, human pilot run отсутствует и измеримые gates не получены. До reviewer run и metrics запрещено отправлять производные пользовательских фотографий внешнему OCR/LLM.
+1. **Production privacy validation.** Renderer, reviewer-manifest core и Android Pack I/O реализованы, но APK/device smoke и controlled human pilot отсутствуют; измеримые gates не получены. До reviewer run и metrics запрещено отправлять производные пользовательских фотографий внешнему OCR/LLM.
 
 Full-line Gold Set, CER, CRNN, training loop и reviewer transcription APK больше не являются блокерами MVP. Они остаются paused research. Android privacy reviewer harness не является transcription APK: он записывает только геометрию трёх закрытых категорий ошибок и не сохраняет текст или значения PII.
 
@@ -98,23 +98,22 @@ Synthetic tests доказали ровно ограниченные gates v0: �
 
 `PII_REVIEWER_PILOT_V0.md` и `pii_reviewer_pilot.py` реализуют deterministic manifest core для Controlled PII Reviewer Validation Pilot v0. Core связывает exact baseline prediction SHA с source/derivative hashes, dimensions и strict top-level/nested schemas, принимает только три closed error categories и canonical `xyxy_half_open` bbox, повторно проверяет фактические page bytes перед publication и атомарно создаёт deterministic JSONL без перезаписи, PII values или свободного текста. Восемь synthetic focused tests покрывают manifest binding, strict integer/nested candidate guards, path/hash/mode failures, closed statuses/categories, geometry bounds, immutable identities, canonical finding IDs, mutation before publication, output-race no-overwrite, deterministic output и cleanup. Это доказывает только формат и core; human validation ещё отсутствует.
 
-`mobile/pii-reviewer` задаёт Android-first Expo Development Build scaffold. Текущий UI использует только синтетическую страницу: reviewer выбирает closed category и одним касанием указывает приблизительное место; приложение само привязывает `missed_pii` к заранее предложенной строке, а `incomplete_mask`/`over_redaction` — к существующей маске. Reviewer не создаёт bbox и не корректирует маски. Scaffold не читает реальные изображения и не доказывает Android file provenance или privacy quality.
+`mobile/pii-reviewer` задаёт Android-first Expo Development Build reviewer. Pack I/O v0 читает exact Python prediction/renderer contracts и neutral line-segmentation regions из выбранной локальной директории, проверяет closed schemas, IDs, paths, hashes, geometry, dimensions, grayscale derivative и page order. Verified image bytes копируются в app-private cache до отображения. Reviewer одним касанием выбирает neutral line или существующую mask geometry; результат сохраняется рядом с pack как canonical Python-compatible JSONL без overwrite.
 
 ## 7. Единственный следующий шаг
 
-**Implement Android Reviewer Pack I/O v0 without external calls.** Другой privacy/OCR-шаг нельзя начинать без явного изменения этого файла и решения владельца продукта.
+**Build and install a controlled Android reviewer APK, then run the repository-external human pilot on Samsung A55 without external image calls.** Другой privacy/OCR-шаг нельзя начинать без явного изменения этого файла и решения владельца продукта.
 
 Граница задачи:
 
-- вход: выбранная пользователем repository-external Android directory с exact baseline prediction manifest, source pages и completed renderer output;
-- действие: локально проверить closed schemas, relative paths, prediction/source/derivative SHA-256, dimensions и grayscale derivative identity, затем загрузить страницы, detector-proposed review regions и candidate masks в reviewer-only one-tap UI;
-- выход: canonical review JSONL существующего reviewer-manifest contract, создаваемый локально без перезаписи уже существующего результата;
-- при смене prediction SHA мобильная session state обязана сбрасываться, чтобы findings разных packs не смешивались;
-- privacy rule: никаких сетевых вызовов, PII values, свободных заметок, reviewer identity, timestamps, analytics или crash uploads;
-- этот шаг не добавляет camera capture, detector/renderer port, OCR, Gemini/LLM, production upload или privacy metrics;
-- обязательные проверки: path containment, malformed/duplicate rows, hash mismatch, page-order binding, coordinate scaling, pass/fail invariants, pack reset, no-overwrite publication и synthetic Android bundle smoke.
+- собрать installable development APK из `mobile/pii-reviewer` и установить его на Samsung A55;
+- подготовить repository-external review pack текущим Python baseline + renderer + line segmentation без помещения реальных страниц или PII в GitHub;
+- проверить directory selection, page rendering, source/masked switching, one-tap target binding, navigation and no-overwrite result publication на устройстве;
+- Hebrew-capable reviewer отмечает только `missed_pii`, `incomplete_mask`, `over_redaction` или page `pass`; он не транскрибирует, не рисует bbox и не исправляет маски;
+- никаких OCR/Gemini/LLM/network image calls, production upload, Android detector/renderer port или privacy claims;
+- зафиксировать APK build identity, prediction-manifest SHA-256, device/Android version, количество проверенных страниц и operational failures без PII values или contract text.
 
-После Android pack I/O следует repository-external human pilot run на Samsung A55; затем отдельным PR — Local PII Detection & Redaction Metrics v0.
+После controlled human pilot отдельный PR реализует Local PII Detection & Redaction Metrics v0. Только затем принимается решение: улучшать Python baseline или переносить detector/renderer на Android.
 
 ## 8. Протокол восстановления новой сессии
 
@@ -146,7 +145,7 @@ Synthetic tests доказали ровно ограниченные gates v0: �
 
 Этот шестой аудит выполнен в существующем рабочем чате. Владелец продукта явно принял repository-based audit как достаточный, после чего PR 135 был переведён в ready-for-review и слит. Технических блокеров renderer не осталось.
 
-После merge PR 137 владелец продукта исправил ошибочное desktop-направление: reviewer должен быть Android-first, а не Streamlit/localhost. В ходе review PR 138 также удалено ручное построение bbox: проверяющий только сообщает тип ошибки и приблизительное место, а геометрию выбирает система из detector-proposed строк или существующих масок. Scaffold не считается real-device validation до сборки и установки APK.
+После merge PR 137 владелец продукта исправил ошибочное desktop-направление: reviewer должен быть Android-first, а не Streamlit/localhost. В ходе review PR 138 также удалено ручное построение bbox: проверяющий только сообщает тип ошибки и приблизительное место, а геометрию выбирает система из neutral line-segmentation regions или существующих масок. Scaffold не считается real-device validation до сборки и установки APK.
 
 ## 9. Формат передачи ограниченной задачи Codex
 
@@ -173,7 +172,7 @@ python -m py_compile app.py contract_checker/*.py research/hebrew_contract_ocr/*
 python -m unittest discover -s tests
 ```
 
-Мобильный synthetic harness:
+Мобильный reviewer:
 
 ```bash
 cd mobile/pii-reviewer

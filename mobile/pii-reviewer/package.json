@@ -11,7 +11,9 @@
   },
   "dependencies": {
     "expo": "~56.0.0",
+    "expo-crypto": "~56.0.4",
     "expo-dev-client": "~56.0.22",
+    "expo-file-system": "~56.0.8",
     "expo-status-bar": "~56.0.4",
     "react": "19.2.3",
     "react-native": "0.85.0"

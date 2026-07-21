@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  addIssueTap, canonicalJsonl, contentRect, imagePoint, newSession,
-  reviewRows, setCategory, setStatus, undoFinding,
+  addIssueTap, canonicalJsonl, contentRect, imagePoint, isComplete, newSession,
+  reviewRows, setCategory, setPageIndex, setStatus, undoFinding,
 } from '../src/reviewerState.js';
 const page = {
   imageId: 'P0001', sourceSha256: '1'.repeat(64), derivativeSha256: '2'.repeat(64),
@@ -50,10 +50,21 @@ test('page status invariants and undo are fail closed', () => {
   assert.equal(setStatus(empty, 'pass').pages[0].status, 'pass');
   assert.equal(undoFinding(failed).pages[0].status, 'needs_review');
 });
-test('manifest exports snapped bbox without target metadata', () => {
+test('page navigation and completion are fail closed', () => {
+  const second = { ...page, imageId: 'P0002' };
+  let session = setStatus(newSession('a'.repeat(64), [page, second]), 'pass');
+  session = setPageIndex(session, 1);
+  assert.equal(isComplete(session), false);
+  assert.equal(isComplete(setStatus(session, 'pass')), true);
+  assert.throws(() => setPageIndex(session, 2), /invalid page/);
+});
+test('manifest matches Python pilot schema and omits target metadata', () => {
   const session = addIssueTap(newSession('a'.repeat(64), [page]), { x: 500, y: 110 });
-  const finding = reviewRows(session)[0].findings[0];
-  assert.equal(finding.targetId, undefined);
-  assert.deepEqual(finding.geometry.coordinates, [100, 100, 900, 140]);
+  const row = reviewRows(session)[0];
+  assert.equal(row.pilot, 'controlled_pii_reviewer_v0');
+  assert.equal(row.derivative_image_sha256, '2'.repeat(64));
+  assert.equal(row.derivative_sha256, undefined);
+  assert.equal(row.findings[0].targetId, undefined);
+  assert.deepEqual(row.findings[0].geometry.coordinates, [100, 100, 900, 140]);
   assert.equal(canonicalJsonl(session), canonicalJsonl(session));
 });
