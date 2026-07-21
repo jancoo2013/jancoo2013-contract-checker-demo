@@ -29,5 +29,5 @@ jobs:
         run: python -m pip install -r research/hebrew_contract_ocr/requirements-training.txt
       - name: Verify CPU training runtime
         run: python -m research.hebrew_contract_ocr.training_runtime_smoke
-      - name: Run framework-independent recognizer tests
-        run: python -m unittest tests.test_ocr_recognizer_input tests.test_ocr_ctc_decoder
+      - name: Run framework-independent privacy/recognizer tests
+        run: python -m unittest tests.test_ocr_pii_annotations tests.test_ocr_recognizer_input tests.test_ocr_ctc_decoder

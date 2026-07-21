@@ -1,6 +1,6 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-07-21, после архитектурного перехода к Local PII Redaction MVP.
+Последнее обновление: 2026-07-21, после Local PII Annotation & Evaluation Contract v0.
 
 Это каноническая точка восстановления текущего privacy/OCR-проекта. Она отвечает на практические вопросы: что уже сделано, что действительно проверено, что пока только предполагается и какой шаг разрешён следующим.
 
@@ -12,6 +12,7 @@
 
 - обнаруживать области с личными и идентифицирующими данными;
 - необратимо маскировать их на устройстве до любой внешней передачи;
+- всегда маскировать адрес арендуемой квартиры как PII;
 - сохранять суммы, сроки, номера пунктов и юридически значимый текст, если они не являются PII;
 - передавать внешнему OCR/LLM только обезличенный derivative;
 - измерять PII recall, полное покрытие масками и over-redaction, а не точность полного локального транскрипта.
@@ -59,7 +60,7 @@
 | Детектор границ страницы v0 | Реализован и переиспользуется | Сомнительная граница не применяется: detector handoff явно выбирает принятый четырёхугольник или полный кадр; `frame_clipped`, mapping preview→source и QA-артефакты покрыты тестами | Один договор не доказывает production-качество; audit зафиксировал отдельный TOCTOU debt |
 | Сегментация строк | Reference v0 реализован, опциональный сигнал | Детерминированный fail-closed CLI, atomic publication, manifests, хеши, QA overlays, foreground accounting, mask/table/redaction/ambiguity gates и synthetic tests реализованы | PII detector может использовать строки, зоны или гибрид; сегментация сама по себе не даёт PII-классификацию или mask recall |
 | Собственный recognizer | Boundary v0 реализован, paused research | Input adapter, mixed-script CTC decoder/order contract, memory bounds и isolated CPU runtime покрыты focused tests | Neural model, training loop, веса и CER отсутствуют; CRNN больше не является текущим следующим шагом |
-| Local PII annotation/evaluation contract | Не реализован | Классы, privacy boundary и целевые метрики зафиксированы архитектурно | Нет канонической schema, validator, controlled annotations или воспроизводимых PII recall/coverage/over-redaction metrics |
+| Local PII annotation/evaluation contract | Reference v0 реализован | JSONL schema, closed PII/status/reason enums, bbox/polygon geometry, strict image identity, fail-closed validation, deterministic report и запрет raw PII text fields покрыты focused tests | Нет controlled human annotations, detector predictions или измеренных PII recall/coverage/over-redaction metrics |
 | Local PII detector/redactor | Не реализован | Требование отделено от full OCR и юридического анализа | Нет baseline, масок, fail-closed evaluator, Android implementation или privacy quality result |
 | Внешний OCR handoff | Не подключён | Разрешён только после локальной необратимой редакции и privacy validation | Не доказано, что derivative не содержит PII и не сохраняет восстанавливаемые пиксели |
 | RTL/layout и структура пунктов | Не реализованы | Это downstream-задача после обезличенного OCR | Нет кода и измерений reading order |
@@ -68,7 +69,7 @@
 
 ## 5. Активные блокеры и paused research
 
-1. **Local PII annotation/evaluation contract.** Пока нет канонической schema для PII regions/masks, невозможно честно измерить recall, полное покрытие и over-redaction или построить проверяемый baseline.
+1. **Deterministic PII baseline.** Пока нет воспроизводимого detector baseline, annotation contract нечего сравнивать с ground truth и невозможно перейти к mask coverage metrics.
 2. **Production privacy validation.** Пока автоматический redactor и fail-closed проверка не доказаны на контролируемой разметке, запрещено отправлять производные пользовательских фотографий внешнему OCR/LLM.
 
 Full-line Gold Set, CER, CRNN, training loop и reviewer transcription APK больше не являются блокерами MVP. Они остаются paused research и требуют отдельного явного решения владельца продукта перед возобновлением.
@@ -87,19 +88,21 @@ Synthetic tests доказали ровно ограниченные gates v0: �
 
 Эти recognizer-контракты остаются валидными исследовательскими артефактами, но не определяют текущий MVP milestone.
 
+`PII_ANNOTATION_CONTRACT_V0.md` и `pii_annotations.py` теперь фиксируют immutable page identity, closed PII classes (включая обязательный `property_address`), bbox/polygon annotations, explicit reviewed/no-PII/needs-review states и deterministic validation report. Пять focused tests покрывают geometry boundaries, strict integer types, duplicate IDs, path traversal/symlink escape, hash mismatch, unknown fields/classes/statuses и evaluation readiness. Это доказывает только контракт и validator, не качество детектора.
+
 ## 7. Единственный следующий шаг
 
-**Define and implement Local PII Annotation & Evaluation Contract v0 without detector code or external calls.** Другой privacy/OCR-шаг нельзя начинать без явного изменения этого файла и решения владельца продукта.
+**Implement Deterministic PII Marker/Layout Baseline v0 without mask rendering or external calls.** Другой privacy/OCR-шаг нельзя начинать без явного изменения этого файла и решения владельца продукта.
 
 Граница задачи:
 
-- вход: synthetic или локально контролируемые изображения без коммита реального PII, immutable image IDs/hashes и ручные PII-region annotations;
-- действие: зафиксировать JSONL schema для PII classes, bounding boxes/polygons, page dimensions, ambiguity/readability statuses и optional reason metadata; добавить framework-independent fail-closed validator;
-- выход: канонический manifest/validation report, пригодный для будущих recall/coverage/over-redaction metrics;
-- обязательные проверки: strict types, positive in-bounds geometry, duplicate IDs, path traversal/symlink escape, hash mismatch, unknown classes/statuses, empty annotations, deterministic validation и запрет raw PII text fields;
-- этот шаг не добавляет detector, OCR, CRNN, training loop, external API, Gemini image call, production upload, real contract data, PII, APK или quality claim.
+- вход: изображения и manifests, прошедшие Local PII Annotation Contract v0, плюс существующая bounded preprocessing/line-segmentation база;
+- действие: детерминированно предложить PII candidate regions по явным layout zones, marker/digit/signature cues и fail-closed ambiguity rules; адрес арендуемой квартиры всегда классифицировать как `property_address`;
+- выход: отдельный prediction manifest с immutable image identity, region geometry, proposed class, closed reason codes и explicit review status;
+- обязательные проверки: deterministic output, in-bounds positive geometry, no ground-truth leakage, page ordering, duplicate/path/hash guards, conservative ambiguous status и отсутствие raw PII text;
+- этот шаг не рендерит маски, не считает privacy metrics, не добавляет OCR/CRNN/ML training, external API, Gemini image call, production upload, real contract data, PII или APK.
 
-После этого отдельными маленькими PR последуют deterministic PII baseline, mask renderer/irreversibility checks, metric calculation и только затем controlled reviewer validation. Full local OCR не возвращается в critical path без отдельного продуктового решения.
+После baseline отдельными PR последуют mask renderer/irreversibility checks, metric calculation и controlled reviewer validation. Full local OCR не возвращается в critical path без отдельного продуктового решения.
 
 ## 8. Протокол восстановления новой сессии
 
@@ -123,7 +126,7 @@ Synthetic tests доказали ровно ограниченные gates v0: �
 
 Третий cold-start continuity audit проведён 2026-07-20 после PR 123–128. Он подтвердил candidate freeze, recognizer input boundary и isolated CPU runtime, но выявил blocking global RTL reversal, отсутствие post-resize/batch memory bounds, неполный OCR test command в CI, stale candidate-freeze documentation, несовместимые reviewer/materializer status names и отсутствие гарантии mixed-script строки в pilot. PR 129 устранил stale state, старый low-resolution Gold path и status mapping; следующие corrective PR устранили global RTL reversal и post-resize/batch memory risk через bounded CTC Text Order Contract v0 и Recognizer Input Memory Contract v0.
 
-Четвёртый технический аудит проведён 2026-07-21 после PR 131. Он выявил документационный конфликт, Gold/CER leakage/provenance defects, узкий OCR CI и несколько отдельных atomicity/TOCTOU risks. После этого владелец продукта уточнил архитектурную цель: локальная система нужна для PII-redaction, а не для полного OCR. Текущий corrective PR фиксирует этот продуктовый переход; recognizer-specific findings сохраняются как paused research debt, а не как MVP blocker.
+Четвёртый технический аудит проведён 2026-07-21 после PR 131. Он выявил документационный конфликт, Gold/CER leakage/provenance defects, узкий OCR CI и несколько отдельных atomicity/TOCTOU risks. После этого владелец продукта уточнил архитектурную цель: локальная система нужна для PII-redaction, а не для полного OCR. PR 132 зафиксировал этот продуктовый переход; recognizer-specific findings сохраняются как paused research debt, а не как MVP blocker.
 
 Следующий cold-start audit требуется не позднее третьего слитого privacy/OCR PR после этого архитектурного перехода либо немедленно при новом конфликте контрактов.
 
@@ -171,7 +174,7 @@ python -m research.hebrew_contract_ocr.line_segmenter \
 
 Для файлов с уже правильной матрицей пикселей и заведомо устаревшим EXIF orientation в обе команды добавляется `--ignore-exif-orientation`. Это нельзя включать по умолчанию.
 
-Синтетические данные, legacy silver review pack, full-line Gold workflow, Gold materialization и CER остаются описаны в `research/hebrew_contract_ocr/README.md`, `docs/MODEL_ASSISTED_GOLD_TESTING_V0.md` и `research/hebrew_contract_ocr/DATASET_CONTRACT_V0.md` как paused recognizer research. CTC alignment/logical order зафиксирован в `research/hebrew_contract_ocr/CTC_TEXT_ORDER_V0.md`; recognizer memory ceilings — в `research/hebrew_contract_ocr/RECOGNIZER_INPUT_MEMORY_V0.md`.
+Синтетические данные, legacy silver review pack, full-line Gold workflow, Gold materialization и CER остаются описаны в `research/hebrew_contract_ocr/README.md`, `docs/MODEL_ASSISTED_GOLD_TESTING_V0.md` и `research/hebrew_contract_ocr/DATASET_CONTRACT_V0.md` как paused recognizer research. CTC alignment/logical order зафиксирован в `research/hebrew_contract_ocr/CTC_TEXT_ORDER_V0.md`; recognizer memory ceilings — в `research/hebrew_contract_ocr/RECOGNIZER_INPUT_MEMORY_V0.md`. Local PII annotations определены в `research/hebrew_contract_ocr/PII_ANNOTATION_CONTRACT_V0.md`.
 
 ## 11. Правило обновления состояния
 
