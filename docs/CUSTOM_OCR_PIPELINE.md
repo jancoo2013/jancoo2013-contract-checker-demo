@@ -46,7 +46,7 @@ The MVP privacy layer must cover at least:
 - person names and identifying party fields;
 - Israeli ID / `ת.ז.` values;
 - phone numbers and email addresses;
-- personal residential addresses when they identify a party rather than the rented property;
+- all addresses, including the rented property's address, which are always masked;
 - signatures, initials, stamps, and handwritten identifying entries;
 - bank-account, IBAN, cheque, and other financial identifiers;
 - landlord, tenant, agent, and guarantor identifying details;
