@@ -1,0 +1,22 @@
+{
+  "name": "pii-reviewer-mobile",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "expo start --dev-client",
+    "android": "expo run:android",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "expo": "~56.0.0",
+    "expo-dev-client": "~56.0.22",
+    "expo-status-bar": "~56.0.4",
+    "react": "19.2.3",
+    "react-native": "0.85.0"
+  },
+  "devDependencies": {
+    "@babel/core": "7.28.0"
+  }
+}
