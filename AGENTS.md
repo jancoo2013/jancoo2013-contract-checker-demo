@@ -4,9 +4,9 @@
 
 - Before making changes, read `docs/ARCHITECTURE.md`.
 - Treat `docs/ARCHITECTURE.md` as the product architecture source of truth.
-- For OCR work, also read `docs/OCR_PROJECT_STATE.md` and `docs/CUSTOM_OCR_PIPELINE.md`.
-- Treat `docs/OCR_PROJECT_STATE.md` as the operational source of truth for what is implemented, what is proven, the current blockers, and the single permitted next OCR step.
-- Treat the OCR decisions and milestone order in `docs/CUSTOM_OCR_PIPELINE.md` as binding.
+- For privacy/OCR work, also read `docs/OCR_PROJECT_STATE.md` and `docs/CUSTOM_OCR_PIPELINE.md`.
+- Treat `docs/OCR_PROJECT_STATE.md` as the operational source of truth for what is implemented, what is proven, the current blockers, and the single permitted next privacy/OCR step.
+- Treat the privacy/OCR decisions and milestone order in `docs/CUSTOM_OCR_PIPELINE.md` as binding.
 - If a requested task conflicts with `docs/ARCHITECTURE.md`, do not silently override it. Explain the conflict in the PR summary or ask for clarification.
 - Do not treat older PR behavior as canonical if it conflicts with the current architecture document.
 
@@ -128,33 +128,33 @@ Use cautious wording such as:
 
 ## 8. Current Priority Order
 
-The user has explicitly made project-owned Hebrew contract OCR research the active track. Follow `docs/CUSTOM_OCR_PIPELINE.md` for that track.
+The user has explicitly made automatic local PII detection and irreversible redaction the active image-processing track. Follow `docs/CUSTOM_OCR_PIPELINE.md` and the single next step in `docs/OCR_PROJECT_STATE.md`.
 
-For work outside the active OCR track, prefer this order unless the user explicitly changes priority:
+The MVP does not require a project-owned full Hebrew OCR recognizer. After the local privacy boundary has been passed, an approved external OCR/LLM service may receive only the anonymized image/document. Raw photos and recoverable PII must never cross that boundary.
+
+The existing project-owned recognizer, CTC, synthetic-data, Gold, and CER work is preserved as paused research. Do not add a CRNN, training loop, weights, predictions, reviewer APK, or full-line transcription workflow unless the product owner explicitly reactivates that track and updates the binding documents in the same PR.
+
+For work outside the active privacy track, prefer this order unless the user explicitly changes priority:
 
 1. Structured text audit.
 2. Evidence blocks.
 3. Python validation.
 4. Completeness audit.
 5. Three-card report + `Разбор по пунктам`.
-6. Future privacy-safe image/OCR pipeline.
+6. Privacy-safe anonymized image/OCR handoff.
 
-Offline OCR research may proceed with synthetic, redacted, or locally controlled data. Production integration with raw user photos must not outrun the privacy architecture.
-
-The finished product must not depend on Surya, Chandra, Tesseract, or a cloud OCR provider. Those engines may be used only as offline teachers or baselines. Only the project-owned compact model and project-owned weights may ship to Android.
-
-Do not switch back to tuning a teacher OCR engine unless the user explicitly changes the direction recorded in `docs/CUSTOM_OCR_PIPELINE.md`.
+Production integration with raw user photos must not outrun the privacy architecture. Offline research may continue only on synthetic, redacted, or locally controlled data and must not be presented as MVP-critical work.
 
 Do not add runtime Airtable API integration before local JSON/YAML risk configuration is stable.
 
-## 8.1 OCR Continuity Protocol
+## 8.1 Privacy/OCR Continuity Protocol
 
 - The repository, not a chat transcript or one agent's memory, is the durable project context.
 - The product owner is not responsible for opening Codex work sessions or repeating project history to them. The orchestrating assistant owns session creation, bounded handoff, diff review, test review, and state updates.
 - Give each Codex session exactly one bounded step with explicit input, output, allowed scope, prohibited detours, and validation.
 - Only the single next step recorded in `docs/OCR_PROJECT_STATE.md` may be active. Changing it requires an explicit product decision and a state update in the same PR.
-- Every OCR PR that changes implementation status, evidence, blockers, or the next step must update `docs/OCR_PROJECT_STATE.md`.
-- Every 3–5 merged OCR PRs, run the cold-start audit defined in `docs/OCR_PROJECT_STATE.md` using a clean session that has only the repository as context.
+- Every privacy/OCR PR that changes implementation status, evidence, blockers, or the next step must update `docs/OCR_PROJECT_STATE.md`.
+- Every 3–5 merged privacy/OCR PRs, run the cold-start audit defined in `docs/OCR_PROJECT_STATE.md` using a clean session that has only the repository as context.
 - Never accept a session's claim that work is complete without inspecting its diff and validation results.
 
 ## 9. Tests and Validation
@@ -173,7 +173,7 @@ For documentation-only changes, tests are not required, but the PR summary shoul
 ## 10. Pull Request Behavior
 
 - Create a Pull Request to `main`.
-- Open OCR Pull Requests ready for review, not as drafts, unless the user explicitly requests a draft.
+- Open privacy/OCR Pull Requests ready for review, not as drafts, unless the user explicitly requests a draft.
 - In the PR summary, list changed files.
 - State whether the change is code or documentation only.
 - State whether tests were run.
