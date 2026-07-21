@@ -50,8 +50,11 @@ The current image redaction flow is a closed technical test, not a complete prod
 The target MVP should move in this order:
 
 ```text
-redacted/anonymized input
-→ project-owned on-device OCR or text extraction
+raw image/document
+→ on-device automatic PII-region detection and irreversible masking
+→ local fail-closed privacy validation
+→ anonymized image/document
+→ approved external full OCR
 → secondary text PII redaction
 → numbered evidence blocks
 → structured LLM risk extraction
@@ -62,9 +65,11 @@ redacted/anonymized input
 → optional Hebrew source expansion
 ```
 
-Production OCR is a project-owned compact on-device model. Surya, Chandra, Tesseract, and cloud OCR may be research teachers or baselines but are not production dependencies. The detailed development contract is `docs/CUSTOM_OCR_PIPELINE.md`.
+The local mobile component is a privacy detector/redactor, not a required full Hebrew transcription engine. It may use layout, page zones, Hebrew field markers, digit patterns, signatures, handwriting cues, and conservative mask expansion.
 
-Do not connect raw-photo OCR to the product before the privacy-safe preprocessing layer is ready. Offline recognizer research may proceed independently on synthetic, redacted, or locally controlled data.
+An approved external OCR/LLM service may receive only the anonymized derivative after the local privacy boundary has passed. Raw photos and recoverable PII must not leave the device.
+
+The existing project-owned recognizer, CTC, synthetic-data, Gold, and CER work is paused research rather than an MVP dependency. Do not resume CRNN or training work without an explicit product decision recorded in the binding privacy/OCR documents.
 
 Do not connect runtime Airtable API before the local JSON/YAML risk configuration is stable. Airtable is a project knowledge base and control table, not the runtime MVP backend.
 
@@ -105,9 +110,11 @@ Production target pipeline:
 
 ```text
 raw image/document
-→ local/browser/mobile privacy handling
+→ local/browser/mobile PII-region detection
+→ irreversible local masking
+→ local privacy validation
 → anonymized image/document
-→ project-owned on-device OCR
+→ approved external OCR
 → secondary text PII redaction
 → LLM audit
 → Russian report
@@ -134,11 +141,13 @@ Security check amount 7,500 ₪ should remain visible.
 ID number or bank/check number should be redacted.
 ```
 
-Do not require a mask on every page. Many middle pages of a lease may contain no personal data. Future privacy logic should detect likely personal-data rows by Hebrew field labels, layout context, and known PII markers. It should mask only the rows or zones likely to contain personal data while preserving monetary amounts and legal-risk content.
+Do not require a mask on every page. Many middle pages of a lease may contain no personal data. Privacy logic should detect likely personal-data rows by Hebrew field labels, layout context, known PII markers, digits, signatures, and handwriting cues. It should mask only the rows or zones likely to contain personal data while preserving monetary amounts and legal-risk content.
 
-## 6. Future PII-Line Detection
+The anonymized derivative must not preserve recoverable pixels in alpha channels, hidden layers, reversible overlays, metadata, or debug artifacts that are sent externally.
 
-Future image/text privacy logic should search for Hebrew field labels and row patterns such as:
+## 6. Active MVP PII-Region Detection
+
+Local image privacy logic should search for Hebrew field labels and row patterns such as:
 
 - tenant name field;
 - landlord name field;
@@ -150,10 +159,11 @@ Future image/text privacy logic should search for Hebrew field labels and row pa
 - bank details field;
 - guarantor identifying fields.
 
-The detector should classify rows into at least two groups:
+The detector should classify rows or zones into at least three groups:
 
-1. PII rows/zones that should be masked before external OCR/LLM use.
+1. PII rows/zones that must be masked before external OCR/LLM use.
 2. Risk-relevant rows that should be preserved for analysis.
+3. Ambiguous rows/zones that require fail-closed masking or local review.
 
 Risk-relevant rows include, for example:
 
@@ -178,7 +188,11 @@ Risk-relevant rows include, for example:
 - ועד בית;
 - ארנונה.
 
-Do not blindly redact a full page only because one PII-like label appears on it. Prefer row/zone-level masking.
+Do not blindly redact a full page only because one PII-like label appears on it. Prefer row/zone-level masking with conservative expansion around the sensitive value.
+
+The annotation and verification target is a PII region or mask, not an exact full-line transcript. Primary metrics are PII-region recall, complete mask coverage, missed-sensitive-area rate, page-level privacy pass rate, and over-redaction of legally relevant non-PII content.
+
+A Hebrew-capable reviewer verifies whether sensitive regions were missed or incompletely covered and whether important legal text was unnecessarily removed. The reviewer is not expected to transcribe the contract or correct every OCR character.
 
 ## 7. Evidence and Citation Architecture
 
@@ -485,7 +499,8 @@ The assistant must not say who will win a legal dispute.
 
 Rejected for MVP:
 
-- sending raw contract photos to external OCR/LLM services;
+- sending raw contract photos or recoverable PII to external OCR/LLM services;
+- treating full local Hebrew OCR as a prerequisite for privacy-safe image handoff;
 - requiring a mask on every page before OCR handoff;
 - using the current manual masking test as a complete production privacy layer;
 - asking the user to manually redact everything without guidance;
@@ -497,8 +512,7 @@ Rejected for MVP:
 
 Deferred:
 
-- automatic PII-line detection by Hebrew field labels and layout;
-- production connection of raw photos to the project-owned OCR after local privacy handling;
+- project-owned full Hebrew OCR, CRNN training, full-line Gold transcription, and Android recognizer export;
 - runtime Airtable API integration;
 - template/reference comparison;
 - curated legal/risk knowledge base RAG;
@@ -508,16 +522,16 @@ Deferred:
 
 Keep the architecture conservative.
 
-For non-OCR product work, build in this order:
+For non-privacy product work, build in this order:
 
 1. Structured text audit.
 2. Evidence blocks.
 3. Python validation.
 4. Completeness audit.
 5. Three-card report + `Разбор по пунктам`.
-6. Future privacy-safe image/OCR pipeline.
+6. Privacy-safe anonymized image/OCR handoff.
 
-The user has explicitly selected project-owned Hebrew OCR research as the current active track. Follow `docs/CUSTOM_OCR_PIPELINE.md` for its milestone order. Offline research may use synthetic, redacted, or locally controlled data; production integration with raw user photos must not outrun the privacy architecture.
+The user has explicitly selected automatic local PII detection and irreversible redaction as the current active image-processing track. Follow `docs/CUSTOM_OCR_PIPELINE.md` and `docs/OCR_PROJECT_STATE.md`. Full project-owned OCR research is paused unless explicitly reactivated.
 
 Do not let the LLM become the source of truth.
 
