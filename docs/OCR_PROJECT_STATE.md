@@ -1,6 +1,6 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-07-21, после corrected grayscale PII mask renderer v0 и repository-based technical audit PR 135.
+Последнее обновление: 2026-07-21, после Controlled PII Reviewer Manifest Core v0.
 
 Это каноническая точка восстановления текущего privacy/OCR-проекта. Она отвечает на практические вопросы: что уже сделано, что действительно проверено, что пока только предполагается и какой шаг разрешён следующим.
 
@@ -63,6 +63,7 @@
 | Local PII annotation/evaluation contract | Reference v0 реализован | Непустой JSONL, closed enums, bbox/polygon geometry, strict image identity, single manifest snapshot, same-byte image hash/decode и deterministic report покрыты focused tests | Нет controlled human annotations, detector predictions или измеренных recall/coverage/over-redaction metrics; compressed-byte/pixel resource ceilings остаются отдельным debt |
 | Local PII detector | Deterministic marker/layout baseline v0 реализован | Без OCR и ground-truth leakage предлагаются bounded candidate regions; manifest читается один раз, image bytes повторно проверяются при consumption, output детерминирован и сохраняет immutable page identity | Нет controlled recall/coverage/over-redaction metrics, Android implementation или production privacy result |
 | Local PII mask renderer | Python reference v0 реализован в PR 135 | Все candidates физически заменяются значением `0` в новом grayscale PNG `L`; удаляются alpha/EXIF/ICC/text metadata; страницы потребляются последовательно; staging derivatives повторно проверяются по фактическим bytes, hashes, dimensions, mode и bbox coverage перед atomic publication; mutation/late/rename failures очищаются и допускают retry | Не доказаны PII recall, корректность candidate boxes, полнота privacy coverage, over-redaction, внешняя передача, Android behavior или production privacy safety; threat model ограничен process-controlled staging |
+| Controlled PII reviewer manifest core | Reference v0 реализован | Core связывает exact source/prediction/derivative hashes, принимает только closed findings `missed_pii`, `incomplete_mask`, `over_redaction` и canonical `xyxy_half_open` bbox, атомарно пишет deterministic JSONL без PII values, свободного текста, reviewer identity или timestamps | Локальный reviewer UI и human pilot run ещё не реализованы; не получены recall, complete-mask-coverage, over-redaction или unsafe-page metrics |
 | Внешний OCR handoff | Не подключён | Разрешён только после локальной необратимой редакции и privacy validation | Не доказано, что derivative не содержит PII и не сохраняет восстанавливаемые пиксели |
 | RTL/layout и структура пунктов | Не реализованы | Это downstream-задача после обезличенного OCR | Нет кода и измерений reading order |
 
@@ -70,7 +71,7 @@
 
 ## 5. Активные блокеры и paused research
 
-1. **Production privacy validation.** Renderer корректно и необратимо закрывает переданные ему candidate boxes, но пока не доказано, что detector находит все PII, что boxes полны и что over-redaction приемлем. До controlled reviewer validation и измеримых gates запрещено отправлять производные пользовательских фотографий внешнему OCR/LLM.
+1. **Production privacy validation.** Renderer и deterministic reviewer-manifest core реализованы, но локальный reviewer UI и human pilot run отсутствуют; измеримые gates не получены. Пока не доказано, что detector находит все PII, что masks полностью покрывают PII и что over-redaction приемлем. До reviewer run и metrics запрещено отправлять производные пользовательских фотографий внешнему OCR/LLM.
 
 Full-line Gold Set, CER, CRNN, training loop и reviewer transcription APK больше не являются блокерами MVP. Они остаются paused research и требуют отдельного явного решения владельца продукта перед возобновлением.
 
@@ -94,20 +95,22 @@ Synthetic tests доказали ровно ограниченные gates v0: �
 
 `PII_MASK_RENDERER_V0.md` и `pii_mask_renderer.py` реализуют corrected grayscale mask renderer v0. Он последовательно потребляет страницы, ограничивает manifest/source bytes и decoded pixels, создаёт новый PNG `L`, физически заменяет union всех candidate bbox значением `0`, не переносит alpha/EXIF/ICC/text metadata и публикует только полностью проверенный sibling staging directory. Шесть focused tests и отдельные mutation/multipage harnesses подтверждают exact `xyxy_half_open` coverage, order invariance, deterministic bytes, source immutability, derivative/source mutation detection, cleanup и retry после late/final-rename failures. Это доказывает только необратимую замену пикселей для supplied candidates в process-controlled staging threat model, а не качество detector или внешнюю безопасность.
 
+`PII_REVIEWER_PILOT_V0.md` и `pii_reviewer_pilot.py` реализуют deterministic manifest core для Controlled PII Reviewer Validation Pilot v0. Core связывает exact baseline prediction SHA с source/derivative hashes, dimensions и strict top-level schemas, принимает только три closed error categories и canonical `xyxy_half_open` bbox, а затем атомарно пишет deterministic JSONL без PII values или свободного текста. Пять synthetic focused tests покрывают manifest binding, path/hash/mode guards, closed statuses/categories, geometry bounds, immutable identities, canonical finding IDs, deterministic output и overwrite rejection. Это доказывает только формат и core; reviewer UI и human validation ещё отсутствуют.
+
 ## 7. Единственный следующий шаг
 
-**Implement Controlled PII Reviewer Validation Pilot v0 without external calls.** Другой privacy/OCR-шаг нельзя начинать без явного изменения этого файла и решения владельца продукта.
+**Implement Local PII Reviewer UI v0 on `127.0.0.1` without external calls.** Другой privacy/OCR-шаг нельзя начинать без явного изменения этого файла и решения владельца продукта.
 
 Граница задачи:
 
-- вход: repository-external controlled page images, baseline predictions, grayscale masked derivatives и человек, читающий иврит;
-- действие: сверить только missed PII, incomplete mask coverage и over-redaction; не переписывать полный текст договора и не сохранять значения PII;
-- выход: deterministic review manifest с image/derivative hashes, геометрией найденных ошибок, closed error categories и page-level review status;
-- privacy rule: реальные изображения, PII values и свободные текстовые заметки не попадают в репозиторий; разрешены только synthetic fixtures и пустые/example schemas;
-- pilot не вызывает внешние API, не подключает Gemini/OCR/LLM, не разрешает production upload и не реализует Android/APK;
-- recall, complete-mask-coverage и over-redaction metrics активируются только после получения проверенной reviewer-разметки.
+- вход: validated pages из `pii_reviewer_pilot.py`, repository-external source pages и masked derivatives;
+- действие: показать source/derivative рядом, выбрать одну из трёх closed categories и задать `xyxy_half_open` bbox двумя кликами;
+- выход: rows для существующего deterministic review-manifest core и сохранение только после закрытия всех page statuses;
+- privacy rule: никаких PII values, свободных заметок, reviewer identity, timestamps или внешних ресурсов;
+- UI слушает только `127.0.0.1`, не вызывает Gemini/OCR/LLM, не разрешает production upload и не реализует Android/APK;
+- обязательные проверки: session reset для другого prediction SHA, no-overwrite output, pass/fail invariants, coordinate scaling и synthetic UI-state tests там, где возможно без браузера.
 
-После pilot отдельным PR следует Local PII Detection & Redaction Metrics v0. Full local OCR не возвращается в critical path без отдельного продуктового решения.
+После UI следует repository-external human pilot run; затем отдельным PR — Local PII Detection & Redaction Metrics v0.
 
 ## 8. Протокол восстановления новой сессии
 
@@ -137,7 +140,7 @@ Synthetic tests доказали ровно ограниченные gates v0: �
 
 Шестой repository-based technical audit проведён 2026-07-21 на head `1e4540494bb095aa0e908c853f2c59885697dcfc`. Вердикт: `PASS WITH NON-BLOCKING FINDINGS`. `py_compile` и 6/6 renderer tests прошли; focused suite дал 27 успешных tests и один Windows-only symlink privilege error; full suite дал 310 успешных, 2 skipped и тот же environment error; GitHub Actions run 24 прошёл. Независимые derivative-swap и multipage harnesses подтвердили mutation detection, cleanup/retry, опубликованный SHA и освобождение page payload. Не доказаны PII recall, candidate correctness, complete privacy coverage, over-redaction, external-transfer safety, Android behavior и production privacy safety.
 
-Этот шестой аудит выполнен в существующем рабочем чате и не считается формально чистым cold-start continuity test. Если буквальное требование clean-session сохраняется, оно остаётся последним процессным merge gate PR 135; технических блокеров renderer не найдено.
+Этот шестой аудит выполнен в существующем рабочем чате. Владелец продукта явно принял repository-based audit как достаточный, после чего PR 135 был переведён в ready-for-review и слит. Технических блокеров renderer не осталось.
 
 ## 9. Формат передачи ограниченной задачи Codex
 
