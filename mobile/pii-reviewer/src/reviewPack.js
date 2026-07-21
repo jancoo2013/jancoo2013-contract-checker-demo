@@ -1,18 +1,12 @@
-const MANIFEST_LIMIT = 8 * 1024 * 1024;
-const IMAGE_LIMIT = 64 * 1024 * 1024;
-const MAX_PIXELS = 4096 * 4096;
-const SHA = /^[0-9a-f]{64}$/;
-const ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+const MANIFEST_LIMIT = 8 * 1024 * 1024, IMAGE_LIMIT = 64 * 1024 * 1024, MAX_PIXELS = 4096 * 4096;
+const SHA = /^[0-9a-f]{64}$/, ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const PII_CLASSES = new Set(['person_name','israeli_id','phone','email','property_address','other_address','signature','initials','stamp','bank_identifier','cheque_identifier','handwritten_identifier','other_likely_pii']);
 const REASONS = new Set(['party_header_zone','property_address_zone','signature_zone','right_label_shape','digit_pattern','segmentation_review']);
-const PRED_KEYS = ['algorithm','candidates','height','image','image_id','image_sha256','schema_version','width'];
-const CAND_KEYS = ['candidate_id','geometry','proposed_class','reason_codes','review_status'];
+const PRED_KEYS = ['algorithm','candidates','height','image','image_id','image_sha256','schema_version','width'], CAND_KEYS = ['candidate_id','geometry','proposed_class','reason_codes','review_status'];
 const DERIV_KEYS = ['derivative_image','derivative_sha256','height','image_id','mask_count','mask_value','masked_pixel_count','mode','prediction_manifest_sha256','renderer','schema_version','source_image_sha256','width'];
 const LINE_KEYS = ['bbox','bbox_convention','foreground_pixels','line_id','line_image','line_sha256','order','page_id','reasons','schema_version','segmentation_status','source_master_sha256','status','upstream_resolution_status'];
-
 function exact(row, keys, label) {
-  if (!row || typeof row !== 'object' || Array.isArray(row) || Object.keys(row).sort().join('|') !== keys.join('|')) throw new Error(`${label}: invalid fields`);
-}
+  if (!row || typeof row !== 'object' || Array.isArray(row) || Object.keys(row).sort().join('|') !== keys.join('|')) throw new Error(`${label}: invalid fields`);}
 function integer(value) { return Number.isInteger(value) && typeof value !== 'boolean'; }
 function bbox(value, width, height, label) {
   if (!Array.isArray(value) || value.length !== 4 || !value.every(integer)) throw new Error(`${label}: invalid bbox`);
