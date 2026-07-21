@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import re
 from collections import Counter
@@ -48,18 +49,12 @@ def _resolve_image(root: Path, value: Any) -> Path:
     return path
 
 
-def _hash(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
 def _geometry_error(value: Any, width: int, height: int) -> str | None:
     if not isinstance(value, dict) or set(value) != {"type", "coordinates"}:
         return "geometry must contain exactly type and coordinates"
     kind, coordinates = value["type"], value["coordinates"]
+    if not isinstance(kind, str):
+        return "geometry type must be a string"
     if kind == "bbox":
         if not isinstance(coordinates, list) or len(coordinates) != 4 or not all(_integer(v) for v in coordinates):
             return "bbox coordinates must be four integers"
@@ -90,18 +85,48 @@ def _enum_list_error(value: Any, allowed: frozenset[str], field: str) -> str | N
     return f"unknown {field}: {unknown}" if unknown else None
 
 
-def validate_annotation_manifest(manifest_path: Path, image_root: Path) -> dict[str, Any]:
+def _report(
+    errors: list[str],
+    pages: Counter[str],
+    classes: Counter[str],
+    records: int,
+    regions_total: int,
+    manifest_sha256: str | None,
+) -> dict[str, Any]:
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "manifest_sha256": manifest_sha256,
+        "valid": not errors,
+        "evaluation_ready": not errors and not pages.get("needs_review", 0),
+        "records": records,
+        "regions": regions_total,
+        "page_statuses": dict(sorted(pages.items())),
+        "pii_classes": dict(sorted(classes.items())),
+        "errors": errors,
+    }
+
+
+def load_annotation_manifest(
+    manifest_path: Path,
+    image_root: Path,
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     errors: list[str] = []
     image_ids: set[str] = set()
     region_ids: set[str] = set()
     pages: Counter[str] = Counter()
     classes: Counter[str] = Counter()
+    parsed_rows: list[dict[str, Any]] = []
     records = regions_total = 0
 
+    manifest_sha256: str | None = None
     try:
-        lines = manifest_path.read_text(encoding="utf-8").splitlines()
+        raw = manifest_path.read_bytes()
+        manifest_sha256 = hashlib.sha256(raw).hexdigest()
+        lines = raw.decode("utf-8").splitlines()
     except OSError as exc:
         lines, errors = [], [str(exc)]
+    except UnicodeDecodeError as exc:
+        lines, errors = [], [f"manifest is not valid UTF-8: {exc.reason}"]
 
     for number, line in enumerate(lines, 1):
         if not line.strip():
@@ -116,6 +141,7 @@ def validate_annotation_manifest(manifest_path: Path, image_root: Path) -> dict[
             errors.append(f"line {number}: row must be an object")
             continue
         records += 1
+        parsed_rows.append(row)
         label = str(row.get("image_id") or f"line_{number}")
         missing, unknown = sorted(TOP_KEYS - set(row)), sorted(set(row) - TOP_KEYS)
         if missing:
@@ -143,9 +169,11 @@ def validate_annotation_manifest(manifest_path: Path, image_root: Path) -> dict[
             errors.append(f"{label}: image_sha256 must be lowercase SHA-256")
         try:
             path = _resolve_image(image_root, row["image"])
-            if isinstance(image_sha, str) and SHA_RE.fullmatch(image_sha) and _hash(path) != image_sha:
-                errors.append(f"{label}: image hash mismatch")
-            with Image.open(path) as image:
+            image_bytes = path.read_bytes()
+            if isinstance(image_sha, str) and SHA_RE.fullmatch(image_sha):
+                if hashlib.sha256(image_bytes).hexdigest() != image_sha:
+                    errors.append(f"{label}: image hash mismatch")
+            with Image.open(io.BytesIO(image_bytes)) as image:
                 actual_size = image.size
                 image.verify()
             if width and height and actual_size != (width, height):
@@ -154,7 +182,7 @@ def validate_annotation_manifest(manifest_path: Path, image_root: Path) -> dict[
             errors.append(f"{label}: {exc}")
 
         status, regions = row["page_status"], row["regions"]
-        if status not in PAGE_STATUSES:
+        if not isinstance(status, str) or status not in PAGE_STATUSES:
             errors.append(f"{label}: unknown page_status: {status!r}")
         else:
             pages[status] += 1
@@ -188,12 +216,13 @@ def validate_annotation_manifest(manifest_path: Path, image_root: Path) -> dict[
             else:
                 region_ids.add(region_id)
             pii_class = region["pii_class"]
-            if pii_class not in PII_CLASSES:
+            if not isinstance(pii_class, str) or pii_class not in PII_CLASSES:
                 errors.append(f"{region_label}: unknown pii_class: {pii_class!r}")
             else:
                 classes[pii_class] += 1
-            if region["review_status"] not in REVIEW_STATUSES:
-                errors.append(f"{region_label}: unknown review_status: {region['review_status']!r}")
+            review_status = region["review_status"]
+            if not isinstance(review_status, str) or review_status not in REVIEW_STATUSES:
+                errors.append(f"{region_label}: unknown review_status: {review_status!r}")
             if width and height and (message := _geometry_error(region["geometry"], width, height)):
                 errors.append(f"{region_label}: {message}")
             for field, allowed in (("flags", REGION_FLAGS), ("reason_codes", REASON_CODES)):
@@ -201,13 +230,11 @@ def validate_annotation_manifest(manifest_path: Path, image_root: Path) -> dict[
                     errors.append(f"{region_label}: {message}")
             regions_total += 1
 
-    return {
-        "schema_version": SCHEMA_VERSION,
-        "valid": not errors,
-        "evaluation_ready": not errors and not pages.get("needs_review", 0),
-        "records": records,
-        "regions": regions_total,
-        "page_statuses": dict(sorted(pages.items())),
-        "pii_classes": dict(sorted(classes.items())),
-        "errors": errors,
-    }
+    if records == 0:
+        errors.append("manifest must contain at least one page")
+    return _report(errors, pages, classes, records, regions_total, manifest_sha256), parsed_rows
+
+
+def validate_annotation_manifest(manifest_path: Path, image_root: Path) -> dict[str, Any]:
+    report, _ = load_annotation_manifest(manifest_path, image_root)
+    return report

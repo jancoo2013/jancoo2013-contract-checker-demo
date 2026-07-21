@@ -1,6 +1,7 @@
 from __future__ import annotations
 import hashlib, json, tempfile, unittest
 from pathlib import Path
+from unittest.mock import patch
 from PIL import Image, ImageDraw
 from research.hebrew_contract_ocr.pii_baseline import PIIBaselineError, generate_baseline_predictions
 
@@ -81,6 +82,29 @@ class PIIMarkerLayoutBaselineTests(unittest.TestCase):
             output = root/"predictions.jsonl"; output.write_text("occupied")
             with self.assertRaisesRegex(PIIBaselineError, "already exists"):
                 generate_baseline_predictions(manifest, root, output)
+
+    def test_manifest_is_consumed_from_one_snapshot(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp); image = root/"page.png"; _page(image, [(80,210,520,235)])
+            row = _row("P0001","page.png",_sha(image))
+            manifest = root/"annotations.jsonl"; _write(manifest, [row])
+            output = root/"predictions.jsonl"
+            original_read_bytes = Path.read_bytes
+            manifest_reads = 0
+
+            def controlled_read_bytes(path: Path) -> bytes:
+                nonlocal manifest_reads
+                data = original_read_bytes(path)
+                if path == manifest:
+                    manifest_reads += 1
+                    _write(manifest, [row, row])
+                return data
+
+            with patch.object(Path, "read_bytes", controlled_read_bytes):
+                summary = generate_baseline_predictions(manifest, root, output)
+            self.assertEqual(manifest_reads, 1)
+            self.assertEqual(summary["pages"], 1)
+            self.assertEqual(len(output.read_text().splitlines()), 1)
 
 
 if __name__ == "__main__": unittest.main()

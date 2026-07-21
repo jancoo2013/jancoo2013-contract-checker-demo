@@ -6,6 +6,7 @@ import tempfile
 import unittest
 from copy import deepcopy
 from pathlib import Path
+from unittest.mock import patch
 
 from PIL import Image
 
@@ -106,6 +107,46 @@ class OCRPIIAnnotationTests(unittest.TestCase):
             second = deepcopy(first); second["image"] = "images/page2.png"; second["image_sha256"] = _image(root / "images/page2.png")
             _write(manifest, [first, second]); report = validate_annotation_manifest(manifest, root)
             self.assertTrue(any("duplicate image_id" in e for e in report["errors"]))
+
+    def test_empty_manifest_and_malformed_enums_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            manifest = root / "annotations.jsonl"; manifest.write_bytes(b"")
+            report = validate_annotation_manifest(manifest, root)
+            self.assertFalse(report["valid"])
+            self.assertIn("manifest must contain at least one page", report["errors"])
+
+            image_hash = _image(root / "images/page.png")
+            mutations = (
+                lambda row: row.update(page_status=[]),
+                lambda row: row["regions"][0].update(pii_class={}),
+                lambda row: row["regions"][0].update(review_status=[]),
+            )
+            for index, mutate in enumerate(mutations):
+                row = _row(image_hash); mutate(row)
+                case = root / f"enum_{index}.jsonl"; _write(case, [row])
+                self.assertFalse(validate_annotation_manifest(case, root)["valid"])
+
+    def test_hash_and_decode_use_one_image_snapshot(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            image = root / "images/page.png"; image_hash = _image(image)
+            manifest = root / "annotations.jsonl"; _write(manifest, [_row(image_hash)])
+            original_read_bytes = Path.read_bytes
+            image_reads = 0
+
+            def controlled_read_bytes(path: Path) -> bytes:
+                nonlocal image_reads
+                data = original_read_bytes(path)
+                if path == image:
+                    image_reads += 1
+                    Image.new("L", (7, 7), 0).save(image)
+                return data
+
+            with patch.object(Path, "read_bytes", controlled_read_bytes):
+                report = validate_annotation_manifest(manifest, root)
+            self.assertTrue(report["valid"])
+            self.assertEqual(image_reads, 1)
 
 
 if __name__ == "__main__":
