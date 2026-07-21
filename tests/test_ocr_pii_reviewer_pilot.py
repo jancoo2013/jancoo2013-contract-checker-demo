@@ -96,8 +96,9 @@ class PIIReviewerPilotTests(unittest.TestCase):
             page = load_review_pages(predictions, image_root, renderer)[0][0]
             bad = [
                 ("pass", [{"category": "missed_pii", "geometry": {"type": "bbox", "coordinates": [1, 1, 2, 2]}}]),
-                ("fail", []), ("unknown", []),
-                ("fail", [{"category": "unsupported", "geometry": {"type": "bbox", "coordinates": [1, 1, 2, 2]}}]),
+                ("fail", []),
+                ("unknown", []),
+                ("fail", [{"category": "pii_value", "geometry": {"type": "bbox", "coordinates": [1, 1, 2, 2]}}]),
                 ("fail", [{"category": "missed_pii", "geometry": {"type": "bbox", "coordinates": [0, 0, 13, 10]}}]),
                 ("fail", [{"category": "missed_pii", "geometry": {"type": "bbox", "coordinates": [1, 1, 2, 2]}, "note": "forbidden"}]),
             ]
@@ -117,6 +118,17 @@ class PIIReviewerPilotTests(unittest.TestCase):
             with self.assertRaisesRegex(PIIReviewerPilotError, "identity or canonical"):
                 validate_review_rows([row], pages)
 
+    def test_page_mutation_before_publication_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp); predictions, image_root, renderer = _fixture(root, pages=1)
+            pages = load_review_pages(predictions, image_root, renderer)[0]
+            rows = [make_review_row(pages[0], "pass", [])]
+            Image.new("L", (12, 10), 127).save(renderer / "images/P0001.png")
+            output = root / "review.jsonl"
+            with self.assertRaisesRegex(PIIReviewerPilotError, "hash mismatch"):
+                write_review_manifest(output, rows, pages)
+            self.assertFalse(output.exists())
+
     def test_hash_path_mode_and_manifest_binding_fail_closed(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp); predictions, image_root, renderer = _fixture(root, pages=1)
@@ -126,7 +138,7 @@ class PIIReviewerPilotTests(unittest.TestCase):
             row = dict(original); row["derivative_image"] = "../source/P0001.png"; cases.append(row)
             row = dict(original); row["derivative_sha256"] = "0" * 64; cases.append(row)
             row = dict(original); row["prediction_manifest_sha256"] = "0" * 64; cases.append(row)
-            for row in cases:
+            for index, row in enumerate(cases):
                 _jsonl(manifest, [row])
                 with self.assertRaises(PIIReviewerPilotError): load_review_pages(predictions, image_root, renderer)
             _jsonl(manifest, [original])
