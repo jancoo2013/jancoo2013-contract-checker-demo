@@ -5,10 +5,14 @@ import io
 import json
 import os
 import re
+import tempfile
 from pathlib import Path, PurePosixPath
 from typing import Any, Mapping, Sequence
 
 from PIL import Image, UnidentifiedImageError
+
+from .pii_annotations import PII_CLASSES
+from .pii_baseline import REASON_CODES
 
 SCHEMA_VERSION = 1
 PILOT = "controlled_pii_reviewer_v0"
@@ -36,6 +40,7 @@ REVIEW_KEYS = {
     "page_status", "findings",
 }
 FINDING_KEYS = {"finding_id", "category", "geometry"}
+CANDIDATE_KEYS = {"candidate_id", "proposed_class", "geometry", "review_status", "reason_codes"}
 
 
 class PIIReviewerPilotError(ValueError):
@@ -129,6 +134,7 @@ def load_review_pages(prediction_manifest: Path, image_root: Path, renderer_outp
         raise PIIReviewerPilotError("prediction/renderer page counts differ")
     pages: list[dict[str, Any]] = []
     seen: set[str] = set()
+    candidate_ids: set[str] = set()
     for number, (prediction, derivative) in enumerate(zip(predictions, derivatives), 1):
         if set(prediction) != PREDICTION_KEYS or set(derivative) != DERIVATIVE_KEYS:
             raise PIIReviewerPilotError(f"row {number}: invalid manifest fields")
@@ -141,20 +147,44 @@ def load_review_pages(prediction_manifest: Path, image_root: Path, renderer_outp
             raise PIIReviewerPilotError(f"{image_id}: invalid dimensions")
         if not isinstance(source_sha, str) or not SHA_RE.fullmatch(source_sha) or not isinstance(candidates, list):
             raise PIIReviewerPilotError(f"{image_id}: invalid source identity")
-        if prediction["schema_version"] != SCHEMA_VERSION or prediction["algorithm"] != BASELINE_ALGORITHM:
+        if not _integer(prediction["schema_version"]) or prediction["schema_version"] != SCHEMA_VERSION:
             raise PIIReviewerPilotError(f"{image_id}: unsupported prediction schema")
-        expected = {
-            "schema_version": SCHEMA_VERSION, "renderer": RENDERER, "image_id": image_id,
-            "source_image_sha256": source_sha, "prediction_manifest_sha256": prediction_sha,
-            "width": width, "height": height, "mode": "L", "mask_value": 0,
-            "mask_count": len(candidates),
+        if not isinstance(prediction["algorithm"], str) or prediction["algorithm"] != BASELINE_ALGORITHM:
+            raise PIIReviewerPilotError(f"{image_id}: unsupported prediction schema")
+        for index, candidate in enumerate(candidates, 1):
+            label = f"{image_id}/candidate_{index}"
+            if not isinstance(candidate, dict) or set(candidate) != CANDIDATE_KEYS:
+                raise PIIReviewerPilotError(f"{label}: invalid fields")
+            candidate_id = candidate["candidate_id"]
+            if not isinstance(candidate_id, str) or not ID_RE.fullmatch(candidate_id) or candidate_id in candidate_ids:
+                raise PIIReviewerPilotError(f"{label}: invalid or duplicate candidate_id")
+            candidate_ids.add(candidate_id)
+            proposed_class, review_status, reasons = candidate["proposed_class"], candidate["review_status"], candidate["reason_codes"]
+            if not isinstance(proposed_class, str) or proposed_class not in PII_CLASSES:
+                raise PIIReviewerPilotError(f"{label}: invalid proposed_class")
+            if not isinstance(review_status, str) or review_status != "needs_review":
+                raise PIIReviewerPilotError(f"{label}: invalid review_status")
+            if not isinstance(reasons, list) or any(not isinstance(reason, str) for reason in reasons):
+                raise PIIReviewerPilotError(f"{label}: invalid reason_codes")
+            if len(reasons) != len(set(reasons)) or any(reason not in REASON_CODES for reason in reasons):
+                raise PIIReviewerPilotError(f"{label}: invalid reason_codes")
+            _bbox(candidate["geometry"], width, height, label)
+        if not _integer(derivative["schema_version"]) or derivative["schema_version"] != SCHEMA_VERSION:
+            raise PIIReviewerPilotError(f"{image_id}: renderer binding mismatch")
+        strict_strings = {
+            "renderer": RENDERER, "image_id": image_id, "source_image_sha256": source_sha,
+            "prediction_manifest_sha256": prediction_sha, "mode": "L",
         }
-        if any(derivative.get(key) != value for key, value in expected.items()):
+        if any(not isinstance(derivative[key], str) or derivative[key] != value for key, value in strict_strings.items()):
+            raise PIIReviewerPilotError(f"{image_id}: renderer binding mismatch")
+        strict_integers = {"width": width, "height": height, "mask_value": 0, "mask_count": len(candidates)}
+        if any(not _integer(derivative[key]) or derivative[key] != value for key, value in strict_integers.items()):
             raise PIIReviewerPilotError(f"{image_id}: renderer binding mismatch")
         derivative_sha = derivative["derivative_sha256"]
         if not isinstance(derivative_sha, str) or not SHA_RE.fullmatch(derivative_sha):
             raise PIIReviewerPilotError(f"{image_id}: invalid derivative hash")
-        if not _integer(derivative["masked_pixel_count"]) or derivative["masked_pixel_count"] < 0:
+        masked_pixels = derivative["masked_pixel_count"]
+        if not _integer(masked_pixels) or not 0 <= masked_pixels <= width * height:
             raise PIIReviewerPilotError(f"{image_id}: invalid masked_pixel_count")
         source_path = _resolve(image_root, prediction["image"], "source image")
         derivative_path = _resolve(renderer_output, derivative["derivative_image"], "derivative image")
@@ -184,7 +214,7 @@ def _bbox(geometry: Any, width: int, height: int, label: str) -> dict[str, Any]:
 
 
 def make_review_row(page: Mapping[str, Any], status: str, findings: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
-    if status not in PAGE_STATUSES:
+    if not isinstance(status, str) or status not in PAGE_STATUSES:
         raise PIIReviewerPilotError("invalid page_status")
     normalized = []
     for index, finding in enumerate(findings, 1):
@@ -218,6 +248,18 @@ def validate_review_rows(rows: Sequence[Mapping[str, Any]], pages: Sequence[Mapp
     for number, (row, page) in enumerate(zip(rows, pages), 1):
         if not isinstance(row, Mapping) or set(row) != REVIEW_KEYS:
             raise PIIReviewerPilotError(f"review row {number}: invalid fields")
+        if not _integer(row["schema_version"]) or row["schema_version"] != SCHEMA_VERSION:
+            raise PIIReviewerPilotError(f"review row {number}: invalid schema_version")
+        strict_strings = {
+            "pilot": PILOT, "image_id": page["image_id"],
+            "source_image_sha256": page["source_image_sha256"],
+            "prediction_manifest_sha256": page["prediction_manifest_sha256"],
+            "derivative_image_sha256": page["derivative_image_sha256"],
+        }
+        if any(not isinstance(row[key], str) or row[key] != value for key, value in strict_strings.items()):
+            raise PIIReviewerPilotError(f"review row {number}: identity mismatch")
+        if not _integer(row["width"]) or not _integer(row["height"]):
+            raise PIIReviewerPilotError(f"review row {number}: invalid dimensions")
         findings = row["findings"]
         if not isinstance(findings, list) or any(not isinstance(item, Mapping) or set(item) != FINDING_KEYS for item in findings):
             raise PIIReviewerPilotError(f"review row {number}: invalid findings")
@@ -237,20 +279,33 @@ def revalidate_page_files(pages: Sequence[Mapping[str, Any]]) -> None:
 
 
 def write_review_manifest(output: Path, rows: Sequence[Mapping[str, Any]], pages: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
-    validated = validate_review_rows(rows, pages)
-    revalidate_page_files(pages)
     if output.exists():
         raise PIIReviewerPilotError("review output already exists")
+    validated = validate_review_rows(rows, pages)
+    revalidate_page_files(pages)
     payload = "".join(_canonical(row) + "\n" for row in validated).encode("utf-8")
-    output.parent.mkdir(parents=True, exist_ok=True)
-    temporary = output.with_name(f".{output.name}.tmp")
     try:
-        with temporary.open("xb") as handle:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        descriptor, name = tempfile.mkstemp(prefix=f".{output.name}.tmp-", dir=output.parent)
+    except OSError as exc:
+        raise PIIReviewerPilotError("review output staging failed") from exc
+    temporary = Path(name)
+    try:
+        with os.fdopen(descriptor, "wb") as handle:
             handle.write(payload); handle.flush(); os.fsync(handle.fileno())
-        temporary.replace(output)
+        try:
+            os.link(temporary, output)
+        except FileExistsError as exc:
+            raise PIIReviewerPilotError("review output already exists") from exc
+        except OSError as exc:
+            raise PIIReviewerPilotError("review output publication failed") from exc
     except Exception:
         temporary.unlink(missing_ok=True)
         raise
+    try:
+        temporary.unlink(missing_ok=True)
+    except OSError:
+        pass
     return {
         "schema_version": SCHEMA_VERSION, "pilot": PILOT, "manifest_sha256": _sha(payload),
         "pages": len(validated), "findings": sum(len(row["findings"]) for row in validated),
