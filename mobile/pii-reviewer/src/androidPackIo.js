@@ -3,12 +3,9 @@ import * as Crypto from 'expo-crypto';
 import { Directory, File, Paths } from 'expo-file-system';
 import { loadReviewPack, safePath } from './reviewPack';
 import { canonicalJsonl, isComplete } from './reviewerState';
-
 let activeRoot = null, activePackKey = null, activeCache = null;
-
 async function digest(bytes) { const value = await Crypto.digest(Crypto.CryptoDigestAlgorithm.SHA256, bytes); return [...new Uint8Array(value)].map((byte) => byte.toString(16).padStart(2, '0')).join(''); }
 function dimensions(uri) { return new Promise((resolve, reject) => Image.getSize(uri, (width, height) => resolve({ width, height }), reject)); }
-
 async function snapshot(bytes, name, packKey) {
   const directory = new Directory(Paths.cache, 'pii-reviewer-packs', packKey);
   directory.create({ idempotent: true, intermediates: true });
