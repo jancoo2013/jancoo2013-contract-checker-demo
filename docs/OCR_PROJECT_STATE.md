@@ -1,22 +1,22 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-07-20, после Recognizer Input Memory Contract v0.
+Последнее обновление: 2026-07-21, после архитектурного перехода к Local PII Redaction MVP.
 
-Это каноническая точка восстановления текущего OCR-проекта. Она отвечает на практические вопросы: что уже сделано, что действительно проверено, что пока только предполагается и какой шаг разрешён следующим.
+Это каноническая точка восстановления текущего privacy/OCR-проекта. Она отвечает на практические вопросы: что уже сделано, что действительно проверено, что пока только предполагается и какой шаг разрешён следующим.
 
-Архитектурные решения по-прежнему задают `docs/ARCHITECTURE.md` и `docs/CUSTOM_OCR_PIPELINE.md`. Компонентные контракты задают точные входы, выходы и ограничения. Если этот файл расходится с ними, нельзя молча выбирать удобную версию: рабочая сессия должна остановиться, описать конфликт и исправить документы отдельным небольшим PR.
+Архитектурные решения задают `docs/ARCHITECTURE.md` и `docs/CUSTOM_OCR_PIPELINE.md`. Компонентные контракты задают точные входы, выходы и ограничения. Если этот файл расходится с ними, нельзя молча выбирать удобную версию: рабочая сессия должна остановиться, описать конфликт и исправить документы отдельным небольшим PR.
 
 ## 1. Цель продукта
 
-Построить собственный узкоспециализированный OCR печатных израильских договоров аренды:
+Построить локальный privacy-компонент для фотографий израильских договоров аренды:
 
-- распознавание печатного иврита, цифр, пунктуации и небольших латинских вставок;
-- работа на Android без отправки фотографий внешнему OCR-провайдеру;
-- собственная компактная модель и собственные веса;
-- сохранение координат, RTL-порядка, номеров пунктов и структуры договора;
-- передача доказуемых фрагментов юридическому анализатору, а не генерация «правдоподобного» текста.
+- обнаруживать области с личными и идентифицирующими данными;
+- необратимо маскировать их на устройстве до любой внешней передачи;
+- сохранять суммы, сроки, номера пунктов и юридически значимый текст, если они не являются PII;
+- передавать внешнему OCR/LLM только обезличенный derivative;
+- измерять PII recall, полное покрытие масками и over-redaction, а не точность полного локального транскрипта.
 
-Surya, Chandra, Tesseract и мультимодальные LLM могут быть только локальными исследовательскими учителями или baseline. Они не входят в готовый продукт.
+Полный project-owned Hebrew OCR больше не является обязательным MVP-компонентом. Существующие recognizer/CTC/Gold/CER наработки сохранены как paused research и не удаляются.
 
 ## 2. Кто чем управляет
 
@@ -35,73 +35,71 @@ Surya, Chandra, Tesseract и мультимодальные LLM могут бы�
 фотография страницы
 → предложение границ листа или сохранение полного кадра
 → геометрическое выравнивание и ограничение разрешения
-→ локальная обработка приватности по утверждённому дизайну
-→ сегментация страницы на строки
-→ собственный распознаватель строк
-→ RTL-сборка строк и страницы с координатами
-→ восстановление пунктов и структуры договора
+→ локальное обнаружение PII-областей
+→ необратимые маски и fail-closed privacy validation
+→ обезличенное изображение/документ
+→ внешний полный OCR
+→ вторичная текстовая редакция PII
 → evidence blocks
 → юридический анализ и отчёт на русском
 ```
 
-До утверждения privacy-дизайна сырые пользовательские фотографии нельзя подключать к production-потоку. Это не запрещает локальные исследования на контролируемых, синтетических или редактированных данных.
+До утверждения и проверки privacy-дизайна сырые пользовательские фотографии нельзя подключать к production-потоку. Это не запрещает локальные исследования на контролируемых, синтетических или редактированных данных.
 
 ## 4. Реальное состояние компонентов
 
 | Компонент | Состояние | Что доказано | Что не доказано |
 |---|---|---|---|
-| Генератор синтетических строк | Реализован | Детерминированная генерация, точный synthetic ground truth, локальные шрифты и деградации покрыты кодом и тестами | Синтетика сама по себе не доказывает качество на фотографиях |
-| Локальный архив из 170 строк | Существует вне репозитория как `silver` | Кропы и предварительные подписи пригодны для bootstrap и диагностики | Это не Gold Set и не источник реальной CER |
-| Gold review workflow | Candidate freeze реализован, prediction pack не собран | `freeze_gold_candidates.py` фиксирует high-resolution images и pilot/evaluation cohorts до predictions; model-assisted порядок задан `docs/MODEL_ASSISTED_GOLD_TESTING_V0.md` | Recognizer, APK, человеческая проверка и итоговый Gold Set v0 отсутствуют |
-| Dataset & Evaluation Contract v0 | Реализован | Training builder требует непустой test-only Gold, исключает совпадения по source crop/image/text, пишет exclusion artifact и повторно запускает leakage gate; charset/CTC ID, split и CER покрыты тестами | Реального результата CER пока нет без Gold Set и предсказаний нашей модели; один договор доказывает только feasibility, не generalization |
-| Image Resolution Contract v0 | Реализован | Зафиксированы preview 1800 px, master 2480×3508, ceiling 4096 px, line height 64 px, запрет искусственного upscale | Эти размеры ещё не подтверждены сравнением нескольких обученных recognizer-вариантов |
-| Нормализатор страницы v0 | Реализован | Из принятых четырёх углов строит ограниченный grayscale master и удаляет внешние пиксели; при явном fallback сохраняет полный кадр; единый scale не увеличивает ни одну измеренную сторону | Это Python reference, а не Android memory implementation |
-| Детектор границ страницы v0 | Реализован | Сомнительная граница не применяется: detector handoff явно выбирает принятый четырёхугольник или полный кадр; `frame_clipped`, mapping preview→source и QA-артефакты покрыты тестами | Один договор не доказывает production-качество на разных камерах, фонах и ракурсах; full-frame fallback ещё не означает, что границы текста найдены |
-| Сегментация строк | Reference v0 реализован | Детерминированный fail-closed CLI с публикацией только полностью собранного output, line/page manifests, хеши, QA overlays, foreground accounting, mask/table/redaction/ambiguity gates и synthetic IoU/order/repeatability tests реализованы; локальный fixture из 9 страниц обработан без аварии | Smoke на одном договоре и synthetic gates не являются общей precision/recall; нет фиксированного human-annotated bbox benchmark и Android implementation |
-| Собственный recognizer | Input adapter, mixed-script CTC decoder/order contract, memory bounds и isolated CPU runtime v0 реализованы; neural model отсутствует | Logical labels кодируются в monotonic alignment-order targets; CTC collapse выполняется в alignment order до reorder; resized width ограничен 10,923 px; combined resized-plus-padded float32 budget ограничен 256 MiB и проверяется до resize/`np.zeros`; normal output, exact boundaries, overflow, padding, targets и deterministic repeats покрыты focused tests | Слитные Hebrew+LTR strong tokens без ASCII-пробела намеренно fail closed; отсутствуют neural architecture, training loop, веса, predictions, Gold CER, latency и размер модели |
-| RTL/layout и структура пунктов | Не реализованы | Требование разделено от распознавания символов | Нет кода и измерений reading order |
-| Android OCR integration | Не начата | Целевое ограничение on-device зафиксировано | Python reference-код не доказывает мобильную скорость и память |
-| Production privacy gate | Не утверждён | Ограничения на внешнюю передачу данных зафиксированы | Подключение сырых фотографий к production заблокировано |
+| Генератор синтетических строк | Реализован, paused research | Детерминированная генерация, точный synthetic ground truth, локальные шрифты и деградации покрыты кодом и тестами | Синтетика строк сама по себе не доказывает PII-region recall или качество на фотографиях |
+| Локальный архив из 170 строк | Существует вне репозитория как `silver`, paused research | Кропы и предварительные подписи могут быть полезны для будущего recognizer research | Это не PII annotation set, не Gold Set и не источник privacy-метрик |
+| Gold review workflow | Candidate freeze реализован, paused research | `freeze_gold_candidates.py` фиксирует high-resolution images и pilot/evaluation cohorts до predictions; model-assisted порядок задан `docs/MODEL_ASSISTED_GOLD_TESTING_V0.md` | Не требуется для текущего PII MVP; recognizer, APK, человеческая транскрипция и итоговый full-line Gold Set отсутствуют |
+| Dataset & Evaluation Contract v0 | Реализован, paused research | Training builder, charset/CTC ID, split, leakage checks и CER покрыты тестами | Полный-line CER не измеряет безопасность PII-redaction; найденные Gold provenance/leakage defects нужно исправить только перед возможным возобновлением full-OCR track |
+| Image Resolution Contract v0 | Реализован и переиспользуется | Зафиксированы preview 1800 px, master 2480×3508, ceiling 4096 px, line height 64 px, запрет искусственного upscale | Параметры ещё не подтверждены на PII detector/annotation workflow и Android memory implementation |
+| Нормализатор страницы v0 | Реализован и переиспользуется | Из принятых четырёх углов строит ограниченный grayscale master и удаляет внешние пиксели; при явном fallback сохраняет полный кадр; единый scale не увеличивает ни одну измеренную сторону | Это Python reference, а не Android memory implementation; audit зафиксировал отдельный TOCTOU/atomicity debt |
+| Детектор границ страницы v0 | Реализован и переиспользуется | Сомнительная граница не применяется: detector handoff явно выбирает принятый четырёхугольник или полный кадр; `frame_clipped`, mapping preview→source и QA-артефакты покрыты тестами | Один договор не доказывает production-качество; audit зафиксировал отдельный TOCTOU debt |
+| Сегментация строк | Reference v0 реализован, опциональный сигнал | Детерминированный fail-closed CLI, atomic publication, manifests, хеши, QA overlays, foreground accounting, mask/table/redaction/ambiguity gates и synthetic tests реализованы | PII detector может использовать строки, зоны или гибрид; сегментация сама по себе не даёт PII-классификацию или mask recall |
+| Собственный recognizer | Boundary v0 реализован, paused research | Input adapter, mixed-script CTC decoder/order contract, memory bounds и isolated CPU runtime покрыты focused tests | Neural model, training loop, веса и CER отсутствуют; CRNN больше не является текущим следующим шагом |
+| Local PII annotation/evaluation contract | Не реализован | Классы, privacy boundary и целевые метрики зафиксированы архитектурно | Нет канонической schema, validator, controlled annotations или воспроизводимых PII recall/coverage/over-redaction metrics |
+| Local PII detector/redactor | Не реализован | Требование отделено от full OCR и юридического анализа | Нет baseline, масок, fail-closed evaluator, Android implementation или privacy quality result |
+| Внешний OCR handoff | Не подключён | Разрешён только после локальной необратимой редакции и privacy validation | Не доказано, что derivative не содержит PII и не сохраняет восстанавливаемые пиксели |
+| RTL/layout и структура пунктов | Не реализованы | Это downstream-задача после обезличенного OCR | Нет кода и измерений reading order |
 
-Успешный локальный прогон на текущем девятистраничном договоре является fixture smoke test, а не общей метрикой точности.
+Успешный локальный прогон preprocessing на текущем девятистраничном договоре является fixture smoke test, а не общей метрикой PII detection или privacy safety.
 
-## 5. Два независимых блокера
+## 5. Активные блокеры и paused research
 
-1. **Gold Set v0.** Нужны прогнозы замороженной собственной модели и проверка их точного полного результата человеком, уверенно читающим иврит. Bootstrap recognizer разрешено обучить до Gold только для подготовки этих прогнозов; заявлять реальную CER или превосходство над baseline до held-out проверки запрещено.
-2. **Production privacy design.** Пока он не утверждён, запрещено подключать сырые пользовательские фотографии к готовому приложению.
+1. **Local PII annotation/evaluation contract.** Пока нет канонической schema для PII regions/masks, невозможно честно измерить recall, полное покрытие и over-redaction или построить проверяемый baseline.
+2. **Production privacy validation.** Пока автоматический redactor и fail-closed проверка не доказаны на контролируемой разметке, запрещено отправлять производные пользовательских фотографий внешнему OCR/LLM.
 
-Сегментация строк на контролируемых полноразмерных страницах завершена как offline reference v0. Gold-блокер определяет recognizer-feasibility; privacy-блокер по-прежнему запрещает production-подключение сырых пользовательских фотографий. Mixed-script CTC Text Order Contract v0 устранил глобальное time-axis reversal; Recognizer Input Memory Contract v0 теперь блокирует недопустимую post-resize width и aggregate float32 allocation до materialization.
+Full-line Gold Set, CER, CRNN, training loop и reviewer transcription APK больше не являются блокерами MVP. Они остаются paused research и требуют отдельного явного решения владельца продукта перед возобновлением.
 
-## 6. Завершённая preprocessing, candidate-freeze и recognizer-boundary база
+## 6. Переиспользуемая preprocessing-база и paused recognizer research
 
 Контракт `research/hebrew_contract_ocr/LINE_SEGMENTATION_V0.md` и reference-модуль `line_segmenter.py` реализуют Automatic Line Segmentation v0. CLI проверяет normalizer manifest, hashes, grayscale mode и размеры; отказывается перезаписывать непустой output; пишет line PNG, canonical `manifest.jsonl`, explicit `pages.jsonl`, `summary.json` и overlay каждой страницы.
 
-Synthetic tests доказали ровно ограниченные gates v0: ожидаемое число обычных/heading/clause-number bands, top-to-bottom order, vertical IoU не ниже `0.90`, bboxes внутри страницы с положительной площадью, полное foreground accounting, одинаковые manifest bytes и line-image hashes при повторе, strict normalizer schema/type/status validation, exact consumed-byte provenance, decoded-header/pixel-limit checks before load, active Pillow bomb safety, cleanup после поздней ошибки с успешным retry в тот же output, separate geometric/final pass-review/fail propagation и fail-closed reasons для blank page, isolated speck, 6–7 px rule, insufficient/thin/near-edge geometry, close/merged lines, table, external mask, opaque redaction и edge crop. Сегментатор намеренно не объявляет training eligibility.
+Synthetic tests доказали ровно ограниченные gates v0: ожидаемое число обычных/heading/clause-number bands, top-to-bottom order, vertical IoU не ниже `0.90`, bboxes внутри страницы с положительной площадью, полное foreground accounting, одинаковые manifest bytes и line-image hashes при повторе, strict normalizer schema/type/status validation, exact consumed-byte provenance, decoded-header/pixel-limit checks before load, active Pillow bomb safety, cleanup после поздней ошибки с успешным retry в тот же output, separate geometric/final pass-review/fail propagation и fail-closed reasons для blank page, isolated speck, 6–7 px rule, insufficient/thin/near-edge geometry, close/merged lines, table, external mask, opaque redaction и edge crop. Сегментатор намеренно не объявляет PII или training eligibility.
 
-Контролируемый fixture `different_lease_fullres_rectified_v0` повторно проверен на текущем коде: 9 исходных страниц и detector handoff SHA-256 `5614ea0515b581cf8b53a4cfbe968d6471907ab072ad4f5ac9d8d23ff759e84e`. Текущие normalization manifest и summary имеют SHA-256 `79bb32fa81d62c4a280130a6dba4c5261976a586466c8b2437a7142d69868e46` и `1e5283904b3b184ddcf023588f5b955b458279dce9cd4164168e285b60df3868`; segmentation manifest, page reports и summary — `3e3a395324b24d286a9759f33df29fee4cb944c5e3c8d29ef64dc0976a3d16c4`, `cc60991bcdabfc13feaa6f0cf18c0c9af3b11799f17fd514ea2515b1e5ca07cf` и `237296bafcd978af24e8b30ff70c47b7acfc7574c1dc349b69349585b9971dfe`. Два локальных сквозных прогона завершились без аварии и создали byte-identical normalization/segmentation manifests, summaries, page reports, 269 line images и 9/9 overlays. Получено 269 candidate regions: geometric и final counts совпали — 129 `accepted`, 64 `review`, 76 `reject`. Эти 129 строк прошли только зафиксированные segmentation/resolution gates и не объявлены пригодными для обучения. Все 9 страниц имеют geometric и final `review` status. Единственная upstream resolution review page, P0009, получила `upstream_resolution_review` на всех 14 line rows и page row; её final statuses — 4 `review` и 10 `reject`. PR 119 исправил no-upscale округление: по сравнению с прежним fixture output ширина masters P0002, P0006, P0007 и P0009 уменьшилась на один пиксель, остальные пять master hashes и размеры не изменились. После исправления review-находок среди accepted-кандидатов минимальные наблюдаемые geometry/foreground составили 52 px width, 25 px height и 402 foreground pixels; ранее принятые 9×10, 1507×7, 47×6 и 635×6 artifacts теперь имеют explicit review/reject reasons. Overlays страниц с обычным body text, таблицей, логотипом, плотными закрывающими областями и подписью были выборочно осмотрены. Это fixture QA, не line-detection precision/recall и не OCR accuracy. Реальные страницы, кропы, overlays и manifests не коммитятся.
-
-Gold candidate freeze v0 реализован отдельным fail-closed builder. Он принимает только final/geometric `accepted` строки с upstream resolution `pass`, повторно проверяет потребляемые source fields, provenance, exact PNG hashes, grayscale mode и bbox dimensions, копирует исходные PNG bytes без изменения и до model predictions назначает page-round-robin pilot и held-out evaluation cohorts. На текущем локальном fixture два независимых запуска дали одинаковый manifest SHA-256 `dce33991f8eee55b03c8e4eb26fabd3030e6e6c6907849ae5e4f42cfe9ce2dc2`: из 269 segmentation rows заморожены 129 candidates, 10 pilot и 119 evaluation. Manifest не содержит текста или predictions; это candidate set, не Gold и не доказательство OCR accuracy.
+Контролируемый fixture `different_lease_fullres_rectified_v0` повторно проверен на текущем коде: 9 исходных страниц и detector handoff SHA-256 `5614ea0515b581cf8b53a4cfbe968d6471907ab072ad4f5ac9d8d23ff759e84e`. Текущие normalization manifest и summary имеют SHA-256 `79bb32fa81d62c4a280130a6dba4c5261976a586466c8b2437a7142d69868e46` и `1e5283904b3b184ddcf023588f5b955b458279dce9cd4164168e285b60df3868`; segmentation manifest, page reports и summary — `3e3a395324b24d286a9759f33df29fee4cb944c5e3c8d29ef64dc0976a3d16c4`, `cc60991bcdabfc13feaa6f0cf18c0c9af3b11799f17fd514ea2515b1e5ca07cf` и `237296bafcd978af24e8b30ff70c47b7acfc7574c1dc349b69349585b9971dfe`. Два локальных сквозных прогона завершились без аварии и создали byte-identical normalization/segmentation manifests, summaries, page reports, 269 line images и 9/9 overlays. Получено 269 candidate regions: geometric и final counts совпали — 129 `accepted`, 64 `review`, 76 `reject`. Эти 129 строк прошли только зафиксированные segmentation/resolution gates и не объявлены PII-аннотациями или пригодными для обучения.
 
 `CTC_TEXT_ORDER_V0.md`, `text_order.py`, `recognizer_input.py` и `ctc_decoder.py` разделяют logical Unicode и monotonic CTC alignment order. Standard CTC collapse выполняется до reorder. Поддерживаемый v0 transform обратим для whitespace-separated Hebrew/LTR tokens, сохраняет внутренний порядок digits/Latin и зеркалит парные скобки; чистые LTR lines остаются identity. Token с Hebrew и LTR strong characters без ASCII-space boundary блокируется как неподдерживаемый.
 
 `RECOGNIZER_INPUT_MEMORY_V0.md` фиксирует двухпроходную подготовку: preflight проверяет source metadata и все resulting widths, вычисляет сумму resized arrays и padded tensor и блокирует batch выше 256 MiB до resize. Допустимая ширина 10,923 выведена из high-detail ceiling 4096 px, recognizer height 64 px и minimum accepted text band 24 px. Второй проход повторно проверяет source geometry перед materialization.
 
+Эти recognizer-контракты остаются валидными исследовательскими артефактами, но не определяют текущий MVP milestone.
+
 ## 7. Единственный следующий шаг
 
-**Implement a compact CRNN-CTC v0 forward boundary without training and expand the path-scoped OCR CI to cover its focused tests.** Другой OCR-шаг нельзя начинать без явного изменения этого файла и решения владельца продукта.
-
-Recognizer preprocessing boundary теперь зафиксирован: input tensor, alignment-order targets, decoder order, resized width и aggregate allocation имеют fail-closed contracts. Следующий шаг может впервые добавить минимальную neural architecture, но только как детерминированный CPU forward без optimizer, loss, training data или quality claim.
+**Define and implement Local PII Annotation & Evaluation Contract v0 without detector code or external calls.** Другой privacy/OCR-шаг нельзя начинать без явного изменения этого файла и решения владельца продукта.
 
 Граница задачи:
 
-- вход: `RecognizerBatch.pixels`, exact unpadded widths, fixed charset size, isolated CPU PyTorch runtime и текущие recognizer contracts;
-- действие: добавить компактный convolutional-recurrent forward, который принимает `[B,1,64,W]`, возвращает finite logits `[T,B,C]` и детерминированно преобразует input widths в valid output lengths;
-- выход: framework boundary с фиксированной конфигурацией и parameter count, без training loop;
-- обязательные проверки: output shape/classes, finite values, deterministic repeated forward, variable padded widths, valid-length bounds, CPU-only execution и отсутствие зависимости от padding pixels;
-- CI: path-scoped workflow должен запускать focused model test вместе с существующими recognizer input/decoder tests; расширение на весь OCR suite остаётся отдельным audited change, если не помещается в лимит;
-- этот шаг не добавляет optimizer, CTC loss, training loop, weights artifact, predictions, APK, silver ingestion, production integration или quality claims.
+- вход: synthetic или локально контролируемые изображения без коммита реального PII, immutable image IDs/hashes и ручные PII-region annotations;
+- действие: зафиксировать JSONL schema для PII classes, bounding boxes/polygons, page dimensions, ambiguity/readability statuses и optional reason metadata; добавить framework-independent fail-closed validator;
+- выход: канонический manifest/validation report, пригодный для будущих recall/coverage/over-redaction metrics;
+- обязательные проверки: strict types, positive in-bounds geometry, duplicate IDs, path traversal/symlink escape, hash mismatch, unknown classes/statuses, empty annotations, deterministic validation и запрет raw PII text fields;
+- этот шаг не добавляет detector, OCR, CRNN, training loop, external API, Gemini image call, production upload, real contract data, PII, APK или quality claim.
 
-После forward boundary отдельными PR последуют training loop, frozen predictions и reviewer APK. Pilot content stratification нужно исправить до сборки APK. Document-level provenance gate обязателен до подключения старого silver-архива, но не нужен synthetic-only bootstrap.
+После этого отдельными маленькими PR последуют deterministic PII baseline, mask renderer/irreversibility checks, metric calculation и только затем controlled reviewer validation. Full local OCR не возвращается в critical path без отдельного продуктового решения.
 
 ## 8. Протокол восстановления новой сессии
 
@@ -117,15 +115,17 @@ Recognizer preprocessing boundary теперь зафиксирован: input t
 
 Оркестрирующий ассистент независимо проверяет результат. Нельзя принимать формулировку «готово» без просмотра diff и отчёта тестов.
 
-Каждые 3–5 слитых OCR PR проводится cold-start audit: чистая сессия, которой доступен только репозиторий, должна корректно объяснить архитектуру и состояние, запустить проверки и назвать следующий шаг.
+Каждые 3–5 слитых privacy/OCR PR проводится cold-start audit: чистая сессия, которой доступен только репозиторий, должна корректно объяснить архитектуру и состояние, запустить проверки и назвать следующий шаг.
 
 Первый cold-start audit проведён 2026-07-19 до публикации этого файла. Чистая сессия правильно восстановила архитектуру, уровни доказательности, два блокера и Automatic Line Segmentation v0. Найденные ею пробелы в идентификации локального fixture и измеримых gates были исправлены до коммита.
 
 Второй repository continuity audit проведён 2026-07-20 после PR 117–121. Он выявил устаревшее fixture evidence после изменения no-upscale, конфликт full-frame fallback в Image Resolution Contract и неверный per-page `crop_policy`; PR 122 исправил эти связанные несогласованности. Audit также выявил высокий риск partial output: поздняя ошибка сегментатора оставляла уже записанные кропы и блокировала retry. Риск исправлен через sibling staging, cleanup при ошибке и публикацию только полностью собранного результата. Audit состоялся после пяти слитых OCR PR, то есть на два PR позже более строгого локального срока «не позднее третьего»; это зафиксировано как процессная ошибка.
 
-Третий cold-start continuity audit проведён 2026-07-20 после PR 123–128. Он подтвердил candidate freeze, recognizer input boundary и isolated CPU runtime, но выявил blocking global RTL reversal, отсутствие post-resize/batch memory bounds, неполный OCR test command в CI, stale candidate-freeze documentation, несовместимые reviewer/materializer status names и отсутствие гарантии mixed-script строки в pilot. PR 129 устранил stale state, старый low-resolution Gold path и status mapping; следующие corrective PR устранили global RTL reversal и post-resize/batch memory risk через bounded CTC Text Order Contract v0 и Recognizer Input Memory Contract v0. Остальные находки остаются отдельными маленькими PR в порядке раздела 7.
+Третий cold-start continuity audit проведён 2026-07-20 после PR 123–128. Он подтвердил candidate freeze, recognizer input boundary и isolated CPU runtime, но выявил blocking global RTL reversal, отсутствие post-resize/batch memory bounds, неполный OCR test command в CI, stale candidate-freeze documentation, несовместимые reviewer/materializer status names и отсутствие гарантии mixed-script строки в pilot. PR 129 устранил stale state, старый low-resolution Gold path и status mapping; следующие corrective PR устранили global RTL reversal и post-resize/batch memory risk через bounded CTC Text Order Contract v0 и Recognizer Input Memory Contract v0.
 
-Следующий cold-start audit требуется не позднее третьего слитого OCR PR после завершения corrective-серии, либо немедленно при новом конфликте контрактов.
+Четвёртый технический аудит проведён 2026-07-21 после PR 131. Он выявил документационный конфликт, Gold/CER leakage/provenance defects, узкий OCR CI и несколько отдельных atomicity/TOCTOU risks. После этого владелец продукта уточнил архитектурную цель: локальная система нужна для PII-redaction, а не для полного OCR. Текущий corrective PR фиксирует этот продуктовый переход; recognizer-specific findings сохраняются как paused research debt, а не как MVP blocker.
+
+Следующий cold-start audit требуется не позднее третьего слитого privacy/OCR PR после этого архитектурного перехода либо немедленно при новом конфликте контрактов.
 
 ## 9. Формат передачи ограниченной задачи Codex
 
@@ -171,11 +171,11 @@ python -m research.hebrew_contract_ocr.line_segmenter \
 
 Для файлов с уже правильной матрицей пикселей и заведомо устаревшим EXIF orientation в обе команды добавляется `--ignore-exif-orientation`. Это нельзя включать по умолчанию.
 
-Синтетические данные, legacy silver review pack, current Gold workflow, Gold materialization и CER описаны в `research/hebrew_contract_ocr/README.md`, `docs/MODEL_ASSISTED_GOLD_TESTING_V0.md` и `research/hebrew_contract_ocr/DATASET_CONTRACT_V0.md`. CTC alignment/logical order зафиксирован в `research/hebrew_contract_ocr/CTC_TEXT_ORDER_V0.md`; recognizer memory ceilings — в `research/hebrew_contract_ocr/RECOGNIZER_INPUT_MEMORY_V0.md`.
+Синтетические данные, legacy silver review pack, full-line Gold workflow, Gold materialization и CER остаются описаны в `research/hebrew_contract_ocr/README.md`, `docs/MODEL_ASSISTED_GOLD_TESTING_V0.md` и `research/hebrew_contract_ocr/DATASET_CONTRACT_V0.md` как paused recognizer research. CTC alignment/logical order зафиксирован в `research/hebrew_contract_ocr/CTC_TEXT_ORDER_V0.md`; recognizer memory ceilings — в `research/hebrew_contract_ocr/RECOGNIZER_INPUT_MEMORY_V0.md`.
 
 ## 11. Правило обновления состояния
 
-Каждый OCR PR обязан обновить этот файл, если изменились реализованный компонент, доказательство, блокер или следующий шаг. Одновременно разрешён только один следующий шаг.
+Каждый privacy/OCR PR обязан обновить этот файл, если изменились реализованный компонент, доказательство, блокер или следующий шаг. Одновременно разрешён только один следующий шаг.
 
 Запрещённые признаки потери управляемости:
 
