@@ -5,25 +5,20 @@ const REASONS = new Set(['party_header_zone','property_address_zone','signature_
 const PRED_KEYS = ['algorithm','candidates','height','image','image_id','image_sha256','schema_version','width'], CAND_KEYS = ['candidate_id','geometry','proposed_class','reason_codes','review_status'];
 const DERIV_KEYS = ['derivative_image','derivative_sha256','height','image_id','mask_count','mask_value','masked_pixel_count','mode','prediction_manifest_sha256','renderer','schema_version','source_image_sha256','width'];
 const LINE_KEYS = ['bbox','bbox_convention','foreground_pixels','line_id','line_image','line_sha256','order','page_id','reasons','schema_version','segmentation_status','source_master_sha256','status','upstream_resolution_status'];
-function exact(row, keys, label) {
-  if (!row || typeof row !== 'object' || Array.isArray(row) || Object.keys(row).sort().join('|') !== keys.join('|')) throw new Error(`${label}: invalid fields`);}
+function exact(row, keys, label) { if (!row || typeof row !== 'object' || Array.isArray(row) || Object.keys(row).sort().join('|') !== keys.join('|')) throw new Error(`${label}: invalid fields`); }
 function integer(value) { return Number.isInteger(value) && typeof value !== 'boolean'; }
 function bbox(value, width, height, label) {
-  if (!Array.isArray(value) || value.length !== 4 || !value.every(integer)) throw new Error(`${label}: invalid bbox`);
-  const [x0,y0,x1,y1] = value;
+  if (!Array.isArray(value) || value.length !== 4 || !value.every(integer)) throw new Error(`${label}: invalid bbox`); const [x0,y0,x1,y1] = value;
   if (!(0 <= x0 && x0 < x1 && x1 <= width && 0 <= y0 && y0 < y1 && y1 <= height)) throw new Error(`${label}: bbox out of bounds`);
   return [...value];
 }
 export function safePath(value) {
-  if (typeof value !== 'string' || !value || value.startsWith('/') || value.includes('\\')) throw new Error('unsafe relative path');
-  const parts = value.split('/');
-  if (parts.some((part) => !part || part === '.' || part === '..')) throw new Error('unsafe relative path');
-  return parts.join('/');
+  if (typeof value !== 'string' || !value || value.startsWith('/') || value.includes('\\')) throw new Error('unsafe relative path'); const parts = value.split('/');
+  if (parts.some((part) => !part || part === '.' || part === '..')) throw new Error('unsafe relative path'); return parts.join('/');
 }
 export function parseJsonl(bytes, label) {
   if (!(bytes instanceof Uint8Array) || !bytes.length || bytes.length > MANIFEST_LIMIT) throw new Error(`${label}: invalid size`);
-  let text;
-  try { text = new TextDecoder('utf-8', { fatal: true }).decode(bytes); } catch { throw new Error(`${label}: invalid UTF-8`); }
+  let text; try { text = new TextDecoder('utf-8', { fatal: true }).decode(bytes); } catch { throw new Error(`${label}: invalid UTF-8`); }
   const lines = text.split(/\r?\n/); if (lines.at(-1) === '') lines.pop();
   if (!lines.length || lines.some((line) => !line.trim())) throw new Error(`${label}: blank or empty line`);
   return lines.map((line, index) => { try { return JSON.parse(line); } catch { throw new Error(`${label}: invalid JSON at ${index + 1}`); } });
@@ -38,13 +33,11 @@ export function pngInfo(bytes, label, grayscale = false) {
   return { width, height };
 }
 function geometry(candidate, width, height, label) {
-  const value = candidate.geometry;
-  if (!value || Object.keys(value).sort().join('|') !== 'coordinates|type' || value.type !== 'bbox') throw new Error(`${label}: invalid geometry`);
+  const value = candidate.geometry; if (!value || Object.keys(value).sort().join('|') !== 'coordinates|type' || value.type !== 'bbox') throw new Error(`${label}: invalid geometry`);
   return bbox(value.coordinates, width, height, label);
 }
 export async function loadReviewPack(read, sha256, imageSize, snapshot) {
-  const prediction = await read('predictions.jsonl', MANIFEST_LIMIT);
-  const predictionSha = await sha256(prediction.bytes);
+  const prediction = await read('predictions.jsonl', MANIFEST_LIMIT), predictionSha = await sha256(prediction.bytes);
   const predictions = parseJsonl(prediction.bytes, 'predictions');
   const derivatives = parseJsonl((await read('renderer/manifest.jsonl', MANIFEST_LIMIT)).bytes, 'renderer manifest');
   const lines = parseJsonl((await read('line_segmentation/manifest.jsonl', MANIFEST_LIMIT)).bytes, 'line manifest');
