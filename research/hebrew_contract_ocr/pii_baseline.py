@@ -11,7 +11,7 @@ import numpy as np
 from PIL import Image
 
 from .line_segmenter import MAX_PAGE_PIXELS, segment_page
-from .pii_annotations import PII_CLASSES, validate_annotation_manifest
+from .pii_annotations import PII_CLASSES, load_annotation_manifest
 
 SCHEMA_VERSION = 1
 ALGORITHM = "marker_layout_baseline_v0"
@@ -47,20 +47,6 @@ def _resolve_image(root: Path, value: Any) -> Path:
     if not path.is_relative_to(root) or not path.is_file():
         raise PIIBaselineError(f"image escapes root or does not exist: {value}")
     return path
-
-
-def _load_identity_rows(manifest_path: Path) -> list[dict[str, Any]]:
-    rows: list[dict[str, Any]] = []
-    for line in manifest_path.read_text(encoding="utf-8").splitlines():
-        row = json.loads(line)
-        rows.append({
-            "image_id": row["image_id"],
-            "image": row["image"],
-            "image_sha256": row["image_sha256"],
-            "width": row["width"],
-            "height": row["height"],
-        })
-    return rows
 
 
 def _runs(flags: np.ndarray) -> list[tuple[int, int]]:
@@ -159,7 +145,7 @@ def generate_baseline_predictions(
     image_root: Path,
     output_manifest: Path,
 ) -> dict[str, Any]:
-    validation = validate_annotation_manifest(annotation_manifest, image_root)
+    validation, annotation_rows = load_annotation_manifest(annotation_manifest, image_root)
     if not validation["valid"]:
         raise PIIBaselineError("annotation manifest is invalid: " + "; ".join(validation["errors"]))
     if output_manifest.exists():
@@ -168,7 +154,14 @@ def generate_baseline_predictions(
     rows: list[dict[str, Any]] = []
     class_counts: Counter[str] = Counter()
     candidate_count = 0
-    for identity in _load_identity_rows(annotation_manifest):
+    for annotation in annotation_rows:
+        identity = {
+            "image_id": annotation["image_id"],
+            "image": annotation["image"],
+            "image_sha256": annotation["image_sha256"],
+            "width": annotation["width"],
+            "height": annotation["height"],
+        }
         path = _resolve_image(image_root, identity["image"])
         data = path.read_bytes()
         digest = hashlib.sha256(data).hexdigest()
@@ -202,6 +195,7 @@ def generate_baseline_predictions(
     return {
         "schema_version": SCHEMA_VERSION,
         "algorithm": ALGORITHM,
+        "annotation_manifest_sha256": validation["manifest_sha256"],
         "pages": len(rows),
         "candidates": candidate_count,
         "pii_classes": dict(sorted(class_counts.items())),
