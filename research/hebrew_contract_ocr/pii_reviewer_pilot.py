@@ -229,8 +229,16 @@ def validate_review_rows(rows: Sequence[Mapping[str, Any]], pages: Sequence[Mapp
     return validated
 
 
+def revalidate_page_files(pages: Sequence[Mapping[str, Any]]) -> None:
+    for page in pages:
+        size = (page["width"], page["height"])
+        _verify_image(page["source_path"], page["source_image_sha256"], size, f"{page['image_id']} source")
+        _verify_image(page["derivative_path"], page["derivative_image_sha256"], size, f"{page['image_id']} derivative", "L")
+
+
 def write_review_manifest(output: Path, rows: Sequence[Mapping[str, Any]], pages: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     validated = validate_review_rows(rows, pages)
+    revalidate_page_files(pages)
     if output.exists():
         raise PIIReviewerPilotError("review output already exists")
     payload = "".join(_canonical(row) + "\n" for row in validated).encode("utf-8")
