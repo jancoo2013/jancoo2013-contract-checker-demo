@@ -1,0 +1,31 @@
+name: Mobile reviewer
+
+on:
+  pull_request:
+    paths:
+      - "mobile/pii-reviewer/**"
+      - ".github/workflows/mobile-reviewer.yml"
+  push:
+    branches: [main]
+    paths:
+      - "mobile/pii-reviewer/**"
+      - ".github/workflows/mobile-reviewer.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  android-js:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: mobile/pii-reviewer
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install --no-audit --no-fund
+      - run: npm test
+      - run: npx expo export --platform android --output-dir dist
