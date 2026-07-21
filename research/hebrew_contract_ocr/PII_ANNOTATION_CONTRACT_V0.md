@@ -4,7 +4,7 @@ Status: binding framework-independent contract for controlled privacy evaluation
 
 ## Unit and privacy rule
 
-One JSONL row describes one immutable page image. An annotation stores classes and geometry only; raw names, addresses, numbers, OCR text, transcription, free-text notes, and other PII values are forbidden. Real contracts, images, annotations, and manifests are not committed to GitHub.
+A non-empty JSONL manifest contains one row per immutable page image. An annotation stores classes and geometry only; raw names, addresses, numbers, OCR text, transcription, free-text notes, and other PII values are forbidden. Real contracts, images, annotations, and manifests are not committed to GitHub.
 
 The rented property's address is class `property_address` and is always masked. It is not preserved as legal-risk evidence in the MVP.
 
@@ -25,13 +25,15 @@ Classes: `person_name`, `israeli_id`, `phone`, `email`, `property_address`, `oth
 
 `review_status`: `readable`, `ambiguous`, or `unreadable`. Flags: `handwritten`, `truncated`, `inseparable_from_legal_text`. Reason codes: `field_marker`, `layout_zone`, `digit_pattern`, `signature_shape`, `context`, `other`.
 
-Geometry is either `{"type":"bbox","coordinates":[x0,y0,x1,y1]}` with positive in-bounds area, or `{"type":"polygon","coordinates":[[x,y],...]}` with at least three integer points, all in bounds, and positive area.
+Geometry is either `{"type":"bbox","coordinates":[x0,y0,x1,y1]}` with positive in-bounds half-open area, or `{"type":"polygon","coordinates":[[x,y],...]}` with at least three integer points, all in bounds, and positive area.
 
 ## Validator and report
 
-`pii_annotations.validate_annotation_manifest()` fails closed on missing/unknown fields, non-strict integers (`bool` is invalid), duplicate IDs, unsafe paths or symlink escape, missing images, hash/dimension mismatch, unknown enums, invalid geometry, blank JSONL lines, and inconsistent page status.
+`pii_annotations.load_annotation_manifest()` reads and SHA-256 hashes the manifest once, then parses and validates that immutable byte snapshot. `validate_annotation_manifest()` exposes the report-only wrapper. Each referenced image is also read once per validation pass; SHA-256 and image decode operate on the same bytes.
 
-The deterministic report contains `valid`, `evaluation_ready`, record/region counts, page-status counts, class counts, and ordered errors. `valid` proves only contract compliance. `evaluation_ready` additionally requires no `needs_review` pages. Neither field proves detector quality or privacy safety.
+Validation fails closed on an empty manifest, missing/unknown fields, non-strict integers (`bool` is invalid), duplicate IDs, unsafe paths or symlink escape, missing images, hash/dimension mismatch, non-string or unknown enums, invalid geometry, blank JSONL lines, and inconsistent page status.
+
+The deterministic report contains `manifest_sha256`, `valid`, `evaluation_ready`, record/region counts, page-status counts, class counts, and ordered errors. `valid` proves only contract compliance. `evaluation_ready` additionally requires no `needs_review` pages. Neither field proves detector quality or privacy safety.
 
 ## Non-goals
 
