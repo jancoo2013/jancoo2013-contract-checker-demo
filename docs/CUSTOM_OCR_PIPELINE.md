@@ -1,129 +1,131 @@
-# Project-owned Hebrew contract OCR pipeline
+# Local PII redaction and OCR handoff pipeline
 
-Status: active development contract. Read together with `docs/ARCHITECTURE.md`. The current implementation status, blockers, continuity rules, and single next step are recorded in `docs/OCR_PROJECT_STATE.md`.
+Status: active product contract. Read together with `docs/ARCHITECTURE.md`. The current implementation status, blockers, continuity rules, and single next step are recorded in `docs/OCR_PROJECT_STATE.md`.
 
-This file records the OCR direction chosen for the product so that later work does not silently return to temporary OCR engines or confuse label creation with production inference.
+This file records the image-processing direction chosen for the MVP so that later work does not silently turn the local privacy component into a general-purpose Hebrew OCR project.
 
 ## Non-negotiable decisions
 
-1. The finished product uses a compact project-owned OCR model with project-owned weights.
-2. OCR inference runs on the Android device. Contract images are not sent to an external OCR provider.
-3. Surya, Chandra, Tesseract, and multimodal LLMs are not production OCR dependencies.
-4. A temporary OCR engine may be used offline only as a teacher for candidate labels or as a research baseline. Its output is never automatically gold.
-5. The privacy layer, handwriting gate, OCR recognizer, layout parser, and legal analyzer are separate components. A result from one component does not prove another component works.
-6. OCR quality claims require exact comparison against a fixed human-verified gold set. Character count, visual plausibility, model confidence, and teacher agreement are not accuracy metrics.
-7. Dataset manifests, charset IDs, split rules, leakage checks, and CER follow `research/hebrew_contract_ocr/DATASET_CONTRACT_V0.md`.
-8. Page previews, rectified masters, resolution gates, and recognizer line height follow `research/hebrew_contract_ocr/IMAGE_RESOLUTION_CONTRACT_V0.md`.
-9. Automatic corner proposals, conservative full-frame fallback, `frame_clipped` handling, and outside-page deletion for accepted corners follow `research/hebrew_contract_ocr/PAGE_BOUNDARY_DETECTOR_V0.md`.
-10. Automatic line crops, top-to-bottom order, upstream resolution composition, explicit page/line statuses, foreground accounting, masks, and ambiguity gates follow `research/hebrew_contract_ocr/LINE_SEGMENTATION_V0.md`; segmentation alone never grants training eligibility.
-
-Changing any of these decisions requires an explicit user decision and an update to this file in the same PR.
+1. The local mobile component exists to detect and irreversibly mask likely PII regions before any image or document leaves the device.
+2. Raw contract photos, recoverable PII, and unredacted OCR text never go to an external OCR or LLM service.
+3. After the local privacy boundary is passed, an approved external OCR/LLM service may receive only the anonymized image/document.
+4. The MVP does not require exact local transcription of every Hebrew line, clause number, punctuation mark, or mixed-script token.
+5. Hebrew labels such as `ת.ז.` and other markers are detection signals, not a requirement to produce a complete local transcript.
+6. The primary quality goals are PII-region recall, complete mask coverage, and bounded over-redaction of legally relevant content. Full-line CER is not the MVP privacy metric.
+7. Human verification, when used, checks whether PII was missed or incompletely covered and whether important legal text was unnecessarily destroyed. It does not require full Hebrew transcription.
+8. Page geometry, bounded decoding, provenance, fail-closed validation, and atomic publication remain required where they support the privacy pipeline.
+9. The existing project-owned recognizer, CTC, synthetic-data, Gold, and CER work is preserved as paused research. It is not deleted, but it is not the active MVP path.
+10. Reactivating full local OCR requires an explicit product-owner decision and updates to this file, `docs/ARCHITECTURE.md`, and `docs/OCR_PROJECT_STATE.md` in the same PR.
 
 ## Product runtime pipeline
 
 ```text
 raw phone photo
 → on-device geometric and image preprocessing
-→ on-device privacy handling according to the approved privacy design
-→ on-device line segmentation with coordinates and explicit ambiguity status
-→ project-owned compact OCR recognizer
-→ RTL line and page reconstruction with coordinates
-→ contract structure and clause parser
+→ on-device PII-region detection
+→ irreversible local masks with explicit reasons/statuses
+→ local fail-closed privacy validation
+→ anonymized image/document
+→ approved external full OCR
+→ secondary text redaction
 → evidence blocks
 → legal-risk analysis
 → Russian report
 ```
 
-Only our exported model weights and our preprocessing/postprocessing code ship in the Android application. Research teachers do not.
+The local privacy layer may use layout, known page zones, Hebrew field markers, digit patterns, signatures, handwriting cues, and conservative region expansion. It must not depend on exact full-page transcription to decide whether a region is sensitive.
 
-Geometric preprocessing is bounded by the Image Resolution Contract v0. Native camera resolution does not flow directly into OCR: a sampled preview drives page-boundary detection, and the source is rectified directly into a bounded grayscale page master without materializing a full high-megapixel RGBA bitmap.
+An external service is downstream of the privacy boundary only. The original photo remains local and unchanged; the exported derivative must not permit recovery of masked pixels.
 
-An accepted page quadrilateral is destructive by design for derived OCR input: pixels outside it are discarded. If paper edges are not reliably visible, the complete frame is preserved and later text segmentation does not depend on paper boundaries. Raw source photos remain unchanged. A frame-clipped page is recorded explicitly, but does not by itself make the visible text unusable; the pipeline must not move an internal edge inward merely to force an A4-looking crop.
+Production integration with raw user photos remains blocked until the PII classes, mask semantics, fail-closed behavior, and evaluation contract are approved and tested. Offline work may use synthetic, redacted, or locally controlled data.
 
-Production integration with raw user photos remains blocked until the privacy design is approved. That block does not prevent offline OCR research on synthetic data, redacted crops, or locally controlled datasets.
+## PII classes and preservation rules
 
-## Training pipeline
+The MVP privacy layer must cover at least:
 
-```text
-synthetic Hebrew contract templates ─┐
-                                    ├→ line-image dataset → compact recognizer training
-verified real line crops ────────────┘                         ↓
-                                               fixed real gold evaluation
-                                                            ↓
-                                                 export our own weights
-```
+- person names and identifying party fields;
+- Israeli ID / `ת.ז.` values;
+- phone numbers and email addresses;
+- personal residential addresses when they identify a party rather than the rented property;
+- signatures, initials, stamps, and handwritten identifying entries;
+- bank-account, IBAN, cheque, and other financial identifiers;
+- landlord, tenant, agent, and guarantor identifying details;
+- any additional region that cannot be classified safely but is likely to contain PII.
 
-Data tiers:
+Monetary amounts, dates, clause numbers, risk wording, deposit amounts, rent amounts, notice periods, repair obligations, and other legally relevant content are not PII by default. The detector should preserve them unless they are inseparable from a sensitive identifier.
 
-- `synthetic`: text is generated from reviewed templates and rendered with known exact ground truth;
-- `silver`: a teacher prediction was checked using agreement, page context, or automated review, but remains fallible;
-- `gold`: a qualified Hebrew reader verified the exact characters against the best available source;
-- `excluded`: cropped, merged, illegible, handwritten, redacted-over-text, or otherwise unsuitable for recognizer training.
+Do not require a mask on every page. Prefer row/zone-level masking and conservative expansion around a detected PII value. If a sensitive field cannot be isolated safely, fail closed or mask the smallest safe enclosing region rather than guessing.
 
-Silver data may be useful for training and bootstrapping. It must not be used as the only evaluation truth.
+## Evaluation model
 
-## Current milestone: recognizer feasibility v0
+The annotation target is a PII region or mask, not an exact line transcription.
 
-Work in this order:
+A controlled evaluation set should record:
 
-1. Generate deterministic synthetic Hebrew contract lines.
-2. Keep the existing 170 locally verified crops as silver data; do not claim they are gold.
-3. Freeze a candidate set from the latest full-resolution contract before model predictions are reviewed, and exclude its sources from training.
-4. Train one simple bootstrap line recognizer on synthetic and, only after candidate-manifest leakage enforcement exists, permitted non-Gold silver data; do not invent a new neural architecture or claim accuracy yet.
-5. Precompute frozen predictions and let a Hebrew-capable reviewer confirm or minimally edit them in the offline reviewer APK defined by `docs/MODEL_ASSISTED_GOLD_TESTING_V0.md`.
-6. Materialize the held-out confirmed rows as Gold Set v0 and measure exact character error rate (CER), separately for Hebrew letters, digits, punctuation, and mixed `AS-IS` lines.
-7. Compare with the fixed baseline on the same gold set.
-8. Consider production Android export only after a measurable feasibility result.
+- page/image identifier and immutable source hash;
+- PII class;
+- bounding box or polygon covering the full sensitive region;
+- whether the region is readable, ambiguous, handwritten, truncated, or inseparable from nearby legal text;
+- optional marker/reason metadata without storing real PII in GitHub.
 
-Recognizer-feasibility state:
+Primary metrics:
 
-- step 1 is implemented by the deterministic synthetic-line generator;
-- step 2 exists locally as the 170-row silver archive and remains explicitly silver;
-- step 3 is implemented by the fail-closed high-resolution candidate freezer: the current local fixture contains 129 frozen candidates assigned before predictions to a 10-line pilot and a 119-line held-out evaluation cohort;
-- step 4 is not complete: the recognizer input adapter, a provisional CTC decoder, and an isolated CPU PyTorch runtime exist, but the continuity audit found that global RTL time-axis reversal is invalid for digits and Latin fragments; neural model code remains blocked until that contract is corrected;
-- the older browser review-pack builder remains available only for the low-resolution silver archive and is not the source of Gold Set v0;
-- no real Gold Set CER or project-owned model quality claim exists yet.
+- PII-region recall: proportion of annotated sensitive regions detected;
+- complete-coverage rate: proportion of detected regions whose full sensitive pixels are covered;
+- missed-sensitive-area rate: uncovered sensitive pixels or regions;
+- over-redaction rate: legally relevant non-PII content removed by masks;
+- page-level privacy pass rate: pages with no missed or partially exposed PII.
 
-While human verification is pending, framework-independent dataset, preprocessing, and recognizer-boundary infrastructure may be implemented and smoke-tested on synthetic or controlled local data. This preparation must not be presented as a real quality result.
+A visually plausible mask or a correct detection of the label `ת.ז.` is not enough if the associated value remains partly visible. Precision alone is not enough because a single missed identifier can violate the privacy boundary.
 
-The Dataset & Evaluation Contract, bounded page normalizer, automatic page-boundary detector, Automatic Line Segmentation v0, and high-resolution candidate freeze are implemented as offline references. The input adapter and isolated CPU research runtime are also implemented. Before any neural forward pass is added, the mixed-script CTC direction contract must be corrected and covered by focused Hebrew, digit, Latin, punctuation, and `AS-IS` tests. The exact single permitted next step is recorded in `docs/OCR_PROJECT_STATE.md`.
+## Human review role
 
-The reviewer corrects a prefilled prediction instead of transcribing pages from scratch. A row becomes gold only after the reviewer confirms the exact complete line as unchanged or corrected. The correction workflow, frozen-model rule, minimal APK scope, pilot gate, local export, and status mapping into the existing Gold materializer are defined in `docs/MODEL_ASSISTED_GOLD_TESTING_V0.md`.
+A Hebrew-capable reviewer may be needed to identify context-dependent names, addresses, guarantor details, or free-text PII that cannot be recognized from fixed labels alone. The reviewer verifies region classification and mask completeness.
 
-## Evaluation gates
+The reviewer is not expected to:
 
-Every experiment records:
+- transcribe nine pages;
+- correct every OCR character;
+- create a full Hebrew Gold transcript;
+- judge whether the contract is legally safe.
 
-- immutable dataset/version identifiers;
-- random seed and generator arguments;
-- training configuration and model checksum;
-- exact gold-set CER;
-- CER slices for clause numbers, currency, punctuation, Hebrew-only text, and Hebrew/Latin text;
-- examples of deletions, insertions, substitutions, and reading-order failures;
-- inference latency and model size only after accuracy is known.
+A reviewer may confirm that a region contains PII without preserving the PII value in the exported annotation.
 
-No Android work is justified by a teacher model looking good on its own labels. No model is declared better from a handful of visually inspected rows.
+## Paused project-owned OCR research
+
+The repository already contains useful research assets:
+
+- deterministic synthetic Hebrew line generation;
+- dataset and evaluation contracts;
+- page normalization, boundary detection, and line segmentation references;
+- candidate freezing and review workflow documents;
+- recognizer input, CTC text-order/decoder contracts, memory bounds, and isolated CPU runtime.
+
+These assets are retained because parts of them may support marker recognition, digit detection, future offline OCR, or controlled research. They do not justify continuing to a CRNN, training loop, weights, predictions, full-line Gold Set, reviewer transcription APK, or CER claim on the active MVP path.
+
+If the full local OCR track is reactivated later, its existing Gold/leakage/provenance defects must be corrected before training or quality claims. Until then, those findings are recorded technical debt, not the next MVP step.
 
 ## Detours to avoid
 
-- Do not keep tuning Surya, Chandra, or Tesseract as if it were the product recognizer.
-- Do not add a production dependency on a teacher OCR engine.
-- Do not treat contextual language-model correction as proof that line recognition is accurate.
-- Do not train on the fixed gold test set.
-- Do not commit raw contracts, source photos, real line crops, real OCR text, generated manifests containing real contract text, or PII.
-- Do not merge privacy, handwriting, layout, OCR, and legal-analysis experiments into one unmeasurable result.
-- Do not start Android integration before the recognizer passes the agreed gold-set gate.
+- Do not implement a compact CRNN merely because recognizer-boundary code already exists.
+- Do not treat full-line CER as proof that PII redaction is safe.
+- Do not send raw images to Gemini, Google Vision, cloud OCR, or any external image API.
+- Do not preserve masked pixels in alpha channels, hidden layers, reversible overlays, debug exports, or cached derivatives sent externally.
+- Do not mask whole pages by default when row/zone-level privacy can preserve legal content.
+- Do not classify monetary amounts as PII solely because they contain digits.
+- Do not ask the user or reviewer to rewrite the contract manually.
+- Do not combine privacy detection, full OCR, legal analysis, and Android product integration into one unmeasurable PR.
 
 ## Repository workflow
 
-Use one small branch and one ready-for-review PR per measurable step; do not auto-merge it. Each OCR PR states:
+Use one small branch and one ready-for-review PR per measurable step; do not auto-merge it. Each privacy/OCR PR states:
 
-- which numbered milestone step it implements;
-- which data tier it reads or writes;
-- which metric changed;
+- which single state step it implements;
+- whether it reads or writes any real, synthetic, redacted, or annotated data;
+- which privacy or quality metric changed;
 - which external engines, APIs, or dependencies were used;
 - whether any runtime application behavior changed.
 
-Each OCR PR also updates `docs/OCR_PROJECT_STATE.md` when implementation status, evidence, blockers, or the single next step changes. A working session is not allowed to derive current project state from chat history when the repository can carry it.
+Each privacy/OCR PR also updates `docs/OCR_PROJECT_STATE.md` when implementation status, evidence, blockers, or the single next step changes. A working session is not allowed to derive current project state from chat history when the repository can carry it.
 
-When the next action is ambiguous, return to this file and choose the first incomplete milestone step instead of opening a new OCR direction.
+When the next action is ambiguous, return to this file and `docs/OCR_PROJECT_STATE.md`. Do not resume full local OCR without an explicit product decision.
