@@ -1,6 +1,6 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-07-21, после Deterministic PII Marker/Layout Baseline v0.
+Последнее обновление: 2026-07-21, после PII manifest/image snapshot provenance corrections.
 
 Это каноническая точка восстановления текущего privacy/OCR-проекта. Она отвечает на практические вопросы: что уже сделано, что действительно проверено, что пока только предполагается и какой шаг разрешён следующим.
 
@@ -60,8 +60,8 @@
 | Детектор границ страницы v0 | Реализован и переиспользуется | Сомнительная граница не применяется: detector handoff явно выбирает принятый четырёхугольник или полный кадр; `frame_clipped`, mapping preview→source и QA-артефакты покрыты тестами | Один договор не доказывает production-качество; audit зафиксировал отдельный TOCTOU debt |
 | Сегментация строк | Reference v0 реализован, опциональный сигнал | Детерминированный fail-closed CLI, atomic publication, manifests, хеши, QA overlays, foreground accounting, mask/table/redaction/ambiguity gates и synthetic tests реализованы | PII detector может использовать строки, зоны или гибрид; сегментация сама по себе не даёт PII-классификацию или mask recall |
 | Собственный recognizer | Boundary v0 реализован, paused research | Input adapter, mixed-script CTC decoder/order contract, memory bounds и isolated CPU runtime покрыты focused tests | Neural model, training loop, веса и CER отсутствуют; CRNN больше не является текущим следующим шагом |
-| Local PII annotation/evaluation contract | Reference v0 реализован | JSONL schema, closed PII/status/reason enums, bbox/polygon geometry, strict image identity, fail-closed validation, deterministic report и запрет raw PII text fields покрыты focused tests | Нет controlled human annotations, detector predictions или измеренных recall/coverage/over-redaction metrics |
-| Local PII detector/redactor | Deterministic marker/layout baseline v0 реализован | Без OCR и ground-truth leakage предлагаются bounded candidate regions по page zones, right-label shape, digit-like geometry и signature zone; output детерминирован и сохраняет immutable page identity | Нет mask renderer, irreversibility proof, controlled recall/coverage/over-redaction metrics, Android implementation или production privacy result |
+| Local PII annotation/evaluation contract | Reference v0 реализован | Непустой JSONL, closed enums, bbox/polygon geometry, strict image identity, single manifest snapshot, same-byte image hash/decode и deterministic report покрыты focused tests | Нет controlled human annotations, detector predictions или измеренных recall/coverage/over-redaction metrics; compressed-byte/pixel resource ceilings остаются отдельным debt |
+| Local PII detector/redactor | Deterministic marker/layout baseline v0 реализован | Без OCR и ground-truth leakage предлагаются bounded candidate regions; manifest читается один раз, image bytes повторно проверяются при consumption, output детерминирован и сохраняет immutable page identity | Нет исправленного mask renderer, irreversibility proof, controlled recall/coverage/over-redaction metrics, Android implementation или production privacy result |
 | Внешний OCR handoff | Не подключён | Разрешён только после локальной необратимой редакции и privacy validation | Не доказано, что derivative не содержит PII и не сохраняет восстанавливаемые пиксели |
 | RTL/layout и структура пунктов | Не реализованы | Это downstream-задача после обезличенного OCR | Нет кода и измерений reading order |
 
@@ -69,7 +69,7 @@
 
 ## 5. Активные блокеры и paused research
 
-1. **Mask rendering and irreversibility.** Baseline теперь умеет только предлагать регионы; до отдельного renderer/checker нельзя считать пиксели необратимо закрытыми.
+1. **Mask rendering and irreversibility.** Baseline умеет предлагать регионы, но audited draft renderer имеет blocking publication-TOCTOU и multi-page memory defects и остаётся незамерженным.
 2. **Production privacy validation.** Пока автоматический redactor и fail-closed проверка не доказаны на контролируемой разметке, запрещено отправлять производные пользовательских фотографий внешнему OCR/LLM.
 
 Full-line Gold Set, CER, CRNN, training loop и reviewer transcription APK больше не являются блокерами MVP. Они остаются paused research и требуют отдельного явного решения владельца продукта перед возобновлением.
@@ -88,23 +88,23 @@ Synthetic tests доказали ровно ограниченные gates v0: �
 
 Эти recognizer-контракты остаются валидными исследовательскими артефактами, но не определяют текущий MVP milestone.
 
-`PII_ANNOTATION_CONTRACT_V0.md` и `pii_annotations.py` теперь фиксируют immutable page identity, closed PII classes (включая обязательный `property_address`), bbox/polygon annotations, explicit reviewed/no-PII/needs-review states и deterministic validation report. Пять focused tests покрывают geometry boundaries, strict integer types, duplicate IDs, path traversal/symlink escape, hash mismatch, unknown fields/classes/statuses и evaluation readiness. Это доказывает только контракт и validator, не качество детектора.
+`PII_ANNOTATION_CONTRACT_V0.md` и `pii_annotations.py` фиксируют immutable page identity, closed PII classes, bbox/polygon annotations, explicit review states и deterministic validation report. Manifest читается и хешируется один раз; image SHA-256 и decode выполняются над одними bytes. Семь focused tests покрывают geometry boundaries, strict integer/enum types, non-empty manifest, duplicate IDs, path traversal/symlink escape, hash mismatch, snapshot mutation и evaluation readiness. Это доказывает только контракт и validator, не качество детектора.
 
-`PII_BASELINE_V0.md` и `pii_baseline.py` реализуют первый детерминированный marker/layout baseline. Он использует только page identity и pixels, не читает ground-truth regions для построения predictions, сохраняет page order, повторно проверяет hash/dimensions и пишет canonical prediction JSONL. Четыре focused tests покрывают byte-identical repeats, in-bounds candidates, `property_address`, signature/right-label/digit cues, no-ground-truth-leakage и fail-closed input/output guards. Это baseline для будущего сравнения, а не доказательство privacy quality.
+`PII_BASELINE_V0.md` и `pii_baseline.py` реализуют детерминированный marker/layout baseline. Он использует parsed rows из одного validated manifest snapshot, не читает ground-truth regions для predictions, повторно потребляет каждое image как один byte snapshot и пишет canonical prediction JSONL с `xyxy_half_open` bbox. Пять focused tests покрывают byte-identical repeats, in-bounds candidates, `property_address`, signature/right-label/digit cues, no-ground-truth-leakage, manifest mutation и fail-closed input/output guards. Это baseline для будущего сравнения, а не доказательство privacy quality.
 
 ## 7. Единственный следующий шаг
 
-**Implement Local PII Mask Renderer & Irreversibility Checks v0 without external calls.** Другой privacy/OCR-шаг нельзя начинать без явного изменения этого файла и решения владельца продукта.
+**Correct and complete Local PII Mask Renderer & Irreversibility Checks v0 without external calls.** Другой privacy/OCR-шаг нельзя начинать без явного изменения этого файла и решения владельца продукта.
 
 Граница задачи:
 
 - вход: immutable page images и prediction manifests из Deterministic PII Marker/Layout Baseline v0;
-- действие: отрисовать opaque bounded masks в новый flattened derivative без alpha/hidden layers, не меняя source; проверить полное покрытие каждого candidate bbox и отсутствие восстановимых masked pixels/metadata;
+- действие: последовательно по одной странице отрисовать opaque masks в новый flattened grayscale derivative, не удерживая compressed bytes всего документа; повторно проверить фактически опубликованные staging bytes/hashes непосредственно перед directory publication;
 - выход: masked images и canonical derivative manifest с source/prediction/output hashes, dimensions, mode и mask counts;
-- обязательные проверки: exact edge coverage, overlapping regions, deterministic bytes/hashes, source immutability, no alpha/EXIF/hidden source data, path/hash/dimension guards, atomic publication, cleanup после поздней ошибки и запрет частичного output;
+- обязательные проверки: exact half-open edge coverage, overlapping regions, deterministic bytes/hashes, source immutability, no alpha/EXIF/hidden source data, strict enum/path/hash/dimension guards, output-mutation adversarial test, atomic publication, cleanup после поздней ошибки и запрет частичного output;
 - этот шаг не считает recall/coverage/over-redaction metrics, не подключает external OCR, Gemini image call, production upload, real contract data, OCR/CRNN/ML training или APK.
 
-После renderer отдельными PR последуют metric calculation и controlled reviewer validation. Full local OCR не возвращается в critical path без отдельного продуктового решения.
+После исправленного renderer отдельными PR последуют metric calculation и controlled reviewer validation. Full local OCR не возвращается в critical path без отдельного продуктового решения.
 
 ## 8. Протокол восстановления новой сессии
 
@@ -130,7 +130,9 @@ Synthetic tests доказали ровно ограниченные gates v0: �
 
 Четвёртый технический аудит проведён 2026-07-21 после PR 131. Он выявил документационный конфликт, Gold/CER leakage/provenance defects, узкий OCR CI и несколько отдельных atomicity/TOCTOU risks. После этого владелец продукта уточнил архитектурную цель: локальная система нужна для PII-redaction, а не для полного OCR. PR 132 зафиксировал этот продуктовый переход; recognizer-specific findings сохраняются как paused research debt, а не как MVP blocker.
 
-Следующий cold-start audit требуется не позднее третьего слитого privacy/OCR PR после этого архитектурного перехода либо немедленно при новом конфликте контрактов.
+Пятый repository-based technical continuity audit проведён 2026-07-21 после PR 132–134 и на draft PR 135. Он восстановил правильную privacy-архитектуру, но выявил empty-manifest incompatibility, повторное чтение annotation manifest, split image hash/decode snapshot и blocking renderer publication/resource defects. Текущие provenance corrections закрывают upstream manifest/image findings; renderer findings остаются блокерами draft PR. Этот аудит не был формально чистой cold-start session, поэтому clean-session audit остаётся обязательным merge gate для renderer.
+
+Следующий clean-session cold-start audit требуется после исправления renderer и до перевода его PR в ready-for-review.
 
 ## 9. Формат передачи ограниченной задачи Codex
 
