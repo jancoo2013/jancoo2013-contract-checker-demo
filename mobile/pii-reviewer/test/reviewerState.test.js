@@ -1,60 +1,59 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  addTap,
-  canonicalJsonl,
-  contentRect,
-  imagePoint,
-  newSession,
-  reviewRows,
-  setStatus,
-  undoFinding,
+  addIssueTap, canonicalJsonl, contentRect, imagePoint, newSession,
+  reviewRows, setCategory, setStatus, undoFinding,
 } from '../src/reviewerState.js';
-
 const page = {
-  imageId: 'P0001',
-  sourceSha256: '1'.repeat(64),
-  derivativeSha256: '2'.repeat(64),
-  width: 1000,
-  height: 1400,
+  imageId: 'P0001', sourceSha256: '1'.repeat(64), derivativeSha256: '2'.repeat(64),
+  width: 1000, height: 1400,
+  reviewRegions: [
+    { id: 'line-1', box: [100, 100, 900, 140] },
+    { id: 'line-2', box: [100, 180, 900, 220] },
+  ],
+  candidateMasks: [
+    { id: 'mask-1', box: [120, 100, 880, 140] },
+    { id: 'mask-2', box: [600, 1180, 900, 1255] },
+  ],
 };
-
 test('contain geometry maps touch coordinates to image pixels', () => {
   const rect = contentRect(500, 500, 1000, 1400);
   assert.deepEqual(rect, { x: 71.42857142857142, y: 0, width: 357.14285714285717, height: 500, scale: 0.35714285714285715 });
   assert.deepEqual(imagePoint({ x: rect.x, y: 0 }, { width: 500, height: 500 }, page), { x: 0, y: 0 });
   assert.equal(imagePoint({ x: 0, y: 0 }, { width: 500, height: 500 }, page), null);
 });
-
-test('two taps create canonical half-open bbox and fail status', () => {
-  let session = newSession('a'.repeat(64), [page]);
-  session = addTap(session, { x: 90, y: 300 });
-  session = addTap(session, { x: 10, y: 20 });
-  assert.deepEqual(session.pages[0].findings[0].box, [10, 20, 90, 300]);
+test('missed PII tap snaps to a predefined review line', () => {
+  const session = addIssueTap(newSession('a'.repeat(64), [page]), { x: 500, y: 150 });
+  assert.deepEqual(session.pages[0].findings[0].box, [100, 100, 900, 140]);
   assert.equal(session.pages[0].status, 'fail');
 });
-
-test('page status invariants are fail closed', () => {
+test('mask findings select an existing mask with one tap', () => {
+  let session = setCategory(newSession('a'.repeat(64), [page]), 'incomplete_mask');
+  session = addIssueTap(session, { x: 500, y: 120 });
+  assert.deepEqual(session.pages[0].findings[0].box, [120, 100, 880, 140]);
+  session = addIssueTap(session, { x: 300, y: 700 });
+  assert.equal(session.pages[0].findings.length, 1);
+  assert.match(session.selectionError, /маски/);
+});
+test('duplicate target/category is ignored', () => {
+  let session = newSession('a'.repeat(64), [page]);
+  session = addIssueTap(session, { x: 500, y: 110 });
+  session = addIssueTap(session, { x: 500, y: 110 });
+  assert.equal(session.pages[0].findings.length, 1);
+  assert.match(session.selectionError, /уже отмечена/);
+});
+test('page status invariants and undo are fail closed', () => {
   const empty = newSession('a'.repeat(64), [page]);
   assert.throws(() => setStatus(empty, 'fail'), /requires findings/);
-  const failed = addTap(addTap(empty, { x: 1, y: 1 }), { x: 2, y: 2 });
+  const failed = addIssueTap(empty, { x: 500, y: 110 });
   assert.throws(() => setStatus(failed, 'pass'), /cannot contain findings/);
   assert.equal(setStatus(empty, 'pass').pages[0].status, 'pass');
+  assert.equal(undoFinding(failed).pages[0].status, 'needs_review');
 });
-
-test('undo clears last finding and restores needs_review', () => {
-  let session = newSession('a'.repeat(64), [page]);
-  session = addTap(addTap(session, { x: 1, y: 1 }), { x: 3, y: 4 });
-  session = undoFinding(session);
-  assert.equal(session.pages[0].findings.length, 0);
-  assert.equal(session.pages[0].status, 'needs_review');
-});
-
-test('manifest rows and JSONL are deterministic', () => {
-  let session = newSession('a'.repeat(64), [page]);
-  session = addTap(addTap(session, { x: 1, y: 1 }), { x: 3, y: 4 });
-  const rows = reviewRows(session);
-  assert.equal(rows[0].findings[0].finding_id, 'P0001-F0001');
+test('manifest exports snapped bbox without target metadata', () => {
+  const session = addIssueTap(newSession('a'.repeat(64), [page]), { x: 500, y: 110 });
+  const finding = reviewRows(session)[0].findings[0];
+  assert.equal(finding.targetId, undefined);
+  assert.deepEqual(finding.geometry.coordinates, [100, 100, 900, 140]);
   assert.equal(canonicalJsonl(session), canonicalJsonl(session));
-  assert.match(canonicalJsonl(session), /"page_status":"fail"/);
 });
