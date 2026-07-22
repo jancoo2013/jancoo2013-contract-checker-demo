@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "state_version": "privacy-ocr-2026-07-22-01",
+  "active_track": "local-pii-redaction",
+  "next_step_id": "android-reviewer-device-pilot-v0",
+  "next_step_summary": "Build and install the controlled Android reviewer APK, then run the repository-external human pilot on Samsung A55 without external image calls.",
+  "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
+  "updated_on": "2026-07-22"
+}
