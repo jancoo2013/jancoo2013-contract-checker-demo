@@ -1,6 +1,6 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-07-22, PR #141 Context Gate CI v0.
+Последнее обновление: 2026-07-22, PR #142 Android Reviewer APK Artifact v0.
 
 Это каноническая точка восстановления текущего privacy/OCR-проекта. Она отвечает на практические вопросы: что уже сделано, что действительно проверено, что пока только предполагается и какой шаг разрешён следующим.
 
@@ -8,13 +8,13 @@
 
 ## 0. Последнее изменение
 
-### PR #141 — Context Gate CI v0
+### PR #142 — Android Reviewer APK Artifact v0
 
-- Идентификатор: `context-gate-ci-v0`.
-- Изменение: добавлены trusted `pull_request_target` workflow, dependency-free validator и focused tests для обязательного Context Gate и обновления state-файлов.
-- Проверено: `py_compile` прошёл; 5/5 focused tests прошли; validator отклоняет unchecked gate, stale binding SHA, пропущенный state update, неверный PR number, неувеличенный `state_version` и смену следующего шага без явного разрешения.
-- Осталось: workflow начнёт исполняться только после merge PR #141; для жёсткой блокировки merge check `PR context gate / validate-context` нужно сделать required в branch protection/ruleset.
-- Влияние: runtime, обработка данных, OCR, Gemini image calls, зависимости, внешние API и реальные договоры не изменены.
+- Идентификатор: `android-reviewer-apk-artifact-v0`.
+- Изменение: workflow `Mobile reviewer` теперь выполняет native Expo prebuild, Gradle `assembleDebug`, создаёт installable APK и `build-identity.json`, а `DEVICE_PILOT_V0.md` фиксирует проверку артефакта, установку на Samsung A55 и offline device-smoke boundary.
+- Проверено: GitHub Actions `Mobile reviewer` run #12 полностью прошёл; Node tests, Expo export, native prebuild, Gradle APK build, identity generation и artifact upload завершились успешно. Скачанный artifact содержал APK размером 163124456 bytes; вычисленный SHA-256 `430c4eeb9d2a701ae435345fbe9ae1239fa40fd391a6ab22598bd0798aee6948` совпал с `build-identity.json`.
+- Осталось: после merge нужно использовать artifact из `main`, установить APK на Samsung A55, выполнить offline device smoke и repository-external human pilot; PR artifact привязан к синтетическому pull-request merge SHA и не является финальным pilot build.
+- Влияние: поведение приложения, обработка данных, OCR, Gemini image calls, зависимости приложения, внешние API и реальные договоры не изменены; изменены CI-сборка и operational documentation.
 - Следующий шаг: `android-reviewer-device-pilot-v0` без изменений.
 
 ## 1. Цель продукта
@@ -75,7 +75,7 @@
 | Local PII detector | Deterministic marker/layout baseline v0 реализован | Без OCR и ground-truth leakage предлагаются bounded candidate regions; manifest читается один раз, image bytes повторно проверяются при consumption, output детерминирован и сохраняет immutable page identity | Нет controlled recall/coverage/over-redaction metrics, Android implementation или production privacy result |
 | Local PII mask renderer | Python reference v0 реализован в PR 135 | Все candidates физически заменяются значением `0` в новом grayscale PNG `L`; удаляются alpha/EXIF/ICC/text metadata; страницы потребляются последовательно; staging derivatives повторно проверяются по фактическим bytes, hashes, dimensions, mode и bbox coverage перед atomic publication; mutation/late/rename failures очищаются и допускают retry | Не доказаны PII recall, корректность candidate boxes, полнота privacy coverage, over-redaction, внешняя передача, Android behavior или production privacy safety; threat model ограничен process-controlled staging |
 | Controlled PII reviewer manifest core | Reference v0 реализован | Core связывает exact source/prediction/derivative hashes, проверяет strict top-level и nested candidate schemas, принимает только closed findings `missed_pii`, `incomplete_mask`, `over_redaction` и canonical `xyxy_half_open` bbox, повторно проверяет source/derivative непосредственно перед публикацией и атомарно создаёт deterministic JSONL без перезаписи, PII values, свободного текста, reviewer identity или timestamps | Human pilot run ещё не выполнен; не получены recall, complete-mask-coverage, over-redaction или unsafe-page metrics |
-| Android PII reviewer harness | Pack I/O v0 реализован | Android выбирает repository-external pack, строго связывает prediction/renderer/line manifests, проверяет relative paths, SHA-256, dimensions, grayscale derivative и page order, показывает app-private snapshots точных проверенных bytes, сбрасывает session при смене prediction SHA и создаёт canonical review JSONL без перезаписи | APK ещё не установлен на Samsung A55; не выполнен real reviewer run; не доказаны Android automasking, PII recall, complete coverage, over-redaction или production privacy safety |
+| Android PII reviewer harness | Pack I/O v0 + CI APK artifact реализованы | Android pack binding и no-overwrite output покрыты tests; GitHub Actions run #12 успешно выполнил Expo native prebuild, Gradle `assembleDebug`, identity generation и artifact upload; APK SHA-256 независимо совпал с identity file | APK ещё не установлен на Samsung A55; не выполнены device smoke и real reviewer run; не доказаны Android automasking, PII recall, complete coverage, over-redaction или production privacy safety |
 | Внешний OCR handoff | Не подключён | Разрешён только после локальной необратимой редакции и privacy validation | Не доказано, что derivative не содержит PII и не сохраняет восстанавливаемые пиксели |
 | RTL/layout и структура пунктов | Не реализованы | Это downstream-задача после обезличенного OCR | Нет кода и измерений reading order |
 
@@ -83,7 +83,7 @@
 
 ## 5. Активные блокеры и paused research
 
-1. **Production privacy validation.** Renderer, reviewer-manifest core и Android Pack I/O реализованы, но APK/device smoke и controlled human pilot отсутствуют; измеримые gates не получены. До reviewer run и metrics запрещено отправлять производные пользовательских фотографий внешнему OCR/LLM.
+1. **Production privacy validation.** Renderer, reviewer-manifest core, Android Pack I/O и CI APK artifact реализованы, но установка на Samsung A55, device smoke и controlled human pilot отсутствуют; измеримые gates не получены. До reviewer run и metrics запрещено отправлять производные пользовательских фотографий внешнему OCR/LLM.
 
 Full-line Gold Set, CER, CRNN, training loop и reviewer transcription APK больше не являются блокерами MVP. Они остаются paused research. Android privacy reviewer harness не является transcription APK: он записывает только геометрию трёх закрытых категорий ошибок и не сохраняет текст или значения PII.
 
