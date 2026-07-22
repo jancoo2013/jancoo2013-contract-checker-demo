@@ -32,6 +32,22 @@ binding_document_shas:
 - Why each file is in scope:
 - User/developer impact:
 
+## Required State Update
+
+- [ ] `docs/OCR_PROJECT_STATE.md` records this PR number, date, bounded change, validation, remaining limitations, and next-step effect.
+- [ ] `docs/OCR_PROJECT_STATE.json` has an incremented `state_version`.
+- [ ] `last_recorded_pr` equals this PR number.
+- [ ] `last_recorded_change` identifies this bounded change.
+- [ ] `active_track` and `next_step_id` remain unchanged unless the product owner explicitly changed them.
+
+```text
+state_update:
+  recorded_pr:
+  new_state_version:
+  recorded_change:
+  next_step_effect: unchanged | changed with explicit authorization
+```
+
 ## Boundaries
 
 - Runtime behavior changed: yes / no
@@ -50,5 +66,6 @@ binding_document_shas:
 
 ## Merge
 
+- [ ] State-update commit is present.
 - [ ] Ready for review.
 - [ ] No auto-merge requested.
