@@ -7,7 +7,7 @@ Before creating a branch or modifying any file, read the current versions from t
 1. `AGENTS.md` — repository working rules.
 2. `docs/ARCHITECTURE.md` — product architecture source of truth.
 3. `docs/CUSTOM_OCR_PIPELINE.md` — binding privacy/OCR product contract.
-4. `docs/OCR_PROJECT_STATE.md` — canonical operational state, blockers, and the single permitted next privacy/OCR step.
+4. `docs/OCR_PROJECT_STATE.md` — canonical operational state, blockers, completed changes, and the single permitted next privacy/OCR step.
 5. `docs/OCR_PROJECT_STATE.json` — machine-readable identifier mirror for the canonical state document.
 
 Component contracts define exact inputs, outputs, schemas, and limits only for the component being changed.
@@ -44,9 +44,13 @@ Implementation may proceed only when one of these is true:
 - the task implements the current `next_step_id`; or
 - the product owner explicitly authorizes a bounded corrective, security, documentation, or process exception.
 
-An exception does not silently replace the product next step. Any change to `active_track`, `state_version`, `next_step_id`, blockers, proven evidence, implementation state, or the permitted next step must keep `docs/OCR_PROJECT_STATE.md` and `docs/OCR_PROJECT_STATE.json` synchronized in the same PR.
+An exception does not silently replace the product next step.
 
-If a required field is missing, a SHA cannot be tied to the base branch, or the requested task conflicts with the binding documents, do not create implementation changes.
+Every PR, including documentation-only and process-only PRs, must update `docs/OCR_PROJECT_STATE.md` in the same branch with a concise record of what that PR changes. The JSON companion must also be updated so that `state_version`, `updated_on`, `last_recorded_pr`, and `last_recorded_change` identify the new state snapshot. The active track and next step may remain unchanged, but the completed-change record may not be skipped.
+
+Any change to `active_track`, `next_step_id`, blockers, proven evidence, implementation state, or the permitted next step must keep the Markdown and JSON state documents semantically synchronized in the same PR.
+
+If a required field is missing, a SHA cannot be tied to the base branch, the state files are not updated for the current PR, or the requested task conflicts with the binding documents, do not mark the PR ready for review.
 
 ## 3. Current Product Direction
 
@@ -116,17 +120,22 @@ Documentation-only PRs do not require application tests, but must validate that:
 - all referenced files exist;
 - machine-readable state metadata is internally consistent with the canonical state document;
 - the PR template uses the same field names as the context gate;
+- the current PR is recorded in both state files;
 - no product next step changed unintentionally.
 
 ## 8. Pull Request Requirements
 
 - Create the PR against `main`.
-- Open privacy/OCR PRs ready for review unless the product owner explicitly requests a draft.
+- Open every PR as a draft first so that its PR number is known.
 - Do not auto-merge.
 - Include the completed Context Gate in the PR body.
+- After the PR number exists, add a final state-update commit to the same branch:
+  - record the PR number, date, bounded change, validation, remaining limitations, and next-step effect in `docs/OCR_PROJECT_STATE.md`;
+  - increment `state_version` and set `last_recorded_pr` and `last_recorded_change` in `docs/OCR_PROJECT_STATE.json`;
+  - keep `active_track` and `next_step_id` unchanged unless the product owner explicitly changes them.
+- Mark the PR ready for review only after the state-update commit is present and both state files agree.
 - List changed files and explain why each is in scope.
 - State whether runtime behavior, data handling, dependencies, external APIs, OCR, Gemini image calls, or state metadata changed.
 - Report tests or validation performed and any remaining limitations.
-- Keep both state files synchronized whenever implementation status, evidence, blockers, active track, or the permitted next step changes.
 
 Every 3–5 merged privacy/OCR PRs, run the repository-only cold-start audit defined in `docs/OCR_PROJECT_STATE.md`.
