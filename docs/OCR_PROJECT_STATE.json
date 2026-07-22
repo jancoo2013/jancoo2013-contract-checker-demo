@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-07-22-04",
+  "state_version": "privacy-ocr-2026-07-22-05",
   "active_track": "local-pii-redaction",
   "next_step_id": "android-reviewer-device-pilot-v0",
-  "next_step_summary": "Install the standalone release-variant Android reviewer APK, then run the repository-external human pilot on Samsung A55 without external image calls.",
-  "last_recorded_pr": 143,
-  "last_recorded_change": "android-reviewer-standalone-apk-v0",
+  "next_step_summary": "Prepare a safe one-page synthetic review pack and verify directory selection and page rendering on Samsung A55 without external image calls.",
+  "last_recorded_pr": 145,
+  "last_recorded_change": "context-gate-scope-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-07-22"
