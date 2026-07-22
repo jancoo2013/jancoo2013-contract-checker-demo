@@ -7,11 +7,12 @@ Before creating a branch or modifying any file, read the current versions from t
 1. `AGENTS.md` — repository working rules.
 2. `docs/ARCHITECTURE.md` — product architecture source of truth.
 3. `docs/CUSTOM_OCR_PIPELINE.md` — binding privacy/OCR product contract.
-4. `docs/OCR_PROJECT_STATE.md` — operational state, blockers, and the single permitted next privacy/OCR step.
+4. `docs/OCR_PROJECT_STATE.md` — canonical operational state, blockers, and the single permitted next privacy/OCR step.
+5. `docs/OCR_PROJECT_STATE.json` — machine-readable identifier mirror for the canonical state document.
 
 Component contracts define exact inputs, outputs, schemas, and limits only for the component being changed.
 
-Do not derive current architecture from chat history, old PRs, branch names, partially implemented code, or one agent's memory. If binding documents conflict, stop implementation, describe the conflict, and fix the documents in a separate small PR or under explicit product-owner authorization.
+Do not derive current architecture from chat history, old PRs, branch names, partially implemented code, or one agent's memory. The JSON companion does not replace `docs/OCR_PROJECT_STATE.md`; it makes the active state identifiers machine-readable. If the JSON and Markdown state documents disagree, or any binding documents conflict, stop implementation and report the conflict.
 
 ## 2. Mandatory PR Context Gate v0
 
@@ -22,10 +23,10 @@ The working session must publish this block before implementation and copy the s
 ```text
 PR CONTEXT GATE
 
-active_track: <value from docs/OCR_PROJECT_STATE.md>
-state_version: <value from docs/OCR_PROJECT_STATE.md>
-next_step_id: <value from docs/OCR_PROJECT_STATE.md>
-permitted_next_step: <exact concise description>
+active_track: <value from docs/OCR_PROJECT_STATE.json>
+state_version: <value from docs/OCR_PROJECT_STATE.json>
+next_step_id: <value from docs/OCR_PROJECT_STATE.json>
+permitted_next_step: <exact concise description from docs/OCR_PROJECT_STATE.md>
 task_scope: <one bounded change>
 explicitly_out_of_scope: <prohibited detours>
 exception_authorization: none | <explicit product-owner decision>
@@ -35,6 +36,7 @@ binding_document_shas:
   docs/ARCHITECTURE.md: <blob SHA>
   docs/CUSTOM_OCR_PIPELINE.md: <blob SHA>
   docs/OCR_PROJECT_STATE.md: <blob SHA>
+  docs/OCR_PROJECT_STATE.json: <blob SHA>
 ```
 
 Implementation may proceed only when one of these is true:
@@ -42,7 +44,7 @@ Implementation may proceed only when one of these is true:
 - the task implements the current `next_step_id`; or
 - the product owner explicitly authorizes a bounded corrective, security, documentation, or process exception.
 
-An exception does not silently replace the product next step. Any change to `active_track`, `state_version`, `next_step_id`, blockers, proven evidence, or implementation state must update `docs/OCR_PROJECT_STATE.md` in the same PR.
+An exception does not silently replace the product next step. Any change to `active_track`, `state_version`, `next_step_id`, blockers, proven evidence, implementation state, or the permitted next step must keep `docs/OCR_PROJECT_STATE.md` and `docs/OCR_PROJECT_STATE.json` synchronized in the same PR.
 
 If a required field is missing, a SHA cannot be tied to the base branch, or the requested task conflicts with the binding documents, do not create implementation changes.
 
@@ -112,7 +114,7 @@ For mobile reviewer changes, run the relevant commands from `mobile/pii-reviewer
 Documentation-only PRs do not require application tests, but must validate that:
 
 - all referenced files exist;
-- machine-readable state metadata is internally consistent;
+- machine-readable state metadata is internally consistent with the canonical state document;
 - the PR template uses the same field names as the context gate;
 - no product next step changed unintentionally.
 
@@ -125,6 +127,6 @@ Documentation-only PRs do not require application tests, but must validate that:
 - List changed files and explain why each is in scope.
 - State whether runtime behavior, data handling, dependencies, external APIs, OCR, Gemini image calls, or state metadata changed.
 - Report tests or validation performed and any remaining limitations.
-- Keep `docs/OCR_PROJECT_STATE.md` synchronized whenever implementation status, evidence, blockers, active track, or the permitted next step changes.
+- Keep both state files synchronized whenever implementation status, evidence, blockers, active track, or the permitted next step changes.
 
 Every 3–5 merged privacy/OCR PRs, run the repository-only cold-start audit defined in `docs/OCR_PROJECT_STATE.md`.
