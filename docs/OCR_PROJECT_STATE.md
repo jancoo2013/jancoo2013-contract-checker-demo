@@ -1,6 +1,6 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-07-22, PR #140 Repository Context Gate v0.
+Последнее обновление: 2026-07-22, PR #141 Context Gate CI v0.
 
 Это каноническая точка восстановления текущего privacy/OCR-проекта. Она отвечает на практические вопросы: что уже сделано, что действительно проверено, что пока только предполагается и какой шаг разрешён следующим.
 
@@ -8,14 +8,14 @@
 
 ## 0. Последнее изменение
 
-### PR #140 — Repository Context Gate v0
+### PR #141 — Context Gate CI v0
 
-- `AGENTS.md` сокращён до обязательной иерархии источников истины, privacy-границ, Context Gate и правил ограниченных PR; устаревающее описание ручного image-redaction UX удалено из агентских инструкций.
-- Добавлен `docs/OCR_PROJECT_STATE.json` с машинно читаемыми `state_version`, `active_track`, `next_step_id`, номером последнего зафиксированного PR и идентификатором изменения.
-- Добавлен обязательный `.github/pull_request_template.md` с Context Gate, scope/out-of-scope, state update, data/API declarations и validation.
-- Установлено правило: каждый PR без исключений обновляет этот файл и JSON-компаньон в той же ветке до перевода PR в ready-for-review.
-- Проверено, что активное направление остаётся `local-pii-redaction`, а единственный продуктовый следующий шаг остаётся `android-reviewer-device-pilot-v0`.
-- Runtime, обработка данных, OCR, Gemini image calls, зависимости и реальные договоры не изменялись. Это process/documentation change; автоматическое CI-блокирование остаётся задачей PR2.
+- Идентификатор: `context-gate-ci-v0`.
+- Изменение: добавлены trusted `pull_request_target` workflow, dependency-free validator и focused tests для обязательного Context Gate и обновления state-файлов.
+- Проверено: `py_compile` прошёл; 5/5 focused tests прошли; validator отклоняет unchecked gate, stale binding SHA, пропущенный state update, неверный PR number, неувеличенный `state_version` и смену следующего шага без явного разрешения.
+- Осталось: workflow начнёт исполняться только после merge PR #141; для жёсткой блокировки merge check `PR context gate / validate-context` нужно сделать required в branch protection/ruleset.
+- Влияние: runtime, обработка данных, OCR, Gemini image calls, зависимости, внешние API и реальные договоры не изменены.
+- Следующий шаг: `android-reviewer-device-pilot-v0` без изменений.
 
 ## 1. Цель продукта
 
@@ -107,7 +107,7 @@ Synthetic tests доказали ровно ограниченные gates v0: �
 
 `PII_MASK_RENDERER_V0.md` и `pii_mask_renderer.py` реализуют corrected grayscale mask renderer v0. Он последовательно потребляет страницы, ограничивает manifest/source bytes и decoded pixels, создаёт новый PNG `L`, физически заменяет union всех candidate bbox значением `0`, не переносит alpha/EXIF/ICC/text metadata и публикует только полностью проверенный sibling staging directory. Шесть focused tests и отдельные mutation/multipage harnesses подтверждают exact `xyxy_half_open` coverage, order invariance, deterministic bytes, source immutability, derivative/source mutation detection, cleanup и retry после late/final-rename failures. Это доказывает только необратимую замену пикселей для supplied candidates в process-controlled staging threat model, а не качество detector или внешнюю безопасность.
 
-`PII_REVIEWER_PILOT_V0.md` и `pii_reviewer_pilot.py` реализуют deterministic manifest core для Controlled PII Reviewer Validation Pilot v0. Core связывает exact baseline prediction SHA с source/derivative hashes, dimensions и strict top-level/nested schemas, принимает только три closed error categories и canonical `xyxy_half_open` bbox, повторно проверяет фактические page bytes перед publication и атомарно создаёт deterministic JSONL без перезаписи, PII values или свободного текста. Восемь synthetic focused tests покрывают manifest binding, strict integer/nested candidate guards, path/hash/mode failures, closed statuses/categories, geometry bounds, immutable identities, canonical finding IDs, mutation before publication, output-race no-overwrite, deterministic output и cleanup. Это доказывает только формат и core; human validation ещё отсутствует.
+`PII_REVIEWER_PILOT_V0.md` и `pii_reviewer_pilot.py` реализуют deterministic manifest core для Controlled PII Reviewer Validation Pilot v0. Core связывает exact baseline prediction SHA с source/derivative hashes, dimensions и strict top-level/nested candidate schemas, принимает только три closed error categories и canonical `xyxy_half_open` bbox, повторно проверяет фактические page bytes перед publication и атомарно создаёт deterministic JSONL без перезаписи, PII values или свободного текста. Восемь synthetic focused tests покрывают manifest binding, strict integer/nested candidate guards, path/hash/mode failures, closed statuses/categories, geometry bounds, immutable identities, canonical finding IDs, mutation before publication, output-race no-overwrite, deterministic output и cleanup. Это доказывает только формат и core; human validation ещё отсутствует.
 
 `mobile/pii-reviewer` задаёт Android-first Expo Development Build reviewer. Pack I/O v0 читает exact Python prediction/renderer contracts и neutral line-segmentation regions из выбранной локальной директории, проверяет closed schemas, IDs, paths, hashes, geometry, dimensions, grayscale derivative и page order. Verified image bytes копируются в app-private cache до отображения. Reviewer одним касанием выбирает neutral line или существующую mask geometry; результат сохраняется рядом с pack как canonical Python-compatible JSONL без overwrite.
 
