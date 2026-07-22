@@ -37,20 +37,22 @@ jobs:
       - run: npx expo export --platform android --output-dir dist
       - name: Generate native Android project
         run: CI=1 npx expo prebuild --platform android --clean
-      - name: Build installable debug APK
+      - name: Build standalone release APK
         run: |
           chmod +x android/gradlew
           cd android
-          ./gradlew --no-daemon assembleDebug
-      - name: Record APK build identity
+          ./gradlew --no-daemon assembleRelease
+      - name: Record standalone APK identity
         run: |
           set -euo pipefail
           mkdir -p build-artifact
-          cp android/app/build/outputs/apk/debug/app-debug.apk build-artifact/pii-reviewer-debug.apk
-          APK_SHA="$(sha256sum build-artifact/pii-reviewer-debug.apk | cut -d ' ' -f1)"
+          cp android/app/build/outputs/apk/release/app-release.apk build-artifact/pii-reviewer-standalone.apk
+          APK_SHA="$(sha256sum build-artifact/pii-reviewer-standalone.apk | cut -d ' ' -f1)"
           cat > build-artifact/build-identity.json <<EOF
           {
             "schema_version": 1,
+            "artifact_kind": "standalone_pilot_apk",
+            "build_variant": "release",
             "application_id": "com.jancoo.contractreviewer",
             "version_name": "0.1.0",
             "version_code": 1,
@@ -60,10 +62,10 @@ jobs:
             "apk_sha256": "${APK_SHA}"
           }
           EOF
-      - name: Upload installable APK artifact
+      - name: Upload standalone APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: pii-reviewer-debug-${{ github.sha }}
+          name: pii-reviewer-standalone-${{ github.sha }}
           path: mobile/pii-reviewer/build-artifact/
           if-no-files-found: error
           retention-days: 14
