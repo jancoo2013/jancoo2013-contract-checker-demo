@@ -1,19 +1,26 @@
-# Android Reviewer APK Handoff v0
+# Android Reviewer Standalone APK Handoff v0
 
-This file defines only the handoff boundary for the debug APK produced by the `Mobile reviewer` workflow.
+This file defines only the handoff boundary for the release-variant standalone APK produced by the `Mobile reviewer` workflow.
 
 ## Artifact
 
-Use the artifact named `pii-reviewer-debug-<git-sha>` from the workflow run for the exact merged `main` commit under test.
+Use the artifact named `pii-reviewer-standalone-<git-sha>` from the workflow run for the exact merged `main` commit under test.
 
 The artifact contains:
 
 ```text
-pii-reviewer-debug.apk
+pii-reviewer-standalone.apk
 build-identity.json
 ```
 
-Before transfer, verify that the APK SHA-256 equals `apk_sha256` in `build-identity.json` and that `git_sha` identifies the intended commit.
+Before transfer, verify that:
+
+- the APK SHA-256 equals `apk_sha256` in `build-identity.json`;
+- `git_sha` identifies the intended commit;
+- `artifact_kind` is `standalone_pilot_apk`;
+- `build_variant` is `release`.
+
+A debug artifact that opens the Expo Development Build launcher is not valid for the offline pilot.
 
 ## Deferred work
 
