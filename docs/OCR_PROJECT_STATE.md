@@ -1,6 +1,6 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-07-22, PR #145 Context Gate Scope v1.
+Последнее обновление: 2026-07-23, PR #146 Android Reviewer Source PNG Snapshot v0.
 
 Это каноническая точка восстановления текущего privacy/OCR-проекта. Она отвечает на практические вопросы: что уже сделано, что действительно проверено, что пока только предполагается и какой шаг разрешён следующим.
 
@@ -8,14 +8,14 @@
 
 ## 0. Последнее изменение
 
-### PR #145 — Context Gate Scope v1
+### PR #146 — Android Reviewer Source PNG Snapshot v0
 
-- Идентификатор: `context-gate-scope-v1`.
-- Изменение: trusted Context Gate заменяет длинный набор буквальных чекбоксов и декларативное `exception_authorization` на один JSON-контракт с точным `allowed_paths`; validator сравнивает фактические base/head snapshots, включая добавление, удаление, содержимое, executable mode и symlink target, и блокирует как незаявленные изменения, так и заявленные, но неизменённые пути.
-- Проверено: независимый read-only Codex audit после PR #141–143 дал `PASS WITH FINDINGS`, подтвердил корректность standalone APK и выявил high-проблему старого gate; локально `py_compile` прошёл, focused suite расширен с 5 до 10 тестов и полностью проходит, включая лишний файл, фиктивно заявленный файл, traversal, duplicates, control characters, лишние JSON-ключи, state guards и независимость от пунктуации. Standalone release APK из merge PR #143 установлен на Samsung A55 и автономно открыл экран `PII Reviewer · Android` без Metro/development server.
-- Осталось: новый gate проверяет фактический набор файлов и структурную непрерывность state, но намеренно не доказывает смысловую корректность кода и не заменяет human review. Directory picker, synthetic review pack, page rendering, human pilot и privacy metrics ещё не проверены.
-- Влияние: runtime приложения, Android reviewer, обработка данных, зависимости, OCR, Gemini image calls, внешние API и реальные договоры не изменены; изменены только trusted CI validator, его focused tests и state documentation.
-- Следующий шаг: `android-reviewer-device-pilot-v0` сохраняется; следующий ограниченный подшаг — безопасный одностраничный synthetic review pack.
+- Идентификатор: `android-reviewer-source-png-snapshot-v0`.
+- Изменение: исходная PNG-страница теперь сохраняется во внутренний Android cache с явным расширением `.png`; regression-тест фиксирует имена source и derivative snapshots.
+- Проверено: safe synthetic review pack загружается в Pixel 8 / Android 17 emulator; directory picker, manifest/hash validation и masked rendering прошли. Подтверждён узкий runtime-дефект: source snapshot без расширения отображался как градиент, тогда как derivative snapshot с `.png` отображался корректно. Локальный focused test suite после исправления — 6/6 PASS.
+- Осталось: собрать новый standalone APK из head PR #146 и повторить emulator smoke, подтвердив корректное отображение source и masked изображений. Затем тот же ограниченный synthetic smoke повторяется на Samsung A55; human pilot и privacy metrics ещё не выполнялись.
+- Влияние: меняется только имя app-private cache snapshot исходного PNG и его тест. Review-pack schema, detector, renderer, reviewer findings, зависимости, OCR, Gemini, сеть, внешние API, реальные договоры и PII не изменены.
+- Следующий шаг: `android-reviewer-device-pilot-v0` сохраняется; следующий ограниченный подшаг — повторный source/masked rendering smoke с исправленным standalone APK.
 
 ## 1. Цель продукта
 
@@ -75,7 +75,7 @@
 | Local PII detector | Deterministic marker/layout baseline v0 реализован | Без OCR и ground-truth leakage предлагаются bounded candidate regions; manifest читается один раз, image bytes повторно проверяются при consumption, output детерминирован и сохраняет immutable page identity | Нет controlled recall/coverage/over-redaction metrics, Android implementation или production privacy result |
 | Local PII mask renderer | Python reference v0 реализован в PR 135 | Все candidates физически заменяются значением `0` в новом grayscale PNG `L`; удаляются alpha/EXIF/ICC/text metadata; страницы потребляются последовательно; staging derivatives повторно проверяются по фактическим bytes, hashes, dimensions, mode и bbox coverage перед atomic publication; mutation/late/rename failures очищаются и допускают retry | Не доказаны PII recall, корректность candidate boxes, полнота privacy coverage, over-redaction, внешняя передача, Android behavior или production privacy safety; threat model ограничен process-controlled staging |
 | Controlled PII reviewer manifest core | Reference v0 реализован | Core связывает exact source/prediction/derivative hashes, проверяет strict top-level и nested candidate schemas, принимает только closed findings `missed_pii`, `incomplete_mask`, `over_redaction` и canonical `xyxy_half_open` bbox, повторно проверяет source/derivative непосредственно перед публикацией и атомарно создаёт deterministic JSONL без перезаписи, PII values, свободного текста, reviewer identity или timestamps | Human pilot run ещё не выполнен; не получены recall, complete-mask-coverage, over-redaction или unsafe-page metrics |
-| Android PII reviewer harness | Pack I/O v0 + standalone release APK installed smoke | Android pack binding и no-overwrite output покрыты tests; post-merge release APK имеет встроенный JS bundle, валидную Android v2 signature и отсутствующий active Dev Launcher; точный APK установлен на Samsung A55 и автономно открыл экран reviewer без Metro/development server | Directory picker, review-pack loading, page rendering, result publication и real reviewer run ещё не выполнены; не доказаны Android automasking, PII recall, complete coverage, over-redaction или production privacy safety |
+| Android PII reviewer harness | Pack I/O v0 + standalone APK + synthetic emulator smoke in correction | Android pack binding и no-overwrite output покрыты tests; standalone APK автономно запускается на Samsung A55 и Android 17 emulator; emulator подтвердил directory picker, pack validation и корректный masked rendering; source-rendering дефект локализован до extensionless cache snapshot и исправлен в PR #146 | Исправленный APK ещё не прошёл повторный source/masked emulator smoke и Samsung A55 synthetic smoke; result publication и real reviewer run не выполнены; не доказаны Android automasking, PII recall, complete coverage, over-redaction или production privacy safety |
 | Внешний OCR handoff | Не подключён | Разрешён только после локальной необратимой редакции и privacy validation | Не доказано, что derivative не содержит PII и не сохраняет восстанавливаемые пиксели |
 | RTL/layout и структура пунктов | Не реализованы | Это downstream-задача после обезличенного OCR | Нет кода и измерений reading order |
 
@@ -83,7 +83,7 @@
 
 ## 5. Активные блокеры и paused research
 
-1. **Production privacy validation.** Renderer, reviewer-manifest core, Android Pack I/O и standalone release APK реализованы; автономная установка и запуск reviewer на Samsung A55 подтверждены. Directory picker, безопасный synthetic pack smoke и controlled human pilot отсутствуют, измеримые gates не получены. До reviewer run и metrics запрещено отправлять производные пользовательских фотографий внешнему OCR/LLM.
+1. **Production privacy validation.** Renderer, reviewer-manifest core, Android Pack I/O и standalone release APK реализованы; автономный запуск подтверждён на Samsung A55 и Android 17 emulator. Safe synthetic pack проходит directory selection, schema/hash validation и masked rendering в emulator, но source rendering требует повторной проверки после исправления `.png` cache filename в PR #146. Controlled human pilot и измеримые gates отсутствуют. До reviewer run и metrics запрещено отправлять производные пользовательских фотографий внешнему OCR/LLM.
 
 Full-line Gold Set, CER, CRNN, training loop и reviewer transcription APK больше не являются блокерами MVP. Они остаются paused research. Android privacy reviewer harness не является transcription APK: он записывает только геометрию трёх закрытых категорий ошибок и не сохраняет текст или значения PII.
 
@@ -113,12 +113,14 @@ Synthetic tests доказали ровно ограниченные gates v0: �
 
 ## 7. Единственный следующий шаг
 
-**Prepare a safe one-page synthetic review pack and verify directory selection and page rendering on Samsung A55 without external image calls.** Другой privacy/OCR-шаг нельзя начинать без явного изменения этого файла и решения владельца продукта.
+**Build the corrected standalone reviewer APK and verify source/masked rendering with the safe one-page synthetic pack in the Android 17 emulator, then repeat the same bounded smoke on Samsung A55 without external image calls.** Другой privacy/OCR-шаг нельзя начинать без явного изменения этого файла и решения владельца продукта.
 
 Граница задачи:
 
-- подготовить одностраничный repository-external synthetic pack без реальных договоров, PII или пользовательского текста;
-- проверить directory selection, pack validation, source/masked switching и page rendering на Samsung A55;
+- использовать существующий repository-external synthetic pack без реальных договоров, PII или пользовательского текста;
+- установить APK из точного post-merge build PR #146 в Android 17 emulator;
+- проверить directory selection, pack validation, исходное изображение, masked image и переключение между ними;
+- после emulator PASS повторить тот же ограниченный smoke на Samsung A55;
 - не запускать human pilot, не сохранять privacy findings и не использовать реальные страницы на этом подшаге;
 - никаких OCR/Gemini/LLM/network image calls, production upload, Android detector/renderer port или privacy claims;
 - зафиксировать только PASS/FAIL каждого operational шага и точную ошибку без PII values или contract text.
@@ -159,7 +161,7 @@ Synthetic tests доказали ровно ограниченные gates v0: �
 
 После merge PR 137 владелец продукта исправил ошибочное desktop-направление: reviewer должен быть Android-first, а не Streamlit/localhost. В ходе review PR 138 также удалено ручное построение bbox: проверяющий только сообщает тип ошибки и приблизительное место, а геометрию выбирает система из neutral line-segmentation regions или существующих масок. Scaffold не считается real-device validation до сборки и установки APK.
 
-Седьмой независимый read-only аудит выполнен Codex по issue #144 после PR #141–143. Вердикт: `PASS WITH FINDINGS`. Он подтвердил целостность истории, безопасную схему `pull_request_target`, успешный post-merge standalone APK и отсутствие runtime/privacy изменений, но воспроизвёл high-дефект Context Gate: декларативный scope можно было обойти, а корректный PR мог падать из-за пунктуации. PR #145 исправляет именно этот process defect без изменения приложения.
+Седьмой независимый read-only аудит выполнен Codex по issue #144 после PR #141–143. Вердикт: `PASS WITH FINDINGS`. Он подтвердил целостность истории, безопасную схему `pull_request_target`, успешный post-merge standalone APK и отсутствие runtime/privacy изменений, но воспроизвёл high-дефект Context Gate: декларативный scope можно было обойти, а корректный PR мог падать из-за пунктуации. PR #145 исправил именно этот process defect без изменения приложения.
 
 ## 9. Формат передачи ограниченной задачи Codex
 
