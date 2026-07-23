@@ -62,7 +62,7 @@ export async function loadReviewPack(read, sha256, imageSize, snapshot) {
     if (d.schema_version !== 1 || d.renderer !== 'grayscale_opaque_mask_v0' || d.image_id !== id || d.source_image_sha256 !== p.image_sha256 || d.prediction_manifest_sha256 !== predictionSha || d.width !== width || d.height !== height || d.mode !== 'L' || d.mask_value !== 0 || d.mask_count !== masks.length || !integer(d.masked_pixel_count) || d.masked_pixel_count < 0 || d.masked_pixel_count > width * height || !SHA.test(d.derivative_sha256)) throw new Error(`${id}: renderer binding mismatch`);
     const source = await read(safePath(p.image), IMAGE_LIMIT), derivative = await read(`renderer/${safePath(d.derivative_image)}`, IMAGE_LIMIT);
     if (await sha256(source.bytes) !== p.image_sha256 || await sha256(derivative.bytes) !== d.derivative_sha256) throw new Error(`${id}: image hash mismatch`);
-    const sourceUri = await snapshot(source.bytes, `${id}-source`, predictionSha);
+    const sourceUri = await snapshot(source.bytes, `${id}-source.png`, predictionSha);
     const derivativeUri = await snapshot(derivative.bytes, `${id}-derivative.png`, predictionSha);
     const sourceInfo = await imageSize(sourceUri), derivativeInfo = pngInfo(derivative.bytes, `${id} derivative`, true);
     if (sourceInfo.width !== width || sourceInfo.height !== height || derivativeInfo.width !== width || derivativeInfo.height !== height) throw new Error(`${id}: image dimensions mismatch`);
