@@ -14,30 +14,30 @@ Component contracts define exact inputs, outputs, schemas, and limits only for t
 
 Do not derive current architecture from chat history, old PRs, branch names, partially implemented code, or one agent's memory. The JSON companion does not replace `docs/OCR_PROJECT_STATE.md`; it makes the active state identifiers machine-readable. If the JSON and Markdown state documents disagree, or any binding documents conflict, stop implementation and report the conflict.
 
-## 2. Mandatory PR Context Gate v0
+## 2. Mandatory PR Context Gate v1
 
-Every PR must pass a context gate before branch creation or file modification.
+Every PR must publish one exact JSON contract before implementation and copy the same contract into the PR description:
 
-The working session must publish this block before implementation and copy the same information into the PR description:
-
-```text
-PR CONTEXT GATE
-
-active_track: <value from docs/OCR_PROJECT_STATE.json>
-state_version: <value from docs/OCR_PROJECT_STATE.json>
-next_step_id: <value from docs/OCR_PROJECT_STATE.json>
-permitted_next_step: <exact concise description from docs/OCR_PROJECT_STATE.md>
-task_scope: <one bounded change>
-explicitly_out_of_scope: <prohibited detours>
-exception_authorization: none | <explicit product-owner decision>
-state_change: none | <what state metadata or next step changes>
-binding_document_shas:
-  AGENTS.md: <blob SHA>
-  docs/ARCHITECTURE.md: <blob SHA>
-  docs/CUSTOM_OCR_PIPELINE.md: <blob SHA>
-  docs/OCR_PROJECT_STATE.md: <blob SHA>
-  docs/OCR_PROJECT_STATE.json: <blob SHA>
+```json
+{
+  "context_gate_version": 1,
+  "change": "stable-kebab-case-change-id",
+  "allowed_paths": [
+    "exact/path/changed/by/the/pr",
+    "docs/OCR_PROJECT_STATE.md",
+    "docs/OCR_PROJECT_STATE.json"
+  ]
+}
 ```
+
+Rules:
+
+- `change` is a stable lowercase kebab-case identifier and must match `last_recorded_change` in the updated state JSON.
+- `allowed_paths` lists every file changed by the PR and no other file.
+- Both state files are mandatory in every PR.
+- Every declared path must actually change; every changed path must be declared.
+- Human-readable PR prose is unrestricted and is not part of the machine contract.
+- Do not add a second context-gate JSON block to the PR body.
 
 Implementation may proceed only when one of these is true:
 
@@ -46,11 +46,11 @@ Implementation may proceed only when one of these is true:
 
 An exception does not silently replace the product next step.
 
-Every PR, including documentation-only and process-only PRs, must update `docs/OCR_PROJECT_STATE.md` in the same branch with a concise record of what that PR changes. The JSON companion must also be updated so that `state_version`, `updated_on`, `last_recorded_pr`, and `last_recorded_change` identify the new state snapshot. The active track and next step may remain unchanged, but the completed-change record may not be skipped.
+Every PR, including documentation-only and process-only PRs, must update `docs/OCR_PROJECT_STATE.md` in the same branch with a concise record of what that PR changes. The JSON companion must also be updated so that `state_version`, `updated_on`, `last_recorded_pr`, and `last_recorded_change` identify the new state snapshot.
 
 Any change to `active_track`, `next_step_id`, blockers, proven evidence, implementation state, or the permitted next step must keep the Markdown and JSON state documents semantically synchronized in the same PR.
 
-If a required field is missing, a SHA cannot be tied to the base branch, the state files are not updated for the current PR, or the requested task conflicts with the binding documents, do not mark the PR ready for review.
+If the requested task conflicts with the binding documents, do not mark the PR ready for review.
 
 ## 3. Current Product Direction
 
@@ -119,7 +119,7 @@ Documentation-only PRs do not require application tests, but must validate that:
 
 - all referenced files exist;
 - machine-readable state metadata is internally consistent with the canonical state document;
-- the PR template uses the same field names as the context gate;
+- the PR template uses the same Context Gate v1 fields as the validator;
 - the current PR is recorded in both state files;
 - no product next step changed unintentionally.
 
@@ -128,7 +128,7 @@ Documentation-only PRs do not require application tests, but must validate that:
 - Create the PR against `main`.
 - Open every PR as a draft first so that its PR number is known.
 - Do not auto-merge.
-- Include the completed Context Gate in the PR body.
+- Include exactly one completed Context Gate v1 JSON block in the PR body.
 - After the PR number exists, add a final state-update commit to the same branch:
   - record the PR number, date, bounded change, validation, remaining limitations, and next-step effect in `docs/OCR_PROJECT_STATE.md`;
   - increment `state_version` and set `last_recorded_pr` and `last_recorded_change` in `docs/OCR_PROJECT_STATE.json`;
