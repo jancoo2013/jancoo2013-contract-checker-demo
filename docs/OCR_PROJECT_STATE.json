@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-07-23-06",
+  "state_version": "privacy-ocr-2026-07-26-01",
   "active_track": "local-pii-redaction",
-  "next_step_id": "android-reviewer-device-pilot-v0",
-  "next_step_summary": "Build the corrected standalone reviewer APK and verify source/masked rendering with the safe one-page synthetic pack in the Android 17 emulator, then repeat the same bounded smoke on Samsung A55 without external image calls.",
-  "last_recorded_pr": 146,
-  "last_recorded_change": "android-reviewer-source-png-snapshot-v0",
+  "next_step_id": "controlled-pii-reviewer-pilot-v0",
+  "next_step_summary": "Prepare one repository-external controlled real-page review pack, complete the bounded Hebrew-capable reviewer pilot, and verify local canonical review JSONL publication without external image, OCR, or LLM calls.",
+  "last_recorded_pr": 148,
+  "last_recorded_change": "state-process-alignment-v0",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
-  "updated_on": "2026-07-23"
+  "updated_on": "2026-07-26"
 }
