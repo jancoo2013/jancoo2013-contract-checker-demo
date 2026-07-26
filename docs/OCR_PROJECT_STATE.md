@@ -1,6 +1,6 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-07-26, PR #148, `state-process-alignment-v0`.
+Последнее обновление: 2026-07-26, PR #149, `controlled-pii-review-pack-builder-v0`.
 
 Активный трек: `local-pii-redaction`.
 
@@ -8,13 +8,16 @@
 
 Этот документ — каноническая operational-точка восстановления privacy/OCR-проекта. Архитектуру задают `docs/ARCHITECTURE.md` и `docs/CUSTOM_OCR_PIPELINE.md`; точные входы, выходы и proof boundaries отдельных компонентов задают их component contracts. При конфликте обязательных документов работа останавливается до отдельного исправления.
 
-## 1. Изменение PR #148
+## 1. Изменение PR #149
 
-- `AGENTS.md` и `.github/pull_request_template.md` приведены к фактически действующему Context Gate v1: один JSON-блок с `context_gate_version`, `change` и точным `allowed_paths`.
-- Зафиксирован фактический synthetic Android smoke после PR #146.
-- Владелец продукта принял emulator smoke как достаточный для перехода к human pilot и явно отложил повторный ручной synthetic smoke на Samsung A55.
-- Следующий шаг изменён с `android-reviewer-device-pilot-v0` на `controlled-pii-reviewer-pilot-v0`.
-- Runtime, APK, detector, renderer, зависимости, OCR, Gemini, внешние API и правила обработки данных не изменены.
+- Добавлен `controlled_pii_review_pack_builder_v0`: одна локальная CLI-команда собирает Android review pack из уже нормализованных grayscale page masters.
+- Builder последовательно запускает текущие line segmentation, `marker_layout_baseline_v0` и `grayscale_opaque_mask_v0`, копирует byte-identical source masters и проверяет итог существующим Python reviewer core.
+- Final pack содержит только требуемые source, prediction, renderer и neutral-line artifacts; временный geometry-only annotation manifest и рабочие файлы не публикуются.
+- Существующий output path не перезаписывается; failure очищает sibling staging и не оставляет частичный pack.
+- Focused builder tests включены в обязательный `OCR research runtime`; GitHub Actions run #43 прошёл полностью.
+- Repository-only cold-start audit после PR #148 завершён с вердиктом `PASS WITH ONE OPERATIONAL BLOCKER`: binding documents, state и Context Gate согласованы, а единственным найденным препятствием была ручная сборка review pack. PR #149 закрывает именно этот operational blocker.
+- `active_track` и `next_step_id` не меняются: следующий шаг остаётся реальным controlled human pilot.
+- Detector rules, renderer semantics, Android APK, зависимости, внешние API и правила обработки данных не изменены.
 
 ## 2. Цель продукта и privacy boundary
 
@@ -55,6 +58,7 @@ raw phone photo
 | Local PII detector | `marker_layout_baseline_v0` | Детерминированные candidates без OCR, cloud calls или ground-truth leakage | Реальные recall, complete coverage и over-redaction |
 | Local mask renderer | Python reference v0 | Новый grayscale PNG, физическая замена candidate pixels, metadata stripping, deterministic publication | Candidate correctness, Android behavior и production privacy safety |
 | Reviewer manifest core | Reference v0 | Три closed finding categories, canonical geometry/JSONL и immutable hashes | Controlled human pilot |
+| Review pack builder | `controlled_pii_review_pack_builder_v0` | One-command local assembly, byte-identical sources, exact hashes/bindings, strict line manifest, no-overwrite publication и cleanup покрыты synthetic focused tests и CI | Прогон на реальном договоре и удобство фактической передачи pack |
 | Android PII reviewer | Standalone Expo APK | Автономный запуск, pack selection/validation, source/masked switching после repaint, one-tap finding | First-paint source reliability, подтверждённая publication/readback результата, human pilot |
 | Android detector/renderer | Не реализован | — | On-device automatic detection and masking |
 | External OCR handoff | Не подключён | Разрешён только после privacy gate | Безопасность derivative не доказана |
@@ -82,9 +86,9 @@ raw phone photo
 
 Standalone launch на Samsung A55 ранее подтверждён, но дополнительные ручные перезагрузки APK/pack для synthetic smoke больше не являются обязательным gate перед controlled pilot.
 
-## 5. Активный блокер
+## 5. Активный блокер и pilot input
 
-Единственный product blocker перед улучшением detector или Android-port — отсутствие controlled human pilot и измеримых ошибок текущего Python baseline:
+Единственный product blocker перед metrics, улучшением detector или Android-port — отсутствие controlled human pilot и измеримых ошибок текущего Python baseline:
 
 - `missed_pii`;
 - `incomplete_mask`;
@@ -92,29 +96,31 @@ Standalone launch на Samsung A55 ранее подтверждён, но до�
 
 До pilot нельзя утверждать, что current candidates корректны, маски полностью закрывают PII или сохраняют достаточно юридического текста.
 
+У владельца продукта есть repository-external трёхстраничный договор, в котором почти весь текст напечатан, а рукописными остаются только подписи. Он является предпочтительным первым pilot input: небольшой объём отделяет ошибки layout/digit/signature detection от сложностей массового рукописного текста. Сам договор, normalized pages, manifests, derivatives и review result не коммитятся в GitHub и не передаются внешним сервисам.
+
 ## 6. Единственный следующий шаг
 
-**`controlled-pii-reviewer-pilot-v0`: подготовить один repository-external controlled real-page review pack и провести ограниченную проверку человеком, читающим иврит, без внешних image/OCR/LLM calls.**
+**`controlled-pii-reviewer-pilot-v0`: локально подготовить review pack из трёхстраничного договора, провести ограниченную проверку человеком, читающим иврит, и подтвердить canonical review JSONL без внешних image/OCR/LLM calls.**
 
 Граница шага:
 
-1. Использовать локальные контролируемые страницы; реальные страницы, manifests и результаты не коммитить в GitHub.
-2. Локально выполнить текущую цепочку:
+1. Локально получить normalized grayscale pages существующим page-normalization reference pipeline.
+2. Собрать pack одной командой:
 
-```text
-normalized pages
-→ line segmentation
-→ marker_layout_baseline_v0
-→ grayscale_opaque_mask_v0
-→ Android review pack
+```bash
+python -m research.hebrew_contract_ocr.pii_review_pack_builder \
+  --normalized-dir <normalized-pages-directory> \
+  --output-dir <new-review-pack-directory>
 ```
 
-3. Проверяющий только выбирает одну из трёх категорий и касается строки/существующей маски. Он не транскрибирует текст, не вводит PII, не рисует bbox и не исправляет маски вручную.
-4. Завершить все страницы и создать локальный `review-<prediction_sha256>.jsonl` без overwrite.
-5. Проверить, что файл читается локальным Python reviewer core и связан с exact source/prediction/derivative hashes.
-6. При невозможности сохранить или прочитать результат остановить pilot и оформить отдельный bounded corrective PR.
-7. Не считать metrics и не менять detector в этом шаге. Следующий отдельный PR после успешного pilot — `local-pii-metrics-v0`.
-8. Запрещены Gemini, Google Vision, cloud OCR, LLM image calls, production upload и любые PII values в GitHub/Airtable.
+3. Builder должен завершиться одной строкой `PACK READY`; при ошибке pilot не начинается.
+4. Передать на Android только готовую repository-external pack directory.
+5. Проверяющий только выбирает одну из трёх категорий и касается строки/существующей маски. Он не транскрибирует текст, не вводит PII, не рисует bbox и не исправляет маски вручную.
+6. Завершить все страницы и создать локальный `review-<prediction_sha256>.jsonl` без overwrite.
+7. Скопировать result обратно на компьютер и проверить его существующим Python reviewer core против exact source/prediction/derivative hashes.
+8. При невозможности собрать pack, сохранить или прочитать result остановить pilot и оформить отдельный bounded corrective PR.
+9. Не считать metrics и не менять detector в этом шаге. Следующий отдельный PR после успешного pilot — `local-pii-metrics-v0`.
+10. Запрещены Gemini, Google Vision, cloud OCR, LLM image calls, production upload и любые PII values в GitHub/Airtable.
 
 ## 7. Правила работы и восстановления новой сессии
 
@@ -137,19 +143,19 @@ normalized pages
 
 ## 8. Cold-start continuity audit
 
-Каждые 3–5 слитых privacy/OCR PR проводится repository-only cold-start audit. После merge PR #148 достигается порог трёх слитых PR после последнего независимого audit #144; следующий implementation PR нельзя переводить в ready-for-review без короткого cold-start audit.
+Каждые 3–5 слитых privacy/OCR PR проводится repository-only cold-start audit.
 
-Чистая сессия, имеющая только репозиторий, должна:
+Audit 2026-07-26 после merge PR #148:
 
-1. прочитать все пять binding sources;
-2. без истории чата объяснить текущую privacy-архитектуру и single next step;
-3. отличить доказанное от недоказанного для detector, renderer и Android reviewer;
-4. проверить state Markdown/JSON и Context Gate template/validator alignment;
-5. запустить применимые repository checks либо объяснить, почему для docs-only состояния application tests не нужны;
-6. перечислить blocking findings с точными файлами и не менять код;
-7. записать итог audit в следующий privacy/OCR state update.
+- прочитаны все пять binding sources без использования истории чата;
+- current privacy architecture и `controlled-pii-reviewer-pilot-v0` восстановлены однозначно;
+- доказанные и недоказанные свойства detector, renderer и Android reviewer разделены корректно;
+- Markdown/JSON state, PR template и Context Gate validator согласованы;
+- blocking repository conflicts не найдены;
+- найден один operational blocker: отсутствие repository-owned one-command review pack builder;
+- PR #149 реализует и тестирует этот builder, не меняя product next step.
 
-Исторические audit-отчёты и PR-подробности доступны через Git history; в этом файле сохраняются только действующий протокол и текущие выводы.
+Следующий cold-start audit требуется после следующих 3–5 слитых privacy/OCR PR либо раньше при конфликте binding documents.
 
 ## 9. Формат передачи ограниченной задачи Codex
 
