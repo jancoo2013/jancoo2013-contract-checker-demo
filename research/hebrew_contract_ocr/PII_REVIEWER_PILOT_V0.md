@@ -18,15 +18,37 @@ The pack is a repository-external directory:
 
 ```text
 predictions.jsonl
-<sources referenced by predictions.jsonl>
+sources/<page_id>.png
 renderer/manifest.jsonl
-renderer/<derivative_image paths>
+renderer/images/<page_id>.png
 line_segmentation/manifest.jsonl
 ```
 
 `predictions.jsonl` must be the exact non-empty `marker_layout_baseline_v0` output. `renderer/manifest.jsonl` and its grayscale PNG derivatives must bind to the SHA-256 of those exact prediction bytes. Neutral review regions for `missed_pii` come from line segmentation, not from the PII detector. All paths are relative and contained inside the selected directory.
 
 Android validates closed schemas, IDs, page order, paths, SHA-256 values, dimensions, candidate geometry, source/renderer binding and 8-bit grayscale derivative identity. Exact verified image bytes are copied into a private cache snapshot before display, so the UI does not reopen mutable external image bytes after validation.
+
+## Local pack builder
+
+Build the repository-external pack from an existing normalized-page directory with one command:
+
+```bash
+python -m research.hebrew_contract_ocr.pii_review_pack_builder \
+  --normalized-dir <normalized-pages-directory> \
+  --output-dir <new-review-pack-directory>
+```
+
+The builder:
+
+- reruns line segmentation over the exact normalized grayscale masters;
+- creates a temporary geometry-only identity manifest with `page_status: needs_review` and no PII values;
+- runs `marker_layout_baseline_v0` and `grayscale_opaque_mask_v0`;
+- copies byte-identical source masters into `sources/`;
+- verifies source, prediction, derivative and neutral-line identities before one sibling-directory publication;
+- refuses to use an existing output path and removes staging data after failure;
+- prints one `PACK READY` line only after successful validation.
+
+The builder does not normalize raw photos, call external services, calculate privacy metrics or claim that the masks are safe. Real pages and the generated pack remain outside GitHub and Airtable.
 
 ## Review workflow
 
