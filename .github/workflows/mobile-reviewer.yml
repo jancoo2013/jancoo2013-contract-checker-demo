@@ -46,16 +46,16 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p build-artifact
-          cp android/app/build/outputs/apk/release/app-release.apk build-artifact/pii-reviewer-standalone.apk
-          APK_SHA="$(sha256sum build-artifact/pii-reviewer-standalone.apk | cut -d ' ' -f1)"
+          cp android/app/build/outputs/apk/release/app-release.apk build-artifact/PII-Pilot-V2.apk
+          APK_SHA="$(sha256sum build-artifact/PII-Pilot-V2.apk | cut -d ' ' -f1)"
           cat > build-artifact/build-identity.json <<EOF
           {
             "schema_version": 1,
             "artifact_kind": "standalone_pilot_apk",
             "build_variant": "release",
-            "application_id": "com.jancoo.contractreviewer",
-            "version_name": "0.1.0",
-            "version_code": 1,
+            "application_id": "com.jancoo.piireviewerpilotv2",
+            "version_name": "0.1.1",
+            "version_code": 2,
             "git_sha": "${GITHUB_SHA}",
             "workflow_run_id": "${GITHUB_RUN_ID}",
             "workflow_run_attempt": "${GITHUB_RUN_ATTEMPT}",
@@ -65,7 +65,7 @@ jobs:
       - name: Upload standalone APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: pii-reviewer-standalone-${{ github.sha }}
+          name: pii-pilot-v2-${{ github.sha }}
           path: mobile/pii-reviewer/build-artifact/
           if-no-files-found: error
           retention-days: 14

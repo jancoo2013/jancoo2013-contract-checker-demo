@@ -1,12 +1,20 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-07-26, PR #149, `controlled-pii-review-pack-builder-v0`.
+Последнее обновление: 2026-07-27, PR #150, `android-reviewer-distinct-pilot-apk-v0`.
 
 Активный трек: `local-pii-redaction`.
 
 Единственный следующий шаг: `controlled-pii-reviewer-pilot-v0`.
 
 Этот документ — каноническая operational-точка восстановления privacy/OCR-проекта. Архитектуру задают `docs/ARCHITECTURE.md` и `docs/CUSTOM_OCR_PIPELINE.md`; точные входы, выходы и proof boundaries отдельных компонентов задают их component contracts. При конфликте обязательных документов работа останавливается до отдельного исправления.
+
+## 0. Изменение PR #150
+
+- По прямому запросу владельца продукта добавлена отдельная Android pilot identity: launcher name `PII Pilot V2`, package ID `com.jancoo.piireviewerpilotv2`, version `0.1.1`, versionCode `2`.
+- GitHub Actions собирает новый release APK через Gradle и публикует его как `PII-Pilot-V2.apk`; это отдельное приложение и оно не заменяет старый development build или прежний reviewer APK в эмуляторе.
+- Ручная перепаковка существующего APK не считается допустимым build path: такой файл не прошёл Android certificate parsing и отброшен.
+- Review-pack schema, detector, renderer, reviewer logic, privacy boundary, зависимости, внешние API и правила обработки данных не меняются.
+- `active_track` и `next_step_id` не меняются; corrective PR только разблокирует проверку текущего controlled pilot в эмуляторе.
 
 ## 1. Изменение PR #149
 
