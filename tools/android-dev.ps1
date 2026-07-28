@@ -170,7 +170,7 @@ function Test-AndroidSdk {
     }
     $adbResult = Invoke-NativeCommand -FilePath $adbPath -Arguments @("devices", "-l")
     if ($adbResult.ExitCode -ne 0) {
-        Add-DoctorResult -Status "FAIL" -Check "adb" -Detail "adb devices -l failed: $($adbResult.Output)"
+        Add-DoctorResult -Status "FAIL" -Check "adb" -Detail "adb devices -l failed with exit code $($adbResult.ExitCode)."
         return
     }
     $deviceLines = @(
@@ -184,10 +184,10 @@ function Test-AndroidSdk {
     $readyDevices = @($deviceLines | Where-Object { $_ -match "^\S+\s+device\b" })
     $blockedDevices = @($deviceLines | Where-Object { $_ -match "^\S+\s+(offline|unauthorized)\b" })
     if ($blockedDevices.Count -gt 0) {
-        Add-DoctorResult -Status "FAIL" -Check "Android device" -Detail "Found offline or unauthorized device(s): $($blockedDevices -join '; ')"
+        Add-DoctorResult -Status "FAIL" -Check "Android device" -Detail "$($blockedDevices.Count) device(s) are offline or unauthorized; device identifiers are not printed."
     }
     if ($readyDevices.Count -gt 0) {
-        Add-DoctorResult -Status "PASS" -Check "Android device" -Detail "$($readyDevices.Count) ready device(s): $($readyDevices -join '; ')"
+        Add-DoctorResult -Status "PASS" -Check "Android device" -Detail "$($readyDevices.Count) ready device(s); device identifiers are not printed."
     }
 }
 function Test-ProjectFiles {
