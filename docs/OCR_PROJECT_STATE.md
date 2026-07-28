@@ -1,6 +1,6 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-07-27, PR #150, `android-reviewer-distinct-pilot-apk-v0`.
+Последнее обновление: 2026-07-28, PR #151, `android-dev-doctor-v0`.
 
 Активный трек: `local-pii-redaction`.
 
@@ -8,7 +8,17 @@
 
 Этот документ — каноническая operational-точка восстановления privacy/OCR-проекта. Архитектуру задают `docs/ARCHITECTURE.md` и `docs/CUSTOM_OCR_PIPELINE.md`; точные входы, выходы и proof boundaries отдельных компонентов задают их component contracts. При конфликте обязательных документов работа останавливается до отдельного исправления.
 
-## 0. Изменение PR #150
+## 0. Изменение PR #151
+
+- По прямому запросу владельца продукта как ограниченное process exception добавлена read-only команда `tools/android-dev.ps1 doctor` для предварительной диагностики локальной Windows/Android/Expo-среды.
+- Команда проверяет расположение mobile-проекта, `package.json`, `app.json`, актуальный Android package, Node.js/npm/npx, JDK 17, `JAVA_HOME`, Android SDK, `ANDROID_HOME`, adb, подключённые устройства, Expo dependencies и наличие Gradle wrapper.
+- Скрипт не запускает Metro, Gradle или приложение, не устанавливает APK, не изменяет файлы проекта и не читает договоры, изображения, review packs или PII.
+- Серийные номера, модели и другие идентификаторы устройств из `adb devices -l` не выводятся; сохраняется только агрегированное количество готовых или заблокированных устройств.
+- Критические ошибки дают exit code `1`; предупреждения о необязательном текущем состоянии, включая отсутствие подключённого устройства или `node_modules`, не считаются падением.
+- Выполнена статическая проверка кода и соответствия актуальному `mobile/pii-reviewer/app.json`; фактический запуск в Windows PowerShell остаётся обязательной локальной проверкой перед merge.
+- Runtime приложения, privacy boundary, detector/renderer, OCR, зависимости, внешние API, `active_track` и `next_step_id` не меняются.
+
+## 1. Изменение PR #150
 
 - По прямому запросу владельца продукта добавлена отдельная Android pilot identity: launcher name `PII Pilot V2`, package ID `com.jancoo.piireviewerpilotv2`, version `0.1.1`, versionCode `2`.
 - GitHub Actions собирает новый release APK через Gradle и публикует его как `PII-Pilot-V2.apk`; это отдельное приложение и оно не заменяет старый development build или прежний reviewer APK в эмуляторе.
@@ -16,7 +26,7 @@
 - Review-pack schema, detector, renderer, reviewer logic, privacy boundary, зависимости, внешние API и правила обработки данных не меняются.
 - `active_track` и `next_step_id` не меняются; corrective PR только разблокирует проверку текущего controlled pilot в эмуляторе.
 
-## 1. Изменение PR #149
+## 2. Изменение PR #149
 
 - Добавлен `controlled_pii_review_pack_builder_v0`: одна локальная CLI-команда собирает Android review pack из уже нормализованных grayscale page masters.
 - Builder последовательно запускает текущие line segmentation, `marker_layout_baseline_v0` и `grayscale_opaque_mask_v0`, копирует byte-identical source masters и проверяет итог существующим Python reviewer core.
@@ -27,7 +37,7 @@
 - `active_track` и `next_step_id` не меняются: следующий шаг остаётся реальным controlled human pilot.
 - Detector rules, renderer semantics, Android APK, зависимости, внешние API и правила обработки данных не изменены.
 
-## 2. Цель продукта и privacy boundary
+## 3. Цель продукта и privacy boundary
 
 Построить локальный компонент для фотографий израильских договоров аренды, который:
 
@@ -56,7 +66,7 @@ raw phone photo
 
 Полный project-owned Hebrew OCR, recognizer, CRNN, CTC training, Gold и CER остаются paused research и не являются MVP-блокером.
 
-## 3. Реальное состояние компонентов
+## 4. Реальное состояние компонентов
 
 | Компонент | Состояние | Доказано | Не доказано |
 |---|---|---|---|
@@ -68,10 +78,11 @@ raw phone photo
 | Reviewer manifest core | Reference v0 | Три closed finding categories, canonical geometry/JSONL и immutable hashes | Controlled human pilot |
 | Review pack builder | `controlled_pii_review_pack_builder_v0` | One-command local assembly, byte-identical sources, exact hashes/bindings, strict line manifest, no-overwrite publication и cleanup покрыты synthetic focused tests и CI | Прогон на реальном договоре и удобство фактической передачи pack |
 | Android PII reviewer | Standalone Expo APK | Автономный запуск, pack selection/validation, source/masked switching после repaint, one-tap finding | First-paint source reliability, подтверждённая publication/readback результата, human pilot |
+| Android development automation | `doctor` v0 | Read-only environment checks, current package discovery и suppression идентификаторов устройств проверены статически | Фактический Windows PowerShell run; `build`, `run`, `logs`, `restart` |
 | Android detector/renderer | Не реализован | — | On-device automatic detection and masking |
 | External OCR handoff | Не подключён | Разрешён только после privacy gate | Безопасность derivative не доказана |
 
-## 4. Synthetic Android smoke: фактические результаты
+## 5. Synthetic Android smoke: фактические результаты
 
 Использован repository-external одностраничный synthetic pack без договора и PII.
 
@@ -94,7 +105,7 @@ raw phone photo
 
 Standalone launch на Samsung A55 ранее подтверждён, но дополнительные ручные перезагрузки APK/pack для synthetic smoke больше не являются обязательным gate перед controlled pilot.
 
-## 5. Активный блокер и pilot input
+## 6. Активный блокер и pilot input
 
 Единственный product blocker перед metrics, улучшением detector или Android-port — отсутствие controlled human pilot и измеримых ошибок текущего Python baseline:
 
@@ -106,7 +117,7 @@ Standalone launch на Samsung A55 ранее подтверждён, но до�
 
 У владельца продукта есть repository-external трёхстраничный договор, в котором почти весь текст напечатан, а рукописными остаются только подписи. Он является предпочтительным первым pilot input: небольшой объём отделяет ошибки layout/digit/signature detection от сложностей массового рукописного текста. Сам договор, normalized pages, manifests, derivatives и review result не коммитятся в GitHub и не передаются внешним сервисам.
 
-## 6. Единственный следующий шаг
+## 7. Единственный следующий шаг
 
 **`controlled-pii-reviewer-pilot-v0`: локально подготовить review pack из трёхстраничного договора, провести ограниченную проверку человеком, читающим иврит, и подтвердить canonical review JSONL без внешних image/OCR/LLM calls.**
 
@@ -130,7 +141,7 @@ python -m research.hebrew_contract_ocr.pii_review_pack_builder \
 9. Не считать metrics и не менять detector в этом шаге. Следующий отдельный PR после успешного pilot — `local-pii-metrics-v0`.
 10. Запрещены Gemini, Google Vision, cloud OCR, LLM image calls, production upload и любые PII values в GitHub/Airtable.
 
-## 7. Правила работы и восстановления новой сессии
+## 8. Правила работы и восстановления новой сессии
 
 Перед branch creation или изменением файлов новая сессия обязана:
 
@@ -149,7 +160,7 @@ python -m research.hebrew_contract_ocr.pii_review_pack_builder \
 8. До ready-for-review проверить фактический diff, tests/validation, state continuity и отсутствие undeclared paths.
 9. Не включать auto-merge.
 
-## 8. Cold-start continuity audit
+## 9. Cold-start continuity audit
 
 Каждые 3–5 слитых privacy/OCR PR проводится repository-only cold-start audit.
 
@@ -165,7 +176,7 @@ Audit 2026-07-26 после merge PR #148:
 
 Следующий cold-start audit требуется после следующих 3–5 слитых privacy/OCR PR либо раньше при конфликте binding documents.
 
-## 9. Формат передачи ограниченной задачи Codex
+## 10. Формат передачи ограниченной задачи Codex
 
 ```text
 Источник истины: AGENTS.md + docs/ARCHITECTURE.md + docs/CUSTOM_OCR_PIPELINE.md + оба state-файла.
