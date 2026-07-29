@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet("doctor", "build", "run")]
+    [ValidateSet("doctor", "build", "run", "logs")]
     [string]$Command = "doctor"
 )
 
@@ -381,4 +381,5 @@ switch ($Command) {
     "doctor" { exit (Invoke-Doctor) }
     "build" { exit (Invoke-Build) }
     "run" { & (Join-Path $ScriptRoot "android-run.ps1"); exit $LASTEXITCODE }
+    "logs" { & (Join-Path $ScriptRoot "android-logs.ps1"); exit $LASTEXITCODE }
 }
