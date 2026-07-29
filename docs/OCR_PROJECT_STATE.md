@@ -1,6 +1,6 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-07-29, PR #155, `cold-start-audit-2026-07-29-v1`.
+Последнее обновление: 2026-07-29, PR #156, `android-dev-restart-v0`.
 
 Активный трек: `local-pii-redaction`.
 
@@ -8,7 +8,17 @@
 
 Этот документ — каноническая operational-точка восстановления privacy/OCR-проекта. Архитектуру задают `docs/ARCHITECTURE.md` и `docs/CUSTOM_OCR_PIPELINE.md`; точные входы, выходы и proof boundaries отдельных компонентов задают их component contracts. При конфликте обязательных документов работа останавливается до отдельного исправления.
 
-## 0. Изменение PR #155
+## 0. Изменение PR #156
+
+- По прямому запросу владельца продукта как ограниченное process exception команда `tools/android-dev.ps1` расширена режимом `restart` для остановки и повторного запуска уже установленного актуального Android package без Metro и без переустановки APK.
+- Пользовательский entrypoint остаётся единым; device-specific логика вынесена во внутренний `tools/android-restart.ps1`, поэтому основной PowerShell-файл изменён только в `ValidateSet` и dispatch.
+- `restart` читает package из `mobile/pii-reviewer/app.json`, требует ровно одно готовое adb-устройство и блокируется, если package не установлен.
+- Команда выполняет `am force-stop`, подтверждает отсутствие процесса, запускает launcher ограниченным `monkey`-вызовом и подтверждает новый процесс через `pidof`.
+- Serial, model, PID и raw adb output не печатаются. APK не собирается и не устанавливается, данные приложения не очищаются, logcat не читается.
+- Фактический Windows/Samsung A55 run завершён успешно: приложение остановилось и повторно открылось без Metro, команда дошла до `RESTART READY`.
+- Runtime приложения, privacy boundary, detector/renderer, OCR, зависимости, внешние API, `active_track` и `next_step_id` не меняются.
+
+### Зафиксированный audit PR #155
 
 - После merge PR #149–#154 выполнен обязательный repository-only cold-start audit без использования истории чата как источника состояния.
 - Прочитаны с актуального `main` все пять binding sources; отдельно сверены PR template, trusted Context Gate workflow/validator, Android package identity, automation entrypoints и CLI review-pack builder.
@@ -127,7 +137,7 @@ raw phone photo
 | Reviewer manifest core | Reference v0 | Три closed finding categories, canonical geometry/JSONL и immutable hashes | Controlled human pilot |
 | Review pack builder | `controlled_pii_review_pack_builder_v0` | One-command local assembly, byte-identical sources, exact hashes/bindings, strict line manifest, no-overwrite publication и cleanup покрыты synthetic focused tests и CI | Прогон на реальном договоре и удобство фактической передачи pack |
 | Android PII reviewer | Standalone Expo APK | Автономный запуск, pack selection/validation, source/masked switching после repaint, one-tap finding | First-paint source reliability, подтверждённая publication/readback результата, human pilot |
-| Android development automation | `doctor` v0 + `build` v0 + `run` v0 + `logs` v0 | Полный Windows PowerShell 5.1 doctor-run; Java 21 fail-closed preflight; Temurin JDK 17 preflight; SDK handoff; успешная локальная release-сборка; подтверждённые install, launcher, process check и process-scoped warning/error logs на Samsung A55 без Metro | Остаточный риск PII в произвольных error strings; `restart` |
+| Android development automation | `doctor` v0 + `build` v0 + `run` v0 + `logs` v0 + `restart` v0 | Полный Windows PowerShell 5.1 doctor-run; Java 21 fail-closed preflight; Temurin JDK 17 preflight; SDK handoff; успешная локальная release-сборка; подтверждённые install, launcher, process check, process-scoped warning/error logs и stop/start/process confirmation на Samsung A55 без Metro | Остаточный риск PII в произвольных error strings |
 | Android detector/renderer | Не реализован | — | On-device automatic detection and masking |
 | External OCR handoff | Не подключён | Разрешён только после privacy gate | Безопасность derivative не доказана |
 
