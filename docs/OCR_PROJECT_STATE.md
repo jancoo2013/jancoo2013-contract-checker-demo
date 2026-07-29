@@ -1,6 +1,6 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-07-28, PR #151, `android-dev-doctor-v0`.
+Последнее обновление: 2026-07-29, PR #151, `android-dev-doctor-v0`.
 
 Активный трек: `local-pii-redaction`.
 
