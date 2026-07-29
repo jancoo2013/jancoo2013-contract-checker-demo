@@ -77,9 +77,11 @@ function Invoke-NativeCommand {
             return [pscustomobject]@{ ExitCode = -1; Output = "" }
         }
 
-        $stdout = $process.StandardOutput.ReadToEnd()
-        $stderr = $process.StandardError.ReadToEnd()
+        $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+        $stderrTask = $process.StandardError.ReadToEndAsync()
         $process.WaitForExit()
+        $stdout = $stdoutTask.Result
+        $stderr = $stderrTask.Result
         $exitCode = $process.ExitCode
         $process.Dispose()
 
@@ -114,6 +116,7 @@ function Find-AndroidSdk {
 }
 
 function Test-ProjectFiles {
+    param([switch]$RequireDependencies)
     if (-not (Test-Path -LiteralPath $MobileRoot -PathType Container)) {
         Add-DoctorResult "FAIL" "Mobile project" "mobile\pii-reviewer was not found."
         return
@@ -149,7 +152,12 @@ function Test-ProjectFiles {
         Add-DoctorResult "PASS" "Dependencies" "node_modules contains Expo."
     }
     else {
-        Add-DoctorResult "WARN" "Dependencies" "Run npm install in mobile\pii-reviewer."
+        if ($RequireDependencies) {
+            Add-DoctorResult "FAIL" "Dependencies" "Run npm install in mobile\pii-reviewer."
+        }
+        else {
+            Add-DoctorResult "WARN" "Dependencies" "Run npm install in mobile\pii-reviewer."
+        }
     }
 
     if (Test-Path (Join-Path $MobileRoot "android\gradlew.bat")) {
@@ -303,9 +311,12 @@ function Show-DoctorResults {
 }
 
 function Invoke-Preflight {
-    param([switch]$CheckDevice)
+    param(
+        [switch]$CheckDevice,
+        [switch]$RequireDependencies
+    )
     $script:DoctorResults.Clear()
-    Test-ProjectFiles
+    Test-ProjectFiles -RequireDependencies:$RequireDependencies
     Test-Node
     Test-Java
     Test-AndroidSdk -CheckDevice:$CheckDevice
@@ -321,7 +332,7 @@ function Invoke-Doctor {
 function Invoke-Build {
     Write-Host "Android standalone release build"
     Write-Host ""
-    if ((Invoke-Preflight) -ne 0) {
+    if ((Invoke-Preflight -RequireDependencies) -ne 0) {
         Write-Host ""
         Write-Host "BUILD BLOCKED: fix preflight failures first."
         return 1
