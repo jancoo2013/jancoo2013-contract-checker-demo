@@ -17,7 +17,7 @@
 - Общий системный logcat, live stream, логи других приложений и raw-файл не создаются и не показываются.
 - Перед выводом локально редактируются пути, URL, email, UUID, длинные номера, Hebrew-текст, длинные hex-токены и PID-подобные значения; строки ограничены 500 символами.
 - Serial, model, PID и raw adb output не печатаются. Это снижает, но не доказывает нулевой риск утечки через произвольный текст ошибок; пользователь не должен публиковать вывод без дополнительного просмотра.
-- Фактический Windows/Samsung A55 run ещё не выполнен; PR остаётся draft до проверки process-scoped запроса и редактированного вывода.
+- Фактический Windows/Samsung A55 run завершён успешно: команда дошла до `LOGS READY`, актуальный package и единственное готовое устройство подтверждены, warning/error-строк в выбранном process-scoped окне не найдено; serial и PID в вывод не попали.
 - В PR не входят `restart`, clear-logcat, live streaming, экспорт логов, install/build, чтение договоров или review packs, runtime приложения, OCR, detector/renderer, внешние API, `active_track` или `next_step_id`.
 
 ## 1. Изменение PR #153
@@ -114,7 +114,7 @@ raw phone photo
 | Reviewer manifest core | Reference v0 | Три closed finding categories, canonical geometry/JSONL и immutable hashes | Controlled human pilot |
 | Review pack builder | `controlled_pii_review_pack_builder_v0` | One-command local assembly, byte-identical sources, exact hashes/bindings, strict line manifest, no-overwrite publication и cleanup покрыты synthetic focused tests и CI | Прогон на реальном договоре и удобство фактической передачи pack |
 | Android PII reviewer | Standalone Expo APK | Автономный запуск, pack selection/validation, source/masked switching после repaint, one-tap finding | First-paint source reliability, подтверждённая publication/readback результата, human pilot |
-| Android development automation | `doctor` v0 + `build` v0 + `run` v0 + `logs` draft | Полный Windows PowerShell 5.1 doctor-run; Java 21 fail-closed preflight; Temurin JDK 17 preflight; SDK handoff; успешная локальная release-сборка; подтверждённые install, launcher и process check на Samsung A55 без Metro; static process scoping и redaction для logs | Фактический Windows/Samsung A55 logs-run; остаточный риск PII в произвольных error strings; `restart` |
+| Android development automation | `doctor` v0 + `build` v0 + `run` v0 + `logs` v0 | Полный Windows PowerShell 5.1 doctor-run; Java 21 fail-closed preflight; Temurin JDK 17 preflight; SDK handoff; успешная локальная release-сборка; подтверждённые install, launcher, process check и process-scoped warning/error logs на Samsung A55 без Metro | Остаточный риск PII в произвольных error strings; `restart` |
 | Android detector/renderer | Не реализован | — | On-device automatic detection and masking |
 | External OCR handoff | Не подключён | Разрешён только после privacy gate | Безопасность derivative не доказана |
 
