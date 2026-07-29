@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-07-28-04",
+  "state_version": "privacy-ocr-2026-07-29-05",
   "active_track": "local-pii-redaction",
   "next_step_id": "controlled-pii-reviewer-pilot-v0",
   "next_step_summary": "Build one repository-external review pack from the three-page mostly printed contract, complete the bounded Hebrew-capable reviewer pilot, and verify local canonical review JSONL publication without external image, OCR, or LLM calls.",
@@ -8,5 +8,5 @@
   "last_recorded_change": "android-dev-doctor-v0",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
-  "updated_on": "2026-07-28"
+  "updated_on": "2026-07-29"
 }
