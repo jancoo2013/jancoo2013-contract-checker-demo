@@ -19,14 +19,12 @@ function Add-DoctorResult {
         [Parameter(Mandatory = $true)]
         [ValidateSet("PASS", "WARN", "FAIL", "INFO")]
         [string]$Status,
-        [Parameter(Mandatory = $true)]
-        [string]$Check,
-        [Parameter(Mandatory = $true)]
-        [string]$Detail
+        [Parameter(Mandatory = $true)][string]$Check,
+        [Parameter(Mandatory = $true)][string]$Detail
     )
     $script:DoctorResults.Add([pscustomobject]@{
         Status = $Status
-        Check  = $Check
+        Check = $Check
         Detail = $Detail
     })
 }
@@ -34,9 +32,7 @@ function Add-DoctorResult {
 function Get-CommandPath {
     param([Parameter(Mandatory = $true)][string]$Name)
     $commandInfo = Get-Command $Name -ErrorAction SilentlyContinue | Select-Object -First 1
-    if ($null -eq $commandInfo) {
-        return $null
-    }
+    if ($null -eq $commandInfo) { return $null }
     return $commandInfo.Definition
 }
 
@@ -67,9 +63,7 @@ function Invoke-NativeCommand {
         $startInfo.RedirectStandardOutput = $true
         $startInfo.RedirectStandardError = $true
         $startInfo.CreateNoWindow = $true
-        if ($WorkingDirectory) {
-            $startInfo.WorkingDirectory = $WorkingDirectory
-        }
+        if ($WorkingDirectory) { $startInfo.WorkingDirectory = $WorkingDirectory }
 
         $process = New-Object System.Diagnostics.Process
         $process.StartInfo = $startInfo
@@ -88,7 +82,7 @@ function Invoke-NativeCommand {
         $parts = @($stdout.Trim(), $stderr.Trim()) | Where-Object { $_ }
         return [pscustomobject]@{
             ExitCode = $exitCode
-            Output   = ($parts -join [Environment]::NewLine)
+            Output = ($parts -join [Environment]::NewLine)
         }
     }
     catch {
@@ -121,6 +115,7 @@ function Test-ProjectFiles {
         Add-DoctorResult "FAIL" "Mobile project" "mobile\pii-reviewer was not found."
         return
     }
+
     Add-DoctorResult "PASS" "Repository" "Repository root resolved."
     Add-DoctorResult "PASS" "Mobile project" "mobile\pii-reviewer found."
 
@@ -151,13 +146,11 @@ function Test-ProjectFiles {
     if (Test-Path (Join-Path $MobileRoot "node_modules\expo\package.json")) {
         Add-DoctorResult "PASS" "Dependencies" "node_modules contains Expo."
     }
+    elseif ($RequireDependencies) {
+        Add-DoctorResult "FAIL" "Dependencies" "Run npm install in mobile\pii-reviewer."
+    }
     else {
-        if ($RequireDependencies) {
-            Add-DoctorResult "FAIL" "Dependencies" "Run npm install in mobile\pii-reviewer."
-        }
-        else {
-            Add-DoctorResult "WARN" "Dependencies" "Run npm install in mobile\pii-reviewer."
-        }
+        Add-DoctorResult "WARN" "Dependencies" "Run npm install in mobile\pii-reviewer."
     }
 
     if (Test-Path (Join-Path $MobileRoot "android\gradlew.bat")) {
@@ -257,16 +250,12 @@ function Test-AndroidSdk {
         Add-DoctorResult "WARN" "ANDROID_HOME" "SDK detected, but ANDROID_HOME is not valid."
     }
 
-    if (-not $CheckDevice) {
-        return
-    }
+    if (-not $CheckDevice) { return }
 
     $adbPath = Get-CommandPath "adb"
     if (-not $adbPath) {
         $candidate = Join-Path $sdkPath "platform-tools\adb.exe"
-        if (Test-Path $candidate -PathType Leaf) {
-            $adbPath = $candidate
-        }
+        if (Test-Path $candidate -PathType Leaf) { $adbPath = $candidate }
     }
     if (-not $adbPath) {
         Add-DoctorResult "FAIL" "adb" "adb was not found."
@@ -304,17 +293,12 @@ function Show-DoctorResults {
     $passes = @($script:DoctorResults | Where-Object { $_.Status -eq "PASS" }).Count
     Write-Host ""
     Write-Host ("Summary: {0} passed, {1} warning(s), {2} failure(s)." -f $passes, $warns, $fails)
-    if ($fails -gt 0) {
-        return 1
-    }
+    if ($fails -gt 0) { return 1 }
     return 0
 }
 
 function Invoke-Preflight {
-    param(
-        [switch]$CheckDevice,
-        [switch]$RequireDependencies
-    )
+    param([switch]$CheckDevice, [switch]$RequireDependencies)
     $script:DoctorResults.Clear()
     Test-ProjectFiles -RequireDependencies:$RequireDependencies
     Test-Node
@@ -338,6 +322,7 @@ function Invoke-Build {
         return 1
     }
 
+    $sdkPath = Find-AndroidSdk
     New-Item -ItemType Directory -Path $ArtifactRoot -Force | Out-Null
     $prebuildLog = Join-Path $ArtifactRoot "prebuild.log"
     $gradleLog = Join-Path $ArtifactRoot "gradle.log"
@@ -359,6 +344,11 @@ function Invoke-Build {
     }
 
     $androidRoot = Join-Path $MobileRoot "android"
+    $sdkValue = $sdkPath -replace '\\', '/'
+    $localProperties = Join-Path $androidRoot "local.properties"
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($localProperties, "sdk.dir=$sdkValue`r`n", $utf8NoBom)
+
     Write-Host "[2/2] Building release APK..."
     $gradle = Invoke-NativeCommand $cmd @("/d", "/s", "/c", "gradlew.bat --no-daemon --console=plain assembleRelease") $androidRoot
     Set-Content -LiteralPath $gradleLog -Value $gradle.Output -Encoding UTF8
@@ -389,5 +379,5 @@ function Invoke-Build {
 
 switch ($Command) {
     "doctor" { exit (Invoke-Doctor) }
-    "build"  { exit (Invoke-Build) }
+    "build" { exit (Invoke-Build) }
 }
