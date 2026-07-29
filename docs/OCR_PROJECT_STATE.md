@@ -16,7 +16,7 @@
 - Первый Windows-run подтвердил корректную блокировку Java 21. После временного переключения на Temurin JDK 17 preflight прошёл с итогом `9 passed, 2 warnings, 0 failures`.
 - Первая Gradle-попытка выявила, что найденный по стандартному пути Android SDK не передавался Gradle при незаданном `ANDROID_HOME`; исправление создаёт локальный generated `android/local.properties` с `sdk.dir` после prebuild, не меняя системные переменные и не печатая абсолютный путь.
 - Generated `mobile/pii-reviewer/android/` и `mobile/pii-reviewer/build-artifact/` исключены из Git. Raw build logs остаются только локально при failure и могут содержать локальные пути.
-- Фактическая успешная release-сборка после SDK-fix остаётся обязательной проверкой перед ready-for-review.
+- После SDK-fix локальная release-сборка на Windows с Temurin JDK 17 успешно завершилась строкой `BUILD READY`; создан `PII-Pilot-V2.apk` с SHA-256 `d50b00b479b8baee7ecd7ef7af09aacae1e5ec162264968cae9f32010639c557`.
 - Runtime приложения, privacy boundary, detector/renderer, OCR, зависимости, внешние API, `active_track` и `next_step_id` не меняются.
 
 ## 1. Изменение PR #151
@@ -90,7 +90,7 @@ raw phone photo
 | Reviewer manifest core | Reference v0 | Три closed finding categories, canonical geometry/JSONL и immutable hashes | Controlled human pilot |
 | Review pack builder | `controlled_pii_review_pack_builder_v0` | One-command local assembly, byte-identical sources, exact hashes/bindings, strict line manifest, no-overwrite publication и cleanup покрыты synthetic focused tests и CI | Прогон на реальном договоре и удобство фактической передачи pack |
 | Android PII reviewer | Standalone Expo APK | Автономный запуск, pack selection/validation, source/masked switching после repaint, one-tap finding | First-paint source reliability, подтверждённая publication/readback результата, human pilot |
-| Android development automation | `doctor` v0 + `build` draft | Полный Windows PowerShell 5.1 doctor-run; build preflight на JDK 17 и failure-log path подтверждены | Успешная локальная release-сборка после SDK-fix; `run`, `logs`, `restart` |
+| Android development automation | `doctor` v0 + `build` v0 | Полный Windows PowerShell 5.1 doctor-run; Java 21 fail-closed preflight; Temurin JDK 17 preflight; SDK handoff; успешная локальная release-сборка и SHA-256 APK | `run`, `logs`, `restart` |
 | Android detector/renderer | Не реализован | — | On-device automatic detection and masking |
 | External OCR handoff | Не подключён | Разрешён только после privacy gate | Безопасность derivative не доказана |
 
