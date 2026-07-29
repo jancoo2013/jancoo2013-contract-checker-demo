@@ -15,7 +15,8 @@
 - Скрипт не запускает Metro, Gradle или приложение, не устанавливает APK, не изменяет файлы проекта и не читает договоры, изображения, review packs или PII.
 - Серийные номера, модели и другие идентификаторы устройств из `adb devices -l` не выводятся; сохраняется только агрегированное количество готовых или заблокированных устройств.
 - Критические ошибки дают exit code `1`; предупреждения о необязательном текущем состоянии, включая отсутствие подключённого устройства или `node_modules`, не считаются падением.
-- Выполнена статическая проверка кода и соответствия актуальному `mobile/pii-reviewer/app.json`; фактический запуск в Windows PowerShell остаётся обязательной локальной проверкой перед merge.
+- Первый запуск в Windows PowerShell 5.1 выявил terminating `NativeCommandError` на штатном stderr `java -version`; исправление через `System.Diagnostics.Process` подтверждено повторным полным запуском.
+- Повторный запуск выдал итог `9 passed, 2 warnings, 1 failure`: корректно обнаружены Node.js 24 как warning относительно CI Node 22, Java 21 как failure относительно JDK 17, незаданный `ANDROID_HOME` как warning и одно готовое Android-устройство без вывода его идентификаторов.
 - Runtime приложения, privacy boundary, detector/renderer, OCR, зависимости, внешние API, `active_track` и `next_step_id` не меняются.
 
 ## 1. Изменение PR #150
@@ -78,7 +79,7 @@ raw phone photo
 | Reviewer manifest core | Reference v0 | Три closed finding categories, canonical geometry/JSONL и immutable hashes | Controlled human pilot |
 | Review pack builder | `controlled_pii_review_pack_builder_v0` | One-command local assembly, byte-identical sources, exact hashes/bindings, strict line manifest, no-overwrite publication и cleanup покрыты synthetic focused tests и CI | Прогон на реальном договоре и удобство фактической передачи pack |
 | Android PII reviewer | Standalone Expo APK | Автономный запуск, pack selection/validation, source/masked switching после repaint, one-tap finding | First-paint source reliability, подтверждённая publication/readback результата, human pilot |
-| Android development automation | `doctor` v0 | Read-only environment checks, current package discovery и suppression идентификаторов устройств проверены статически | Фактический Windows PowerShell run; `build`, `run`, `logs`, `restart` |
+| Android development automation | `doctor` v0 | Полный Windows PowerShell 5.1 run, read-only environment checks, current package discovery, native stdout/stderr handling и suppression идентификаторов устройств | `build`, `run`, `logs`, `restart` |
 | Android detector/renderer | Не реализован | — | On-device automatic detection and masking |
 | External OCR handoff | Не подключён | Разрешён только после privacy gate | Безопасность derivative не доказана |
 
