@@ -1,6 +1,10 @@
 # Generated local audit bundles
 audit_bundle/
 
+# Generated local Android build outputs
+mobile/pii-reviewer/android/
+mobile/pii-reviewer/build-artifact/
+
 # Python caches
 __pycache__/
 *.py[cod]
