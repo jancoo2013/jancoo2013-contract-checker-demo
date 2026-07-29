@@ -17,7 +17,7 @@
 - APK устанавливается через `adb install -r`, прежний процесс останавливается, launcher запускается без Metro, после чего `pidof` проверяет наличие процесса приложения.
 - Serial, model и raw adb output не печатаются ни при успехе, ни при failure; сохраняются только агрегированные статусы без идентификаторов.
 - В PR не входят logcat, `logs`, `restart`, uninstall, data wipe, исправление среды, чтение договоров, review packs или PII.
-- Фактический Windows/Samsung A55 run ещё не выполнен; PR остаётся draft до локальной проверки install, launcher и process confirmation.
+- Фактический Windows/Samsung A55 run завершён успешно: APK установлен, launcher открыл приложение без Metro, а process confirmation прошёл; устройство и PID в вывод не попали.
 - Runtime приложения, privacy boundary, detector/renderer, OCR, зависимости, внешние API, `active_track` и `next_step_id` не меняются.
 
 ## 1. Изменение PR #152
@@ -102,7 +102,7 @@ raw phone photo
 | Reviewer manifest core | Reference v0 | Три closed finding categories, canonical geometry/JSONL и immutable hashes | Controlled human pilot |
 | Review pack builder | `controlled_pii_review_pack_builder_v0` | One-command local assembly, byte-identical sources, exact hashes/bindings, strict line manifest, no-overwrite publication и cleanup покрыты synthetic focused tests и CI | Прогон на реальном договоре и удобство фактической передачи pack |
 | Android PII reviewer | Standalone Expo APK | Автономный запуск, pack selection/validation, source/masked switching после repaint, one-tap finding | First-paint source reliability, подтверждённая publication/readback результата, human pilot |
-| Android development automation | `doctor` v0 + `build` v0 + `run` draft | Полный Windows PowerShell 5.1 doctor-run; Java 21 fail-closed preflight; Temurin JDK 17 preflight; SDK handoff; успешная локальная release-сборка и SHA-256 APK; static fail-closed run paths | Фактический Windows/Samsung A55 install-launch-process run; `logs`, `restart` |
+| Android development automation | `doctor` v0 + `build` v0 + `run` v0 | Полный Windows PowerShell 5.1 doctor-run; Java 21 fail-closed preflight; Temurin JDK 17 preflight; SDK handoff; успешная локальная release-сборка; подтверждённые install, launcher и process check на Samsung A55 без Metro | `logs`, `restart` |
 | Android detector/renderer | Не реализован | — | On-device automatic detection and masking |
 | External OCR handoff | Не подключён | Разрешён только после privacy gate | Безопасность derivative не доказана |
 
