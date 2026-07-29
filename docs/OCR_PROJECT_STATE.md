@@ -10,14 +10,14 @@
 
 ## 0. Изменение PR #152
 
-- По прямому запросу владельца продукта как ограниченное process exception к `tools/android-dev.ps1` добавлена команда `build` для локальной standalone release APK-сборки.
-- Build-preflight повторно использует проверки проекта, Node.js, JDK 17 и Android SDK, но не требует подключённого телефона; при failure сборка не запускается.
-- После успешного preflight выполняются `npx expo prebuild --platform android --clean` и `gradlew.bat --no-daemon --console=plain assembleRelease`.
-- Готовый APK публикуется локально как `mobile/pii-reviewer/build-artifact/PII-Pilot-V2.apk`, а в консоль выводятся только repo-relative path и SHA-256.
-- Raw prebuild/Gradle output сохраняется локально только при ошибке и не выводится в консоль; он может содержать локальные пути и не должен передаваться без последующей sanitization.
-- Generated `mobile/pii-reviewer/android/` и `mobile/pii-reviewer/build-artifact/` исключены из Git.
-- Реализация проверена статически; фактический Windows-run ещё не выполнен. Текущая Java 21 должна корректно блокировать build до переключения на JDK 17, после чего обязательна реальная release-сборка.
-- Установка APK, запуск приложения, Metro, adb logcat, restart, API/LLM, OCR, detector/renderer, privacy boundary, `active_track` и `next_step_id` не меняются.
+- По прямому запросу владельца продукта как ограниченное process exception команда `tools/android-dev.ps1` расширена режимом `build` для локальной standalone release-сборки Android APK.
+- Build-preflight повторно использует проверки проекта, Expo dependencies, Node.js, JDK 17 и Android SDK, но не требует подключённого телефона; failure останавливает сборку до Expo/Gradle.
+- После успешного preflight выполняются `expo prebuild --clean` и Gradle `assembleRelease`; результат публикуется локально как `mobile/pii-reviewer/build-artifact/PII-Pilot-V2.apk` с SHA-256.
+- Первый Windows-run подтвердил корректную блокировку Java 21. После временного переключения на Temurin JDK 17 preflight прошёл с итогом `9 passed, 2 warnings, 0 failures`.
+- Первая Gradle-попытка выявила, что найденный по стандартному пути Android SDK не передавался Gradle при незаданном `ANDROID_HOME`; исправление создаёт локальный generated `android/local.properties` с `sdk.dir` после prebuild, не меняя системные переменные и не печатая абсолютный путь.
+- Generated `mobile/pii-reviewer/android/` и `mobile/pii-reviewer/build-artifact/` исключены из Git. Raw build logs остаются только локально при failure и могут содержать локальные пути.
+- Фактическая успешная release-сборка после SDK-fix остаётся обязательной проверкой перед ready-for-review.
+- Runtime приложения, privacy boundary, detector/renderer, OCR, зависимости, внешние API, `active_track` и `next_step_id` не меняются.
 
 ## 1. Изменение PR #151
 
@@ -90,7 +90,7 @@ raw phone photo
 | Reviewer manifest core | Reference v0 | Три closed finding categories, canonical geometry/JSONL и immutable hashes | Controlled human pilot |
 | Review pack builder | `controlled_pii_review_pack_builder_v0` | One-command local assembly, byte-identical sources, exact hashes/bindings, strict line manifest, no-overwrite publication и cleanup покрыты synthetic focused tests и CI | Прогон на реальном договоре и удобство фактической передачи pack |
 | Android PII reviewer | Standalone Expo APK | Автономный запуск, pack selection/validation, source/masked switching после repaint, one-tap finding | First-paint source reliability, подтверждённая publication/readback результата, human pilot |
-| Android development automation | `doctor` v0 + draft `build` v0 | Полный Windows PowerShell 5.1 doctor run, read-only environment checks, native stdout/stderr handling и suppression идентификаторов устройств; build flow проверен статически | Фактический Windows build; `run`, `logs`, `restart` |
+| Android development automation | `doctor` v0 + `build` draft | Полный Windows PowerShell 5.1 doctor-run; build preflight на JDK 17 и failure-log path подтверждены | Успешная локальная release-сборка после SDK-fix; `run`, `logs`, `restart` |
 | Android detector/renderer | Не реализован | — | On-device automatic detection and masking |
 | External OCR handoff | Не подключён | Разрешён только после privacy gate | Безопасность derivative не доказана |
 
