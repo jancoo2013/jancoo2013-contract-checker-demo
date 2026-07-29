@@ -104,7 +104,8 @@ if (-not $packageName) {
 }
 
 $sdkPath = Find-AndroidSdk
-$adbPath = Get-Command adb -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty Definition
+$adbCommand = Get-Command adb -ErrorAction SilentlyContinue | Select-Object -First 1
+$adbPath = if ($adbCommand) { $adbCommand.Definition } else { $null }
 if (-not $adbPath -and $sdkPath) {
     $candidate = Join-Path $sdkPath "platform-tools\adb.exe"
     if (Test-Path -LiteralPath $candidate -PathType Leaf) { $adbPath = $candidate }
@@ -149,7 +150,7 @@ if ($launch.ExitCode -ne 0 -or $launch.Output -notmatch 'Events injected:\s*1') 
 }
 
 Write-Host "[3/3] Confirming application process..."
-Start-Sleep -Milliseconds 800
+Start-Sleep -Seconds 2
 $pidResult = Invoke-NativeCommand $adbPath @("-s", $serial, "shell", "pidof", $packageName)
 if ($pidResult.ExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($pidResult.Output)) {
     Stop-Run "FAILED" "Application process is not running after launch."
