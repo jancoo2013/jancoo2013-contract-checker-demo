@@ -60,6 +60,7 @@ export default function App() {
     try {
       const pack = await pickReviewPack();
       if (pack) {
+        setMode('source');
         setSession(newSession(pack.packKey, pack.pages));
         setMessage(`Загружено страниц: ${pack.pages.length}`);
       }
