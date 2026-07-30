@@ -19,6 +19,8 @@ const HELP = {
 };
 function PageCanvas({ mode, page, onTap }) {
   const [view, setView] = useState({ width: 1, height: 1 });
+  const ready = view.width > 1 && view.height > 1;
+  const uri = mode === 'source' ? page.sourceUri : page.derivativeUri;
   const rect = contentRect(view.width, view.height, page.width, page.height);
   return (
     <View
@@ -30,11 +32,12 @@ function PageCanvas({ mode, page, onTap }) {
         { width: page.width, height: page.height },
       ))}
     >
-      <Image
-        source={{ uri: mode === 'source' ? page.sourceUri : page.derivativeUri }}
+      {ready && <Image
+        key={`${page.imageId}:${mode}:${Math.round(view.width)}x${Math.round(view.height)}`}
+        source={{ uri }}
         resizeMode="contain"
         style={[styles.image, { left: rect.x, top: rect.y, width: rect.width, height: rect.height }]}
-      />
+      />}
       {page.findings.map((item, index) => (
         <View key={index} pointerEvents="none" style={[styles.finding, displayBox(item.box, view, page)]} />
       ))}
