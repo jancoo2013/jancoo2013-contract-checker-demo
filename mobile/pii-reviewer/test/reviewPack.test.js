@@ -19,15 +19,29 @@ async function fixture() {
   const line={schema_version:1,page_id:'P0001',line_id:'P0001-L0001',order:1,bbox:[0,1,20,9],bbox_convention:'xyxy_half_open',segmentation_status:'accepted',status:'accepted',reasons:[],upstream_resolution_status:'accepted',foreground_pixels:20,line_image:'lines/x.png',line_sha256:'3'.repeat(64),source_master_sha256:sourceSha};
   const files=new Map([['predictions.jsonl',predictionBytes],['renderer/manifest.jsonl',jsonl([renderer])],['line_segmentation/manifest.jsonl',jsonl([line])],['sources/P0001.png',source],['renderer/images/P0001.png',derivative]]);
   const read=async(path,limit)=>{ const bytes=files.get(path); if(!bytes) throw new Error(`missing ${path}`); if(bytes.length>limit) throw new Error('limit'); return {bytes,uri:`content://${path}`}; };
-  const imageSize=async()=>({width:20,height:30});
   const snapshotNames=[];
   const snapshot=async(_bytes,name)=>{ snapshotNames.push(name); return `memory://${name}`; };
-  return { files, read, predictionSha, imageSize, snapshot, snapshotNames };
+  return { files, read, predictionSha, snapshot, snapshotNames };
+}
+async function replaceSource(fixtureValue, width, height) {
+  const source=png(width,height), sourceSha=await sha(source);
+  const predictions=parseJsonl(fixtureValue.files.get('predictions.jsonl'),'predictions');
+  predictions[0].image_sha256=sourceSha;
+  const predictionBytes=jsonl(predictions), predictionSha=await sha(predictionBytes);
+  const renderer=parseJsonl(fixtureValue.files.get('renderer/manifest.jsonl'),'renderer');
+  renderer[0].source_image_sha256=sourceSha; renderer[0].prediction_manifest_sha256=predictionSha;
+  const lines=parseJsonl(fixtureValue.files.get('line_segmentation/manifest.jsonl'),'lines');
+  lines[0].source_master_sha256=sourceSha;
+  fixtureValue.files.set('sources/P0001.png',source);
+  fixtureValue.files.set('predictions.jsonl',predictionBytes);
+  fixtureValue.files.set('renderer/manifest.jsonl',jsonl(renderer));
+  fixtureValue.files.set('line_segmentation/manifest.jsonl',jsonl(lines));
 }
 
 test('safe paths reject traversal and backslashes',()=>{ assert.equal(safePath('a/b.png'),'a/b.png'); for(const value of ['../x','/x','a\\b','a//b','./x']) assert.throws(()=>safePath(value)); });
 test('JSONL rejects blanks and malformed UTF-8',()=>{ assert.equal(parseJsonl(enc.encode('{"x":1}\n'),'x').length,1); assert.throws(()=>parseJsonl(enc.encode('{"x":1}\n\n'),'x')); assert.throws(()=>parseJsonl(new Uint8Array([255]),'x')); });
-test('PNG identity enforces grayscale derivative',()=>{ assert.deepEqual(pngInfo(png(20,30),'x',true),{width:20,height:30}); assert.throws(()=>pngInfo(png(20,30,6),'x',true)); });
-test('valid pack binds manifests, hashes, lines and PNG snapshot names',async()=>{ const {read,predictionSha,imageSize,snapshot,snapshotNames}=await fixture(); const pack=await loadReviewPack(read,sha,imageSize,snapshot); assert.equal(pack.packKey,predictionSha); assert.deepEqual(pack.pages[0].candidateMasks[0].box,[1,2,10,8]); assert.equal(pack.pages[0].reviewRegions[0].id,'P0001-L0001'); assert.equal(pack.pages[0].sourceUri,'memory://P0001-source.png'); assert.deepEqual(snapshotNames,['P0001-source.png','P0001-derivative.png']); });
-test('hash and renderer binding mismatches fail closed',async()=>{ const one=await fixture(); one.files.set('sources/P0001.png',png(21,30)); await assert.rejects(()=>loadReviewPack(one.read,sha,one.imageSize,one.snapshot),/hash mismatch/); const two=await fixture(); const rows=parseJsonl(two.files.get('renderer/manifest.jsonl'),'x'); rows[0].prediction_manifest_sha256='0'.repeat(64); two.files.set('renderer/manifest.jsonl',jsonl(rows)); await assert.rejects(()=>loadReviewPack(two.read,sha,two.imageSize,two.snapshot),/renderer binding mismatch/); });
-test('duplicate or unknown line identity fails closed',async()=>{ const one=await fixture(); const rows=parseJsonl(one.files.get('line_segmentation/manifest.jsonl'),'x'); one.files.set('line_segmentation/manifest.jsonl',jsonl([rows[0],rows[0]])); await assert.rejects(()=>loadReviewPack(one.read,sha,one.imageSize,one.snapshot),/duplicate|invalid identity/); const two=await fixture(); const row=parseJsonl(two.files.get('line_segmentation/manifest.jsonl'),'x')[0]; row.page_id='P9999'; row.line_id='P9999-L0001'; two.files.set('line_segmentation/manifest.jsonl',jsonl([row])); await assert.rejects(()=>loadReviewPack(two.read,sha,two.imageSize,two.snapshot),/unknown page/); });
+test('PNG identity enforces grayscale and accepts pilot page dimensions',()=>{ assert.deepEqual(pngInfo(png(1974,3508),'x',true),{width:1974,height:3508}); assert.throws(()=>pngInfo(png(20,30,6),'x',true)); });
+test('valid pack binds manifests, hashes, lines and PNG snapshot names',async()=>{ const {read,predictionSha,snapshot,snapshotNames}=await fixture(); const pack=await loadReviewPack(read,sha,snapshot); assert.equal(pack.packKey,predictionSha); assert.deepEqual(pack.pages[0].candidateMasks[0].box,[1,2,10,8]); assert.equal(pack.pages[0].reviewRegions[0].id,'P0001-L0001'); assert.equal(pack.pages[0].sourceUri,'memory://P0001-source.png'); assert.deepEqual(snapshotNames,['P0001-source.png','P0001-derivative.png']); });
+test('dimension mismatch identifies page, expected size and source size',async()=>{ const one=await fixture(); await replaceSource(one,21,30); await assert.rejects(()=>loadReviewPack(one.read,sha,one.snapshot),/P0001: source image dimensions mismatch; expected 20x30, got 21x30/); });
+test('hash and renderer binding mismatches fail closed',async()=>{ const one=await fixture(); one.files.set('sources/P0001.png',png(21,30)); await assert.rejects(()=>loadReviewPack(one.read,sha,one.snapshot),/hash mismatch/); const two=await fixture(); const rows=parseJsonl(two.files.get('renderer/manifest.jsonl'),'x'); rows[0].prediction_manifest_sha256='0'.repeat(64); two.files.set('renderer/manifest.jsonl',jsonl(rows)); await assert.rejects(()=>loadReviewPack(two.read,sha,two.snapshot),/renderer binding mismatch/); });
+test('duplicate or unknown line identity fails closed',async()=>{ const one=await fixture(); const rows=parseJsonl(one.files.get('line_segmentation/manifest.jsonl'),'x'); one.files.set('line_segmentation/manifest.jsonl',jsonl([rows[0],rows[0]])); await assert.rejects(()=>loadReviewPack(one.read,sha,one.snapshot),/duplicate|invalid identity/); const two=await fixture(); const row=parseJsonl(two.files.get('line_segmentation/manifest.jsonl'),'x')[0]; row.page_id='P9999'; row.line_id='P9999-L0001'; two.files.set('line_segmentation/manifest.jsonl',jsonl([row])); await assert.rejects(()=>loadReviewPack(two.read,sha,two.snapshot),/unknown page/); });
