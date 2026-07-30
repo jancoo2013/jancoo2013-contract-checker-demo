@@ -29,14 +29,14 @@ export function pngInfo(bytes, label, grayscale = false) {
   const read = (offset) => ((bytes[offset] << 24) >>> 0) + (bytes[offset+1] << 16) + (bytes[offset+2] << 8) + bytes[offset+3];
   const width = read(16), height = read(20);
   if (!width || !height || width * height > MAX_PIXELS) throw new Error(`${label}: invalid PNG dimensions`);
-  if (grayscale && (bytes[24] !== 8 || bytes[25] !== 0)) throw new Error(`${label}: derivative must be 8-bit grayscale PNG`);
+  if (grayscale && (bytes[24] !== 8 || bytes[25] !== 0)) throw new Error(`${label}: image must be 8-bit grayscale PNG`);
   return { width, height };
 }
 function geometry(candidate, width, height, label) {
   const value = candidate.geometry; if (!value || Object.keys(value).sort().join('|') !== 'coordinates|type' || value.type !== 'bbox') throw new Error(`${label}: invalid geometry`);
   return bbox(value.coordinates, width, height, label);
 }
-export async function loadReviewPack(read, sha256, imageSize, snapshot) {
+export async function loadReviewPack(read, sha256, snapshot) {
   const prediction = await read('predictions.jsonl', MANIFEST_LIMIT), predictionSha = await sha256(prediction.bytes);
   const predictions = parseJsonl(prediction.bytes, 'predictions');
   const derivatives = parseJsonl((await read('renderer/manifest.jsonl', MANIFEST_LIMIT)).bytes, 'renderer manifest');
@@ -62,10 +62,11 @@ export async function loadReviewPack(read, sha256, imageSize, snapshot) {
     if (d.schema_version !== 1 || d.renderer !== 'grayscale_opaque_mask_v0' || d.image_id !== id || d.source_image_sha256 !== p.image_sha256 || d.prediction_manifest_sha256 !== predictionSha || d.width !== width || d.height !== height || d.mode !== 'L' || d.mask_value !== 0 || d.mask_count !== masks.length || !integer(d.masked_pixel_count) || d.masked_pixel_count < 0 || d.masked_pixel_count > width * height || !SHA.test(d.derivative_sha256)) throw new Error(`${id}: renderer binding mismatch`);
     const source = await read(safePath(p.image), IMAGE_LIMIT), derivative = await read(`renderer/${safePath(d.derivative_image)}`, IMAGE_LIMIT);
     if (await sha256(source.bytes) !== p.image_sha256 || await sha256(derivative.bytes) !== d.derivative_sha256) throw new Error(`${id}: image hash mismatch`);
+    const sourceInfo = pngInfo(source.bytes, `${id} source`, true), derivativeInfo = pngInfo(derivative.bytes, `${id} derivative`, true);
+    if (sourceInfo.width !== width || sourceInfo.height !== height) throw new Error(`${id}: source image dimensions mismatch; expected ${width}x${height}, got ${sourceInfo.width}x${sourceInfo.height}`);
+    if (derivativeInfo.width !== width || derivativeInfo.height !== height) throw new Error(`${id}: derivative image dimensions mismatch; expected ${width}x${height}, got ${derivativeInfo.width}x${derivativeInfo.height}`);
     const sourceUri = await snapshot(source.bytes, `${id}-source.png`, predictionSha);
     const derivativeUri = await snapshot(derivative.bytes, `${id}-derivative.png`, predictionSha);
-    const sourceInfo = await imageSize(sourceUri), derivativeInfo = pngInfo(derivative.bytes, `${id} derivative`, true);
-    if (sourceInfo.width !== width || sourceInfo.height !== height || derivativeInfo.width !== width || derivativeInfo.height !== height) throw new Error(`${id}: image dimensions mismatch`);
     const pageLines = (lineGroups.get(id) || []).sort((a,b) => a.order - b.order);
     if (pageLines.some((line, n) => line.order !== n + 1 || line.source_master_sha256 !== p.image_sha256)) throw new Error(`${id}: line binding mismatch`);
     pages.push({ imageId:id, sourceSha256:p.image_sha256, derivativeSha256:d.derivative_sha256, width, height, sourceUri, derivativeUri, candidateMasks:masks, reviewRegions:pageLines.map((line) => ({ id:line.line_id, box:bbox(line.bbox,width,height,line.line_id) })) });
