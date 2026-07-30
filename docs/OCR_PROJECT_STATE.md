@@ -1,6 +1,6 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-07-29, PR #156, `android-dev-restart-v0`.
+Последнее обновление: 2026-07-30, PR #157, `android-reviewer-png-dimensions-v0`.
 
 Активный трек: `local-pii-redaction`.
 
@@ -8,7 +8,18 @@
 
 Этот документ — каноническая operational-точка восстановления privacy/OCR-проекта. Архитектуру задают `docs/ARCHITECTURE.md` и `docs/CUSTOM_OCR_PIPELINE.md`; точные входы, выходы и proof boundaries отдельных компонентов задают их component contracts. При конфликте обязательных документов работа останавливается до отдельного исправления.
 
-## 0. Изменение PR #156
+## 0. Изменение PR #157
+
+- Первая попытка открыть готовый repository-external трёхстраничный review pack на Samsung A55 остановилась с общим сообщением `image dimensions mismatch`.
+- Локальная проверка exact pack показала, что все три source PNG, три masked PNG и соответствующие manifest rows имеют одинаковые размеры `1974 × 3508`, а SHA-256 совпадают.
+- Причина локализована в Android reviewer: размер source проверялся через Android image decoder после cache snapshot, а размер derivative — непосредственно по PNG bytes; integrity check использовал два разных способа измерения.
+- PR проверяет оба изображения одинаково — по уже проверенным PNG bytes до создания app-private snapshots — и требует для source и derivative формат 8-bit grayscale PNG.
+- При реальном несовпадении ошибка теперь называет page ID, ожидаемый размер и фактический размер конкретного source или derivative.
+- Focused Node suite прошёл `7/7`; exact repository-external pack проходит чистый pack loader как три страницы `1974 × 3508`.
+- Новый APK ещё должен пройти Samsung A55 smoke: открыть эту же папку и отобразить страницы. Publication/readback review JSONL и human pilot остаются недоказанными.
+- Реальные страницы, PII и contract text не коммитятся. Detector, renderer, маски, review categories, зависимости, внешние API, OCR, `active_track` и `next_step_id` не меняются.
+
+### Зафиксированный PR #156
 
 - По прямому запросу владельца продукта как ограниченное process exception команда `tools/android-dev.ps1` расширена режимом `restart` для остановки и повторного запуска уже установленного актуального Android package без Metro и без переустановки APK.
 - Пользовательский entrypoint остаётся единым; device-specific логика вынесена во внутренний `tools/android-restart.ps1`, поэтому основной PowerShell-файл изменён только в `ValidateSet` и dispatch.
@@ -135,8 +146,8 @@ raw phone photo
 | Local PII detector | `marker_layout_baseline_v0` | Детерминированные candidates без OCR, cloud calls или ground-truth leakage | Реальные recall, complete coverage и over-redaction |
 | Local mask renderer | Python reference v0 | Новый grayscale PNG, физическая замена candidate pixels, metadata stripping, deterministic publication | Candidate correctness, Android behavior и production privacy safety |
 | Reviewer manifest core | Reference v0 | Три closed finding categories, canonical geometry/JSONL и immutable hashes | Controlled human pilot |
-| Review pack builder | `controlled_pii_review_pack_builder_v0` | One-command local assembly, byte-identical sources, exact hashes/bindings, strict line manifest, no-overwrite publication и cleanup покрыты synthetic focused tests и CI | Прогон на реальном договоре и удобство фактической передачи pack |
-| Android PII reviewer | Standalone Expo APK | Автономный запуск, pack selection/validation, source/masked switching после repaint, one-tap finding | First-paint source reliability, подтверждённая publication/readback результата, human pilot |
+| Review pack builder | `controlled_pii_review_pack_builder_v0` | One-command local assembly, byte-identical sources, exact hashes/bindings, strict line manifest, no-overwrite publication и cleanup покрыты synthetic focused tests и CI | Удобство фактической передачи pack и human pilot |
+| Android PII reviewer | Standalone Expo APK + PNG dimensions correction в PR #157 | Автономный запуск; synthetic pack selection/rendering; direct PNG-byte validation; exact real pack проходит чистый loader как 3 страницы `1974 × 3508` | Samsung A55 smoke исправленного APK, first-paint reliability, publication/readback результата, human pilot |
 | Android development automation | `doctor` v0 + `build` v0 + `run` v0 + `logs` v0 + `restart` v0 | Полный Windows PowerShell 5.1 doctor-run; Java 21 fail-closed preflight; Temurin JDK 17 preflight; SDK handoff; успешная локальная release-сборка; подтверждённые install, launcher, process check, process-scoped warning/error logs и stop/start/process confirmation на Samsung A55 без Metro | Остаточный риск PII в произвольных error strings |
 | Android detector/renderer | Не реализован | — | On-device automatic detection and masking |
 | External OCR handoff | Не подключён | Разрешён только после privacy gate | Безопасность derivative не доказана |
@@ -174,7 +185,7 @@ Standalone launch на Samsung A55 ранее подтверждён, но до�
 
 До pilot нельзя утверждать, что current candidates корректны, маски полностью закрывают PII или сохраняют достаточно юридического текста.
 
-У владельца продукта есть repository-external трёхстраничный договор, в котором почти весь текст напечатан, а рукописными остаются только подписи. Он является предпочтительным первым pilot input: небольшой объём отделяет ошибки layout/digit/signature detection от сложностей массового рукописного текста. Сам договор, normalized pages, manifests, derivatives и review result не коммитятся в GitHub и не передаются внешним сервисам.
+У владельца продукта есть repository-external трёхстраничный договор, в котором почти весь текст напечатан, а рукописными остаются только подписи. Из него уже собран exact review pack; hashes и размеры согласованы, а чистый loader PR #157 принимает все три страницы. Первая попытка открыть pack в старом APK остановилась на inconsistent Android dimension check; повторный Samsung A55 smoke исправленного APK остаётся текущим operational gate. Сам договор, normalized pages, manifests, derivatives и review result не коммитятся в GitHub и не передаются внешним сервисам.
 
 ## 11. Единственный следующий шаг
 
