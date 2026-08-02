@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-02-14",
+  "state_version": "privacy-ocr-2026-08-02-15",
   "active_track": "local-pii-redaction",
   "next_step_id": "controlled-pii-reviewer-pilot-v0",
   "next_step_summary": "Build one repository-external review pack from the three-page mostly printed contract, complete the bounded Hebrew-capable reviewer pilot, and verify local canonical review JSONL publication without external image, OCR, or LLM calls.",
-  "last_recorded_pr": 160,
-  "last_recorded_change": "pii-mask-diagnostics-v0",
+  "last_recorded_pr": 161,
+  "last_recorded_change": "one-command-pii-mask-diagnostics-v0",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-08-02"
