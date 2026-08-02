@@ -1,0 +1,44 @@
+name: Temporary PR 162 state update
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - tools/codex_state_pr162.py
+      - .github/workflows/codex-state-pr162.yml
+
+permissions:
+  contents: write
+
+jobs:
+  state:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/line-segmentation-giant-band-guard-v0
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Update state files
+        run: python tools/codex_state_pr162.py
+
+      - name: Validate state
+        run: |
+          python -m json.tool docs/OCR_PROJECT_STATE.json > /dev/null
+          grep -F 'PR #162' docs/OCR_PROJECT_STATE.md
+          grep -F 'line-segmentation-giant-band-guard-v0' docs/OCR_PROJECT_STATE.md
+          git diff --check
+
+      - name: Commit state update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/OCR_PROJECT_STATE.md docs/OCR_PROJECT_STATE.json tools/codex_state_pr162.py
+          git commit -m "Record PR 162 line segmentation corrective"
+          git push origin HEAD:agent/line-segmentation-giant-band-guard-v0
