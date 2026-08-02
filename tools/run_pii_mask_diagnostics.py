@@ -122,7 +122,6 @@ def run_diagnostics(
             checkout,
         )
         if result.returncode != 0:
-            output.unlink(missing_ok=True)
             raise PIIMaskRunnerError("mask diagnostics failed")
         if not output.is_file():
             raise PIIMaskRunnerError("mask diagnostics produced no report")
