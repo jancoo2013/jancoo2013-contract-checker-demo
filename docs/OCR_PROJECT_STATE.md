@@ -1,6 +1,6 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-02, PR #160, `pii-mask-diagnostics-v0`.
+Последнее обновление: 2026-08-02, PR #161, `one-command-pii-mask-diagnostics-v0`.
 
 Активный трек: `local-pii-redaction`.
 
@@ -8,7 +8,18 @@
 
 Этот документ — каноническая operational-точка восстановления privacy/OCR-проекта. Архитектуру задают `docs/ARCHITECTURE.md` и `docs/CUSTOM_OCR_PIPELINE.md`; точные входы, выходы и proof boundaries отдельных компонентов задают их component contracts. При конфликте обязательных документов работа останавливается до отдельного исправления.
 
-## 0. Изменение PR #160
+## 0. Изменение PR #161
+
+- Добавлен локальный runner `tools/run_pii_mask_diagnostics.py`, который запускает уже существующий geometry-only diagnostic без ручного переключения текущей ветки.
+- Runner обновляет только remote ref `origin/main`, создаёт временный detached worktree из актуального `origin/main`, запускает diagnostic и затем удаляет временный checkout.
+- Готовый JSON-отчёт создаётся рядом с repository-external review pack; существующий output не перезаписывается.
+- Текущая локальная ветка, tracked/untracked файлы рабочего дерева, Android-приложение и телефон не изменяются.
+- Runner не декодирует изображения, не читает contract text и не отправляет review pack или report во внешние сервисы.
+- Synthetic tests покрывают временный main worktree, отсутствие `git switch`, no-overwrite, cleanup и сохранение файла, появившегося независимо во время failure.
+- GitHub Actions `OCR research runtime` run #56 прошёл: CPU training smoke и полный privacy/recognizer suite завершились успешно.
+- Реальный `2_review_pack` ещё не прогнан через runner. Detector rules, renderer, Android reviewer, runtime, зависимости, внешние API, OCR, `active_track` и `next_step_id` не меняются.
+
+### Зафиксированный PR #160
 
 - Добавлен локальный CLI `pii_mask_diagnostics_v0` для измерения происхождения и площади текущих масок до изменения detector rules.
 - Инструмент читает только готовые `predictions.jsonl`, `renderer/manifest.jsonl` и `line_segmentation/manifest.jsonl`; изображения не декодируются, текст договора не извлекается.
@@ -184,6 +195,7 @@ raw phone photo
 | Review pack builder | `controlled_pii_review_pack_builder_v0` | One-command local assembly, byte-identical sources, exact hashes/bindings, strict line manifest, no-overwrite publication и cleanup покрыты synthetic focused tests и CI | Удобство фактической передачи pack и human pilot |
 | Android PII reviewer | Standalone Expo APK + PR #157 dimensions fix + PR #158 first-paint corrective | Автономный запуск; direct PNG-byte validation; реальный pack открывается на Samsung A55 как 3 страницы; first-paint, loading indicator, touch gate и локальное сохранение результата подтверждены на Samsung A55 | Publication/readback результата на компьютере, human pilot |
 | Android development automation | `doctor` v0 + `build` v0 + `run` v0 + `logs` v0 + `restart` v0 | Полный Windows PowerShell 5.1 doctor-run; Java 21 fail-closed preflight; Temurin JDK 17 preflight; SDK handoff; успешная локальная release-сборка; подтверждённые install, launcher, process check, process-scoped warning/error logs и stop/start/process confirmation на Samsung A55 без Metro | Остаточный риск PII в произвольных error strings |
+| Mask diagnostics runner | `one-command-pii-mask-diagnostics-v0` | Временный `origin/main` worktree, отсутствие branch switch, sibling no-overwrite report и cleanup покрыты synthetic tests и CI | Реальный run на `2_review_pack` |
 | Android detector/renderer | Не реализован | — | On-device automatic detection and masking |
 | External OCR handoff | Не подключён | Разрешён только после privacy gate | Безопасность derivative не доказана |
 
@@ -218,7 +230,7 @@ Standalone launch, открытие реального трёхстраничн�
 
 До pilot нельзя утверждать, что current candidates корректны, маски полностью закрывают PII или сохраняют достаточно юридического текста.
 
-У владельца продукта есть repository-external трёхстраничный договор, в котором почти весь текст напечатан, а рукописными остаются только подписи. Из него уже собран exact review pack; hashes и размеры согласованы, а исправленный APK надёжно отображает все три страницы на Samsung A55. First-paint, индикатор загрузки, блокировка ложных касаний и локальное сохранение результата подтверждены. Визуально выявлено существенное over-redaction; PR #160 добавляет безопасный geometry-only diagnostic, который ещё нужно запустить на этом pack до изменения detector rules. Сам договор, normalized pages, manifests, derivatives, diagnostic output и review result не коммитятся в GitHub и не передаются внешним сервисам.
+У владельца продукта есть repository-external трёхстраничный договор, в котором почти весь текст напечатан, а рукописными остаются только подписи. Из него уже собран exact review pack; hashes и размеры согласованы, а исправленный APK надёжно отображает все три страницы на Samsung A55. First-paint, индикатор загрузки, блокировка ложных касаний и локальное сохранение результата подтверждены. Визуально выявлено существенное over-redaction; PR #160 добавил безопасный geometry-only diagnostic, а PR #161 добавляет one-command runner без ручного переключения веток. Runner ещё нужно запустить на `2_review_pack` до изменения detector rules. Сам договор, normalized pages, manifests, derivatives, diagnostic output и review result не коммитятся в GitHub и не передаются внешним сервисам.
 
 ## 11. Единственный следующий шаг
 
