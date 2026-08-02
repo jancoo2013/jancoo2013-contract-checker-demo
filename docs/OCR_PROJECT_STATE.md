@@ -1,6 +1,6 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-07-30, PR #157, `android-reviewer-png-dimensions-v0`.
+Последнее обновление: 2026-07-30, PR #158, `android-reviewer-first-paint-v0`.
 
 Активный трек: `local-pii-redaction`.
 
@@ -8,7 +8,18 @@
 
 Этот документ — каноническая operational-точка восстановления privacy/OCR-проекта. Архитектуру задают `docs/ARCHITECTURE.md` и `docs/CUSTOM_OCR_PIPELINE.md`; точные входы, выходы и proof boundaries отдельных компонентов задают их component contracts. При конфликте обязательных документов работа останавливается до отдельного исправления.
 
-## 0. Изменение PR #157
+## 0. Изменение PR #158
+
+- По прямому запросу владельца продукта как ограниченный corrective исправляется первый показ страницы после выбора review pack на Samsung A55.
+- `PageCanvas` больше не создаёт `Image` до получения фактического размера области просмотра; после layout изображение монтируется сразу с окончательной геометрией.
+- Смена страницы, режима или размера создаёт новый экземпляр изображения, поэтому UI не зависит от случайной Android-перерисовки.
+- Пока файл изображения не загрузился, приложение показывает `Загрузка страницы…`, не рисует finding overlays и игнорирует касания по canvas, чтобы исключить ложные отметки по пустому экрану.
+- Выбор новой папки всегда возвращает режим `Исходник`, а не сохраняет режим предыдущего pack.
+- Изменение ограничено `mobile/pii-reviewer/App.js`; review-pack schema, PNG validation, detector, renderer, маски, категории проверки, сохранение результата, зависимости и внешние вызовы не меняются.
+- Локальные mobile tests, release build и один объединённый Samsung A55 smoke ещё обязательны. В device smoke проверяются первый показ всех трёх страниц, переключение source/masked, отсутствие ложных касаний во время загрузки и сохранение review JSONL.
+- Реальные страницы, PII и contract text не коммитятся. `active_track` и `next_step_id` не меняются.
+
+### Зафиксированный PR #157
 
 - Первая попытка открыть готовый repository-external трёхстраничный review pack на Samsung A55 остановилась с общим сообщением `image dimensions mismatch`.
 - Локальная проверка exact pack показала, что все три source PNG, три masked PNG и соответствующие manifest rows имеют одинаковые размеры `1974 × 3508`, а SHA-256 совпадают.
@@ -148,7 +159,7 @@ raw phone photo
 | Local mask renderer | Python reference v0 | Новый grayscale PNG, физическая замена candidate pixels, metadata stripping, deterministic publication | Candidate correctness, Android behavior и production privacy safety |
 | Reviewer manifest core | Reference v0 | Три closed finding categories, canonical geometry/JSONL и immutable hashes | Controlled human pilot |
 | Review pack builder | `controlled_pii_review_pack_builder_v0` | One-command local assembly, byte-identical sources, exact hashes/bindings, strict line manifest, no-overwrite publication и cleanup покрыты synthetic focused tests и CI | Удобство фактической передачи pack и human pilot |
-| Android PII reviewer | Standalone Expo APK + PNG dimensions correction в PR #157 | Автономный запуск; synthetic pack selection/rendering; direct PNG-byte validation; реальный pack открывается на Samsung A55 как 3 страницы, source/masked версии доступны | First-paint reliability, publication/readback результата, human pilot |
+| Android PII reviewer | Standalone Expo APK + PR #157 dimensions fix + PR #158 first-paint corrective | Автономный запуск; direct PNG-byte validation; реальный pack открывается на Samsung A55 как 3 страницы, source/masked версии доступны; first-paint/loading/touch-gate code implemented | Локальные tests/build и Samsung A55 smoke PR #158, publication/readback результата, human pilot |
 | Android development automation | `doctor` v0 + `build` v0 + `run` v0 + `logs` v0 + `restart` v0 | Полный Windows PowerShell 5.1 doctor-run; Java 21 fail-closed preflight; Temurin JDK 17 preflight; SDK handoff; успешная локальная release-сборка; подтверждённые install, launcher, process check, process-scoped warning/error logs и stop/start/process confirmation на Samsung A55 без Metro | Остаточный риск PII в произвольных error strings |
 | Android detector/renderer | Не реализован | — | On-device automatic detection and masking |
 | External OCR handoff | Не подключён | Разрешён только после privacy gate | Безопасность derivative не доказана |
@@ -169,11 +180,11 @@ raw phone photo
 
 Оставшиеся ограничения:
 
-- при первом показе source image иногда виден градиент до переключения вкладок; это неблокирующий UI/repaint defect, подтверждённый также на реальном pack в Samsung A55;
+- первый показ исправляется в PR #158, но фактический Samsung A55 smoke нового APK ещё не выполнен;
 - создание и чтение `review-<prediction_sha256>.jsonl` на компьютере фактически не подтверждено;
 - это не проверка Android automasking, PII recall или privacy safety.
 
-Standalone launch и открытие реального трёхстраничного pack на Samsung A55 подтверждены. Дополнительный corrective для first-paint/repaint выполняется отдельно до controlled human pilot.
+Standalone launch и открытие реального трёхстраничного pack на Samsung A55 подтверждены. PR #158 должен одной установкой подтвердить first-paint, loading/touch gate и локальное сохранение результата до controlled human pilot.
 
 ## 10. Активный блокер и pilot input
 
@@ -185,7 +196,7 @@ Standalone launch и открытие реального трёхстранич�
 
 До pilot нельзя утверждать, что current candidates корректны, маски полностью закрывают PII или сохраняют достаточно юридического текста.
 
-У владельца продукта есть repository-external трёхстраничный договор, в котором почти весь текст напечатан, а рукописными остаются только подписи. Из него уже собран exact review pack; hashes и размеры согласованы, а исправленный APK открывает все три страницы на Samsung A55. Source и masked версии доступны после переключения; first-paint/repaint defect остаётся отдельным operational corrective перед human pilot. Сам договор, normalized pages, manifests, derivatives и review result не коммитятся в GitHub и не передаются внешним сервисам.
+У владельца продукта есть repository-external трёхстраничный договор, в котором почти весь текст напечатан, а рукописными остаются только подписи. Из него уже собран exact review pack; hashes и размеры согласованы, а исправленный APK открывает все три страницы на Samsung A55. PR #158 объединяет оставшийся first-paint corrective, индикатор загрузки и блокировку ложных касаний; после его локальной build/device-проверки можно переходить к human pilot и публикации review JSONL. Сам договор, normalized pages, manifests, derivatives и review result не коммитятся в GitHub и не передаются внешним сервисам.
 
 ## 11. Единственный следующий шаг
 

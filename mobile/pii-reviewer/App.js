@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Image, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { pickReviewPack, saveReviewResult } from './src/androidPackIo';
@@ -19,23 +19,33 @@ const HELP = {
 };
 function PageCanvas({ mode, page, onTap }) {
   const [view, setView] = useState({ width: 1, height: 1 });
+  const [imageReady, setImageReady] = useState(false);
+  const ready = view.width > 1 && view.height > 1;
+  const uri = mode === 'source' ? page.sourceUri : page.derivativeUri;
   const rect = contentRect(view.width, view.height, page.width, page.height);
+  useEffect(() => setImageReady(false), [page.imageId, uri, view.width, view.height]);
   return (
     <View
       style={styles.canvas}
       onLayout={(event) => setView(event.nativeEvent.layout)}
-      onTouchEnd={(event) => onTap(imagePoint(
-        { x: event.nativeEvent.locationX, y: event.nativeEvent.locationY },
-        view,
-        { width: page.width, height: page.height },
-      ))}
+      onTouchEnd={(event) => {
+        if (!imageReady) return;
+        onTap(imagePoint(
+          { x: event.nativeEvent.locationX, y: event.nativeEvent.locationY },
+          view,
+          { width: page.width, height: page.height },
+        ));
+      }}
     >
-      <Image
-        source={{ uri: mode === 'source' ? page.sourceUri : page.derivativeUri }}
+      {ready && <Image
+        key={`${page.imageId}:${mode}:${Math.round(view.width)}x${Math.round(view.height)}`}
+        source={{ uri }}
         resizeMode="contain"
+        onLoad={() => setImageReady(true)}
         style={[styles.image, { left: rect.x, top: rect.y, width: rect.width, height: rect.height }]}
-      />
-      {page.findings.map((item, index) => (
+      />}
+      {!imageReady && <View pointerEvents="none" style={styles.loading}><Text>Загрузка страницы…</Text></View>}
+      {imageReady && page.findings.map((item, index) => (
         <View key={index} pointerEvents="none" style={[styles.finding, displayBox(item.box, view, page)]} />
       ))}
     </View>
@@ -50,6 +60,7 @@ export default function App() {
     try {
       const pack = await pickReviewPack();
       if (pack) {
+        setMode('source');
         setSession(newSession(pack.packKey, pack.pages));
         setMessage(`Загружено страниц: ${pack.pages.length}`);
       }
@@ -138,6 +149,7 @@ const styles = StyleSheet.create({
   tabText: { fontWeight: '600' },
   canvas: { height: 470, backgroundColor: '#d1d5db', borderRadius: 12, overflow: 'hidden' },
   image: { position: 'absolute' },
+  loading: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
   finding: { position: 'absolute', borderWidth: 3, borderColor: '#dc2626', backgroundColor: 'rgba(220,38,38,0.12)' },
   help: { textAlign: 'center', fontWeight: '600' },
   error: { textAlign: 'center', color: '#b91c1c' },
