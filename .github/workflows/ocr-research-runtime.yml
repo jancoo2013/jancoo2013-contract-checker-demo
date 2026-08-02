@@ -5,13 +5,17 @@ on:
     paths:
       - ".github/workflows/ocr-research-runtime.yml"
       - "research/hebrew_contract_ocr/**"
+      - "tools/run_pii_mask_diagnostics.py"
       - "tests/test_ocr_*.py"
+      - "tests/test_tools_run_pii_mask_diagnostics.py"
   push:
     branches: [main]
     paths:
       - ".github/workflows/ocr-research-runtime.yml"
       - "research/hebrew_contract_ocr/**"
+      - "tools/run_pii_mask_diagnostics.py"
       - "tests/test_ocr_*.py"
+      - "tests/test_tools_run_pii_mask_diagnostics.py"
 
 permissions:
   contents: read
@@ -40,3 +44,4 @@ jobs:
           tests.test_ocr_pii_review_pack_builder
           tests.test_ocr_recognizer_input
           tests.test_ocr_ctc_decoder
+          tests.test_tools_run_pii_mask_diagnostics
