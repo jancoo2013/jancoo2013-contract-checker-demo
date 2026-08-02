@@ -190,6 +190,12 @@ Risk-relevant rows include, for example:
 
 Do not blindly redact a full page only because one PII-like label appears on it. Prefer row/zone-level masking with conservative expansion around the sensitive value.
 
+### Evidence rule for automatic masks
+
+Page position, page number, first/last-page status, right alignment, short-line geometry, or digit presence are weak context only. None of them may create an automatic mask by itself. An automatic mask requires direct value evidence, marker-to-value/field relation, or validated handwriting/signature/stamp evidence. Zone-only findings may be routed to local review but must not be exported as production masks. The binding decision and evaluation contract is `docs/PII_EVIDENCE_DETECTOR_V1.md`.
+
+Detector evaluation must be grouped by whole contract. Pages or lines from one contract must not be split between development and held-out evaluation, and contract-specific coordinates or one-off exceptions are forbidden.
+
 The annotation and verification target is a PII region or mask, not an exact full-line transcript. Primary metrics are PII-region recall, complete mask coverage, missed-sensitive-area rate, page-level privacy pass rate, and over-redaction of legally relevant non-PII content.
 
 A Hebrew-capable reviewer verifies whether sensitive regions were missed or incompletely covered and whether important legal text was unnecessarily removed. The reviewer is not expected to transcribe the contract or correct every OCR character.

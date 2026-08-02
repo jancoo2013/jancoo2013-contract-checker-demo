@@ -1,14 +1,25 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-02, PR #162, `line-segmentation-giant-band-guard-v0`.
+Последнее обновление: 2026-08-02, PR #163, `evidence-based-pii-detector-contract-v0`.
 
 Активный трек: `local-pii-redaction`.
 
-Единственный следующий шаг: `controlled-pii-reviewer-pilot-v0`.
+Единственный следующий шаг: `pii-candidate-evidence-schema-v0`.
 
 Этот документ — каноническая operational-точка восстановления privacy/OCR-проекта. Архитектуру задают `docs/ARCHITECTURE.md` и `docs/CUSTOM_OCR_PIPELINE.md`; точные входы, выходы и proof boundaries отдельных компонентов задают их component contracts. При конфликте обязательных документов работа останавливается до отдельного исправления.
 
-## 0. Изменение PR #162
+## 0. Изменение PR #163
+
+- Владелец продукта остановил подгонку fixed page-zone thresholds под один трёхстраничный договор: такой путь не обобщается на другие шаблоны, рукописные поля и расположение реквизитов.
+- Добавлен binding contract `docs/PII_EVIDENCE_DETECTOR_V1.md`: положение строки, номер страницы и first/last-page role являются только weak context и никогда не достаточны для `auto_mask`.
+- `marker_layout_baseline_v0` заморожен как diagnostic comparator и не считается production detector policy.
+- Production candidate должен нести явное evidence: direct value pattern, marker-to-value/field relation либо validated handwriting/signature/stamp signal; zone-only candidate может быть только `local_review` или `preserve`.
+- Evaluation делится по целым договорам: страницы одного договора не смешиваются между development и held-out split; известные template families группируются по возможности; contract-specific coordinates и one-off exceptions запрещены.
+- Controlled Android reviewer и repository-external pilot не удаляются, но откладываются до появления evidence-bearing candidates: измерять human metrics на заведомо непригодной zone-only policy нецелесообразно.
+- Единственный следующий шаг изменён на `pii-candidate-evidence-schema-v0`: строгая candidate/evidence schema и validation, которая технически запрещает zone-only `auto_mask`.
+- Runtime, renderer, Android APK, маски существующего pack, зависимости, OCR, внешние API и privacy boundary не меняются.
+
+### Зафиксированный PR #162
 
 - Geometry-only diagnostic на repository-external трёхстраничном review pack измерил 46 mask candidates и `66.6%` фактически закрытой площади: `51.5%`, `70.4%` и `77.9%` по страницам.
 - `38/46` candidates (`82.6%`) созданы broad-zone rules, а `30/46` содержат `segmentation_review`; diagnostic не содержал contract text, PII values, image IDs, hashes или изображений и не коммитился.
@@ -234,40 +245,26 @@ Standalone launch, открытие реального трёхстраничн�
 
 ## 10. Активный блокер и pilot input
 
-Единственный product blocker перед metrics, улучшением detector или Android-port — отсутствие controlled human pilot и измеримых ошибок текущего Python baseline:
+Текущий product blocker — candidate policy не переносится между договорами: `marker_layout_baseline_v0` создаёт broad-zone findings по фиксированным вертикальным зонам каждой страницы и поэтому не годится для production metrics или Android automasking.
 
-- `missed_pii`;
-- `incomplete_mask`;
-- `over_redaction`.
+Human pilot остаётся обязательным позже для `missed_pii`, `incomplete_mask` и `over_redaction`, но сначала candidates должны нести проверяемое evidence и запрещать zone-only `auto_mask`.
 
-До pilot нельзя утверждать, что current candidates корректны, маски полностью закрывают PII или сохраняют достаточно юридического текста.
-
-У владельца продукта есть repository-external трёхстраничный договор, в котором почти весь текст напечатан, а рукописными остаются только подписи. Из него собран exact review pack; hashes и размеры согласованы, а APK надёжно отображает все три страницы на Samsung A55. Geometry-only diagnostic измерил 46 candidates и `66.6%` закрытой площади; `30/46` candidates содержат `segmentation_review`, что локализовало первичную причину excessive over-redaction в giant line bands. PR #162 добавляет bounded sparse-row expansion и fail-closed giant-band guard. Старый `2_review_pack` остаётся immutable; следующий operational check — собрать новый pack в новый output directory и повторить diagnostic до изменения detector zone rules. Сам договор, normalized pages, manifests, derivatives, diagnostic output и review result не коммитятся в GitHub и не передаются внешним сервисам.
+У владельца продукта есть repository-external трёхстраничный договор, в котором почти весь текст напечатан, а рукописными остаются только подписи. Из него собран exact review pack; hashes и размеры согласованы, а APK надёжно отображает все три страницы на Samsung A55. Geometry-only diagnostic измерил 46 candidates и `66.6%` закрытой площади; `30/46` candidates содержат `segmentation_review`, что локализовало первичную причину excessive over-redaction в giant line bands. PR #162 добавил bounded sparse-row expansion и fail-closed giant-band guard. PR #163 фиксирует более глубокую причину: fixed page zones применяются ко всем страницам и ведут к переобучению на одном шаблоне. Старый `2_review_pack` остаётся immutable; новый pack не собирается до evidence-bearing candidate schema и следующего detector implementation slice. Сам договор, normalized pages, manifests, derivatives, diagnostic output и review result не коммитятся в GitHub и не передаются внешним сервисам.
 
 ## 11. Единственный следующий шаг
 
-**`controlled-pii-reviewer-pilot-v0`: локально подготовить review pack из трёхстраничного договора, провести ограниченную проверку человеком, читающим иврит, и подтвердить canonical review JSONL без внешних image/OCR/LLM calls.**
+**`pii-candidate-evidence-schema-v0`: определить строгую schema для evidence-bearing PII candidates и validation, которая не позволяет page-zone context самостоятельно создать `auto_mask`.**
 
 Граница шага:
 
-1. Локально получить normalized grayscale pages существующим page-normalization reference pipeline.
-2. Собрать pack одной командой:
-
-```bash
-python -m research.hebrew_contract_ocr.pii_review_pack_builder \
-  --normalized-dir <normalized-pages-directory> \
-  --output-dir <new-review-pack-directory>
-```
-
-3. Builder должен завершиться одной строкой `PACK READY`; при ошибке pilot не начинается.
-4. Передать на Android только готовую repository-external pack directory.
-5. Проверяющий только выбирает одну из трёх категорий и касается строки/существующей маски. Он не транскрибирует текст, не вводит PII, не рисует bbox и не исправляет маски вручную.
-6. Завершить все страницы и создать локальный `review-<prediction_sha256>.jsonl` без overwrite.
-7. Скопировать result обратно на компьютер и проверить его существующим Python reviewer core против exact source/prediction/derivative hashes.
-8. При невозможности собрать pack, сохранить или прочитать result остановить pilot и оформить отдельный bounded corrective PR.
-9. До изменения detector rules разрешён отдельный bounded diagnostic, который измеряет площадь и происхождение текущих масок без чтения или публикации PII.
-10. Не считать итоговые metrics и не менять detector в диагностическом шаге. Следующий отдельный PR после успешного pilot — `local-pii-metrics-v0`.
-11. Запрещены Gemini, Google Vision, cloud OCR, LLM image calls, production upload и любые PII values в GitHub/Airtable.
+1. Добавить отдельный schema/validator component для candidate geometry, PII class, disposition и evidence records.
+2. Поддержать dispositions `auto_mask`, `local_review` и `preserve`.
+3. Поддержать evidence families: direct value, marker, visual sensitive-region, relation и weak layout context.
+4. Валидатор обязан отклонять `auto_mask`, если единственное evidence — page position, page role, alignment, short-line geometry или generic digit presence.
+5. Использовать только synthetic/non-identifying fixtures; реальные contract text, images и PII не коммитить.
+6. Не менять в этом PR текущий detector output, renderer, Android reviewer, APK, внешние API или production runtime.
+7. Следующий implementation slice после schema — deterministic direct-pattern evidence, а не новая настройка процентов страницы.
+8. Controlled human pilot возобновляется после появления evidence-based candidates и нового repository-external pack.
 
 ## 12. Правила работы и восстановления новой сессии
 
