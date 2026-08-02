@@ -1,6 +1,6 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-02, PR #159, `cold-start-audit-2026-08-02-v2`.
+Последнее обновление: 2026-08-02, PR #160, `pii-mask-diagnostics-v0`.
 
 Активный трек: `local-pii-redaction`.
 
@@ -8,7 +8,17 @@
 
 Этот документ — каноническая operational-точка восстановления privacy/OCR-проекта. Архитектуру задают `docs/ARCHITECTURE.md` и `docs/CUSTOM_OCR_PIPELINE.md`; точные входы, выходы и proof boundaries отдельных компонентов задают их component contracts. При конфликте обязательных документов работа останавливается до отдельного исправления.
 
-## 0. Изменение PR #159
+## 0. Изменение PR #160
+
+- Добавлен локальный CLI `pii_mask_diagnostics_v0` для измерения происхождения и площади текущих масок до изменения detector rules.
+- Инструмент читает только готовые `predictions.jsonl`, `renderer/manifest.jsonl` и `line_segmentation/manifest.jsonl`; изображения не декодируются, текст договора не извлекается.
+- Отчёт показывает точную долю закрытых пикселей, количество кандидатов по reason code, долю broad-zone rules и коэффициент расширения маски относительно исходной строки.
+- В отчёт не попадают image/page IDs, candidate IDs, filenames, paths, hashes, contract text или PII values; страницы обозначаются только порядковыми номерами.
+- Output создаётся только как новый файл вне review pack; существующий файл не перезаписывается.
+- GitHub Actions `OCR research runtime` run #50 прошёл: CPU training smoke и полный набор из 44 privacy/recognizer tests завершились успешно.
+- Реальный трёхстраничный pack ещё не прогнан через diagnostic. Detector rules, candidate schema, renderer semantics, Android reviewer, runtime, внешние API, OCR, `active_track` и `next_step_id` не меняются.
+
+### Зафиксированный PR #159
 
 - После merge PR #156–#158 выполнен обязательный repository-only cold-start audit.
 - Повторно сверены `AGENTS.md`, архитектура, privacy/OCR pipeline, оба state-файла, Context Gate, Android package и локальные Android-команды.
@@ -208,7 +218,7 @@ Standalone launch, открытие реального трёхстраничн�
 
 До pilot нельзя утверждать, что current candidates корректны, маски полностью закрывают PII или сохраняют достаточно юридического текста.
 
-У владельца продукта есть repository-external трёхстраничный договор, в котором почти весь текст напечатан, а рукописными остаются только подписи. Из него уже собран exact review pack; hashes и размеры согласованы, а исправленный APK надёжно отображает все три страницы на Samsung A55. First-paint, индикатор загрузки, блокировка ложных касаний и локальное сохранение результата подтверждены. Визуально выявлено существенное over-redaction, поэтому перед изменением detector rules нужен bounded diagnostic источника и площади каждой маски. Сам договор, normalized pages, manifests, derivatives и review result не коммитятся в GitHub и не передаются внешним сервисам.
+У владельца продукта есть repository-external трёхстраничный договор, в котором почти весь текст напечатан, а рукописными остаются только подписи. Из него уже собран exact review pack; hashes и размеры согласованы, а исправленный APK надёжно отображает все три страницы на Samsung A55. First-paint, индикатор загрузки, блокировка ложных касаний и локальное сохранение результата подтверждены. Визуально выявлено существенное over-redaction; PR #160 добавляет безопасный geometry-only diagnostic, который ещё нужно запустить на этом pack до изменения detector rules. Сам договор, normalized pages, manifests, derivatives, diagnostic output и review result не коммитятся в GitHub и не передаются внешним сервисам.
 
 ## 11. Единственный следующий шаг
 
