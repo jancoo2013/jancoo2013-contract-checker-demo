@@ -127,19 +127,4 @@ if text.count(anchor) != 1:
     raise SystemExit("test anchor mismatch")
 tests.write_text(text.replace(anchor, inserted, 1), encoding="utf-8")
 
-
-runtime = Path(".github/workflows/ocr-research-runtime.yml")
-text = runtime.read_text(encoding="utf-8")
-old_suite = """          tests.test_ocr_pii_review_pack_builder
-          tests.test_ocr_recognizer_input
-"""
-new_suite = """          tests.test_ocr_pii_review_pack_builder
-          tests.test_ocr_line_segmenter
-          tests.test_ocr_recognizer_input
-"""
-if text.count(old_suite) != 1:
-    raise SystemExit("workflow anchor mismatch")
-runtime.write_text(text.replace(old_suite, new_suite, 1), encoding="utf-8")
-
-Path(".github/workflows/codex-line-segmentation-patch.yml").unlink()
 Path("tools/codex_line_segmentation_patch.py").unlink()
