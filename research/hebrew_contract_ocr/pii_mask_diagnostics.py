@@ -212,8 +212,12 @@ def diagnose_review_pack(review_pack_dir: Path, output_path: Path) -> dict[str, 
         "pages": pages,
     }
     output.parent.mkdir(parents=True, exist_ok=True)
+    payload = json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
     try:
-        output.write_text(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8", errors="strict")
+        with output.open("x", encoding="utf-8") as handle:
+            handle.write(payload)
+    except FileExistsError as exc:
+        raise PIIMaskDiagnosticsError("output report already exists") from exc
     except OSError as exc:
         output.unlink(missing_ok=True)
         raise PIIMaskDiagnosticsError("report publication failed") from exc
