@@ -1,0 +1,36 @@
+name: Temporary evidence state consistency fix
+
+on:
+  pull_request:
+    types: [synchronize]
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.event.pull_request.head.ref == 'agent/evidence-based-pii-detector-contract-v0'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/evidence-based-pii-detector-contract-v0
+          fetch-depth: 0
+
+      - name: Apply state consistency fix
+        run: python tools/codex_state_gate_fix.py
+
+      - name: Validate state
+        run: |
+          grep -F 'после PR #163 отложены' docs/OCR_PROJECT_STATE.md
+          grep -F 'pii-candidate-evidence-schema-v0' docs/OCR_PROJECT_STATE.md
+          git diff --check
+
+      - name: Commit state consistency fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/OCR_PROJECT_STATE.md tools/codex_state_gate_fix.py
+          git commit -m "Align reviewer gate with evidence detector contract"
+          git push origin HEAD:agent/evidence-based-pii-detector-contract-v0
