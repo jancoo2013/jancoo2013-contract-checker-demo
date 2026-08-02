@@ -122,6 +122,48 @@ class OCRLineSegmenterTests(unittest.TestCase):
         self.assertEqual(result.lines[-1].status, "review")
         self.assertIn("ambiguous_merged_band", result.lines[-1].reasons)
 
+    def test_sparse_vertical_connector_does_not_merge_distant_lines(self) -> None:
+        page = Image.new("L", (600, 700), 255)
+        draw = ImageDraw.Draw(page)
+        expected = [
+            (80, 80, 520, 100),
+            (80, 280, 520, 300),
+            (80, 480, 520, 500),
+        ]
+        for bbox in expected:
+            _draw_text_band(draw, bbox)
+        draw.line((300, 100, 300, 480), fill=0, width=2)
+
+        result = segment_page(page)
+
+        text_lines = [
+            line for line in result.lines
+            if "foreground_too_small" not in line.reasons
+        ]
+        self.assertEqual(len(text_lines), 3)
+        self.assertTrue(all(line.bbox[3] - line.bbox[1] < 60 for line in text_lines))
+        self.assertTrue(
+            all(
+                line.bbox[3] - line.bbox[1] <= 100
+                or "foreground_too_small" in line.reasons
+                for line in result.lines
+            )
+        )
+
+    def test_unresolved_wide_connector_band_fails_closed(self) -> None:
+        page = Image.new("L", (600, 1000), 255)
+        draw = ImageDraw.Draw(page)
+        _draw_text_band(draw, (80, 100, 520, 140))
+        _draw_text_band(draw, (80, 700, 520, 740))
+        for x in (160, 240, 320, 400):
+            draw.line((x, 140, x, 700), fill=0, width=2)
+
+        with self.assertRaisesRegex(
+            LineSegmentationError,
+            "unresolved oversized foreground band",
+        ):
+            segment_page(page)
+
     def test_separate_but_close_lines_receive_review_reason(self) -> None:
         page = Image.new("L", (600, 300), 255)
         draw = ImageDraw.Draw(page)

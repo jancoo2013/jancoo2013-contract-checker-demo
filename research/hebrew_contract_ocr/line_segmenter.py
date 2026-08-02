@@ -21,6 +21,9 @@ MAX_PAGE_PIXELS = 20_000_000
 OVERLAY_LONG_SIDE = 1800
 MIN_ACTIVE_ROW_INK_RATIO = 0.0015
 MAX_ACTIVE_ROW_GAP = 2
+MAX_SPARSE_ROW_EXPANSION = 3
+MAX_UNRESOLVED_BAND_HEIGHT_RATIO = 0.10
+MAX_UNRESOLVED_BAND_HEIGHT_PIXELS = 180
 MIN_TEXTLIKE_HEIGHT = 12
 MIN_TEXTLIKE_WIDTH = 24
 MAX_THIN_BAND_HEIGHT = 8
@@ -266,14 +269,35 @@ def segment_page(
 
     expanded_runs: list[tuple[int, int]] = []
     for y0, y1 in active_runs:
-        while y0 > 0 and row_ink[y0 - 1] > 0:
+        top_expansion = 0
+        while (
+            y0 > 0
+            and row_ink[y0 - 1] > 0
+            and top_expansion < MAX_SPARSE_ROW_EXPANSION
+        ):
             y0 -= 1
-        while y1 < height and row_ink[y1] > 0:
+            top_expansion += 1
+        bottom_expansion = 0
+        while (
+            y1 < height
+            and row_ink[y1] > 0
+            and bottom_expansion < MAX_SPARSE_ROW_EXPANSION
+        ):
             y1 += 1
+            bottom_expansion += 1
         if expanded_runs and y0 <= expanded_runs[-1][1]:
             expanded_runs[-1] = (expanded_runs[-1][0], max(expanded_runs[-1][1], y1))
         else:
             expanded_runs.append((y0, y1))
+
+    max_unresolved_band_height = max(
+        MAX_UNRESOLVED_BAND_HEIGHT_PIXELS,
+        int(math.ceil(height * MAX_UNRESOLVED_BAND_HEIGHT_RATIO)),
+    )
+    if any(y1 - y0 > max_unresolved_band_height for y0, y1 in expanded_runs):
+        raise LineSegmentationError(
+            "unresolved oversized foreground band; safer preprocessing is required"
+        )
 
     regions: list[dict[str, Any]] = []
     covered_rows = np.zeros(height, dtype=bool)
