@@ -241,7 +241,7 @@ raw phone photo
 - создание и чтение `review-<prediction_sha256>.jsonl` на компьютере фактически не подтверждено;
 - это не проверка Android automasking, PII recall или privacy safety.
 
-Standalone launch, открытие реального трёхстраничного pack, first-paint, loading/touch gate и локальное сохранение результата на Samsung A55 подтверждены. Следующий operational gate — копирование review JSONL на компьютер, проверка exact hashes и controlled human pilot.
+Standalone launch, открытие реального трёхстраничного pack, first-paint, loading/touch gate и локальное сохранение результата на Samsung A55 подтверждены. Копирование review JSONL, exact-hash readback и controlled human pilot остаются недоказанными, но после PR #163 отложены до появления evidence-based candidates и нового review pack.
 
 ## 10. Активный блокер и pilot input
 
