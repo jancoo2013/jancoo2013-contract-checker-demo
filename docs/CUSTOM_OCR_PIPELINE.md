@@ -35,6 +35,8 @@ raw phone photo
 
 The local privacy layer may use layout, known page zones, Hebrew field markers, digit patterns, signatures, handwriting cues, and conservative region expansion. It must not depend on exact full-page transcription to decide whether a region is sensitive.
 
+Known page zones are weak context only. A line's vertical position or page role must never be the sole reason for an automatic mask. `marker_layout_baseline_v0` is retained only as a diagnostic comparator; production candidates must carry explicit evidence under `docs/PII_EVIDENCE_DETECTOR_V1.md`.
+
 An external service is downstream of the privacy boundary only. The original photo remains local and unchanged; the exported derivative must not permit recovery of masked pixels.
 
 Production integration with raw user photos remains blocked until the PII classes, mask semantics, fail-closed behavior, and evaluation contract are approved and tested. Offline work may use synthetic, redacted, or locally controlled data.
@@ -75,6 +77,8 @@ Primary metrics:
 - missed-sensitive-area rate: uncovered sensitive pixels or regions;
 - over-redaction rate: legally relevant non-PII content removed by masks;
 - page-level privacy pass rate: pages with no missed or partially exposed PII.
+
+Evaluation splits are made by whole contract, not by page or line. All pages from one contract remain in one split; known template families should also remain grouped where feasible. A new contract is a held-out generalization test, not permission to add contract-specific thresholds, coordinates, or exceptions. Metrics must be reported per contract as well as in aggregate.
 
 A visually plausible mask or a correct detection of the label `ת.ז.` is not enough if the associated value remains partly visible. Precision alone is not enough because a single missed identifier can violate the privacy boundary.
 
