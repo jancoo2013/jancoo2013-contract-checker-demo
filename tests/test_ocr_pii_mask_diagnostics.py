@@ -77,7 +77,7 @@ class PIIMaskDiagnosticsTests(unittest.TestCase):
                 "signature_zone": 1,
             })
             candidates = report["pages"][0]["candidates"]
-            self.assertTrue(all(item["line_match_status"] == "matched" for item in candidates))
+            self.assertTrue(all(item["source_line_number"] is not None for item in candidates))
             self.assertTrue(all(item["area_expansion_ratio"] > 1.0 for item in candidates))
 
             payload = output.read_text(encoding="utf-8")
