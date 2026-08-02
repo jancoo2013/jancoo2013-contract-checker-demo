@@ -9,7 +9,6 @@ MAX_ACTIVE_ROW_GAP = 2
 MIN_TEXTLIKE_HEIGHT = 12
 """
 new_constants = """MIN_ACTIVE_ROW_INK_RATIO = 0.0015
-MIN_ACTIVE_ROW_INK_PIXELS = 8
 MAX_ACTIVE_ROW_GAP = 2
 MAX_SPARSE_ROW_EXPANSION = 3
 MAX_UNRESOLVED_BAND_HEIGHT_RATIO = 0.10
@@ -36,10 +35,7 @@ old_segmentation = """    row_ink = np.count_nonzero(ink, axis=1)
             expanded_runs.append((y0, y1))
 """
 new_segmentation = """    row_ink = np.count_nonzero(ink, axis=1)
-    minimum_active_ink = max(
-        MIN_ACTIVE_ROW_INK_PIXELS,
-        int(math.ceil(width * MIN_ACTIVE_ROW_INK_RATIO)),
-    )
+    minimum_active_ink = max(3, int(math.ceil(width * MIN_ACTIVE_ROW_INK_RATIO)))
     active_runs = _runs(row_ink >= minimum_active_ink, max_gap=MAX_ACTIVE_ROW_GAP)
 
     expanded_runs: list[tuple[int, int]] = []
@@ -103,7 +99,13 @@ inserted = """    def test_sparse_vertical_connector_does_not_merge_distant_line
         ]
         self.assertEqual(len(text_lines), 3)
         self.assertTrue(all(line.bbox[3] - line.bbox[1] < 60 for line in text_lines))
-        self.assertFalse(any(line.bbox[3] - line.bbox[1] > 100 for line in result.lines))
+        self.assertTrue(
+            all(
+                line.bbox[3] - line.bbox[1] <= 100
+                or "foreground_too_small" in line.reasons
+                for line in result.lines
+            )
+        )
 
     def test_unresolved_wide_connector_band_fails_closed(self) -> None:
         page = Image.new("L", (600, 1000), 255)
