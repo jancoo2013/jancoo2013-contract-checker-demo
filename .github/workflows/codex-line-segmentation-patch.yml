@@ -1,17 +1,19 @@
 name: Temporary line segmentation corrective
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/line-segmentation-giant-band-guard-v0
+      - main
     paths:
       - .github/workflows/codex-line-segmentation-patch.yml
+      - tools/codex_line_segmentation_patch.py
 
 permissions:
   contents: write
 
 jobs:
   patch:
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
