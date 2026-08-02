@@ -60,11 +60,12 @@ class PIIMaskDiagnosticsRunnerTests(unittest.TestCase):
             mocked.assert_not_called()
             self.assertEqual(output.read_text(encoding="utf-8"), "keep")
 
-    def test_diagnostic_failure_removes_temporary_worktree_and_partial_report(self):
+    def test_diagnostic_failure_preserves_appearing_report_and_removes_worktree(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             repo = root / "repo"
             pack = root / "2_review_pack"
+            output = root / "2_review_pack-mask-diagnostics.json"
             repo.mkdir()
             pack.mkdir()
             commands: list[list[str]] = []
@@ -75,8 +76,7 @@ class PIIMaskDiagnosticsRunnerTests(unittest.TestCase):
                 if command[:3] == ["git", "worktree", "add"]:
                     Path(command[-2]).mkdir(parents=True)
                 if "research.hebrew_contract_ocr.pii_mask_diagnostics" in command:
-                    output = Path(command[command.index("--output") + 1])
-                    output.write_text("partial", encoding="utf-8")
+                    output.write_text("external", encoding="utf-8")
                     return _result(command, returncode=1)
                 return _result(command)
 
@@ -84,7 +84,7 @@ class PIIMaskDiagnosticsRunnerTests(unittest.TestCase):
                 with self.assertRaisesRegex(PIIMaskRunnerError, "mask diagnostics failed"):
                     run_diagnostics(pack, repo_root=repo, python_executable="python")
 
-            self.assertFalse((root / "2_review_pack-mask-diagnostics.json").exists())
+            self.assertEqual(output.read_text(encoding="utf-8"), "external")
             self.assertTrue(any(item[:4] == ["git", "worktree", "remove", "--force"] for item in commands))
 
     def test_missing_ready_marker_rejects_and_removes_report(self):
