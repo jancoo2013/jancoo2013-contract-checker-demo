@@ -35,6 +35,7 @@ jobs:
           tests.test_ocr_pii_annotations
           tests.test_ocr_pii_baseline
           tests.test_ocr_pii_mask_renderer
+          tests.test_ocr_pii_mask_diagnostics
           tests.test_ocr_pii_reviewer_pilot
           tests.test_ocr_pii_review_pack_builder
           tests.test_ocr_recognizer_input
