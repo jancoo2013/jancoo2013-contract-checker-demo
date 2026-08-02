@@ -1,6 +1,6 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-07-30, PR #158, `android-reviewer-first-paint-v0`.
+Последнее обновление: 2026-08-02, PR #159, `cold-start-audit-2026-08-02-v2`.
 
 Активный трек: `local-pii-redaction`.
 
@@ -8,15 +8,28 @@
 
 Этот документ — каноническая operational-точка восстановления privacy/OCR-проекта. Архитектуру задают `docs/ARCHITECTURE.md` и `docs/CUSTOM_OCR_PIPELINE.md`; точные входы, выходы и proof boundaries отдельных компонентов задают их component contracts. При конфликте обязательных документов работа останавливается до отдельного исправления.
 
-## 0. Изменение PR #158
+## 0. Изменение PR #159
 
-- По прямому запросу владельца продукта как ограниченный corrective исправляется первый показ страницы после выбора review pack на Samsung A55.
+- После merge PR #156–#158 выполнен обязательный repository-only cold-start audit.
+- Повторно сверены `AGENTS.md`, архитектура, privacy/OCR pipeline, оба state-файла, Context Gate, Android package и локальные Android-команды.
+- Архитектурного дрейфа не найдено: действующая цепочка остаётся local PII detection → irreversible masking → local validation → только затем approved external OCR.
+- Фактическая проверка PR #158 завершена: mobile tests прошли `14/14`, release build завершился `BUILD READY`, установка — `RUN READY`, а Samsung A55 smoke подтвердил корректный первый показ, переключение source/masked и блокировку касаний до загрузки.
+- Найдено отставание документации: merged state ошибочно продолжал считать Samsung A55 smoke невыполненным. Этот PR синхронизирует state с фактическим результатом.
+- На реальном трёхстраничном pack визуально подтверждено существенное excessive over-redaction: крупные маски закрывают юридически значимые абзацы. Следующий bounded diagnostic внутри текущего pilot должен установить источник расширения каждой маски до изменения detector rules.
+- Verdict: `PASS WITH ONE MEASUREMENT BLOCKER`. Privacy boundary и общий пайплайн согласованы; точность текущего detector и причины excessive over-redaction ещё не измерены.
+- Runtime, detector, renderer, маски, зависимости, OCR, внешние API, `active_track` и `next_step_id` не меняются.
+
+### Зафиксированный PR #158
+
+- По прямому запросу владельца продукта как ограниченный corrective исправлен первый показ страницы после выбора review pack на Samsung A55.
 - `PageCanvas` больше не создаёт `Image` до получения фактического размера области просмотра; после layout изображение монтируется сразу с окончательной геометрией.
 - Смена страницы, режима или размера создаёт новый экземпляр изображения, поэтому UI не зависит от случайной Android-перерисовки.
 - Пока файл изображения не загрузился, приложение показывает `Загрузка страницы…`, не рисует finding overlays и игнорирует касания по canvas, чтобы исключить ложные отметки по пустому экрану.
 - Выбор новой папки всегда возвращает режим `Исходник`, а не сохраняет режим предыдущего pack.
 - Изменение ограничено `mobile/pii-reviewer/App.js`; review-pack schema, PNG validation, detector, renderer, маски, категории проверки, сохранение результата, зависимости и внешние вызовы не меняются.
-- Локальные mobile tests, release build и один объединённый Samsung A55 smoke ещё обязательны. В device smoke проверяются первый показ всех трёх страниц, переключение source/masked, отсутствие ложных касаний во время загрузки и сохранение review JSONL.
+- Локальные mobile tests прошли `14/14`; release build завершился `BUILD READY` с SHA-256 `058da3013726ec187e7e7479319b4e9cfd1dc9a91031cb73740e14940cec9035`; установка завершилась `RUN READY`.
+- Samsung A55 smoke успешен: исходник сразу отображается на всех трёх страницах, source/masked switching работает, касания до загрузки игнорируются, локальное сохранение результата завершается без ошибки.
+- Копирование и проверка canonical review JSONL на компьютере, а также human pilot остаются следующим этапом.
 - Реальные страницы, PII и contract text не коммитятся. `active_track` и `next_step_id` не меняются.
 
 ### Зафиксированный PR #157
@@ -159,7 +172,7 @@ raw phone photo
 | Local mask renderer | Python reference v0 | Новый grayscale PNG, физическая замена candidate pixels, metadata stripping, deterministic publication | Candidate correctness, Android behavior и production privacy safety |
 | Reviewer manifest core | Reference v0 | Три closed finding categories, canonical geometry/JSONL и immutable hashes | Controlled human pilot |
 | Review pack builder | `controlled_pii_review_pack_builder_v0` | One-command local assembly, byte-identical sources, exact hashes/bindings, strict line manifest, no-overwrite publication и cleanup покрыты synthetic focused tests и CI | Удобство фактической передачи pack и human pilot |
-| Android PII reviewer | Standalone Expo APK + PR #157 dimensions fix + PR #158 first-paint corrective | Автономный запуск; direct PNG-byte validation; реальный pack открывается на Samsung A55 как 3 страницы, source/masked версии доступны; first-paint/loading/touch-gate code implemented | Локальные tests/build и Samsung A55 smoke PR #158, publication/readback результата, human pilot |
+| Android PII reviewer | Standalone Expo APK + PR #157 dimensions fix + PR #158 first-paint corrective | Автономный запуск; direct PNG-byte validation; реальный pack открывается на Samsung A55 как 3 страницы; first-paint, loading indicator, touch gate и локальное сохранение результата подтверждены на Samsung A55 | Publication/readback результата на компьютере, human pilot |
 | Android development automation | `doctor` v0 + `build` v0 + `run` v0 + `logs` v0 + `restart` v0 | Полный Windows PowerShell 5.1 doctor-run; Java 21 fail-closed preflight; Temurin JDK 17 preflight; SDK handoff; успешная локальная release-сборка; подтверждённые install, launcher, process check, process-scoped warning/error logs и stop/start/process confirmation на Samsung A55 без Metro | Остаточный риск PII в произвольных error strings |
 | Android detector/renderer | Не реализован | — | On-device automatic detection and masking |
 | External OCR handoff | Не подключён | Разрешён только после privacy gate | Безопасность derivative не доказана |
@@ -180,11 +193,10 @@ raw phone photo
 
 Оставшиеся ограничения:
 
-- первый показ исправляется в PR #158, но фактический Samsung A55 smoke нового APK ещё не выполнен;
 - создание и чтение `review-<prediction_sha256>.jsonl` на компьютере фактически не подтверждено;
 - это не проверка Android automasking, PII recall или privacy safety.
 
-Standalone launch и открытие реального трёхстраничного pack на Samsung A55 подтверждены. PR #158 должен одной установкой подтвердить first-paint, loading/touch gate и локальное сохранение результата до controlled human pilot.
+Standalone launch, открытие реального трёхстраничного pack, first-paint, loading/touch gate и локальное сохранение результата на Samsung A55 подтверждены. Следующий operational gate — копирование review JSONL на компьютер, проверка exact hashes и controlled human pilot.
 
 ## 10. Активный блокер и pilot input
 
@@ -196,7 +208,7 @@ Standalone launch и открытие реального трёхстранич�
 
 До pilot нельзя утверждать, что current candidates корректны, маски полностью закрывают PII или сохраняют достаточно юридического текста.
 
-У владельца продукта есть repository-external трёхстраничный договор, в котором почти весь текст напечатан, а рукописными остаются только подписи. Из него уже собран exact review pack; hashes и размеры согласованы, а исправленный APK открывает все три страницы на Samsung A55. PR #158 объединяет оставшийся first-paint corrective, индикатор загрузки и блокировку ложных касаний; после его локальной build/device-проверки можно переходить к human pilot и публикации review JSONL. Сам договор, normalized pages, manifests, derivatives и review result не коммитятся в GitHub и не передаются внешним сервисам.
+У владельца продукта есть repository-external трёхстраничный договор, в котором почти весь текст напечатан, а рукописными остаются только подписи. Из него уже собран exact review pack; hashes и размеры согласованы, а исправленный APK надёжно отображает все три страницы на Samsung A55. First-paint, индикатор загрузки, блокировка ложных касаний и локальное сохранение результата подтверждены. Визуально выявлено существенное over-redaction, поэтому перед изменением detector rules нужен bounded diagnostic источника и площади каждой маски. Сам договор, normalized pages, manifests, derivatives и review result не коммитятся в GitHub и не передаются внешним сервисам.
 
 ## 11. Единственный следующий шаг
 
@@ -219,8 +231,9 @@ python -m research.hebrew_contract_ocr.pii_review_pack_builder \
 6. Завершить все страницы и создать локальный `review-<prediction_sha256>.jsonl` без overwrite.
 7. Скопировать result обратно на компьютер и проверить его существующим Python reviewer core против exact source/prediction/derivative hashes.
 8. При невозможности собрать pack, сохранить или прочитать result остановить pilot и оформить отдельный bounded corrective PR.
-9. Не считать metrics и не менять detector в этом шаге. Следующий отдельный PR после успешного pilot — `local-pii-metrics-v0`.
-10. Запрещены Gemini, Google Vision, cloud OCR, LLM image calls, production upload и любые PII values в GitHub/Airtable.
+9. До изменения detector rules разрешён отдельный bounded diagnostic, который измеряет площадь и происхождение текущих масок без чтения или публикации PII.
+10. Не считать итоговые metrics и не менять detector в диагностическом шаге. Следующий отдельный PR после успешного pilot — `local-pii-metrics-v0`.
+11. Запрещены Gemini, Google Vision, cloud OCR, LLM image calls, production upload и любые PII values в GitHub/Airtable.
 
 ## 12. Правила работы и восстановления новой сессии
 
@@ -244,6 +257,15 @@ python -m research.hebrew_contract_ocr.pii_review_pack_builder \
 ## 13. Cold-start continuity audit
 
 Каждые 3–5 слитых privacy/OCR PR проводится repository-only cold-start audit.
+
+Audit 2026-08-02 после merge PR #158:
+
+- прочитаны все пять binding sources с актуального `main`;
+- architecture, pipeline, state, Context Gate, Android package и automation entrypoints согласованы;
+- результаты PR #158 подтверждены тестами, release build, install и Samsung A55 smoke;
+- найдено только отставание state от фактической device-проверки, исправленное PR #159;
+- визуально подтверждён measurement blocker: текущие маски чрезмерно закрывают юридический текст, но источник расширения ещё не измерен;
+- verdict: `PASS WITH ONE MEASUREMENT BLOCKER`.
 
 Audit 2026-07-29 после merge PR #154:
 
