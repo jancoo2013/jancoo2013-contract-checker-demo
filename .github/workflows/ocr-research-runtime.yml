@@ -42,6 +42,7 @@ jobs:
           tests.test_ocr_pii_mask_diagnostics
           tests.test_ocr_pii_reviewer_pilot
           tests.test_ocr_pii_review_pack_builder
+          tests.test_ocr_line_segmenter
           tests.test_ocr_recognizer_input
           tests.test_ocr_ctc_decoder
           tests.test_tools_run_pii_mask_diagnostics
