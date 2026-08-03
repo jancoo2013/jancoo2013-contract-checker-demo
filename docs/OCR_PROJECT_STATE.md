@@ -372,7 +372,7 @@ Human pilot остаётся обязательным позже для `missed_
 
 ## 11. Единственный следующий шаг
 
-**`pii-direct-value-decision-adapter-v0`: Add a dependency-free reference adapter that turns one existing `DirectValueMatch` plus caller-supplied exact geometry into a class-bound candidate through the existing evidence and combiner APIs, using synthetic fixtures only and without detector, renderer, runtime, or Android integration.**
+**`pii-direct-value-decision-adapter-v0`: Add a dependency-free reference adapter that turns one existing DirectValueMatch plus caller-supplied exact geometry into a class-bound candidate through the existing evidence and combiner APIs, using synthetic fixtures only and without detector, renderer, runtime, or Android integration.**
 
 Граница шага:
 
