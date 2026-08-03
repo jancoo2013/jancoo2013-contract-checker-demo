@@ -13,11 +13,18 @@ def geometry(x0=10, y0=10, x1=80, y1=30):
     return {"type": "bbox", "coordinates": [x0, y0, x1, y1]}
 
 
-def evidence(evidence_id, family, **extra):
+def evidence(evidence_id, family, detector_id=None, **extra):
+    defaults = {
+        "direct_value": "direct-israeli-phone-v0",
+        "marker": "marker-phone-v0",
+        "visual_sensitive_region": "visual-evidence-filled-field-v0",
+        "relation": "marker-to-visual-v0",
+        "weak_layout_context": "synthetic-layout-v0",
+    }
     return {
         "evidence_id": evidence_id,
         "family": family,
-        "detector_id": "synthetic-detector-v0",
+        "detector_id": detector_id or defaults.get(family, "synthetic-detector-v0"),
         **extra,
     }
 
@@ -26,6 +33,11 @@ def relation(evidence_id, relation_type, source_id, target_id):
     return evidence(
         evidence_id,
         "relation",
+        detector_id=(
+            "marker-to-direct-value-v0"
+            if relation_type == "marker_to_value"
+            else "marker-to-visual-v0"
+        ),
         relation={
             "relation_type": relation_type,
             "source_evidence_id": source_id,
@@ -73,7 +85,35 @@ class PiiEvidenceDecisionTests(unittest.TestCase):
             evidence("visual-1", "visual_sensitive_region", geometry=geometry()),
             relation("relation-1", "marker_to_visual", "marker-1", "visual-1"),
         ]
-        self.assert_valid_disposition(records, "auto_mask", "signature")
+        self.assert_valid_disposition(records, "auto_mask", "phone")
+
+    def test_class_mismatched_direct_value_requires_local_review(self):
+        records = [evidence("value-1", "direct_value", geometry=geometry())]
+        self.assert_valid_disposition(records, "local_review", "email")
+
+    def test_phone_marker_linked_to_signature_requires_local_review(self):
+        records = [
+            evidence("marker-1", "marker"),
+            evidence(
+                "visual-1",
+                "visual_sensitive_region",
+                detector_id="visual-evidence-signature-v0",
+                geometry=geometry(),
+            ),
+            relation("relation-1", "marker_to_visual", "marker-1", "visual-1"),
+        ]
+        self.assert_valid_disposition(records, "local_review", "phone")
+
+    def test_unapproved_direct_detector_requires_local_review(self):
+        records = [
+            evidence(
+                "value-1",
+                "direct_value",
+                detector_id="unapproved-digits-v0",
+                geometry=geometry(),
+            )
+        ]
+        self.assert_valid_disposition(records, "local_review", "other_likely_pii")
 
     def test_weak_layout_never_becomes_auto_mask(self):
         records = [

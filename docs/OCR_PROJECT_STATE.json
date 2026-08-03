@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-03-26",
+  "state_version": "privacy-ocr-2026-08-03-27",
   "active_track": "local-pii-redaction",
-  "next_step_id": "pii-evidence-class-compatibility-v1",
-  "next_step_summary": "Define and enforce a closed detector/relation-to-proposed-class compatibility gate so mismatched or unapproved strong evidence cannot produce auto_mask, using only synthetic fixtures and without detector, renderer, runtime, or Android integration.",
-  "last_recorded_pr": 172,
-  "last_recorded_change": "privacy-ocr-cold-start-audit-v1",
+  "next_step_id": "pii-direct-value-decision-adapter-v0",
+  "next_step_summary": "Add a dependency-free reference adapter that turns one existing DirectValueMatch plus caller-supplied exact geometry into a class-bound candidate through the existing evidence and combiner APIs, using synthetic fixtures only and without detector, renderer, runtime, or Android integration.",
+  "last_recorded_pr": 173,
+  "last_recorded_change": "pii-evidence-class-compatibility-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-08-03"
