@@ -134,6 +134,10 @@ class PiiCandidateEvidenceTests(unittest.TestCase):
         )
         self.assert_invalid(self_ref, "cannot self-reference")
 
+        invalid_endpoint = copy.deepcopy(missing)
+        invalid_endpoint["evidence"][1]["relation"]["target_evidence_id"] = ["visual-1"]
+        self.assert_invalid(invalid_endpoint, "invalid target_evidence_id")
+
         wrong = candidate(
             "auto_mask",
             [

@@ -167,9 +167,15 @@ def candidate_validation_errors(candidate: Any, image_width: int, image_height: 
         if not isinstance(relation_type, str) or relation_type not in RELATION_TYPES:
             errors.append(f"{label}.relation unknown relation_type: {relation_type!r}")
             continue
-        for field, value in (("source_evidence_id", source_id), ("target_evidence_id", target_id)):
-            if not _is_identifier(value):
-                errors.append(f"{label}.relation invalid {field}")
+        invalid_endpoints = [
+            field
+            for field, value in (("source_evidence_id", source_id), ("target_evidence_id", target_id))
+            if not _is_identifier(value)
+        ]
+        for field in invalid_endpoints:
+            errors.append(f"{label}.relation invalid {field}")
+        if invalid_endpoints:
+            continue
         if source_id == target_id:
             errors.append(f"{label}.relation cannot self-reference evidence")
             continue
