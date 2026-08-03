@@ -32,6 +32,28 @@ def _candidate(
     }
 
 
+def _strong_geometry_matches(
+    evidence: list[dict[str, Any]],
+    candidate_geometry: dict[str, Any],
+) -> bool:
+    evidence_by_id = {record["evidence_id"]: record for record in evidence}
+    strong_ids = {
+        record["evidence_id"]
+        for record in evidence
+        if record["family"] == "direct_value"
+    }
+    strong_ids.update(
+        record["relation"]["target_evidence_id"]
+        for record in evidence
+        if record["family"] == "relation"
+        and record["relation"]["relation_type"] == "marker_to_visual"
+    )
+    return bool(strong_ids) and all(
+        evidence_by_id[evidence_id].get("geometry") == candidate_geometry
+        for evidence_id in strong_ids
+    )
+
+
 def combine_evidence_into_candidate(
     candidate_id: object,
     proposed_class: object,
@@ -65,7 +87,10 @@ def combine_evidence_into_candidate(
             "auto_mask",
             None,
         )
-        if not candidate_validation_errors(automatic, image_width, image_height):
+        if (
+            not candidate_validation_errors(automatic, image_width, image_height)
+            and _strong_geometry_matches(automatic["evidence"], automatic["geometry"])
+        ):
             return automatic
     return baseline
 

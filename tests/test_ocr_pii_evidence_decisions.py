@@ -62,7 +62,7 @@ class PiiEvidenceDecisionTests(unittest.TestCase):
     def test_marker_to_value_relation_becomes_auto_mask(self):
         records = [
             evidence("marker-1", "marker"),
-            evidence("value-1", "direct_value"),
+            evidence("value-1", "direct_value", geometry=geometry()),
             relation("relation-1", "marker_to_value", "marker-1", "value-1"),
         ]
         self.assert_valid_disposition(records, "auto_mask")
@@ -106,6 +106,19 @@ class PiiEvidenceDecisionTests(unittest.TestCase):
             evidence("value-1", "direct_value", geometry=geometry()),
         ]
         self.assert_valid_disposition(records, "auto_mask")
+
+    def test_strong_evidence_without_exact_geometry_requires_review(self):
+        cases = (
+            [evidence("value-1", "direct_value")],
+            [evidence("value-1", "direct_value", geometry=geometry(10, 10, 90, 30))],
+            [
+                evidence("value-1", "direct_value", geometry=geometry()),
+                evidence("value-2", "direct_value", geometry=geometry(10, 40, 80, 60)),
+            ],
+        )
+        for records in cases:
+            with self.subTest(records=records):
+                self.assert_valid_disposition(records, "local_review")
 
     def test_schema_invalid_evidence_is_rejected(self):
         invalid_cases = (
