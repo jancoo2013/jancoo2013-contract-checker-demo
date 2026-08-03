@@ -54,7 +54,14 @@ class PiiDirectPatternsTests(unittest.TestCase):
         self.assertEqual("+972 54-123-4567", text[match.start : match.end])
 
     def test_invalid_phone_prefixes_and_lengths_are_rejected(self):
-        for text in ("060-123-4567", "050-123-456", "+972 64-123-4567", "+972 54-123-45678"):
+        for text in (
+            "060-123-4567",
+            "050-123-456",
+            "+972 64-123-4567",
+            "+972 54-123-45678",
+            "12-050-123-4567-34",
+            "12 050-123-4567 34",
+        ):
             with self.subTest(text=text):
                 self.assertEqual([], self.matches_for(text, "phone"))
 
@@ -65,7 +72,12 @@ class PiiDirectPatternsTests(unittest.TestCase):
         self.assertEqual("direct-israeli-id-v0", match.detector_id)
 
     def test_invalid_israeli_id_check_digit_is_rejected(self):
-        self.assertEqual([], self.matches_for("Synthetic ID 123456783.", "israeli_id"))
+        for text in ("Synthetic ID 123456783.", "Synthetic ID 000000000."):
+            with self.subTest(text=text):
+                self.assertEqual([], self.matches_for(text, "israeli_id"))
+        zero_padded = "Synthetic ID 000000018."
+        match = self.matches_for(zero_padded, "israeli_id")[0]
+        self.assertEqual("000000018", zero_padded[match.start : match.end])
 
     def test_ambiguous_numeric_categories_are_not_ids(self):
         text = "Date 01/02/2025; sum 7,500; clause 3.2; notice 30; generic 111111111."
@@ -78,10 +90,13 @@ class PiiDirectPatternsTests(unittest.TestCase):
         self.assertEqual("direct-israeli-iban-v0", match.detector_id)
 
     def test_invalid_israeli_iban_check_digits_are_rejected(self):
-        self.assertEqual(
-            [],
-            self.matches_for("IL89 1234 5678 9012 3456 789", "bank_identifier"),
-        )
+        for text in (
+            "IL89 1234 5678 9012 3456 789",
+            f"123-{VALID_IBAN}-456",
+            f"123 {VALID_IBAN} 456",
+        ):
+            with self.subTest(text=text):
+                self.assertEqual([], self.matches_for(text, "bank_identifier"))
 
     def test_generic_account_and_cheque_numbers_are_rejected(self):
         text = "Account 123456789012; branch 321; cheque 12345678; postal 6100000."
@@ -91,6 +106,13 @@ class PiiDirectPatternsTests(unittest.TestCase):
         matches = find_direct_value_matches(VALID_IBAN)
         self.assertEqual(1, len(matches))
         self.assertEqual("bank_identifier", matches[0].pii_class)
+
+        email = "IL881234567890123456789@example.test"
+        email_matches = find_direct_value_matches(email)
+        self.assertEqual(1, len(email_matches))
+        self.assertEqual("email", email_matches[0].pii_class)
+        self.assertEqual(email, email[email_matches[0].start : email_matches[0].end])
+        self.assertEqual(email_matches, find_direct_value_matches(email))
 
     def test_multiple_values_use_deterministic_source_order(self):
         text = f"{VALID_ID}; tenant@example.test; 050-123-4567"
