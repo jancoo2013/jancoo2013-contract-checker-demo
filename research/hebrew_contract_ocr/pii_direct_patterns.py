@@ -29,7 +29,10 @@ _PHONE_RE = re.compile(
     r"(?<!\d)(?:\+972[ -]?|0)(?:5\d|[23489]|7[0-9])[ -]?\d{3}[ -]?\d{4}(?!\d)"
 )
 _ISRAELI_ID_RE = re.compile(r"(?<!\d)\d(?:[ -]?\d){8}(?!\d)")
-_ISRAELI_IBAN_RE = re.compile(r"(?<![A-Z0-9])IL(?:[ -]?\d){21}(?![A-Z0-9])", re.IGNORECASE)
+_ISRAELI_IBAN_RE = re.compile(
+    r"(?<![A-Z0-9])IL(?:[ -]?\d){21}(?![A-Z0-9@])",
+    re.IGNORECASE,
+)
 _SEPARATORS = frozenset({" ", "-"})
 
 _PRIORITY = ("bank_identifier", "email", "phone", "israeli_id")
@@ -46,7 +49,12 @@ def _valid_email(value: str) -> bool:
 
 def _valid_israeli_id(value: str) -> bool:
     digits = _without_separators(value)
-    if len(digits) != 9 or not digits.isascii() or not digits.isdigit():
+    if (
+        len(digits) != 9
+        or not digits.isascii()
+        or not digits.isdigit()
+        or digits == "000000000"
+    ):
         return False
     total = 0
     for index, character in enumerate(digits):
@@ -91,7 +99,9 @@ def _collect_matches(text: str) -> dict[str, list[DirectValueMatch]]:
     for pii_class in _PRIORITY:
         pattern, validator = patterns[pii_class]
         for found in pattern.finditer(text):
-            if pii_class == "israeli_id" and _is_partial_separated_number(text, found.start(), found.end()):
+            if pii_class in {"bank_identifier", "phone", "israeli_id"} and _is_partial_separated_number(
+                text, found.start(), found.end()
+            ):
                 continue
             if validator(found.group(0)):
                 matches[pii_class].append(
