@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-03-21",
+  "state_version": "privacy-ocr-2026-08-03-22",
   "active_track": "local-pii-redaction",
-  "next_step_id": "pii-direct-pattern-evidence-v0",
-  "next_step_summary": "Add deterministic direct-value evidence patterns using only synthetic, non-identifying fixtures; do not add marker recognition or claim a production detector.",
-  "last_recorded_pr": 167,
-  "last_recorded_change": "cold-start-audit-after-pr-166-v0",
+  "next_step_id": "pii-marker-value-relation-v0",
+  "next_step_summary": "Add bounded marker-to-direct-value relational evidence using synthetic, non-identifying fixtures; do not add image OCR or runtime integration.",
+  "last_recorded_pr": 168,
+  "last_recorded_change": "pii-direct-pattern-evidence-v0",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-08-03"
