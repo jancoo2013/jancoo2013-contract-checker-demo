@@ -113,7 +113,36 @@ python -m py_compile app.py contract_checker/*.py research/hebrew_contract_ocr/*
 python -m unittest discover -s tests
 ```
 
-For mobile reviewer changes, run the relevant commands from `mobile/pii-reviewer`, including tests and build/smoke checks required by the component contract.
+For mobile reviewer changes, use the repository-owned commands below from the repository root on Windows PowerShell. These wrappers are the canonical Android automation path; do not replace them with Android Studio copy/paste, direct Gradle invocations, or `expo run:android` unless a bounded task explicitly requires a lower-level diagnostic.
+
+```powershell
+npm --prefix mobile/pii-reviewer test
+.\tools\android-dev.ps1 doctor
+.\tools\android-dev.ps1 build
+.\tools\android-dev.ps1 run
+.\tools\android-dev.ps1 logs
+.\tools\android-dev.ps1 restart
+```
+
+Use the commands proportionately:
+
+- Run `npm --prefix mobile/pii-reviewer test` for every mobile JavaScript or application-behavior change.
+- Run `doctor` before the first Android build in a working session and again after a toolchain, SDK, Java, Node, Gradle, or adb failure.
+- Run `build` for every change that can affect the standalone APK. A successful build must end with `BUILD READY` and produce the expected repository-owned artifact.
+- Run `run` only when device installation or device behavior is part of the completion criteria and exactly one authorized ready device is available.
+- Run `logs` after a runtime failure or unexpected device behavior. Treat its output as local diagnostic material and do not publish raw logs without review.
+- Run `restart` only when the installed APK is already current and the task requires another launch without rebuilding or reinstalling it.
+
+When a required validation command fails:
+
+1. Read the command output and the repository-owned local failure log, when one is named.
+2. Identify the first actionable root cause before editing.
+3. Make the smallest in-scope correction; do not change product code to conceal a broken local environment.
+4. Re-run the failed command.
+5. After it passes, re-run the focused tests and the final required build or device check so the reported result matches the final diff.
+6. Repeat only while the correction remains inside the approved task contract. Stop and report the blocker if the next correction requires a new dependency, subsystem, privacy/product decision, destructive device action, unavailable credential, unavailable authorized device, or broader scope.
+
+Do not claim build, installation, launch, log, or device validation unless the corresponding command actually ran successfully. Android Studio may be used for human visual inspection, but it is not the required automation or evidence path.
 
 Documentation-only PRs do not require application tests, but must validate that:
 
