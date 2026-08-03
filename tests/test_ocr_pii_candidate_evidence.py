@@ -11,11 +11,22 @@ def geometry(x0=10, y0=10, x1=40, y1=30):
     return {"type": "bbox", "coordinates": [x0, y0, x1, y1]}
 
 
-def evidence(evidence_id, family, **extra):
+def evidence(evidence_id, family, detector_id=None, **extra):
+    defaults = {
+        "direct_value": "direct-israeli-phone-v0",
+        "marker": "marker-phone-v0",
+        "visual_sensitive_region": "visual-evidence-filled-field-v0",
+        "relation": "marker-to-visual-v0",
+        "weak_layout_context": "synthetic-layout-v0",
+    }
     return {
         "evidence_id": evidence_id,
         "family": family,
-        "detector_id": "synthetic-detector-v0",
+        "detector_id": detector_id or (
+            defaults.get(family, "synthetic-detector-v0")
+            if isinstance(family, str)
+            else "synthetic-detector-v0"
+        ),
         **extra,
     }
 
@@ -60,6 +71,45 @@ class PiiCandidateEvidenceTests(unittest.TestCase):
             ),
         ]
         self.assert_valid(candidate("auto_mask", records))
+
+    def test_auto_mask_rejects_class_mismatched_direct_value(self):
+        value = candidate("auto_mask", [evidence("value-1", "direct_value", geometry=geometry())])
+        value["proposed_class"] = "email"
+        self.assert_invalid(value, "incompatible with proposed_class")
+
+    def test_auto_mask_rejects_phone_marker_linked_to_signature(self):
+        records = [
+            evidence("marker-1", "marker"),
+            evidence(
+                "visual-1",
+                "visual_sensitive_region",
+                detector_id="visual-evidence-signature-v0",
+                geometry=geometry(),
+            ),
+            evidence(
+                "relation-1",
+                "relation",
+                relation={
+                    "relation_type": "marker_to_visual",
+                    "source_evidence_id": "marker-1",
+                    "target_evidence_id": "visual-1",
+                },
+            ),
+        ]
+        self.assert_invalid(candidate("auto_mask", records), "incompatible marker and target")
+
+    def test_auto_mask_rejects_unapproved_direct_detector(self):
+        records = [
+            evidence(
+                "value-1",
+                "direct_value",
+                detector_id="unapproved-digits-v0",
+                geometry=geometry(),
+            )
+        ]
+        value = candidate("auto_mask", records)
+        value["proposed_class"] = "other_likely_pii"
+        self.assert_invalid(value, "unapproved direct_value detector_id")
 
     def test_local_review_requires_evidence_and_reason(self):
         self.assert_valid(
@@ -209,6 +259,12 @@ class PiiCandidateEvidenceTests(unittest.TestCase):
         bool_geometry = candidate()
         bool_geometry["geometry"] = geometry(True, 1, 10, 10)
         self.assert_invalid(bool_geometry, "coordinates must be four integers")
+
+        invalid_detector = candidate(
+            "auto_mask",
+            [evidence("value-1", "direct_value", detector_id=["bad"], geometry=geometry())],
+        )
+        self.assert_invalid(invalid_detector, "invalid detector_id")
         with self.assertRaisesRegex(ValueError, "positive integers"):
             validate_candidate(candidate(), True, 80)
 
