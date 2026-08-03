@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-03-18",
+  "state_version": "privacy-ocr-2026-08-03-19",
   "active_track": "local-pii-redaction",
   "next_step_id": "pii-candidate-evidence-schema-v0",
   "next_step_summary": "Define and validate an evidence-bearing PII candidate schema with auto_mask, local_review, and preserve dispositions; page-zone context alone must never validate auto_mask.",
-  "last_recorded_pr": 164,
-  "last_recorded_change": "android-agent-command-loop-v0",
+  "last_recorded_pr": 165,
+  "last_recorded_change": "codex-orchestration-protocol-v0",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-08-03"

@@ -1,6 +1,6 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-03, PR #164, `android-agent-command-loop-v0`.
+Последнее обновление: 2026-08-03, PR #165, `codex-orchestration-protocol-v0`.
 
 Активный трек: `local-pii-redaction`.
 
@@ -8,7 +8,19 @@
 
 Этот документ — каноническая operational-точка восстановления privacy/OCR-проекта. Архитектуру задают `docs/ARCHITECTURE.md` и `docs/CUSTOM_OCR_PIPELINE.md`; точные входы, выходы и proof boundaries отдельных компонентов задают их component contracts. При конфликте обязательных документов работа останавливается до отдельного исправления.
 
-## 0. Изменение PR #164
+## 0. Изменение PR #165
+
+- По прямому запросу владельца продукта как ограниченное process exception добавлен `docs/CODEX_WORKFLOW.md`, который фиксирует разделение ролей: владелец продукта выбирает направление и решает о merge, управляющий диалог формирует bounded task и независимо аудитит PR, Codex исполняет задачу внутри репозитория и не мержит.
+- Постоянные процессные документы больше не должны хранить якобы текущий номер PR, branch, `active_track` или `next_step_id`; эти значения каждый раз читаются из актуальных state-файлов на `main`.
+- Зафиксирован точный порядок: binding sources → проверка пересекающихся PR → Context Gate до edits → branch от текущего `main` → focused checks → draft PR → state update после получения номера → финальные проверки на последнем head SHA → diff audit → Ready без auto-merge.
+- Финальные claims обязаны ссылаться на base SHA, final head SHA, точные команды, результаты/exit codes и workflow run identifiers; проверки более раннего commit не считаются доказательством итогового diff.
+- Самостоятельный failure loop ограничен двумя последовательными исправлениями одной root cause; при смене категории ошибки, speculative fix или расширении scope Codex обязан остановиться.
+- Введён явный repository-hygiene gate: без отдельного разрешения нельзя коммитить build directories, APK, artifacts, logs, caches, IDE metadata, temporary scripts/workflows, repository-external reports и lock-file изменения без изменения dependencies.
+- Управляющий ассистент не может заявлять, что задача передана Codex или выполняется, если реального Codex invocation не было; при недоступном dispatch публикуется готовый task packet с честным статусом `execution not started`.
+- Независимый аудит PR обязан проверить base/head SHA, единственный Context Gate, declared/actual paths, финальные проверки, state consistency, privacy boundary, generated files и auto-merge state до рекомендации merge.
+- Изменение документационное/process-only: runtime, detector, renderer, Android reviewer, APK, OCR, dependencies, external APIs, privacy boundary, `active_track` и `next_step_id` не меняются. Application/Android tests не запускались, поскольку исполняемый код не изменён.
+
+### Зафиксированный PR #164
 
 - По прямому запросу владельца продукта как ограниченное process exception в `AGENTS.md` зафиксирован канонический локальный Android-цикл для Codex без ручного копирования кода в Android Studio.
 - Для mobile changes теперь явно указаны существующие repository-owned entrypoints: `npm --prefix mobile/pii-reviewer test` и `tools/android-dev.ps1` с командами `doctor`, `build`, `run`, `logs`, `restart`.
@@ -45,7 +57,7 @@
 
 ### Зафиксированный PR #161
 
-- Добавлен локальный runner `tools/run_pii_mask_diagnostics.py`, который запускает уже существующий geometry-only diagnostic без ручного переключения текущей ветки.
+- Добавлен локальный runner `tools/run_pii_mask_diagnostics.py`, который запускает уже существующую geometry-only diagnostic без ручного переключения текущей ветки.
 - Runner обновляет только remote ref `origin/main`, создаёт временный detached worktree из актуального `origin/main`, запускает diagnostic и затем удаляет временный checkout.
 - Готовый JSON-отчёт создаётся рядом с repository-external review pack; существующий output не перезаписывается.
 - Текущая локальная ветка, tracked/untracked файлы рабочего дерева, Android-приложение и телефон не изменяются.
@@ -297,6 +309,8 @@ Human pilot остаётся обязательным позже для `missed_
 8. До ready-for-review проверить фактический diff, tests/validation, state continuity и отсутствие undeclared paths.
 9. Не включать auto-merge.
 
+Подробная последовательность Codex execution, final-SHA evidence, bounded failure loop, repository hygiene, truthful dispatch и независимый PR-аудит определены в `docs/CODEX_WORKFLOW.md`.
+
 ## 13. Cold-start continuity audit
 
 Каждые 3–5 слитых privacy/OCR PR проводится repository-only cold-start audit.
@@ -326,11 +340,19 @@ Audit 2026-07-29 после merge PR #154:
 
 ## 14. Формат передачи ограниченной задачи Codex
 
+Полный обязательный task packet и execution order определены в `docs/CODEX_WORKFLOW.md`.
+
+Минимальный каркас:
+
 ```text
-Источник истины: AGENTS.md + docs/ARCHITECTURE.md + docs/CUSTOM_OCR_PIPELINE.md + оба state-файла.
-Задача: <один ограниченный шаг>.
-Разрешено менять: <точный список файлов>.
-Запрещено: <detours, production integrations, external APIs, data>.
-Проверка: <точные tests/local smoke>.
-Готовность: draft PR → state update → diff/validation review → ready without auto-merge.
+Repository/base: <repo and current main SHA>.
+Sources of truth: AGENTS.md + docs/ARCHITECTURE.md + docs/CUSTOM_OCR_PIPELINE.md + both state files.
+Current state: <active_track and next_step_id read from main>.
+Measurable change: <one bounded result>.
+Context Gate: <one exact JSON object>.
+Allowed paths: <complete exact list>.
+Forbidden: <scope, dependencies, privacy, external services, adjacent systems>.
+Validation: <focused commands + final checks on final head SHA>.
+Failure policy: <bounded correction loop + blockers>.
+Ready criteria: draft PR → state update → final-SHA checks → diff audit → Ready without merge/auto-merge.
 ```
