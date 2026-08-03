@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-03-25",
+  "state_version": "privacy-ocr-2026-08-03-26",
   "active_track": "local-pii-redaction",
-  "next_step_id": "privacy-ocr-cold-start-audit-v1",
-  "next_step_summary": "Run the required repository-only cold-start audit after the four merged evidence slices, verifying PRs 168-171, state continuity, privacy boundaries, proof claims, and the next bounded integration step without runtime or Android changes.",
-  "last_recorded_pr": 171,
-  "last_recorded_change": "pii-evidence-decision-combiner-v0",
+  "next_step_id": "pii-evidence-class-compatibility-v1",
+  "next_step_summary": "Define and enforce a closed detector/relation-to-proposed-class compatibility gate so mismatched or unapproved strong evidence cannot produce auto_mask, using only synthetic fixtures and without detector, renderer, runtime, or Android integration.",
+  "last_recorded_pr": 172,
+  "last_recorded_change": "privacy-ocr-cold-start-audit-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-08-03"

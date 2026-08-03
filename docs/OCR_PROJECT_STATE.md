@@ -1,14 +1,28 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-03, PR #171, `pii-evidence-decision-combiner-v0`.
+Последнее обновление: 2026-08-03, PR #172, `privacy-ocr-cold-start-audit-v1`.
 
 Активный трек: `local-pii-redaction`.
 
-Единственный следующий шаг: `privacy-ocr-cold-start-audit-v1`.
+Единственный следующий шаг: `pii-evidence-class-compatibility-v1`.
 
 Этот документ — каноническая operational-точка восстановления privacy/OCR-проекта. Архитектуру задают `docs/ARCHITECTURE.md` и `docs/CUSTOM_OCR_PIPELINE.md`; точные входы, выходы и proof boundaries отдельных компонентов задают их component contracts. При конфликте обязательных документов работа останавливается до отдельного исправления.
 
-## 0. Изменение PR #171
+## 0. Audit PR #172 после merge PR #171
+
+- Выполнен repository-only cold-start audit с точного `main` SHA `a95a69101af468f955714e3549ab153ada700be3`; до изменения файлов подтверждены `active_track=local-pii-redaction`, `next_step_id=privacy-ocr-cold-start-audit-v1`, согласованность Markdown/JSON state и отсутствие open PR.
+- Полностью прочитаны `AGENTS.md`, `docs/ARCHITECTURE.md`, `docs/CUSTOM_OCR_PIPELINE.md`, `docs/OCR_PROJECT_STATE.md`, `docs/OCR_PROJECT_STATE.json`, `docs/CODEX_WORKFLOW.md`, `docs/PII_EVIDENCE_DETECTOR_V1.md`, `research/hebrew_contract_ocr/pii_candidate_evidence.py`, `research/hebrew_contract_ocr/pii_direct_patterns.py`, `research/hebrew_contract_ocr/pii_marker_value_relations.py`, `research/hebrew_contract_ocr/pii_visual_sensitive_regions.py`, `research/hebrew_contract_ocr/pii_evidence_decisions.py`, `tests/test_ocr_pii_candidate_evidence.py`, `tests/test_ocr_pii_direct_patterns.py`, `tests/test_ocr_pii_marker_value_relations.py`, `tests/test_ocr_pii_visual_sensitive_regions.py`, `tests/test_ocr_pii_evidence_decisions.py` и `.github/workflows/ocr-research-runtime.yml`.
+- Фактические entrypoints проверены непосредственно: `research/hebrew_contract_ocr/pii_baseline.py`, `research/hebrew_contract_ocr/pii_mask_renderer.py`, `research/hebrew_contract_ocr/pii_review_pack_builder.py`, `mobile/pii-reviewer/package.json`, `mobile/pii-reviewer/index.js`, `mobile/pii-reviewer/App.js`, все три `mobile/pii-reviewer/src/*.js`, `app.py` и `contract_checker/image_redaction.py`.
+- GitHub metadata, bodies, merge commits, changed paths и final-head workflow evidence проверены для PR #168–#171. Merge/head SHA и successful `OCR research runtime` runs: #168 `7e9ab6a8f46fb1aea924916897297c1fc59390ff` / `ebe7103356105fd78324e0859f6db6ece8aa66a5` / run #78; #169 `84c096e04f076b5627bdeb935f23bec456b3cda4` / `0fc94d459e588a9f09bcdfd78f142c1e747b432a` / run #81; #170 `e9b9cce51f15bcd1cc56f685fb77f61c41512d07` / `5db3671e8eebe3f9c94fe1e425d0122896112e17` / run #84; #171 `a95a69101af468f955714e3549ab153ada700be3` / `2d6069cd52b5d993e02818221ca3d09aac5673a6` / run #88. Все четыре merge commits являются ancestors текущего `main`, а каждый PR менял только свой evidence implementation/test, OCR workflow и оба state-файла.
+- Architecture/privacy boundary согласована без конфликта: raw images, recoverable PII и unredacted OCR text остаются local; наружу разрешён только irreversibly anonymized derivative; project-owned full Hebrew OCR остаётся paused research; layout-only facts остаются weak evidence; zone-only evidence не может разрешить `auto_mask`; `marker_layout_baseline_v0` остаётся diagnostic comparator.
+- Evidence records и relations имеют строгие поля, identifier/geometry validation, defensive copies и value-free helper outputs. Direct patterns детерминированно отклоняют даты, суммы, clause/notice numbers и generic account/cheque numbers; broken/missing relation endpoints, raw-value fields, missing/broader/conflicting strong geometry и invalid schema fail closed. Weak layout votes, unlinked marker и unlinked visual evidence не дают `auto_mask`; empty evidence даёт `preserve`.
+- **Blocking consistency defect:** candidate schema и combiner проверяют только syntactic detector IDs, evidence family, relation endpoint family и geometry, но не связывают strong evidence semantics с `proposed_class`. На base SHA synthetic phone record `direct-israeli-phone-v0` с `proposed_class=email` возвращает `auto_mask`; `marker-phone-v0`, связанный с `visual-evidence-signature-v0`, с `proposed_class=phone` также возвращает `auto_mask`. Произвольный syntactically valid `direct_value` detector ID с совпадающей geometry тоже способен разрешить `auto_mask`. Существующие 71 focused tests и workflow run #88 проходят, потому что class-mismatch/unapproved-detector cases отсутствуют; review PR #171 уже указал direct-value class mismatch, но defect вошёл в merge commit.
+- Integration truth: evidence modules импортируются только друг другом, focused tests и OCR workflow. Diagnostic baseline продолжает создавать broad-zone `needs_review` candidates старой schema; renderer принимает только `marker_layout_baseline_v0`; builder вызывает line segmenter → baseline → renderer → reviewer core; Android reviewer принимает старые predictions/reason codes; Streamlit/runtime использует manual/test-only `contract_checker.image_redaction` и не импортирует evidence chain. Следовательно, chain остаётся reference-only и не является working detector, renderer path, Android automasking или production runtime.
+- Verdict: `BLOCKING CONSISTENCY DEFECT`. Implementation, tests и workflow не исправляются в этом audit PR. Единственный следующий шаг — bounded synthetic-fixture correction `pii-evidence-class-compatibility-v1`; detector integration остаётся последующим blocker после исправления semantic class binding.
+- Доказано repository code/tests: closed schemas/families/dispositions, bounded direct-pattern formats, helper ordering/overlap behavior, value-free/defensive-copy behavior, typed relation endpoints, geometry gates, weak/unlinked fail-closed dispositions, empty-evidence preserve и inclusion всех пяти focused modules в OCR workflow.
+- Не доказано: real PII recall, complete mask coverage, bounded over-redaction на real contracts, pixel classification handwriting/signatures/stamps, production privacy safety, Android automatic masking, external OCR handoff, cross-contract generalization и controlled human-pilot success.
+
+### Зафиксированный PR #171
 
 - Добавлен dependency-free reference combiner `pii_evidence_decisions.py`, который принимает только уже schema-compatible candidate geometry и evidence records и детерминированно формирует closed candidate disposition.
 - Valid strong direct-value или approved marker relation дают `auto_mask` только при точном совпадении candidate geometry с геометрией каждого strong target evidence; отсутствующая, более широкая или конфликтующая strong geometry направляется в `local_review`.
@@ -302,11 +316,11 @@ raw phone photo
 | Page boundary + normalization | Python reference v0 | Ограниченный preview, accepted quad/null fallback, bounded grayscale master, hashes и synthetic/fixture tests | Android memory implementation и production capture quality |
 | Line segmentation | Python reference v0 + giant-band guard | Детерминированные line regions, QA overlays, foreground accounting; bounded sparse-row expansion и unresolved oversized-band fail-closed покрыты synthetic tests | Реальный rebuild нового review pack и повторная over-redaction диагностика |
 | Local PII annotation contract | Reference v0 | Closed classes/statuses, immutable image identity, bbox/polygon validation | Human annotations и privacy metrics |
-| PII candidate evidence schema | Python reference v0 | Closed dispositions/families, strict identifiers/geometry/relations и fail-closed запрет weak-layout-only `auto_mask` покрыты synthetic tests и обязательным OCR CI | Detector/runtime integration, real candidate correctness и production privacy safety |
+| PII candidate evidence schema | Python reference v0 with class-binding defect | Closed dispositions/families, strict identifiers/geometry/relations и fail-closed запрет weak-layout-only `auto_mask` покрыты synthetic tests и обязательным OCR CI; detector IDs проверяются только syntactically | Closed detector/relation-to-`proposed_class` compatibility, detector/runtime integration, real candidate correctness и production privacy safety |
 | Direct PII value patterns | Python reference v0 | Dependency-free bounded email, Israeli phone, check-digit Israeli ID и MOD-97 Israeli IBAN возвращают original spans и value-free evidence; overlap priority, ambiguous-number rejection и schema compatibility покрыты synthetic tests и обязательным OCR CI | Detector/runtime integration, real correctness, production privacy safety и cross-contract generalization |
-| Marker-to-direct-value relations | Python reference v0 | Approved marker variants, class compatibility, bounded same-line gap, token boundaries, nearest-marker selection, immutable value-free spans и schema-compatible marker/relation evidence покрыты synthetic tests и включены в обязательный OCR CI | Detector/runtime integration, real correctness, production privacy safety и cross-contract generalization |
-| Visual sensitive-region evidence | Python reference v0 | Closed caller-prevalidated kinds, immutable in-bounds bbox, value-free visual evidence и marker-to-visual relation compatibility покрыты synthetic tests и обязательным OCR CI | Pixel-based visual classification, spatial marker linkage, detector/runtime integration, real correctness и production privacy safety |
-| Evidence decision combiner | Python reference v0 | Closed deterministic dispositions, schema rejection, exact strong-target geometry gate, weak/unlinked local review и empty-evidence preserve покрыты synthetic tests и обязательным OCR CI | Evidence extraction, detector/runtime integration, real correctness, production privacy safety и cross-contract generalization |
+| Marker-to-direct-value relations | Python reference v0 | Approved marker variants, source-level class compatibility, bounded same-line gap, token boundaries, nearest-marker selection, immutable value-free spans и schema-compatible marker/relation evidence покрыты synthetic tests и включены в обязательный OCR CI | Downstream candidate `proposed_class` binding, detector/runtime integration, real correctness, production privacy safety и cross-contract generalization |
+| Visual sensitive-region evidence | Python reference v0 | Closed caller-prevalidated kinds, immutable in-bounds bbox, value-free visual evidence и typed marker-to-visual endpoints покрыты synthetic tests и обязательным OCR CI | Marker/visual/candidate class compatibility, pixel-based visual classification, spatial marker linkage, detector/runtime integration, real correctness и production privacy safety |
+| Evidence decision combiner | Python reference v0 with blocking class-binding defect | Closed deterministic dispositions, schema rejection, exact strong-target geometry gate, weak/unlinked local review и empty-evidence preserve покрыты synthetic tests и обязательным OCR CI | Strong detector/relation semantics are not bound to `proposed_class`; evidence extraction, detector/runtime integration, real correctness, production privacy safety и cross-contract generalization |
 | Local PII detector | `marker_layout_baseline_v0` | Детерминированные candidates без OCR, cloud calls или ground-truth leakage | Реальные recall, complete coverage и over-redaction |
 | Local mask renderer | Python reference v0 | Новый grayscale PNG, физическая замена candidate pixels, metadata stripping, deterministic publication | Candidate correctness, Android behavior и production privacy safety |
 | Reviewer manifest core | Reference v0 | Три closed finding categories, canonical geometry/JSONL и immutable hashes | Controlled human pilot |
@@ -340,7 +354,7 @@ Standalone launch, открытие реального трёхстраничн�
 
 ## 10. Активный блокер и pilot input
 
-Текущий product blocker — reference evidence chain теперь содержит direct-value, marker-to-value, caller-prevalidated visual evidence и deterministic decisions, но evidence extraction ещё не объединён в detector, реальный pixel-based visual classifier не реализован, а `marker_layout_baseline_v0` по-прежнему создаёт broad-zone findings по фиксированным вертикальным зонам и не годится для production metrics или Android automasking.
+Текущий blocking consistency defect предшествует integration: reference evidence chain не связывает syntactically valid strong detector/relation evidence с compatible candidate `proposed_class`, поэтому semantic mismatch или unapproved direct-value detector ID может дать `auto_mask` при совпадающей geometry. После bounded class-compatibility correction остаются product blockers: evidence extraction ещё не объединён в detector, реальный pixel-based visual classifier не реализован, а `marker_layout_baseline_v0` по-прежнему создаёт broad-zone findings по фиксированным вертикальным зонам и не годится для production metrics или Android automasking.
 
 Human pilot остаётся обязательным позже для `missed_pii`, `incomplete_mask` и `over_redaction`, но сначала candidates должны нести проверяемое evidence и запрещать zone-only `auto_mask`.
 
@@ -348,15 +362,15 @@ Human pilot остаётся обязательным позже для `missed_
 
 ## 11. Единственный следующий шаг
 
-**`privacy-ocr-cold-start-audit-v1`: провести обязательный repository-only audit после evidence PR #168–#171.**
+**`pii-evidence-class-compatibility-v1`: Define and enforce a closed detector/relation-to-proposed-class compatibility gate so mismatched or unapproved strong evidence cannot produce auto_mask, using only synthetic fixtures and without detector, renderer, runtime, or Android integration.**
 
 Граница шага:
 
-1. С чистого актуального `main` прочитать binding architecture/privacy/state/process documents и implementation/tests evidence chain.
-2. Проверить фактические merge commits, changed paths и proof claims PR #168–#171, Markdown/JSON continuity и отсутствие overlapping work.
-3. Отдельно подтвердить, что reference adapters и combiner не представлены как работающий detector, runtime, Android automasking или production privacy proof.
-4. Выбрать один следующий bounded integration step по фактическим blockers; не реализовывать его в audit PR.
-5. Не менять runtime, detector, renderer, review pack, Android app/APK, OCR, dependencies, external services или privacy boundary без отдельного найденного blocking consistency defect.
+1. Зафиксировать closed compatibility contract для approved strong direct-value detector IDs, marker-to-value relations, marker-to-visual relations и candidate `proposed_class`.
+2. Unknown/unapproved detector semantics и class-mismatched strong evidence должны fail closed и никогда не давать `auto_mask`; добавить exact regression cases для обоих synthetic reproductions из audit PR #172.
+3. Использовать только synthetic/non-identifying fixtures без real contract text, images, pixels или PII.
+4. Изменить только minimum adjacent reference schema/combiner tests и state; не интегрировать baseline detector, renderer, review pack, Android app/APK или production runtime.
+5. Не добавлять OCR, pixel classifier, NER, ML/LLM, network calls, external services или новые dependencies.
 
 ## 12. Правила работы и восстановления новой сессии
 
@@ -382,6 +396,14 @@ Human pilot остаётся обязательным позже для `missed_
 ## 13. Cold-start continuity audit
 
 Каждые 3–5 слитых privacy/OCR PR проводится repository-only cold-start audit.
+
+Audit 2026-08-03 после merge PR #171:
+
+- exact base `a95a69101af468f955714e3549ab153ada700be3`, merged PR #168–#171, их merge ancestry, changed paths, final-head OCR workflow runs, binding sources, evidence implementation/tests и actual baseline/renderer/builder/Android/Streamlit entrypoints проверены; open PR до начала работы отсутствовал;
+- architecture/privacy boundary и Markdown/JSON state согласованы, evidence chain остаётся reference-only и не интегрирована в baseline, renderer, review pack, Android или runtime;
+- обнаружен blocking semantic class-binding defect: syntactically valid strong evidence с matching geometry может дать `auto_mask` для incompatible `proposed_class`, а unapproved direct-value detector ID не отклоняется;
+- verdict: `BLOCKING CONSISTENCY DEFECT`; доказанные synthetic/schema свойства отделены от unproved real recall, mask coverage, over-redaction, pixel classification, production safety, Android automasking, external OCR, generalization и human pilot;
+- selected next step: `pii-evidence-class-compatibility-v1`; implementation correction не входит в audit PR #172.
 
 Audit 2026-08-03 после merge PR #166:
 
