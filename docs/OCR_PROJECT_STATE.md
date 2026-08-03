@@ -1,6 +1,6 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-03, PR #166, `pii-candidate-evidence-schema-v0`.
+Последнее обновление: 2026-08-03, PR #167, `cold-start-audit-after-pr-166-v0`.
 
 Активный трек: `local-pii-redaction`.
 
@@ -8,7 +8,20 @@
 
 Этот документ — каноническая operational-точка восстановления privacy/OCR-проекта. Архитектуру задают `docs/ARCHITECTURE.md` и `docs/CUSTOM_OCR_PIPELINE.md`; точные входы, выходы и proof boundaries отдельных компонентов задают их component contracts. При конфликте обязательных документов работа останавливается до отдельного исправления.
 
-## 0. Изменение PR #166
+## 0. Audit PR #167 после merge PR #166
+
+- Выполнен repository-only cold-start audit с `main` SHA `a5dec8d2d5ddda7aafd7f2af972118846ae82bcb`: прочитаны binding architecture/privacy/state/process documents, detector contract, candidate schema/tests, baseline, line segmenter, OCR workflow, Android package и repository-owned Android command wrapper.
+- Через GitHub и repository history проверены merged PR #160–#166 и их фактические changed paths; все семь merge commits входят в текущий `main`, пересекающихся open PR до начала работы не было.
+- Verdict: `PASS WITH BLOCKERS`. Новая сессия однозначно восстанавливает active path: raw images и recoverable PII остаются local, только irreversibly anonymized derivative может пересечь privacy boundary, full project-owned Hebrew OCR paused, а page position/page role и другие layout facts остаются только weak context и не могут дать zone-only `auto_mask`.
+- Изменения PR #160–#166 представлены корректно: geometry-only diagnostics, one-command runner, bounded line expansion и oversized-band guard, evidence-based detector contract, Android command loop, Codex orchestration protocol и evidence-bearing candidate schema присутствуют в `main` и разделены по своим proof boundaries.
+- Код PR #166 поддерживает closed dispositions `auto_mask`, `local_review`, `preserve`, families `direct_value`, `marker`, `visual_sensitive_region`, `relation`, `weak_layout_context`, typed relation endpoints и fail-closed запрет weak-layout-only `auto_mask`; focused synthetic suite повторно прошёл `13/13`.
+- Candidate schema не импортируется текущим `marker_layout_baseline_v0`, renderer, review-pack builder, Android app или production runtime. OCR workflow содержит `tests.test_ocr_pii_candidate_evidence`; mobile package содержит test entrypoint, а `tools/android-dev.ps1` содержит `doctor`, `build`, `run`, `logs`, `restart`.
+- Current-state component table дополнена отдельной schema row. `docs/PII_EVIDENCE_DETECTOR_V1.md` section 9 фиксирует pre-PR-166 migration checkpoint; operational current next step определяется каноническими state-файлами и уже продвинут на `pii-direct-pattern-evidence-v0`.
+- Доказаны только strict schema validation, synthetic focused tests и обязательный framework-independent CI coverage. Не доказаны production PII detector, Android automatic masking, production privacy safety, controlled human pilot, external OCR handoff и generalization across contracts.
+- Оставшиеся blockers: direct-value patterns ещё не реализованы; schema не интегрирована в detector/runtime; новый evidence-based review pack и human/generalization/privacy evaluation не выполнены. Эти blockers не требуют изменения architecture/privacy state в этом audit PR.
+- `active_track=local-pii-redaction` и `next_step_id=pii-direct-pattern-evidence-v0` не изменены. Runtime, data handling, dependencies, workflow, Android, OCR, external services и privacy boundary не меняются; application/build/install/device/external-service validation не заявляется.
+
+### Зафиксированный PR #166
 
 - Добавлен dependency-free валидатор строгой schema для evidence-bearing PII candidates с dispositions `auto_mask`, `local_review` и `preserve`; набор `proposed_class` переиспользуется из `pii_annotations.py`.
 - Candidate/evidence geometry, identifiers, enums, обязательные и неизвестные поля, duplicate evidence IDs, relation endpoints и integer-координаты проверяются fail-closed; raw text/value не входят в schema.
@@ -246,6 +259,7 @@ raw phone photo
 | Page boundary + normalization | Python reference v0 | Ограниченный preview, accepted quad/null fallback, bounded grayscale master, hashes и synthetic/fixture tests | Android memory implementation и production capture quality |
 | Line segmentation | Python reference v0 + giant-band guard | Детерминированные line regions, QA overlays, foreground accounting; bounded sparse-row expansion и unresolved oversized-band fail-closed покрыты synthetic tests | Реальный rebuild нового review pack и повторная over-redaction диагностика |
 | Local PII annotation contract | Reference v0 | Closed classes/statuses, immutable image identity, bbox/polygon validation | Human annotations и privacy metrics |
+| PII candidate evidence schema | Python reference v0 | Closed dispositions/families, strict identifiers/geometry/relations и fail-closed запрет weak-layout-only `auto_mask` покрыты synthetic tests и обязательным OCR CI | Direct-value patterns, detector/runtime integration, real candidate correctness и production privacy safety |
 | Local PII detector | `marker_layout_baseline_v0` | Детерминированные candidates без OCR, cloud calls или ground-truth leakage | Реальные recall, complete coverage и over-redaction |
 | Local mask renderer | Python reference v0 | Новый grayscale PNG, физическая замена candidate pixels, metadata stripping, deterministic publication | Candidate correctness, Android behavior и production privacy safety |
 | Reviewer manifest core | Reference v0 | Три closed finding categories, canonical geometry/JSONL и immutable hashes | Controlled human pilot |
@@ -283,7 +297,7 @@ Standalone launch, открытие реального трёхстраничн�
 
 Human pilot остаётся обязательным позже для `missed_pii`, `incomplete_mask` и `over_redaction`, но сначала candidates должны нести проверяемое evidence и запрещать zone-only `auto_mask`.
 
-У владельца продукта есть repository-external трёхстраничный договор, в котором почти весь текст напечатан, а рукописными остаются только подписи. Из него собран exact review pack; hashes и размеры согласованы, а APK надёжно отображает все три страницы на Samsung A55. Geometry-only diagnostic измерил 46 candidates и `66.6%` закрытой площади; `30/46` candidates содержат `segmentation_review`, что локализовало первичную причину excessive over-redaction в giant line bands. PR #162 добавил bounded sparse-row expansion и fail-closed giant-band guard. PR #163 фиксирует более глубокую причину: fixed page zones применяются ко всем страницам и ведут к переобучению на одном шаблоне. Старый `2_review_pack` остаётся immutable; новый pack не собирается до evidence-bearing candidate schema и следующего detector implementation slice. Сам договор, normalized pages, manifests, derivatives, diagnostic output и review result не коммитятся в GitHub и не передаются внешним сервисам.
+У владельца продукта есть repository-external трёхстраничный договор, в котором почти весь текст напечатан, а рукописными остаются только подписи. Из него собран exact review pack; hashes и размеры согласованы, а APK надёжно отображает все три страницы на Samsung A55. Geometry-only diagnostic измерил 46 candidates и `66.6%` закрытой площади; `30/46` candidates содержат `segmentation_review`, что локализовало первичную причину excessive over-redaction в giant line bands. PR #162 добавил bounded sparse-row expansion и fail-closed giant-band guard. PR #163 фиксирует более глубокую причину: fixed page zones применяются ко всем страницам и ведут к переобучению на одном шаблоне. PR #166 добавил evidence-bearing candidate schema, но не интегрировал её в baseline или runtime. Старый `2_review_pack` остаётся immutable; новый pack не собирается до следующих evidence-based detector slices. Сам договор, normalized pages, manifests, derivatives, diagnostic output и review result не коммитятся в GitHub и не передаются внешним сервисам.
 
 ## 11. Единственный следующий шаг
 
@@ -322,6 +336,14 @@ Human pilot остаётся обязательным позже для `missed_
 ## 13. Cold-start continuity audit
 
 Каждые 3–5 слитых privacy/OCR PR проводится repository-only cold-start audit.
+
+Audit 2026-08-03 после merge PR #166:
+
+- прочитаны обязательные repository sources и implementation entrypoints с актуального `main`, отдельно проверены merged PR #160–#166 и отсутствие overlapping open PR;
+- Markdown/JSON state согласованы, active architecture и privacy boundary восстанавливаются однозначно, а operational next step остаётся `pii-direct-pattern-evidence-v0`;
+- PR #166 schema, focused tests и OCR workflow entry присутствуют и подтверждают fail-closed запрет weak-layout-only `auto_mask`, но schema ещё не интегрирована в baseline, renderer, review pack, Android или runtime;
+- component table синхронизирована с существующей reference schema; proven/unproven properties и remaining blockers разделены без production, Android automasking, privacy-safety, human-pilot, external-handoff или cross-contract claims;
+- verdict: `PASS WITH BLOCKERS`; blockers — следующие evidence detector slices, integration и последующая real/generalization/privacy evaluation, а не repository-state conflict.
 
 Audit 2026-08-02 после merge PR #158:
 
