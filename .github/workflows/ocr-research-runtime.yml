@@ -41,6 +41,7 @@ jobs:
           tests.test_ocr_pii_direct_patterns
           tests.test_ocr_pii_marker_value_relations
           tests.test_ocr_pii_visual_sensitive_regions
+          tests.test_ocr_pii_evidence_decisions
           tests.test_ocr_pii_baseline
           tests.test_ocr_pii_mask_renderer
           tests.test_ocr_pii_mask_diagnostics
