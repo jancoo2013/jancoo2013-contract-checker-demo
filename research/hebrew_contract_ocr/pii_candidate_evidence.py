@@ -19,6 +19,30 @@ RELATION_TYPES = {
     "marker_to_visual": ("marker", "visual_sensitive_region"),
 }
 
+_DIRECT_VALUE_CLASSES = {
+    "direct-email-v0": "email",
+    "direct-israeli-iban-v0": "bank_identifier",
+    "direct-israeli-id-v0": "israeli_id",
+    "direct-israeli-phone-v0": "phone",
+}
+_MARKER_CLASSES = {
+    "marker-email-v0": "email",
+    "marker-israeli-iban-v0": "bank_identifier",
+    "marker-israeli-id-v0": "israeli_id",
+    "marker-phone-v0": "phone",
+}
+_RELATION_DETECTORS = {
+    "marker_to_value": "marker-to-direct-value-v0",
+    "marker_to_visual": "marker-to-visual-v0",
+}
+_VISUAL_CLASSES = {
+    "visual-evidence-filled-field-v0": None,
+    "visual-evidence-handwriting-v0": None,
+    "visual-evidence-initials-v0": "initials",
+    "visual-evidence-signature-v0": "signature",
+    "visual-evidence-stamp-v0": "stamp",
+}
+
 _CANDIDATE_KEYS = frozenset({
     "schema_version",
     "candidate_id",
@@ -87,6 +111,79 @@ def _geometry_errors(value: Any, width: int, height: int, label: str) -> list[st
     return [] if area2 else [f"{label} polygon must have positive area"]
 
 
+def _auto_mask_compatibility_errors(
+    evidence_by_id: dict[str, dict[str, Any]],
+    relations: list[tuple[str, dict[str, Any]]],
+    proposed_class: str,
+) -> tuple[list[str], int]:
+    """Bind every strong evidence claim to approved detector semantics."""
+    errors: list[str] = []
+    approved_strong = 0
+
+    for record in evidence_by_id.values():
+        if record.get("family") != "direct_value":
+            continue
+        detector_id = record.get("detector_id")
+        evidence_class = _DIRECT_VALUE_CLASSES.get(detector_id) if isinstance(detector_id, str) else None
+        if evidence_class is None:
+            errors.append(f"auto_mask has unapproved direct_value detector_id: {detector_id!r}")
+        elif evidence_class != proposed_class:
+            errors.append(
+                "auto_mask direct_value detector "
+                f"{detector_id!r} is incompatible with proposed_class {proposed_class!r}"
+            )
+        else:
+            approved_strong += 1
+
+    for label, record in relations:
+        relation = record["relation"]
+        relation_type = relation["relation_type"]
+        expected_detector = _RELATION_DETECTORS[relation_type]
+        if record.get("detector_id") != expected_detector:
+            errors.append(
+                f"{label} has unapproved detector_id for {relation_type}: "
+                f"{record.get('detector_id')!r}"
+            )
+            continue
+
+        source = evidence_by_id[relation["source_evidence_id"]]
+        target = evidence_by_id[relation["target_evidence_id"]]
+        source_detector = source.get("detector_id")
+        marker_class = _MARKER_CLASSES.get(source_detector) if isinstance(source_detector, str) else None
+        if marker_class is None:
+            errors.append(f"{label} has unapproved marker detector_id: {source_detector!r}")
+            continue
+
+        if relation_type == "marker_to_value":
+            target_detector = target.get("detector_id")
+            target_class = (
+                _DIRECT_VALUE_CLASSES.get(target_detector)
+                if isinstance(target_detector, str)
+                else None
+            )
+            if target_class is None:
+                errors.append(
+                    f"{label} has unapproved direct_value detector_id: {target_detector!r}"
+                )
+                continue
+        else:
+            visual_detector = target.get("detector_id")
+            if not isinstance(visual_detector, str) or visual_detector not in _VISUAL_CLASSES:
+                errors.append(f"{label} has unapproved visual detector_id: {visual_detector!r}")
+                continue
+            target_class = _VISUAL_CLASSES[visual_detector] or marker_class
+
+        if marker_class != target_class:
+            errors.append(f"{label} links incompatible marker and target detector classes")
+        elif target_class != proposed_class:
+            errors.append(
+                f"{label} is incompatible with proposed_class {proposed_class!r}"
+            )
+        else:
+            approved_strong += 1
+    return errors, approved_strong
+
+
 def candidate_validation_errors(candidate: Any, image_width: int, image_height: int) -> tuple[str, ...]:
     """Return deterministic, fail-closed validation errors for one PII candidate."""
     if not _is_integer(image_width) or not _is_integer(image_height) or image_width <= 0 or image_height <= 0:
@@ -150,15 +247,16 @@ def candidate_validation_errors(candidate: Any, image_width: int, image_height: 
             if "relation" not in record:
                 errors.append(f"{label} relation evidence requires relation data")
             elif isinstance(record["relation"], dict):
-                relation_records.append((label, record["relation"]))
+                relation_records.append((label, record))
                 errors.extend(_field_errors(record["relation"], _RELATION_KEYS, _RELATION_KEYS, f"{label}.relation"))
             else:
                 errors.append(f"{label}.relation must be an object")
         elif "relation" in record:
             errors.append(f"{label} relation data is allowed only for relation evidence")
 
-    approved_relations = 0
-    for label, relation in relation_records:
+    structurally_valid_relations: list[tuple[str, dict[str, Any]]] = []
+    for label, record in relation_records:
+        relation = record["relation"]
         if set(relation) != _RELATION_KEYS:
             continue
         relation_type = relation["relation_type"]
@@ -188,11 +286,16 @@ def candidate_validation_errors(candidate: Any, image_width: int, image_height: 
         if source.get("family") != expected_source or target.get("family") != expected_target:
             errors.append(f"{label}.relation endpoints do not match {relation_type}")
             continue
-        approved_relations += 1
+        structurally_valid_relations.append((label, record))
 
     if disposition == "auto_mask":
-        has_direct_value = any(record.get("family") == "direct_value" for record in evidence_by_id.values())
-        if not has_direct_value and not approved_relations:
+        compatibility_errors, approved_strong = _auto_mask_compatibility_errors(
+            evidence_by_id,
+            structurally_valid_relations,
+            candidate["proposed_class"],
+        )
+        errors.extend(compatibility_errors)
+        if not approved_strong:
             errors.append("auto_mask requires validated direct_value evidence or an approved marker relation")
     return tuple(errors)
 
