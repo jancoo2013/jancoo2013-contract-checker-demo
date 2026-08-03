@@ -54,6 +54,7 @@ class PiiDirectPatternsTests(unittest.TestCase):
         self.assertEqual("+972 54-123-4567", text[match.start : match.end])
 
     def test_invalid_phone_prefixes_and_lengths_are_rejected(self):
+        # A phone-shaped substring inside a larger separated token is not direct evidence.
         for text in (
             "060-123-4567",
             "050-123-456",
@@ -90,6 +91,7 @@ class PiiDirectPatternsTests(unittest.TestCase):
         self.assertEqual("direct-israeli-iban-v0", match.detector_id)
 
     def test_invalid_israeli_iban_check_digits_are_rejected(self):
+        # A valid IBAN shape embedded in a larger numeric token must fail closed.
         for text in (
             "IL89 1234 5678 9012 3456 789",
             f"123-{VALID_IBAN}-456",
