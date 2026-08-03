@@ -1,14 +1,24 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-03, PR #165, `codex-orchestration-protocol-v0`.
+Последнее обновление: 2026-08-03, PR #166, `pii-candidate-evidence-schema-v0`.
 
 Активный трек: `local-pii-redaction`.
 
-Единственный следующий шаг: `pii-candidate-evidence-schema-v0`.
+Единственный следующий шаг: `pii-direct-pattern-evidence-v0`.
 
 Этот документ — каноническая operational-точка восстановления privacy/OCR-проекта. Архитектуру задают `docs/ARCHITECTURE.md` и `docs/CUSTOM_OCR_PIPELINE.md`; точные входы, выходы и proof boundaries отдельных компонентов задают их component contracts. При конфликте обязательных документов работа останавливается до отдельного исправления.
 
-## 0. Изменение PR #165
+## 0. Изменение PR #166
+
+- Добавлен dependency-free валидатор строгой schema для evidence-bearing PII candidates с dispositions `auto_mask`, `local_review` и `preserve`; набор `proposed_class` переиспользуется из `pii_annotations.py`.
+- Candidate/evidence geometry, identifiers, enums, обязательные и неизвестные поля, duplicate evidence IDs, relation endpoints и integer-координаты проверяются fail-closed; raw text/value не входят в schema.
+- `auto_mask` разрешён только для validated `direct_value` evidence либо approved marker-to-value/marker-to-visual relation. Один или несколько `weak_layout_context`, unlinked marker и unlinked visual evidence не могут создать `auto_mask`.
+- `local_review` требует хотя бы одну evidence record и непустой `ambiguity_reason`; synthetic focused suite покрывает также `preserve`, broken/self relations, geometry bounds, bool coordinates и deterministic validation.
+- Focused validation прошла: `python -m py_compile research/hebrew_contract_ocr/pii_candidate_evidence.py` и `python -m unittest tests.test_ocr_pii_candidate_evidence` (`13/13`).
+- Изменение не интегрировано в detector, renderer, review pack, Android app/APK или production runtime; real PII, contracts, images, OCR, network calls, external services и новые dependencies не использовались.
+- Следующий шаг — только deterministic direct-value patterns на synthetic/non-identifying fixtures. Production detector, marker recognition и automatic runtime masking ещё не реализованы.
+
+### Зафиксированный PR #165
 
 - По прямому запросу владельца продукта как ограниченное process exception добавлен `docs/CODEX_WORKFLOW.md`, который фиксирует разделение ролей: владелец продукта выбирает направление и решает о merge, управляющий диалог формирует bounded task и независимо аудитит PR, Codex исполняет задачу внутри репозитория и не мержит.
 - Постоянные процессные документы больше не должны хранить якобы текущий номер PR, branch, `active_track` или `next_step_id`; эти значения каждый раз читаются из актуальных state-файлов на `main`.
@@ -277,18 +287,16 @@ Human pilot остаётся обязательным позже для `missed_
 
 ## 11. Единственный следующий шаг
 
-**`pii-candidate-evidence-schema-v0`: определить строгую schema для evidence-bearing PII candidates и validation, которая не позволяет page-zone context самостоятельно создать `auto_mask`.**
+**`pii-direct-pattern-evidence-v0`: добавить deterministic direct-value evidence patterns на synthetic/non-identifying fixtures.**
 
 Граница шага:
 
-1. Добавить отдельный schema/validator component для candidate geometry, PII class, disposition и evidence records.
-2. Поддержать dispositions `auto_mask`, `local_review` и `preserve`.
-3. Поддержать evidence families: direct value, marker, visual sensitive-region, relation и weak layout context.
-4. Валидатор обязан отклонять `auto_mask`, если единственное evidence — page position, page role, alignment, short-line geometry или generic digit presence.
-5. Использовать только synthetic/non-identifying fixtures; реальные contract text, images и PII не коммитить.
-6. Не менять в этом PR текущий detector output, renderer, Android reviewer, APK, внешние API или production runtime.
-7. Следующий implementation slice после schema — deterministic direct-pattern evidence, а не новая настройка процентов страницы.
-8. Controlled human pilot возобновляется после появления evidence-based candidates и нового repository-external pack.
+1. Добавить только bounded deterministic patterns для explicitly approved direct-value families; generic digit presence не является direct-value evidence.
+2. Использовать существующую candidate/evidence schema и только synthetic/non-identifying fixtures без real contract text, images или PII.
+3. Не добавлять marker recognition, handwriting/signature recognition, OCR, NER, ML/LLM, network calls, external services или новые dependencies.
+4. Не интегрировать шаг в renderer, review pack, Android app/APK или production runtime и не заявлять production detector.
+5. Page position, page role, alignment, short-line geometry и generic digit presence остаются только weak context и не могут валидировать `auto_mask`.
+6. Controlled human pilot возобновляется после следующих evidence-based detector slices и нового repository-external pack.
 
 ## 12. Правила работы и восстановления новой сессии
 
