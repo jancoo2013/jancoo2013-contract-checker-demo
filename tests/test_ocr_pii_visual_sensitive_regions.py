@@ -14,21 +14,23 @@ def marker_evidence():
     return {
         "evidence_id": "marker-1",
         "family": "marker",
-        "detector_id": "synthetic-marker-v0",
+        "detector_id": "marker-phone-v0",
         "geometry": {"type": "bbox", "coordinates": [5, 10, 25, 25]},
     }
 
 
-def candidate(records):
+def candidate(records, disposition="local_review", proposed_class="signature"):
     return {
         "schema_version": 1,
         "candidate_id": "candidate-visual-1",
-        "proposed_class": "signature",
+        "proposed_class": proposed_class,
         "geometry": {"type": "bbox", "coordinates": [30, 10, 80, 35]},
-        "disposition": "auto_mask",
+        "disposition": disposition,
         "detector_version": "synthetic-decision-v0",
         "evidence": records,
-        "ambiguity_reason": None,
+        "ambiguity_reason": "Visual relation requires compatible detector semantics."
+        if disposition == "local_review"
+        else None,
     }
 
 
@@ -109,10 +111,20 @@ class PiiVisualSensitiveRegionTests(unittest.TestCase):
             relation,
         )
 
-    def test_generated_records_validate_with_existing_marker(self):
+    def test_generated_records_validate_for_local_review_with_existing_marker(self):
         region = record_visual_sensitive_region("signature", [30, 10, 80, 35], 100, 80)
         visual, relation = make_visual_relation_evidence(region, "marker-1", "visual-1", "relation-1")
         self.assertIsNone(validate_candidate(candidate([marker_evidence(), visual, relation]), 100, 80))
+
+    def test_signature_visual_with_phone_marker_cannot_auto_mask(self):
+        region = record_visual_sensitive_region("signature", [30, 10, 80, 35], 100, 80)
+        visual, relation = make_visual_relation_evidence(region, "marker-1", "visual-1", "relation-1")
+        with self.assertRaisesRegex(ValueError, "incompatible marker and target"):
+            validate_candidate(
+                candidate([marker_evidence(), visual, relation], "auto_mask", "phone"),
+                100,
+                80,
+            )
 
     def test_helper_does_not_create_marker_candidate_or_disposition(self):
         region = record_visual_sensitive_region("stamp", [30, 10, 80, 35], 100, 80)
@@ -129,7 +141,7 @@ class PiiVisualSensitiveRegionTests(unittest.TestCase):
         region = record_visual_sensitive_region("signature", [30, 10, 80, 35], 100, 80)
         visual, _relation = make_visual_relation_evidence(region, "marker-1", "visual-1", "relation-1")
         with self.assertRaisesRegex(ValueError, "auto_mask requires"):
-            validate_candidate(candidate([visual]), 100, 80)
+            validate_candidate(candidate([visual], "auto_mask"), 100, 80)
 
     def test_output_mutation_does_not_change_region_or_later_calls(self):
         region = record_visual_sensitive_region("initials", [30, 10, 80, 35], 100, 80)
