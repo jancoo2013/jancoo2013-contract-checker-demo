@@ -1,6 +1,6 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-02, PR #163, `evidence-based-pii-detector-contract-v0`.
+Последнее обновление: 2026-08-03, PR #164, `android-agent-command-loop-v0`.
 
 Активный трек: `local-pii-redaction`.
 
@@ -8,7 +8,19 @@
 
 Этот документ — каноническая operational-точка восстановления privacy/OCR-проекта. Архитектуру задают `docs/ARCHITECTURE.md` и `docs/CUSTOM_OCR_PIPELINE.md`; точные входы, выходы и proof boundaries отдельных компонентов задают их component contracts. При конфликте обязательных документов работа останавливается до отдельного исправления.
 
-## 0. Изменение PR #163
+## 0. Изменение PR #164
+
+- По прямому запросу владельца продукта как ограниченное process exception в `AGENTS.md` зафиксирован канонический локальный Android-цикл для Codex без ручного копирования кода в Android Studio.
+- Для mobile changes теперь явно указаны существующие repository-owned entrypoints: `npm --prefix mobile/pii-reviewer test` и `tools/android-dev.ps1` с командами `doctor`, `build`, `run`, `logs`, `restart`.
+- Repository wrappers объявлены основным automation/evidence path вместо Android Studio copy/paste, прямого Gradle или `expo run:android`; низкоуровневая диагностика допустима только в отдельно ограниченной задаче.
+- Зафиксирован обязательный failure loop: прочитать output и локальный failure log, определить первую actionable root cause, внести минимальное in-scope исправление, повторить упавшую команду и затем заново прогнать финальные tests/build/device checks на итоговом diff.
+- Codex обязан остановиться, если дальнейшее исправление требует новой зависимости, подсистемы, privacy/product decision, destructive device action, недоступного credential/authorized device или расширения scope.
+- Средовые ошибки Java, SDK, Node, Gradle и adb нельзя маскировать изменением product code; после toolchain failure повторно запускается `doctor`.
+- Device validation нельзя объявлять выполненной без фактического успешного `run`; `logs` используется после runtime failure, а `restart` — только для уже актуального установленного APK.
+- Изменение документационное/process-only: runtime приложения, Android-код, зависимости, data handling, OCR, внешние API, privacy boundary, `active_track` и `next_step_id` не меняются.
+- Статически подтверждено, что все перечисленные команды существуют в текущих `mobile/pii-reviewer/package.json` и `tools/android-dev.ps1`; Windows/Gradle/adb/Samsung A55 команды в этом PR не запускались, поскольку исполняемый код не изменён.
+
+### Зафиксированный PR #163
 
 - Владелец продукта остановил подгонку fixed page-zone thresholds под один трёхстраничный договор: такой путь не обобщается на другие шаблоны, рукописные поля и расположение реквизитов.
 - Добавлен binding contract `docs/PII_EVIDENCE_DETECTOR_V1.md`: положение строки, номер страницы и first/last-page role являются только weak context и никогда не достаточны для `auto_mask`.
@@ -125,7 +137,7 @@
 
 ## 2. Изменение PR #153
 
-- По прямому запросу владельца продукта как ограниченное process exception команда `tools/android-dev.ps1` расширена режимом `run` для установки и запуска уже собранного standalone APK без Metro.
+- По прямому запросу владельца продукта команда `tools/android-dev.ps1` расширена режимом `run` для установки и запуска уже собранного standalone APK без Metro.
 - Пользовательский entrypoint остаётся единым; device-specific логика вынесена во внутренний `tools/android-run.ps1`, чтобы основной PowerShell-файл не превысил 400 строк.
 - `run` использует только существующий локальный `mobile/pii-reviewer/build-artifact/PII-Pilot-V2.apk`, читает актуальный package из `mobile/pii-reviewer/app.json` и не запускает автоматическую сборку.
 - Перед изменением устройства требуется ровно одно готовое adb-устройство и отсутствие offline/unauthorized устройств; выбор между несколькими устройствами не выполняется.
@@ -148,7 +160,7 @@
 
 ## 4. Изменение PR #151
 
-- По прямому запросу владельца продукта как ограниченное process exception добавлена read-only команда `tools/android-dev.ps1 doctor` для предварительной диагностики локальной Windows/Android/Expo-среды.
+- По прямому запросу владельца продукта добавлена read-only команда `tools/android-dev.ps1 doctor` для предварительной диагностики локальной Windows/Android/Expo-среды.
 - Команда проверяет расположение mobile-проекта, `package.json`, `app.json`, актуальный Android package, Node.js/npm/npx, JDK 17, `JAVA_HOME`, Android SDK, `ANDROID_HOME`, adb, подключённые устройства, Expo dependencies и наличие Gradle wrapper.
 - Скрипт не запускает Metro, Gradle или приложение, не устанавливает APK, не изменяет файлы проекта и не читает договоры, изображения, review packs или PII.
 - Серийные номера, модели и другие идентификаторы устройств из `adb devices -l` не выводятся; сохраняется только агрегированное количество готовых или заблокированных устройств.
