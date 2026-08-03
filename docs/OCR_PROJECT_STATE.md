@@ -1,14 +1,24 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-03, PR #169, `pii-marker-value-relation-v0`.
+Последнее обновление: 2026-08-03, PR #170, `pii-visual-sensitive-region-evidence-v0`.
 
 Активный трек: `local-pii-redaction`.
 
-Единственный следующий шаг: `pii-visual-sensitive-region-evidence-v0`.
+Единственный следующий шаг: `pii-evidence-decision-combiner-v0`.
 
 Этот документ — каноническая operational-точка восстановления privacy/OCR-проекта. Архитектуру задают `docs/ARCHITECTURE.md` и `docs/CUSTOM_OCR_PIPELINE.md`; точные входы, выходы и proof boundaries отдельных компонентов задают их component contracts. При конфликте обязательных документов работа останавливается до отдельного исправления.
 
-## 0. Изменение PR #169
+## 0. Изменение PR #170
+
+- Добавлен dependency-free reference component `pii_visual_sensitive_regions.py`, который принимает только caller-prevalidated visual observations закрытых типов `filled_field`, `handwriting`, `signature`, `initials` и `stamp` и фиксирует immutable value-free bbox.
+- Компонент fail-closed проверяет visual kind, положительные image dimensions, integer/non-boolean coordinates и полное попадание bbox в изображение; generic table border, underline, strikethrough, printed paragraph и любые неизвестные виды не принимаются.
+- `make_visual_relation_evidence` создаёт только schema-compatible `visual_sensitive_region` и `marker_to_visual` relation records с новой копией геометрии и caller-supplied evidence IDs; marker evidence, candidate, disposition и masks не создаются.
+- Existing candidate schema принимает сгенерированные visual/relation records только вместе с существующим marker evidence; unlinked visual evidence по-прежнему не может валидировать `auto_mask`.
+- Synthetic/non-identifying focused suite для candidate schema, direct patterns, marker relations и visual evidence проходит `59/59`; полный repository suite проходит `404/404`. Workflow дополнен только explicit module `tests.test_ocr_pii_visual_sensitive_regions`.
+- Компонент не читает пиксели и не доказывает, что область действительно содержит рукопись, подпись, инициалы, печать или заполненное поле: локальная visual classification остаётся обязанностью будущего upstream detector. OCR, images, real contracts, PII, candidates, decisions, masks, baseline/runtime/review-pack/Android integration, dependencies и external services не меняются.
+- `active_track` остаётся `local-pii-redaction`; следующий шаг продвигается только на `pii-evidence-decision-combiner-v0`.
+
+### Зафиксированный PR #169
 
 - Добавлен dependency-free reference component `pii_marker_value_relations.py`, который находит только approved ID, phone, email и Israeli IBAN field markers в уже доступном text fragment и связывает их только с class-compatible `DirectValueMatch` из существующего direct-pattern component.
 - Relation принимается только в source order marker → value, в пределах одной строки, при gap не более 16 code points и только из whitespace/ограниченной field punctuation; letters, digits и newline в gap запрещены.
@@ -284,7 +294,8 @@ raw phone photo
 | Local PII annotation contract | Reference v0 | Closed classes/statuses, immutable image identity, bbox/polygon validation | Human annotations и privacy metrics |
 | PII candidate evidence schema | Python reference v0 | Closed dispositions/families, strict identifiers/geometry/relations и fail-closed запрет weak-layout-only `auto_mask` покрыты synthetic tests и обязательным OCR CI | Detector/runtime integration, real candidate correctness и production privacy safety |
 | Direct PII value patterns | Python reference v0 | Dependency-free bounded email, Israeli phone, check-digit Israeli ID и MOD-97 Israeli IBAN возвращают original spans и value-free evidence; overlap priority, ambiguous-number rejection и schema compatibility покрыты synthetic tests и обязательным OCR CI | Detector/runtime integration, real correctness, production privacy safety и cross-contract generalization |
-| Marker-to-direct-value relations | Python reference v0 | Approved marker variants, class compatibility, bounded same-line gap, token boundaries, nearest-marker selection, immutable value-free spans и schema-compatible marker/relation evidence покрыты synthetic tests и включены в обязательный OCR CI | Visual-sensitive-region evidence, detector/runtime integration, real correctness, production privacy safety и cross-contract generalization |
+| Marker-to-direct-value relations | Python reference v0 | Approved marker variants, class compatibility, bounded same-line gap, token boundaries, nearest-marker selection, immutable value-free spans и schema-compatible marker/relation evidence покрыты synthetic tests и включены в обязательный OCR CI | Decision integration, detector/runtime integration, real correctness, production privacy safety и cross-contract generalization |
+| Visual sensitive-region evidence | Python reference v0 | Closed caller-prevalidated kinds, immutable in-bounds bbox, value-free visual evidence и marker-to-visual relation compatibility покрыты synthetic tests и обязательным OCR CI | Pixel-based visual classification, spatial marker linkage, decision integration, detector/runtime integration, real correctness и production privacy safety |
 | Local PII detector | `marker_layout_baseline_v0` | Детерминированные candidates без OCR, cloud calls или ground-truth leakage | Реальные recall, complete coverage и over-redaction |
 | Local mask renderer | Python reference v0 | Новый grayscale PNG, физическая замена candidate pixels, metadata stripping, deterministic publication | Candidate correctness, Android behavior и production privacy safety |
 | Reviewer manifest core | Reference v0 | Три closed finding categories, canonical geometry/JSONL и immutable hashes | Controlled human pilot |
@@ -318,24 +329,24 @@ Standalone launch, открытие реального трёхстраничн�
 
 ## 10. Активный блокер и pilot input
 
-Текущий product blocker — strong evidence pipeline ещё неполон: dependency-free direct-value и marker-to-value reference slices существуют, но visual-sensitive-region evidence и decision integration не реализованы, а `marker_layout_baseline_v0` по-прежнему создаёт broad-zone findings по фиксированным вертикальным зонам и не годится для production metrics или Android automasking.
+Текущий product blocker — strong evidence pipeline ещё неполон: dependency-free direct-value, marker-to-value и caller-prevalidated visual evidence slices существуют, но decision integration и реальный pixel-based visual classifier не реализованы, а `marker_layout_baseline_v0` по-прежнему создаёт broad-zone findings по фиксированным вертикальным зонам и не годится для production metrics или Android automasking.
 
 Human pilot остаётся обязательным позже для `missed_pii`, `incomplete_mask` и `over_redaction`, но сначала candidates должны нести проверяемое evidence и запрещать zone-only `auto_mask`.
 
-У владельца продукта есть repository-external трёхстраничный договор, в котором почти весь текст напечатан, а рукописными остаются только подписи. Из него собран exact review pack; hashes и размеры согласованы, а APK надёжно отображает все три страницы на Samsung A55. Geometry-only diagnostic измерил 46 candidates и `66.6%` закрытой площади; `30/46` candidates содержат `segmentation_review`, что локализовало первичную причину excessive over-redaction в giant line bands. PR #162 добавил bounded sparse-row expansion и fail-closed giant-band guard. PR #163 фиксирует более глубокую причину: fixed page zones применяются ко всем страницам и ведут к переобучению на одном шаблоне. PR #166 добавил evidence-bearing candidate schema, PR #168 — value-free direct-value reference, а PR #169 — bounded marker-to-direct-value relations; эти компоненты ещё не интегрированы в baseline или runtime. Старый `2_review_pack` остаётся immutable; новый pack не собирается до следующих evidence-based detector slices. Сам договор, normalized pages, manifests, derivatives, diagnostic output и review result не коммитятся в GitHub и не передаются внешним сервисам.
+У владельца продукта есть repository-external трёхстраничный договор, в котором почти весь текст напечатан, а рукописными остаются только подписи. Из него собран exact review pack; hashes и размеры согласованы, а APK надёжно отображает все три страницы на Samsung A55. Geometry-only diagnostic измерил 46 candidates и `66.6%` закрытой площади; `30/46` candidates содержат `segmentation_review`, что локализовало первичную причину excessive over-redaction в giant line bands. PR #162 добавил bounded sparse-row expansion и fail-closed giant-band guard. PR #163 фиксирует более глубокую причину: fixed page zones применяются ко всем страницам и ведут к переобучению на одном шаблоне. PR #166 добавил evidence-bearing candidate schema, PR #168 — value-free direct-value reference, PR #169 — bounded marker-to-direct-value relations, а PR #170 — caller-prevalidated visual-sensitive-region evidence adapter; эти компоненты ещё не интегрированы в baseline или runtime. Старый `2_review_pack` остаётся immutable; новый pack не собирается до следующих evidence-based detector slices. Сам договор, normalized pages, manifests, derivatives, diagnostic output и review result не коммитятся в GitHub и не передаются внешним сервисам.
 
 ## 11. Единственный следующий шаг
 
-**`pii-visual-sensitive-region-evidence-v0`: добавить bounded visual-sensitive-region evidence на synthetic/non-identifying fixtures.**
+**`pii-evidence-decision-combiner-v0`: объединить существующие evidence families в детерминированные candidate decisions на synthetic/non-identifying fixtures.**
 
 Граница шага:
 
-1. Добавить только bounded visual-sensitive-region evidence для filled fields, handwriting, signatures, initials и stamps с existing candidate schema.
+1. Добавить только dependency-free reference combiner, который формирует schema-compatible `auto_mask`, `local_review` или `preserve` candidates из существующих direct-value, marker relation, visual relation и weak-layout evidence records.
 2. Использовать только synthetic/non-identifying fixtures без real contract text, images или PII.
-3. Не добавлять full OCR, NER, ML/LLM, network calls, external services или новые dependencies.
+3. Fail-closed сохранять правило: weak layout context, unlinked marker и unlinked visual evidence никогда не дают `auto_mask`; неоднозначность направляется в `local_review`.
 4. Не интегрировать шаг в baseline detector, renderer, review pack, Android app/APK или production runtime и не заявлять production detector.
-5. Page position, page role, alignment, short-line geometry и generic digit presence остаются только weak context и не могут валидировать `auto_mask`.
-6. Controlled human pilot возобновляется после следующих evidence-based detector slices и нового repository-external pack.
+5. Не добавлять OCR, pixel-based visual classification, NER, ML/LLM, network calls, external services или новые dependencies.
+6. Controlled human pilot возобновляется после evidence-based detector integration и нового repository-external pack.
 
 ## 12. Правила работы и восстановления новой сессии
 
