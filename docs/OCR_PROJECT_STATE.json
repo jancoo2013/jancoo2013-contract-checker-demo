@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-03-19",
+  "state_version": "privacy-ocr-2026-08-03-20",
   "active_track": "local-pii-redaction",
-  "next_step_id": "pii-candidate-evidence-schema-v0",
-  "next_step_summary": "Define and validate an evidence-bearing PII candidate schema with auto_mask, local_review, and preserve dispositions; page-zone context alone must never validate auto_mask.",
-  "last_recorded_pr": 165,
-  "last_recorded_change": "codex-orchestration-protocol-v0",
+  "next_step_id": "pii-direct-pattern-evidence-v0",
+  "next_step_summary": "Add deterministic direct-value evidence patterns using only synthetic, non-identifying fixtures; do not add marker recognition or claim a production detector.",
+  "last_recorded_pr": 166,
+  "last_recorded_change": "pii-candidate-evidence-schema-v0",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-08-03"
