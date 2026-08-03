@@ -140,4 +140,4 @@ def make_direct_value_evidence(
     return record
 
 
-__all__ = ["DirectValueMatch", "find_direct_value_matches", "make_direct_value_evidence"]
+__all__ = ("DirectValueMatch", "find_direct_value_matches", "make_direct_value_evidence")
