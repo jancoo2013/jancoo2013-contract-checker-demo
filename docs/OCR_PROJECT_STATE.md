@@ -1,14 +1,23 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-04, PR #175, `pii-marker-value-decision-adapter-v0`.
+Последнее обновление: 2026-08-04, PR #176, `pii-visual-decision-adapter-v0`.
 
 Активный трек: `local-pii-redaction`.
 
-Единственный следующий шаг: `pii-visual-decision-adapter-v0`.
+Единственный следующий шаг: `privacy-ocr-cold-start-audit-v1`.
 
 Этот документ — каноническая operational-точка восстановления privacy/OCR-проекта. Архитектуру задают `docs/ARCHITECTURE.md` и `docs/CUSTOM_OCR_PIPELINE.md`; точные входы, выходы и proof boundaries отдельных компонентов задают их component contracts. При конфликте обязательных документов работа останавливается до отдельного исправления.
 
-## 0. Изменение PR #175
+## 0. Изменение PR #176
+
+- Добавлен dependency-free reference adapter `pii_visual_decision_adapter.py`, который соединяет один caller-prevalidated `VisualSensitiveRegion`, optional marker evidence, существующий visual relation helper и `combine_evidence_into_candidate` через один bounded API.
+- `signature`, `initials` и `stamp` сохраняют закрытый visual class; `filled_field` и `handwriting` наследуют конкретный PII class только из approved marker detector. Missing, incompatible или unapproved marker semantics остаются `local_review` и не могут разрешить `auto_mask`.
+- Adapter повторно проверяет frozen region через существующий recorder, поэтому вручную подделанные visual kind, detector ID, bbox или image bounds отклоняются до candidate decision. Exact region bbox используется одновременно как candidate и visual evidence geometry.
+- Девять synthetic/non-identifying adapter tests вместе с семью существующими evidence modules проходят `104/104`; полный repository suite проходит `449/449` в изолированной среде с repository-declared dependencies.
+- OCR workflow теперь явно запускает новый adapter test module. Pixels, text и images не читаются; baseline detector, renderer, review-pack builder, Android app/APK, runtime, OCR, pixel classifier, dependencies, external services, real contracts и privacy boundary не изменены.
+- После четырёх implementation PR со времени audit #172 следующий bounded step — обязательный repository-only `privacy-ocr-cold-start-audit-v1`.
+
+### Изменение PR #175
 
 - Добавлен dependency-free reference adapter `pii_marker_value_decision_adapter.py`, который соединяет ровно один существующий `MarkerValueRelation`, его точный `DirectValueMatch`, существующие value-free evidence helpers и `combine_evidence_into_candidate` через один bounded API.
 - Adapter проверяет, что relation действительно указывает на переданный direct match: совпадают PII class, direct detector ID и source offsets; отрицательные, булевы, перевёрнутые или несовпадающие spans отклоняются до построения candidate.
@@ -351,6 +360,7 @@ raw phone photo
 | Marker-to-direct-value relations | Python reference v0 | Approved marker variants, source-level class compatibility, bounded same-line gap, token boundaries, nearest-marker selection, immutable value-free spans и schema-compatible marker/relation evidence покрыты synthetic tests и включены в обязательный OCR CI | Downstream candidate `proposed_class` binding, detector/runtime integration, real correctness, production privacy safety и cross-contract generalization |
 | Marker-value decision adapter | Python reference v0 | Один existing `MarkerValueRelation` связывается только с exact class/detector/offset-compatible `DirectValueMatch`; caller-supplied geometry проходит через value-free helpers и class-bound combiner, forged or malformed spans fail closed | Text/image extraction, pixel geometry mapping, detector/runtime integration, real correctness и production privacy safety |
 | Visual sensitive-region evidence | Python reference v0 | Closed caller-prevalidated kinds, immutable in-bounds bbox, value-free visual evidence, typed marker-to-visual endpoints и downstream class-compatibility regressions покрыты synthetic tests | Pixel-based visual classification, spatial marker linkage, detector/runtime integration, real correctness и production privacy safety |
+| Visual decision adapter | Python reference v0 | Один caller-prevalidated `VisualSensitiveRegion` получает fixed visual class либо approved marker-derived class; exact bbox проходит через visual relation helper и class-bound combiner, missing/mismatched/unapproved marker semantics fail closed | Pixel classification, marker extraction/spatial linkage, detector/runtime integration, real correctness и production privacy safety |
 | Evidence decision combiner | Python reference v1 with class-bound strong evidence | Closed deterministic dispositions, schema rejection, exact strong-target geometry, weak/unlinked/mismatched/unapproved local review и empty-evidence preserve покрыты synthetic tests | Evidence extraction, detector/runtime integration, real correctness, production privacy safety и cross-contract generalization |
 | Local PII detector | `marker_layout_baseline_v0` | Детерминированные candidates без OCR, cloud calls или ground-truth leakage | Реальные recall, complete coverage и over-redaction |
 | Local mask renderer | Python reference v0 | Новый grayscale PNG, физическая замена candidate pixels, metadata stripping, deterministic publication | Candidate correctness, Android behavior и production privacy safety |
@@ -385,23 +395,23 @@ Standalone launch, открытие реального трёхстраничн�
 
 ## 10. Активный блокер и pilot input
 
-Class-binding consistency defect закрыт reference-level compatibility gate; direct-value и marker-to-value chains теперь проходят через минимальные executable decision adapters. Текущий product blocker — visual evidence ещё не имеет такого adapter, evidence extraction не объединён в detector, реальный pixel-based visual classifier не реализован, а `marker_layout_baseline_v0` по-прежнему создаёт broad-zone findings по фиксированным вертикальным зонам и не годится для production metrics или Android automasking.
+Class-binding consistency defect закрыт reference-level compatibility gate; direct-value, marker-to-value и visual chains теперь проходят через минимальные executable decision adapters. Текущий product blocker — evidence extraction ещё не объединён в detector, реальный pixel-based visual classifier не реализован, а `marker_layout_baseline_v0` по-прежнему создаёт broad-zone findings по фиксированным вертикальным зонам и не годится для production metrics или Android automasking.
 
 Human pilot остаётся обязательным позже для `missed_pii`, `incomplete_mask` и `over_redaction`, но сначала candidates должны нести проверяемое evidence и запрещать zone-only `auto_mask`.
 
-У владельца продукта есть repository-external трёхстраничный договор, в котором почти весь текст напечатан, а рукописными остаются только подписи. Из него собран exact review pack; hashes и размеры согласованы, а APK надёжно отображает все три страницы на Samsung A55. Geometry-only diagnostic измерил 46 candidates и `66.6%` закрытой площади; `30/46` candidates содержат `segmentation_review`, что локализовало первичную причину excessive over-redaction в giant line bands. PR #162 добавил bounded sparse-row expansion и fail-closed giant-band guard. PR #163 фиксирует более глубокую причину: fixed page zones применяются ко всем страницам и ведут к переобучению на одном шаблоне. PR #166 добавил evidence-bearing candidate schema, PR #168 — value-free direct-value reference, PR #169 — bounded marker-to-direct-value relations, PR #170 — caller-prevalidated visual-sensitive-region evidence adapter, PR #171 — deterministic decision combiner, PR #174 — direct-value-to-decision reference adapter, а PR #175 — marker-value-to-decision reference adapter; эта цепочка ещё не интегрирована в baseline или runtime. Старый `2_review_pack` остаётся immutable; новый pack не собирается до следующих evidence-based detector slices. Сам договор, normalized pages, manifests, derivatives, diagnostic output и review result не коммитятся в GitHub и не передаются внешним сервисам.
+У владельца продукта есть repository-external трёхстраничный договор, в котором почти весь текст напечатан, а рукописными остаются только подписи. Из него собран exact review pack; hashes и размеры согласованы, а APK надёжно отображает все три страницы на Samsung A55. Geometry-only diagnostic измерил 46 candidates и `66.6%` закрытой площади; `30/46` candidates содержат `segmentation_review`, что локализовало первичную причину excessive over-redaction в giant line bands. PR #162 добавил bounded sparse-row expansion и fail-closed giant-band guard. PR #163 фиксирует более глубокую причину: fixed page zones применяются ко всем страницам и ведут к переобучению на одном шаблоне. PR #166 добавил evidence-bearing candidate schema, PR #168 — value-free direct-value reference, PR #169 — bounded marker-to-direct-value relations, PR #170 — caller-prevalidated visual-sensitive-region evidence adapter, PR #171 — deterministic decision combiner, PR #174 — direct-value-to-decision reference adapter, PR #175 — marker-value-to-decision reference adapter, а PR #176 — visual-to-decision reference adapter; эта цепочка ещё не интегрирована в baseline или runtime. Старый `2_review_pack` остаётся immutable; новый pack не собирается до следующих evidence-based detector slices. Сам договор, normalized pages, manifests, derivatives, diagnostic output и review result не коммитятся в GitHub и не передаются внешним сервисам.
 
 ## 11. Единственный следующий шаг
 
-**`pii-visual-decision-adapter-v0`: Add a dependency-free reference adapter that turns one existing caller-prevalidated VisualSensitiveRegion, a class-compatible marker evidence record when required, and caller-supplied identifiers into a class-bound candidate through the existing visual evidence and combiner APIs, using synthetic fixtures only and without pixel classification, detector, renderer, runtime, or Android integration.**
+**`privacy-ocr-cold-start-audit-v1`: Perform a repository-only cold-start audit after four merged evidence and decision-adapter PRs, verify the binding documents, state, actual integration boundaries, final-head evidence, and remaining blockers, then select exactly one next bounded implementation step without changing runtime, detector, renderer, Android, dependencies, external APIs, or the privacy boundary.**
 
 Граница шага:
 
-1. Соединить только существующий caller-prevalidated `VisualSensitiveRegion`, class-compatible marker evidence record при необходимости, `make_visual_relation_evidence` и `combine_evidence_into_candidate` через один bounded reference API.
-2. Использовать exact region bbox как candidate/visual geometry, принимать caller-supplied identifiers и image bounds; не классифицировать pixels и не читать text/images.
-3. Signature, initials и stamp должны сохранять closed visual class; filled-field и handwriting могут наследовать только approved marker class. Missing, mismatched или unapproved marker semantics должны fail closed и никогда не давать `auto_mask`.
-4. Использовать только synthetic/non-identifying fixtures и не интегрировать baseline detector, renderer, review pack, Android app/APK или production runtime.
-5. Не добавлять OCR, pixel classifier, NER, ML/LLM, network calls, external services или новые dependencies.
+1. Выполнить audit только по текущему repository `main` после merge PR #176: binding sources, state, merged PR #173–#176, actual evidence imports/entrypoints, changed paths и final-head CI evidence.
+2. Проверить, что reference adapters действительно остаются вне baseline detector, renderer, review pack, Android и production runtime, а доказанные synthetic свойства не объявлены production privacy safety.
+3. Повторно сверить class binding, fail-closed dispositions, exact geometry, value-free output, privacy boundary, generated-file hygiene и отсутствие external-service changes.
+4. Не исправлять implementation в audit PR; найденный bounded defect либо следующий integration slice записать как один новый `next_step_id`.
+5. Не менять runtime, detector, renderer, review pack, Android app/APK, OCR, pixel classifier, dependencies, external APIs или privacy boundary.
 
 ## 12. Правила работы и восстановления новой сессии
 

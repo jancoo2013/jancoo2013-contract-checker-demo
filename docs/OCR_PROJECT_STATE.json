@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-04-29",
+  "state_version": "privacy-ocr-2026-08-04-30",
   "active_track": "local-pii-redaction",
-  "next_step_id": "pii-visual-decision-adapter-v0",
-  "next_step_summary": "Add a dependency-free reference adapter that turns one existing caller-prevalidated VisualSensitiveRegion, a class-compatible marker evidence record when required, and caller-supplied identifiers into a class-bound candidate through the existing visual evidence and combiner APIs, using synthetic fixtures only and without pixel classification, detector, renderer, runtime, or Android integration.",
-  "last_recorded_pr": 175,
-  "last_recorded_change": "pii-marker-value-decision-adapter-v0",
+  "next_step_id": "privacy-ocr-cold-start-audit-v1",
+  "next_step_summary": "Perform a repository-only cold-start audit after four merged evidence and decision-adapter PRs, verify the binding documents, state, actual integration boundaries, final-head evidence, and remaining blockers, then select exactly one next bounded implementation step without changing runtime, detector, renderer, Android, dependencies, external APIs, or the privacy boundary.",
+  "last_recorded_pr": 176,
+  "last_recorded_change": "pii-visual-decision-adapter-v0",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-08-04"
