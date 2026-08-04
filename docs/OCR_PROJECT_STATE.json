@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-04-31",
+  "state_version": "privacy-ocr-2026-08-04-32",
   "active_track": "local-pii-redaction",
-  "next_step_id": "pii-direct-value-match-integrity-v1",
-  "next_step_summary": "Reject malformed DirectValueMatch source spans in the existing direct-value decision adapter before candidate construction, covering negative, boolean, empty, and reversed offsets with synthetic regressions only and without detector, renderer, review-pack, Android, runtime, OCR, dependency, external API, or privacy-boundary changes.",
-  "last_recorded_pr": 177,
-  "last_recorded_change": "privacy-ocr-cold-start-audit-v1",
+  "next_step_id": "pii-direct-value-match-provenance-v1",
+  "next_step_summary": "Bind one structurally valid DirectValueMatch to the exact approved finder result over caller-supplied local source text before candidate construction, keeping outputs value-free and without pixel geometry derivation, detector orchestration, renderer, review-pack, Android, runtime, OCR, dependency, external API, real-data, or privacy-boundary changes.",
+  "last_recorded_pr": 178,
+  "last_recorded_change": "pii-direct-value-match-integrity-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-08-04"

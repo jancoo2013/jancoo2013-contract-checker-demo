@@ -103,6 +103,20 @@ class PiiDirectValueDecisionAdapterTests(unittest.TestCase):
                 80,
             )
 
+    def test_offsets_must_be_integer_and_non_boolean(self):
+        for start, end in ((True, 8), (2, False), (2.0, 8), (2, 8.0)):
+            with self.subTest(start=start, end=end), self.assertRaisesRegex(
+                ValueError, "match offsets must be integers"
+            ):
+                adapt(DirectValueMatch("phone", start, end, "direct-israeli-phone-v0"))
+
+    def test_offsets_must_form_ordered_non_negative_non_empty_span(self):
+        for start, end in ((-5, -1), (-1, 8), (8, 8), (20, 10)):
+            with self.subTest(start=start, end=end), self.assertRaisesRegex(
+                ValueError, "ordered non-negative non-empty span"
+            ):
+                adapt(DirectValueMatch("phone", start, end, "direct-israeli-phone-v0"))
+
     def test_candidate_is_value_free(self):
         synthetic_value = "tenant@example.test"
         match = find_direct_value_matches(synthetic_value)[0]
