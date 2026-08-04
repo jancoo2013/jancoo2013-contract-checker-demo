@@ -1,0 +1,115 @@
+name: PR 181 state finalize
+
+on:
+  push:
+    branches:
+      - agent/android-tesseract-word-span-mapping-v1
+    paths:
+      - ".github/workflows/pr181-state-finalize.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/android-tesseract-word-span-mapping-v1
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate mobile tests and types
+        working-directory: mobile
+        run: |
+          npm ci
+          npm test
+          npm run typecheck
+
+      - name: Install repository test dependencies
+        run: |
+          python -m pip install -r requirements.txt
+          python -m pip install -r research/hebrew_contract_ocr/requirements-training.txt
+
+      - name: Validate OCR runtime and mandatory suite
+        run: |
+          python -m research.hebrew_contract_ocr.training_runtime_smoke
+          python -m unittest \
+            tests.test_ocr_pii_annotations \
+            tests.test_ocr_pii_candidate_evidence \
+            tests.test_ocr_pii_direct_patterns \
+            tests.test_ocr_pii_direct_value_decision_adapter \
+            tests.test_ocr_pii_marker_value_relations \
+            tests.test_ocr_pii_marker_value_decision_adapter \
+            tests.test_ocr_pii_visual_sensitive_regions \
+            tests.test_ocr_pii_visual_decision_adapter \
+            tests.test_ocr_pii_evidence_decisions \
+            tests.test_ocr_pii_baseline \
+            tests.test_ocr_pii_mask_renderer \
+            tests.test_ocr_pii_mask_diagnostics \
+            tests.test_ocr_pii_reviewer_pilot \
+            tests.test_ocr_pii_review_pack_builder \
+            tests.test_ocr_line_segmenter \
+            tests.test_ocr_recognizer_input \
+            tests.test_ocr_ctc_decoder \
+            tests.test_tools_run_pii_mask_diagnostics
+
+      - name: Validate full repository suite
+        run: python -m unittest discover -s tests
+
+      - name: Patch canonical state after validation
+        shell: python
+        run: |
+          import json
+          from pathlib import Path
+
+          markdown_path = Path("docs/OCR_PROJECT_STATE.md")
+          markdown = markdown_path.read_text(encoding="utf-8")
+          replacements = {
+              "- Добавлен Android/TypeScript mapping layer, который строит канонический request-local `sourceText` из уже валидированных Tesseract `wordBoxes` в iterator order, вставляя ровно один ASCII-пробел между словами и сохраняя value-free character spans для каждого word index.":
+              "- Добавлен Android/TypeScript mapping layer, который индексирует точный request-local Tesseract `text` по уже валидированным iterator-order `wordBoxes`, сохраняя исходные пробелы и line boundaries и value-free character spans для каждого word index.",
+              "- Один caller-confirmed non-empty text span разрешается только через index, созданный trusted builder. Forged indexes, non-integer/negative/empty/reversed/out-of-range spans, leading/trailing separator spans, OCR words с whitespace и mapping более чем на `64` word boxes fail closed.":
+              "- Trusted builder требует точного последовательного соответствия каждого word text полному OCR text и допускает между boxes только whitespace; unboxed non-whitespace и рассинхронизация fail closed. Mapping отклоняет forged indexes, malformed/out-of-range spans, boundary whitespace, cross-line/non-ASCII whitespace spans и более `64` boxes.",
+              "- Iterator order является источником text order независимо от физических x-координат, поэтому synthetic RTL test подтверждает mapping составного phone-like значения на несколько раздельных boxes с убывающими x coordinates. Отдельно покрыто значение внутри punctuation-sharing word box.":
+              "- Synthetic RTL test подтверждает same-line mapping составного phone-like значения на несколько boxes с убывающими x coordinates; отдельные regressions покрывают exact full-text offsets, punctuation-sharing word box, cross-line rejection и full-text/iterator mismatch.",
+              "- Dependency-free mobile tests добавляют `5/5` regressions; вместе с PR #180 mobile suite составляет `9/9`. Strict TypeScript validation требует `allowImportingTsExtensions` только в существующем `noEmit`-контуре, поскольку прямой Node test runner использует точные `.ts` specifiers.":
+              "- Dependency-free mobile tests добавляют `6/6` regressions; вместе с PR #180 mobile suite составляет `10/10`. Strict TypeScript validation требует `allowImportingTsExtensions` только в существующем `noEmit`-контуре, поскольку прямой Node test runner использует точные `.ts` specifiers.",
+          }
+          for old, new in replacements.items():
+              if markdown.count(old) != 1:
+                  raise SystemExit(f"Markdown state sentence did not match exactly once: {old}")
+              markdown = markdown.replace(old, new, 1)
+          markdown_path.write_text(markdown, encoding="utf-8", newline="\n")
+
+          json_path = Path("docs/OCR_PROJECT_STATE.json")
+          state = json.loads(json_path.read_text(encoding="utf-8"))
+          if state.get("state_version") != "privacy-ocr-2026-08-04-35":
+              raise SystemExit("unexpected state version")
+          state["next_step_summary"] = (
+              "Merge-gated: PR #181 indexes exact local Tesseract full text against bounded word boxes and maps one same-line caller-confirmed span to value-free box references without unioning boxes or creating candidates; keep this identifier unchanged until merge and a new reading of resulting main before selecting candidate geometry aggregation."
+          )
+          json_path.write_text(
+              json.dumps(state, ensure_ascii=False, indent=2) + "\n",
+              encoding="utf-8",
+              newline="\n",
+          )
+
+      - name: Commit canonical state
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/OCR_PROJECT_STATE.md docs/OCR_PROJECT_STATE.json
+          git diff --cached --check
+          git commit -m "Finalize PR 181 exact-text mapping state"
+          git push origin HEAD:agent/android-tesseract-word-span-mapping-v1
