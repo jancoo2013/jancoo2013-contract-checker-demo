@@ -1,23 +1,29 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-04, PR #182, `android-tesseract-candidate-geometry-v1`.
+Последнее обновление: 2026-08-04, PR #183, `android-tesseract-development-overlay-v1`.
 
 Активный трек: `local-pii-redaction`.
 
-Единственный следующий шаг: `android-tesseract-candidate-geometry-v1`.
+Единственный следующий шаг: `android-tesseract-development-overlay-v1`.
 
-Этот документ — каноническая operational-точка восстановления privacy/OCR-проекта. Архитектуру задают `docs/ARCHITECTURE.md` и `docs/CUSTOM_OCR_PIPELINE.md`; evidence/masking contract задаёт `docs/PII_EVIDENCE_DETECTOR_V1.md`; машиночитаемое состояние хранится в `docs/OCR_PROJECT_STATE.json`. Подробная история до PR #182 остаётся в Git history и намеренно не дублируется здесь.
+Этот документ — каноническая operational-точка восстановления privacy/OCR-проекта. Архитектуру задают `docs/ARCHITECTURE.md` и `docs/CUSTOM_OCR_PIPELINE.md`; evidence/masking contract задаёт `docs/PII_EVIDENCE_DETECTOR_V1.md`; машиночитаемое состояние хранится в `docs/OCR_PROJECT_STATE.json`. Подробная история до PR #183 остаётся в Git history и намеренно не дублируется здесь.
 
-## 0. Изменение PR #182
+## 0. Изменение PR #183
 
-- Добавлен bounded Android/TypeScript geometry layer поверх trusted mapping PR #181.
-- `buildTesseractCandidateGeometry` принимает только mapping, созданный доверенным mapper, и сохраняет exact per-word `bbox` отдельными immutable прямоугольниками.
-- Дополнительный `enclosingBbox` предназначен только для диагностики. Он не является production mask geometry и не должен закрывать промежутки между словами.
-- Геометрия fail closed отклоняет forged mapping, пустой или несогласованный word range, duplicate/non-consecutive word indexes, out-of-image boxes, отсутствие общей вертикальной text-line band и горизонтальный gap больше двух высот соседних word boxes.
-- Output не содержит OCR text, matched PII value, source offsets или confidence. Добавленные synthetic tests покрывают RTL multi-box, single-box, different-line, unsafe-gap, forged-input и immutable/value-free output.
-- Локально проходят `12/12` dependency-free mobile tests и strict TypeScript check. Финальный Android CI относится к exact final head SHA PR #182.
-- PR не добавляет detector orchestration, evidence/dispositions, masks, renderer, UI, persistence, transport, dependencies, external OCR/LLM, реальные договоры или реальные PII.
-- По merge-gated workflow `next_step_id` остаётся `android-tesseract-candidate-geometry-v1` до merge PR #182 и нового чтения resulting `main`. Только после этого можно отдельно выбрать development mask rendering: полупрозрачное отображение для визуальной проверки и непрозрачная необратимая production-маска.
+- Добавлен bounded development-only overlay layout поверх trusted candidate geometry PR #182.
+- `buildTesseractDevelopmentOverlay` принимает только geometry, созданную доверенным builder, и преобразует exact per-word boxes в contain-fit viewport с корректными letterbox offsets.
+- RTL boxes остаются отдельными прямоугольниками; diagnostic `enclosingBbox` намеренно не входит в overlay output и не может случайно закрыть промежутки между словами.
+- Overlay имеет фиксированную прозрачность `0.35`, помечен `developmentOnly: true`, возвращает immutable координаты и не содержит OCR text, matched PII value, source offsets или confidence.
+- Forged geometry, zero/negative/NaN/infinite viewport dimensions fail closed. Synthetic tests покрывают scaling, letterboxing, RTL order, value-free output и deep immutability.
+- Локально проходят `16/16` focused mapping/geometry/overlay tests и strict TypeScript check. Полный mobile/Android CI относится к exact final head SHA PR #183.
+- PR не изменяет пиксели изображения, не создаёт production derivative, не добавляет detector orchestration, disposition authorization, UI integration, persistence, transport, dependencies, external OCR/LLM, реальные договоры или реальные PII.
+- По merge-gated workflow `next_step_id` остаётся `android-tesseract-development-overlay-v1` до merge PR #183 и нового чтения resulting `main`. Следующий bounded slice может отдельно определить полностью непрозрачный необратимый production renderer.
+
+### PR #182 — `android-tesseract-candidate-geometry-v1`
+
+- Trusted same-line mapping преобразуется в immutable exact per-word geometry с line/gap/bounds gates.
+- `enclosingBbox` остаётся только диагностическим и не является production mask geometry.
+- Geometry сама по себе не авторизует mask/disposition и не доказывает real PII recall.
 
 ## 1. Недавняя Android/Tesseract цепочка
 
@@ -79,28 +85,28 @@ raw phone photo
 | Evidence decision adapters | Python reference v0/v1 | Provenance, structural gates, deterministic dispositions | Working detector orchestration |
 | Android Tesseract words | Runtime slice v1 | Bounded text/confidence/bbox and bridge validation | Real geometry/recall and device smoke |
 | Android span mapping | Runtime slice v1 | Exact same-line span → trusted word boxes, value-free output | Approved finder orchestration |
-| Android candidate geometry | PR #182 | Trusted exact box group, line/gap/bounds gates, diagnostic enclosing bbox | Mask rendering and real correctness |
+| Android candidate geometry | PR #182 | Trusted exact box group, line/gap/bounds gates, diagnostic enclosing bbox | Real correctness and detector orchestration |
+| Android development overlay | PR #183 | Trusted contain-fit per-word rectangles, fixed `0.35` opacity, value-free output | UI integration and production privacy safety |
 | Local mask renderer | Python reference v0 | Opaque irreversible grayscale replacement | Android implementation and candidate correctness |
 | Android detector/renderer | Не реализован | — | Automatic evidence detection and masking |
 | External OCR handoff | Не подключён | Допустим только после privacy gate | Derivative safety не доказана |
 
 ## 4. Активный блокер
 
-Reference evidence chain и Android Tesseract geometry пока не соединены в один runtime detector. PR #182 решает только безопасное представление геометрии уже подтверждённого same-line span. Он не доказывает, что upstream detector нашёл все PII, и не создаёт mask/disposition.
+Reference evidence chain и Android Tesseract geometry пока не соединены в один runtime detector. PR #183 добавляет только обратимый development overlay для уже trusted geometry. Он не доказывает, что upstream detector нашёл все PII, не меняет пиксели и не создаёт production mask/disposition.
 
 До production остаются отдельные bounded задачи:
 
 1. связать approved direct-value finder provenance с Android span mapping;
-2. определить development-only renderer точных word boxes;
-3. сделать production renderer полностью непрозрачным и необратимым;
-4. добавить local privacy validation и fail-closed handoff gate;
-5. проверить real-contract recall, complete coverage и over-redaction на whole-contract held-out evaluation.
+2. сделать production renderer полностью непрозрачным и необратимым;
+3. добавить local privacy validation и fail-closed handoff gate;
+4. проверить real-contract recall, complete coverage и over-redaction на whole-contract held-out evaluation.
 
 ## 5. Единственный следующий шаг
 
-**`android-tesseract-candidate-geometry-v1`: MERGE-GATED — реализован в PR #182 и остаётся каноническим идентификатором до merge и нового чтения resulting `main`.**
+**`android-tesseract-development-overlay-v1`: MERGE-GATED — реализован в PR #183 и остаётся каноническим идентификатором до merge и нового чтения resulting `main`.**
 
-До merge PR #182 запрещено добавлять masks, renderer/UI integration, detector orchestration, external APIs, dependencies или реальные данные. После merge нужно заново прочитать exact resulting `main`, проверить final-head CI и только затем выбрать следующий bounded slice. Предпочтительный следующий кандидат — development renderer точных word boxes с полупрозрачным отображением; production output при этом должен оставаться полностью непрозрачным и необратимым.
+До merge PR #183 запрещено добавлять production pixel replacement, UI/runtime integration, detector orchestration, external APIs, dependencies или реальные данные. После merge нужно заново прочитать exact resulting `main`, проверить final-head CI и только затем выбрать отдельный bounded production renderer с полностью непрозрачной необратимой заменой пикселей.
 
 ## 6. Правила восстановления и работы
 

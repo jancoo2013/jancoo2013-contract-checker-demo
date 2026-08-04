@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-04-36",
+  "state_version": "privacy-ocr-2026-08-04-37",
   "active_track": "local-pii-redaction",
-  "next_step_id": "android-tesseract-candidate-geometry-v1",
-  "next_step_summary": "Merge-gated: PR #182 converts one trusted same-line Tesseract span mapping into immutable value-free per-word candidate geometry plus a diagnostic enclosing bbox, rejecting forged mappings, inconsistent indexes, cross-line geometry, out-of-bounds boxes, and unsafe gaps; keep this identifier unchanged until merge and a new reading of resulting main before selecting development mask rendering.",
-  "last_recorded_pr": 182,
-  "last_recorded_change": "android-tesseract-candidate-geometry-v1",
+  "next_step_id": "android-tesseract-development-overlay-v1",
+  "next_step_summary": "Merge-gated: PR #183 projects trusted per-word candidate geometry into immutable value-free contain-fit development overlay rectangles with fixed 0.35 opacity, rejecting forged geometry and invalid viewports while excluding diagnostic union geometry; keep this identifier unchanged until merge and a new reading of resulting main before selecting an opaque irreversible production renderer.",
+  "last_recorded_pr": 183,
+  "last_recorded_change": "android-tesseract-development-overlay-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-08-04"

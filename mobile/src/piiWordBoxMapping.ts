@@ -3,6 +3,7 @@ import { validateHebrewOcrResult } from "./tesseractResult.ts";
 
 export const MAX_MAPPED_WORD_BOXES = 64;
 export const MAX_WORD_GAP_HEIGHT_MULTIPLIER = 2;
+export const DEVELOPMENT_OVERLAY_OPACITY = 0.35;
 
 type ImageSize = Readonly<{
   width: number;
@@ -46,10 +47,32 @@ export type TesseractCandidateGeometry = Readonly<{
   enclosingBbox: readonly [number, number, number, number];
 }>;
 
+export type TesseractDevelopmentOverlayRect = Readonly<{
+  wordIndex: number;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}>;
+
+export type TesseractDevelopmentOverlay = Readonly<{
+  developmentOnly: true;
+  opacity: typeof DEVELOPMENT_OVERLAY_OPACITY;
+  renderedImage: Readonly<{
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+  }>;
+  wordRects: readonly TesseractDevelopmentOverlayRect[];
+}>;
+
 const trustedIndexes = new WeakSet<object>();
 const indexImageSizes = new WeakMap<object, ImageSize>();
 const trustedMappings = new WeakSet<object>();
 const mappingImageSizes = new WeakMap<object, ImageSize>();
+const trustedCandidateGeometries = new WeakSet<object>();
+const candidateImageSizes = new WeakMap<object, ImageSize>();
 const WORD_WHITESPACE = /\s/u;
 const ONLY_WHITESPACE = /^\s*$/u;
 
@@ -82,7 +105,7 @@ function assertBoxInsideImage(
     left >= right ||
     top >= bottom
   ) {
-    throw new Error("MappedTesseract word box is outside the source image.");
+    throw new Error("Mapped Tesseract word box is outside the source image.");
   }
 }
 
@@ -272,10 +295,75 @@ export function buildTesseractCandidateGeometry(
     enclosingRight,
     enclosingBottom,
   ]);
-  return Object.freeze({
+  const geometry = Object.freeze({
     startWordIndex: mapping.startWordIndex,
     endWordIndexExclusive: mapping.endWordIndexExclusive,
     wordBoxes: Object.freeze(wordBoxes),
     enclosingBbox,
+  });
+  trustedCandidateGeometries.add(geometry);
+  candidateImageSizes.set(geometry, imageSize);
+  return geometry;
+}
+
+/**
+ * Project trusted candidate word boxes into one contain-fit development viewport.
+ *
+ * The result is a reversible debug overlay only. It never contains OCR text, source
+ * offsets, confidence, or the diagnostic enclosing bbox, and it must not be exported
+ * as a production privacy derivative.
+ */
+export function buildTesseractDevelopmentOverlay(
+  geometry: TesseractCandidateGeometry,
+  viewportWidth: number,
+  viewportHeight: number,
+): TesseractDevelopmentOverlay {
+  if (
+    typeof geometry !== "object" ||
+    geometry === null ||
+    !trustedCandidateGeometries.has(geometry)
+  ) {
+    throw new Error("Tesseract candidate geometry was not produced by the trusted builder.");
+  }
+  if (
+    !Number.isFinite(viewportWidth) ||
+    !Number.isFinite(viewportHeight) ||
+    viewportWidth <= 0 ||
+    viewportHeight <= 0
+  ) {
+    throw new Error("Development overlay viewport dimensions must be finite and positive.");
+  }
+
+  const imageSize = candidateImageSizes.get(geometry);
+  if (imageSize === undefined) {
+    throw new Error("Trusted candidate geometry is missing source image metadata.");
+  }
+
+  const scale = Math.min(viewportWidth / imageSize.width, viewportHeight / imageSize.height);
+  const renderedWidth = imageSize.width * scale;
+  const renderedHeight = imageSize.height * scale;
+  const renderedLeft = (viewportWidth - renderedWidth) / 2;
+  const renderedTop = (viewportHeight - renderedHeight) / 2;
+  const wordRects = geometry.wordBoxes.map((wordBox) => {
+    const [left, top, right, bottom] = wordBox.bbox;
+    return Object.freeze({
+      wordIndex: wordBox.wordIndex,
+      left: renderedLeft + left * scale,
+      top: renderedTop + top * scale,
+      width: (right - left) * scale,
+      height: (bottom - top) * scale,
+    });
+  });
+
+  return Object.freeze({
+    developmentOnly: true as const,
+    opacity: DEVELOPMENT_OVERLAY_OPACITY,
+    renderedImage: Object.freeze({
+      left: renderedLeft,
+      top: renderedTop,
+      width: renderedWidth,
+      height: renderedHeight,
+    }),
+    wordRects: Object.freeze(wordRects),
   });
 }

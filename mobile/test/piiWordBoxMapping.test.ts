@@ -3,8 +3,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  DEVELOPMENT_OVERLAY_OPACITY,
   MAX_MAPPED_WORD_BOXES,
   buildTesseractCandidateGeometry,
+  buildTesseractDevelopmentOverlay,
   buildTesseractWordTextIndex,
   mapTextSpanToTesseractWordBoxes,
 } from "../src/piiWordBoxMapping.ts";
@@ -284,4 +286,113 @@ test("returns defensive immutable candidate geometry copies", () => {
   }, TypeError);
   assert.deepEqual(geometry.wordBoxes[0].bbox, [10, 10, 30, 20]);
   assert.deepEqual(geometry.enclosingBbox, [10, 10, 30, 20]);
+});
+
+
+test("projects separate RTL candidate boxes into a contain-fit development viewport", () => {
+  const index = buildTesseractWordTextIndex(
+    resultWithWords(
+      [
+        word("050-123", 91, [80, 30, 140, 45]),
+        word("4567", 89, [30, 30, 70, 45]),
+      ],
+      "050-123 4567",
+      { width: 200, height: 100 },
+    ),
+  );
+  const geometry = buildTesseractCandidateGeometry(
+    mapTextSpanToTesseractWordBoxes(index, 0, index.sourceText.length),
+  );
+  const overlay = buildTesseractDevelopmentOverlay(geometry, 300, 300);
+
+  assert.deepEqual(overlay, {
+    developmentOnly: true,
+    opacity: DEVELOPMENT_OVERLAY_OPACITY,
+    renderedImage: { left: 0, top: 75, width: 300, height: 150 },
+    wordRects: [
+      { wordIndex: 0, left: 120, top: 120, width: 90, height: 22.5 },
+      { wordIndex: 1, left: 45, top: 120, width: 60, height: 22.5 },
+    ],
+  });
+});
+
+test("development overlay stays value-free and excludes diagnostic union geometry", () => {
+  const index = buildTesseractWordTextIndex(
+    resultWithWords([word("demo@example.test", 88, [20, 20, 180, 40])]),
+  );
+  const overlay = buildTesseractDevelopmentOverlay(
+    buildTesseractCandidateGeometry(
+      mapTextSpanToTesseractWordBoxes(index, 0, index.sourceText.length),
+    ),
+    200,
+    100,
+  );
+  const serialized = JSON.stringify(overlay);
+
+  assert.equal(overlay.opacity, 0.35);
+  assert.equal(serialized.includes("demo@example.test"), false);
+  assert.equal(serialized.includes("confidence"), false);
+  assert.equal(serialized.includes("enclosingBbox"), false);
+});
+
+test("development overlay rejects forged geometry and invalid viewports", () => {
+  assert.throws(
+    () =>
+      buildTesseractDevelopmentOverlay(
+        {
+          startWordIndex: 0,
+          endWordIndexExclusive: 1,
+          wordBoxes: [{ wordIndex: 0, bbox: [0, 0, 10, 10] }],
+          enclosingBbox: [0, 0, 10, 10],
+        },
+        100,
+        100,
+      ),
+    /trusted builder/,
+  );
+
+  const index = buildTesseractWordTextIndex(
+    resultWithWords([word("value", 87, [10, 10, 30, 20])]),
+  );
+  const geometry = buildTesseractCandidateGeometry(
+    mapTextSpanToTesseractWordBoxes(index, 0, 5),
+  );
+  for (const [width, height] of [
+    [0, 100],
+    [100, -1],
+    [Number.NaN, 100],
+    [100, Number.POSITIVE_INFINITY],
+  ]) {
+    assert.throws(
+      () => buildTesseractDevelopmentOverlay(geometry, width, height),
+      /finite and positive/,
+    );
+  }
+});
+
+test("development overlay output is deeply immutable", () => {
+  const index = buildTesseractWordTextIndex(
+    resultWithWords([word("value", 87, [10, 10, 30, 20])]),
+  );
+  const overlay = buildTesseractDevelopmentOverlay(
+    buildTesseractCandidateGeometry(
+      mapTextSpanToTesseractWordBoxes(index, 0, 5),
+    ),
+    200,
+    100,
+  );
+
+  assert.throws(() => {
+    overlay.wordRects[0].left = 999;
+  }, TypeError);
+  assert.throws(() => {
+    overlay.renderedImage.left = 999;
+  }, TypeError);
+  assert.deepEqual(overlay.wordRects[0], {
+    wordIndex: 0,
+    left: 10,
+    top: 10,
+    width: 20,
+    height: 10,
+  });
 });
