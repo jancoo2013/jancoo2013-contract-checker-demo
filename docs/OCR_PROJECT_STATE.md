@@ -10,11 +10,11 @@
 
 ## 0. Изменение PR #181
 
-- Добавлен Android/TypeScript mapping layer, который строит канонический request-local `sourceText` из уже валидированных Tesseract `wordBoxes` в iterator order, вставляя ровно один ASCII-пробел между словами и сохраняя value-free character spans для каждого word index.
-- Один caller-confirmed non-empty text span разрешается только через index, созданный trusted builder. Forged indexes, non-integer/negative/empty/reversed/out-of-range spans, leading/trailing separator spans, OCR words с whitespace и mapping более чем на `64` word boxes fail closed.
+- Добавлен Android/TypeScript mapping layer, который индексирует точный request-local Tesseract `text` по уже валидированным iterator-order `wordBoxes`, сохраняя исходные пробелы и line boundaries и value-free character spans для каждого word index.
+- Trusted builder требует точного последовательного соответствия каждого word text полному OCR text и допускает между boxes только whitespace; unboxed non-whitespace и рассинхронизация fail closed. Mapping отклоняет forged indexes, malformed/out-of-range spans, boundary whitespace, cross-line/non-ASCII whitespace spans и более `64` boxes.
 - Mapping возвращает только `wordIndex`, `confidence` и defensive immutable copies исходных pixel `bbox`; OCR word text, matched PII value и source offsets в mapping output не копируются. Boxes намеренно не объединяются и candidate geometry не создаётся.
-- Iterator order является источником text order независимо от физических x-координат, поэтому synthetic RTL test подтверждает mapping составного phone-like значения на несколько раздельных boxes с убывающими x coordinates. Отдельно покрыто значение внутри punctuation-sharing word box.
-- Dependency-free mobile tests добавляют `5/5` regressions; вместе с PR #180 mobile suite составляет `9/9`. Strict TypeScript validation требует `allowImportingTsExtensions` только в существующем `noEmit`-контуре, поскольку прямой Node test runner использует точные `.ts` specifiers.
+- Synthetic RTL test подтверждает same-line mapping составного phone-like значения на несколько boxes с убывающими x coordinates; отдельные regressions покрывают exact full-text offsets, punctuation-sharing word box, cross-line rejection и full-text/iterator mismatch.
+- Dependency-free mobile tests добавляют `6/6` regressions; вместе с PR #180 mobile suite составляет `10/10`. Strict TypeScript validation требует `allowImportingTsExtensions` только в существующем `noEmit`-контуре, поскольку прямой Node test runner использует точные `.ts` specifiers.
 - PR не добавляет и не портирует direct-value finder, не создаёт evidence/candidates/dispositions, не объединяет boxes, не рисует masks, не меняет UI, persistence, transport, backend, external OCR/LLM, runtime dependencies или privacy boundary и не использует реальные договоры/PII.
 - По merge-gated workflow `next_step_id` остаётся `android-tesseract-word-span-mapping-v1` до merge PR #181 и нового чтения resulting `main`; следующий bounded slice должен отдельно определить безопасную агрегацию нескольких boxes в candidate geometry.
 

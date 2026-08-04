@@ -3,7 +3,7 @@
   "state_version": "privacy-ocr-2026-08-04-35",
   "active_track": "local-pii-redaction",
   "next_step_id": "android-tesseract-word-span-mapping-v1",
-  "next_step_summary": "Merge-gated: PR #181 builds a trusted canonical local word-text index and maps one caller-confirmed text span to bounded value-free Tesseract word-box references without unioning boxes or creating candidates; keep this identifier unchanged until merge and a new reading of resulting main before selecting candidate geometry aggregation.",
+  "next_step_summary": "Merge-gated: PR #181 indexes exact local Tesseract full text against bounded word boxes and maps one same-line caller-confirmed span to value-free box references without unioning boxes or creating candidates; keep this identifier unchanged until merge and a new reading of resulting main before selecting candidate geometry aggregation.",
   "last_recorded_pr": 181,
   "last_recorded_change": "android-tesseract-word-span-mapping-v1",
   "state_update_required_per_pr": true,
