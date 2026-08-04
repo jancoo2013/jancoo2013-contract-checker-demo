@@ -8,9 +8,9 @@ import {
   mapTextSpanToTesseractWordBoxes,
 } from "../src/piiWordBoxMapping.ts";
 
-function resultWithWords(words) {
+function resultWithWords(words, text = words.map((word) => word.text).join(" ")) {
   return {
-    text: words.map((word) => word.text).join(" "),
+    text,
     elapsedMs: 20,
     meanConfidence: 90,
     width: 200,
@@ -23,16 +23,19 @@ function word(text, confidence, bbox) {
   return { text, confidence, bbox };
 }
 
-test("builds canonical iterator-order text with value-free word records", () => {
+test("indexes exact full OCR text while preserving line boundaries", () => {
   const index = buildTesseractWordTextIndex(
-    resultWithWords([
-      word("טלפון:", 96, [150, 10, 195, 25]),
-      word("050-123", 91, [80, 10, 140, 25]),
-      word("4567", 89, [30, 10, 70, 25]),
-    ]),
+    resultWithWords(
+      [
+        word("טלפון:", 96, [150, 10, 195, 25]),
+        word("050-123", 91, [80, 30, 140, 45]),
+        word("4567", 89, [30, 30, 70, 45]),
+      ],
+      "טלפון:\n050-123 4567\n",
+    ),
   );
 
-  assert.equal(index.sourceText, "טלפון: 050-123 4567");
+  assert.equal(index.sourceText, "טלפון:\n050-123 4567\n");
   assert.deepEqual(index.words.map(({ wordIndex, start, end }) => ({ wordIndex, start, end })), [
     { wordIndex: 0, start: 0, end: 6 },
     { wordIndex: 1, start: 7, end: 14 },
@@ -41,24 +44,27 @@ test("builds canonical iterator-order text with value-free word records", () => 
   assert.equal(JSON.stringify(index.words).includes("050-123"), false);
 });
 
-test("maps one multi-word value to original RTL iterator boxes without unioning them", () => {
+test("maps one same-line multi-word value in original RTL iterator order", () => {
   const index = buildTesseractWordTextIndex(
-    resultWithWords([
-      word("טלפון:", 96, [150, 10, 195, 25]),
-      word("050-123", 91, [80, 10, 140, 25]),
-      word("4567", 89, [30, 10, 70, 25]),
-    ]),
+    resultWithWords(
+      [
+        word("טלפון:", 96, [150, 10, 195, 25]),
+        word("050-123", 91, [80, 30, 140, 45]),
+        word("4567", 89, [30, 30, 70, 45]),
+      ],
+      "טלפון:\n050-123 4567\n",
+    ),
   );
   const start = index.sourceText.indexOf("050-123");
-  const end = index.sourceText.length;
+  const end = start + "050-123 4567".length;
   const mapping = mapTextSpanToTesseractWordBoxes(index, start, end);
 
   assert.deepEqual(mapping, {
     startWordIndex: 1,
     endWordIndexExclusive: 3,
     wordBoxes: [
-      { wordIndex: 1, confidence: 91, bbox: [80, 10, 140, 25] },
-      { wordIndex: 2, confidence: 89, bbox: [30, 10, 70, 25] },
+      { wordIndex: 1, confidence: 91, bbox: [80, 30, 140, 45] },
+      { wordIndex: 2, confidence: 89, bbox: [30, 30, 70, 45] },
     ],
   });
   assert.equal(JSON.stringify(mapping).includes("050-123"), false);
@@ -77,6 +83,36 @@ test("maps a value inside a punctuation-sharing word box", () => {
     endWordIndexExclusive: 1,
     wordBoxes: [{ wordIndex: 0, confidence: 88, bbox: [20, 20, 180, 40] }],
   });
+});
+
+test("rejects cross-line spans and inconsistent full-text alignment", () => {
+  const crossLine = buildTesseractWordTextIndex(
+    resultWithWords(
+      [
+        word("050-123", 90, [80, 10, 140, 25]),
+        word("4567", 90, [30, 30, 70, 45]),
+      ],
+      "050-123\n4567",
+    ),
+  );
+  assert.throws(
+    () => mapTextSpanToTesseractWordBoxes(crossLine, 0, crossLine.sourceText.length),
+    /line boundary|unsupported whitespace/,
+  );
+
+  assert.throws(
+    () =>
+      buildTesseractWordTextIndex(
+        resultWithWords(
+          [
+            word("abc", 90, [0, 0, 10, 10]),
+            word("def", 90, [20, 0, 30, 10]),
+          ],
+          "abc X def",
+        ),
+      ),
+    /inconsistent|unboxed/,
+  );
 });
 
 test("rejects forged indexes, malformed spans, whitespace words, and oversized mappings", () => {
