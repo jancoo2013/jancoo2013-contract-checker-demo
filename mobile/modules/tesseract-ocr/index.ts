@@ -20,9 +20,21 @@ export type TesseractWordBox = {
   bbox: [number, number, number, number];
 };
 
+export type DirectPiiClass = "bank_identifier" | "email" | "phone" | "israeli_id";
+
+export type DirectPiiWordBoxMatch = {
+  matchId: string;
+  piiClass: DirectPiiClass;
+  detectorId: string;
+  wordIndex: number;
+  confidence: number;
+  bbox: [number, number, number, number];
+};
+
 export type HebrewOcrResult = {
   text: string;
   wordBoxes: TesseractWordBox[];
+  directPiiWordBoxes?: DirectPiiWordBoxMatch[];
   elapsedMs: number;
   meanConfidence: number;
   width: number;
