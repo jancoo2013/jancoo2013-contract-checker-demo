@@ -8,6 +8,18 @@ from .pii_direct_patterns import DirectValueMatch, make_direct_value_evidence
 from .pii_evidence_decisions import combine_evidence_into_candidate
 
 
+def _validate_match_span(match: DirectValueMatch) -> None:
+    if not isinstance(match, DirectValueMatch):
+        raise TypeError("match must be a DirectValueMatch")
+    if not all(
+        isinstance(offset, int) and not isinstance(offset, bool)
+        for offset in (match.start, match.end)
+    ):
+        raise ValueError("match offsets must be integers")
+    if not 0 <= match.start < match.end:
+        raise ValueError("match offsets must form an ordered non-negative non-empty span")
+
+
 def adapt_direct_value_match_to_candidate(
     match: DirectValueMatch,
     candidate_id: object,
@@ -22,6 +34,7 @@ def adapt_direct_value_match_to_candidate(
     connects the existing value-free evidence helper to the existing
     fail-closed decision combiner.
     """
+    _validate_match_span(match)
     evidence = make_direct_value_evidence(match, evidence_id, geometry)
     return combine_evidence_into_candidate(
         candidate_id,
