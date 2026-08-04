@@ -1,14 +1,24 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-04, PR #180, `android-tesseract-word-boxes-v1`.
+Последнее обновление: 2026-08-04, PR #181, `android-tesseract-word-span-mapping-v1`.
 
 Активный трек: `local-pii-redaction`.
 
-Единственный следующий шаг: `android-tesseract-word-boxes-v1`.
+Единственный следующий шаг: `android-tesseract-word-span-mapping-v1`.
 
 Этот документ — каноническая operational-точка восстановления privacy/OCR-проекта. Архитектуру задают `docs/ARCHITECTURE.md` и `docs/CUSTOM_OCR_PIPELINE.md`; точные входы, выходы и proof boundaries отдельных компонентов задают их component contracts. При конфликте обязательных документов работа останавливается до отдельного исправления.
 
-## 0. Изменение PR #180
+## 0. Изменение PR #181
+
+- Добавлен Android/TypeScript mapping layer, который строит канонический request-local `sourceText` из уже валидированных Tesseract `wordBoxes` в iterator order, вставляя ровно один ASCII-пробел между словами и сохраняя value-free character spans для каждого word index.
+- Один caller-confirmed non-empty text span разрешается только через index, созданный trusted builder. Forged indexes, non-integer/negative/empty/reversed/out-of-range spans, leading/trailing separator spans, OCR words с whitespace и mapping более чем на `64` word boxes fail closed.
+- Mapping возвращает только `wordIndex`, `confidence` и defensive immutable copies исходных pixel `bbox`; OCR word text, matched PII value и source offsets в mapping output не копируются. Boxes намеренно не объединяются и candidate geometry не создаётся.
+- Iterator order является источником text order независимо от физических x-координат, поэтому synthetic RTL test подтверждает mapping составного phone-like значения на несколько раздельных boxes с убывающими x coordinates. Отдельно покрыто значение внутри punctuation-sharing word box.
+- Dependency-free mobile tests добавляют `5/5` regressions; вместе с PR #180 mobile suite составляет `9/9`. Strict TypeScript validation требует `allowImportingTsExtensions` только в существующем `noEmit`-контуре, поскольку прямой Node test runner использует точные `.ts` specifiers.
+- PR не добавляет и не портирует direct-value finder, не создаёт evidence/candidates/dispositions, не объединяет boxes, не рисует masks, не меняет UI, persistence, transport, backend, external OCR/LLM, runtime dependencies или privacy boundary и не использует реальные договоры/PII.
+- По merge-gated workflow `next_step_id` остаётся `android-tesseract-word-span-mapping-v1` до merge PR #181 и нового чтения resulting `main`; следующий bounded slice должен отдельно определить безопасную агрегацию нескольких boxes в candidate geometry.
+
+### Изменение PR #180
 
 - После merge PR #179 владелец продукта явно выбрал первый bounded detector integration slice: существующий Android-only Tesseract pass теперь возвращает для каждого распознанного слова локальные `text`, `confidence` и `bbox` в координатах фактически декодированного bitmap.
 - Native result ограничен `5000` посещёнными words и `256` символами на word; invalid confidence, malformed/reversed/out-of-bounds bbox и превышение batch fail closed вместо публикации частичного результата.

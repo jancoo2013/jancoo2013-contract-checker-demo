@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-04-34",
+  "state_version": "privacy-ocr-2026-08-04-35",
   "active_track": "local-pii-redaction",
-  "next_step_id": "android-tesseract-word-boxes-v1",
-  "next_step_summary": "Merge-gated: PR #180 exposes bounded local Tesseract word text, confidence, and in-bounds bitmap geometry with native and TypeScript fail-closed validation; keep this identifier unchanged until merge and a new reading of resulting main before selecting direct PII candidate mapping.",
-  "last_recorded_pr": 180,
-  "last_recorded_change": "android-tesseract-word-boxes-v1",
+  "next_step_id": "android-tesseract-word-span-mapping-v1",
+  "next_step_summary": "Merge-gated: PR #181 builds a trusted canonical local word-text index and maps one caller-confirmed text span to bounded value-free Tesseract word-box references without unioning boxes or creating candidates; keep this identifier unchanged until merge and a new reading of resulting main before selecting candidate geometry aggregation.",
+  "last_recorded_pr": 181,
+  "last_recorded_change": "android-tesseract-word-span-mapping-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-08-04"
