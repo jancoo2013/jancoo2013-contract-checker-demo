@@ -30,6 +30,7 @@ export type TesseractWordSpanMapping = Readonly<{
 
 const trustedIndexes = new WeakSet<object>();
 const WORD_WHITESPACE = /\s/u;
+const ONLY_WHITESPACE = /^\s*$/u;
 
 function copyBbox(
   bbox: readonly [number, number, number, number],
@@ -37,44 +38,55 @@ function copyBbox(
   return Object.freeze([bbox[0], bbox[1], bbox[2], bbox[3]]);
 }
 
+function containsNonAsciiSpaceWhitespace(value: string): boolean {
+  for (const character of value) {
+    if (character !== " " && WORD_WHITESPACE.test(character)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /**
- * Build the exact local text surface that a mobile direct-value finder must use.
+ * Index exact Tesseract full-text offsets for the validated iterator words.
  *
- * Word order comes from Tesseract's iterator, never from x coordinates. A single
- * ASCII space is inserted between words. The returned word records intentionally
- * omit OCR text; only `sourceText` contains the request-local text surface.
+ * The original text is preserved, including line boundaries. Every non-whitespace
+ * character must belong to the next iterator word; otherwise indexing fails closed.
+ * Word records intentionally omit OCR text and retain only request-local offsets.
  */
 export function buildTesseractWordTextIndex(value: unknown): TesseractWordTextIndex {
   const result: HebrewOcrResult = validateHebrewOcrResult(value);
-  const sourceParts: string[] = [];
   const words: IndexedTesseractWord[] = [];
-  let offset = 0;
+  let cursor = 0;
 
   result.wordBoxes.forEach((wordBox, wordIndex) => {
     if (WORD_WHITESPACE.test(wordBox.text)) {
       throw new Error(`Tesseract word box ${wordIndex} contains whitespace.`);
     }
-    if (wordIndex > 0) {
-      sourceParts.push(" ");
-      offset += 1;
-    }
 
-    const start = offset;
-    sourceParts.push(wordBox.text);
-    offset += wordBox.text.length;
+    const start = result.text.indexOf(wordBox.text, cursor);
+    if (start < 0 || !ONLY_WHITESPACE.test(result.text.slice(cursor, start))) {
+      throw new Error(`Tesseract word box ${wordIndex} is inconsistent with full OCR text.`);
+    }
+    const end = start + wordBox.text.length;
     words.push(
       Object.freeze({
         wordIndex,
         start,
-        end: offset,
+        end,
         confidence: wordBox.confidence,
         bbox: copyBbox(wordBox.bbox),
       }),
     );
+    cursor = end;
   });
 
+  if (!ONLY_WHITESPACE.test(result.text.slice(cursor))) {
+    throw new Error("Tesseract full OCR text contains unboxed non-whitespace content.");
+  }
+
   const index = Object.freeze({
-    sourceText: sourceParts.join(""),
+    sourceText: result.text,
     words: Object.freeze(words),
   });
   trustedIndexes.add(index);
@@ -82,11 +94,12 @@ export function buildTesseractWordTextIndex(value: unknown): TesseractWordTextIn
 }
 
 /**
- * Resolve one non-empty span from the canonical word text to its exact OCR boxes.
+ * Resolve one non-empty direct-value span to its exact OCR word boxes.
  *
- * The span may begin or end inside a word (for example, punctuation can share a
- * Tesseract box with a value). Output is value-free and boxes are not combined;
- * candidate geometry aggregation belongs to a later layer.
+ * The span may begin or end inside a word when punctuation shares its box. It may
+ * contain ASCII spaces between value words, but it cannot cross a Tesseract line
+ * boundary or other non-ASCII whitespace. Output remains value-free and boxes are
+ * not combined; candidate geometry aggregation belongs to a later layer.
  */
 export function mapTextSpanToTesseractWordBoxes(
   index: TesseractWordTextIndex,
@@ -102,8 +115,14 @@ export function mapTextSpanToTesseractWordBoxes(
   if (start < 0 || start >= end || end > index.sourceText.length) {
     throw new Error("Text span is outside the canonical Tesseract word text.");
   }
-  if (index.sourceText[start] === " " || index.sourceText[end - 1] === " ") {
+  if (
+    WORD_WHITESPACE.test(index.sourceText[start]) ||
+    WORD_WHITESPACE.test(index.sourceText[end - 1])
+  ) {
     throw new Error("Text span must begin and end inside a Tesseract word.");
+  }
+  if (containsNonAsciiSpaceWhitespace(index.sourceText.slice(start, end))) {
+    throw new Error("Text span crosses a Tesseract line boundary or unsupported whitespace.");
   }
 
   const overlappingWords = index.words.filter((word) => word.end > start && word.start < end);
