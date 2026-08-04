@@ -1,5 +1,6 @@
 name: PR 181 state bootstrap
 
+# Retry after enabling checked .ts imports for the dependency-free Node runner.
 on:
   push:
     branches:
@@ -13,6 +14,7 @@ permissions:
 jobs:
   patch-and-validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
@@ -24,6 +26,10 @@ jobs:
           node-version: 24
           cache: npm
           cache-dependency-path: mobile/package-lock.json
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
       - name: Patch canonical state
         shell: python
@@ -62,8 +68,8 @@ jobs:
           - Один caller-confirmed non-empty text span разрешается только через index, созданный trusted builder. Forged indexes, non-integer/negative/empty/reversed/out-of-range spans, leading/trailing separator spans, OCR words с whitespace и mapping более чем на `64` word boxes fail closed.
           - Mapping возвращает только `wordIndex`, `confidence` и defensive immutable copies исходных pixel `bbox`; OCR word text, matched PII value и source offsets в mapping output не копируются. Boxes намеренно не объединяются и candidate geometry не создаётся.
           - Iterator order является источником text order независимо от физических x-координат, поэтому synthetic RTL test подтверждает mapping составного phone-like значения на несколько раздельных boxes с убывающими x coordinates. Отдельно покрыто значение внутри punctuation-sharing word box.
-          - Dependency-free mobile tests добавляют `5/5` regressions; вместе с PR #180 mobile suite ожидаемо составляет `9/9`. Strict TypeScript validation остаётся обязательной через существующий `mobile-tesseract.yml`.
-          - PR не добавляет и не портирует direct-value finder, не создаёт evidence/candidates/dispositions, не объединяет boxes, не рисует masks, не меняет UI, persistence, transport, backend, external OCR/LLM, dependencies или privacy boundary и не использует реальные договоры/PII.
+          - Dependency-free mobile tests добавляют `5/5` regressions; вместе с PR #180 mobile suite составляет `9/9`. Strict TypeScript validation требует `allowImportingTsExtensions` только в существующем `noEmit`-контуре, поскольку прямой Node test runner использует точные `.ts` specifiers.
+          - PR не добавляет и не портирует direct-value finder, не создаёт evidence/candidates/dispositions, не объединяет boxes, не рисует masks, не меняет UI, persistence, transport, backend, external OCR/LLM, runtime dependencies или privacy boundary и не использует реальные договоры/PII.
           - По merge-gated workflow `next_step_id` остаётся `android-tesseract-word-span-mapping-v1` до merge PR #181 и нового чтения resulting `main`; следующий bounded slice должен отдельно определить безопасную агрегацию нескольких boxes в candidate geometry.
 
           ### Изменение PR #180"""
@@ -104,6 +110,37 @@ jobs:
           npm ci
           npm test
           npm run typecheck
+
+      - name: Install repository test dependencies
+        run: |
+          python -m pip install -r requirements.txt
+          python -m pip install -r research/hebrew_contract_ocr/requirements-training.txt
+
+      - name: Validate OCR runtime and mandatory suite
+        run: |
+          python -m research.hebrew_contract_ocr.training_runtime_smoke
+          python -m unittest \
+            tests.test_ocr_pii_annotations \
+            tests.test_ocr_pii_candidate_evidence \
+            tests.test_ocr_pii_direct_patterns \
+            tests.test_ocr_pii_direct_value_decision_adapter \
+            tests.test_ocr_pii_marker_value_relations \
+            tests.test_ocr_pii_marker_value_decision_adapter \
+            tests.test_ocr_pii_visual_sensitive_regions \
+            tests.test_ocr_pii_visual_decision_adapter \
+            tests.test_ocr_pii_evidence_decisions \
+            tests.test_ocr_pii_baseline \
+            tests.test_ocr_pii_mask_renderer \
+            tests.test_ocr_pii_mask_diagnostics \
+            tests.test_ocr_pii_reviewer_pilot \
+            tests.test_ocr_pii_review_pack_builder \
+            tests.test_ocr_line_segmenter \
+            tests.test_ocr_recognizer_input \
+            tests.test_ocr_ctc_decoder \
+            tests.test_tools_run_pii_mask_diagnostics
+
+      - name: Validate full repository suite
+        run: python -m unittest discover -s tests
 
       - name: Commit canonical state
         run: |
