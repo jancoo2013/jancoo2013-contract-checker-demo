@@ -1,6 +1,6 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-04, PR #178, `pii-direct-value-match-integrity-v1`.
+Последнее обновление: 2026-08-04, PR #179, `pii-direct-value-match-provenance-v1`.
 
 Активный трек: `local-pii-redaction`.
 
@@ -8,7 +8,17 @@
 
 Этот документ — каноническая operational-точка восстановления privacy/OCR-проекта. Архитектуру задают `docs/ARCHITECTURE.md` и `docs/CUSTOM_OCR_PIPELINE.md`; точные входы, выходы и proof boundaries отдельных компонентов задают их component contracts. При конфликте обязательных документов работа останавливается до отдельного исправления.
 
-## 0. Изменение PR #178
+## 0. Изменение PR #179
+
+- `adapt_direct_value_match_to_candidate` теперь требует caller-supplied local source text и до evidence/candidate construction повторно запускает `find_direct_value_matches`.
+- Candidate создаётся только когда переданный `DirectValueMatch` в точности присутствует среди approved finder results: совпадают PII class, detector ID, start и end.
+- Synthetic regressions подтверждают четыре approved direct classes и fail-closed rejection для forged but well-formed offsets, class и detector ID; malformed spans по-прежнему отклоняются structural gate.
+- Source text, raw PII value и source offsets не сохраняются и не возвращаются в candidate/evidence output; pixel geometry по character offsets не выводится.
+- Focused evidence suite проходит `106/106`, обязательный OCR workflow suite — `179/179`, полный repository suite — `451/451` в изолированной среде с repository-declared dependencies.
+- Adapter остаётся reference-only. Detector orchestration, renderer, review pack, Android app/APK, runtime, OCR, pixel classifier, dependencies, external APIs, реальные данные и privacy boundary не изменены.
+- По merge-gated workflow `next_step_id` намеренно остаётся `pii-direct-value-match-provenance-v1` до merge PR #179 и нового чтения resulting `main`; следующий detector integration slice в этом PR не выбирается.
+
+### Изменение PR #178
 
 - В `adapt_direct_value_match_to_candidate` добавлена fail-closed structural validation до evidence/candidate construction: `start` и `end` должны быть integer/non-boolean offsets и образовывать ordered non-negative non-empty span `0 <= start < end`.
 - Synthetic regressions покрывают boolean, float, negative, empty и reversed spans; malformed `DirectValueMatch` теперь отклоняется исключением и не может получить candidate disposition `auto_mask`.
@@ -378,7 +388,7 @@ raw phone photo
 | Local PII annotation contract | Reference v0 | Closed classes/statuses, immutable image identity, bbox/polygon validation | Human annotations и privacy metrics |
 | PII candidate evidence schema | Python reference v1 with closed class binding | Closed dispositions/families, strict identifiers/geometry/relations, approved detector/relation registries, class-compatible strong evidence и fail-closed запрет weak-layout-only/mismatched/unapproved `auto_mask` покрыты synthetic tests | Detector/runtime integration, real candidate correctness и production privacy safety |
 | Direct PII value patterns | Python reference v0 | Dependency-free bounded email, Israeli phone, check-digit Israeli ID и MOD-97 Israeli IBAN возвращают original spans и value-free evidence; overlap priority, ambiguous-number rejection и schema compatibility покрыты synthetic tests и обязательным OCR CI | Detector/runtime integration, real correctness, production privacy safety и cross-contract generalization |
-| Direct-value decision adapter | Python reference v0 with structural integrity gate | Один structurally valid `DirectValueMatch` и caller-supplied exact geometry детерминированно проходят через value-free evidence helper и class-bound combiner; negative/boolean/float/empty/reversed spans отклоняются, mismatch/unapproved detector semantics fail closed до `local_review` | Finder provenance для structurally valid вручную созданной записи не доказан; text/image extraction, pixel geometry mapping, detector/runtime integration, real correctness и production privacy safety |
+| Direct-value decision adapter | Python reference v0 with structural and provenance gates | Один structurally valid `DirectValueMatch` допускается только при exact совпадении class/detector/start/end с approved finder result для caller-supplied local source text; forged records отклоняются до candidate, output остаётся value-free | Upstream local source-text extraction, pixel geometry mapping, detector/runtime integration, real correctness и production privacy safety |
 | Marker-to-direct-value relations | Python reference v0 | Approved marker variants, source-level class compatibility, bounded same-line gap, token boundaries, nearest-marker selection, immutable value-free spans и schema-compatible marker/relation evidence покрыты synthetic tests и включены в обязательный OCR CI | Downstream candidate `proposed_class` binding, detector/runtime integration, real correctness, production privacy safety и cross-contract generalization |
 | Marker-value decision adapter | Python reference v0 | Один existing `MarkerValueRelation` связывается только с exact class/detector/offset-compatible `DirectValueMatch`; caller-supplied geometry проходит через value-free helpers и class-bound combiner, forged or malformed spans fail closed | Text/image extraction, pixel geometry mapping, detector/runtime integration, real correctness и production privacy safety |
 | Visual sensitive-region evidence | Python reference v0 | Closed caller-prevalidated kinds, immutable in-bounds bbox, value-free visual evidence, typed marker-to-visual endpoints и downstream class-compatibility regressions покрыты synthetic tests | Pixel-based visual classification, spatial marker linkage, detector/runtime integration, real correctness и production privacy safety |
@@ -417,7 +427,7 @@ Standalone launch, открытие реального трёхстраничн�
 
 ## 10. Активный блокер и pilot input
 
-Class-binding consistency defect и malformed-span bypass закрыты reference-level gates; direct-value, marker-to-value и visual chains проходят через минимальные executable decision adapters. Оставшийся direct-value blocker — provenance: structurally valid вручную созданный `DirectValueMatch` с approved-looking detector ID пока не связан доказуемо с exact result штатного finder. После source binding product blockers остаются прежними: evidence extraction ещё не объединён в detector, реальный pixel-based visual classifier не реализован, а `marker_layout_baseline_v0` по-прежнему создаёт broad-zone findings по фиксированным вертикальным зонам и не годится для production metrics или Android automasking.
+Class-binding consistency defect, malformed-span bypass и direct-value provenance закрыты reference-level gates; direct-value, marker-to-value и visual chains проходят через минимальные executable decision adapters. Product blockers остаются прежними: evidence extraction ещё не объединён в detector, upstream local source text не подключён к direct adapter, реальный pixel-based visual classifier не реализован, а `marker_layout_baseline_v0` по-прежнему создаёт broad-zone findings по фиксированным вертикальным зонам и не годится для production metrics или Android automasking.
 
 Human pilot остаётся обязательным позже для `missed_pii`, `incomplete_mask` и `over_redaction`, но сначала candidates должны нести проверяемое evidence и запрещать zone-only `auto_mask`.
 
@@ -425,15 +435,15 @@ Human pilot остаётся обязательным позже для `missed_
 
 ## 11. Единственный следующий шаг
 
-**`pii-direct-value-match-provenance-v1`: Bind one structurally valid `DirectValueMatch` to the exact approved finder result over caller-supplied local source text before candidate construction, while keeping candidate/evidence output value-free.**
+**`pii-direct-value-match-provenance-v1`: MERGE-GATED — реализован в PR #179 и остаётся каноническим идентификатором до merge и нового чтения resulting `main`.**
 
 Граница шага:
 
-1. До evidence/candidate construction проверить, что переданный structurally valid match в точности присутствует среди результатов `find_direct_value_matches` для caller-supplied local source text: совпадают class, detector ID, start и end.
-2. Добавить synthetic regressions для forged but well-formed match, mismatched offsets/class/detector и valid exact finder match; forged record должен fail closed и никогда не возвращать `auto_mask`.
-3. Не сохранять и не возвращать source text, raw PII value или source offsets в candidate/evidence output; не логировать synthetic source text.
-4. Не выводить pixel geometry из character offsets и не добавлять detector orchestration, renderer/review-pack/Android/runtime integration, OCR, pixel classifier, dependencies, external APIs или реальные данные.
-5. Повторно выполнить focused evidence suite, обязательный OCR workflow suite и полный repository suite; первый detector integration slice выбирать только после закрытия provenance и чтения нового `main`.
+1. Не начинать detector/runtime integration до merge PR #179.
+2. После merge заново прочитать binding sources и оба state-файла с resulting `main`.
+3. Проверить фактический merged diff, review findings и CI exact final head SHA.
+4. Только после этого владелец продукта может явно выбрать первый bounded detector integration slice и обновить `next_step_id` в отдельном PR.
+5. До post-merge выбора не добавлять detector orchestration, renderer/review-pack/Android/runtime integration, OCR, pixel classifier, dependencies, external APIs или реальные данные.
 
 ## 12. Правила работы и восстановления новой сессии
 
