@@ -4,17 +4,18 @@ import test from "node:test";
 
 import {
   MAX_MAPPED_WORD_BOXES,
+  buildTesseractCandidateGeometry,
   buildTesseractWordTextIndex,
   mapTextSpanToTesseractWordBoxes,
 } from "../src/piiWordBoxMapping.ts";
 
-function resultWithWords(words, text = words.map((word) => word.text).join(" ")) {
+function resultWithWords(words, text = words.map((word) => word.text).join(" "), size = {}) {
   return {
     text,
     elapsedMs: 20,
     meanConfidence: 90,
-    width: 200,
-    height: 100,
+    width: size.width ?? 200,
+    height: size.height ?? 100,
     wordBoxes: words,
   };
 }
@@ -157,7 +158,7 @@ test("rejects forged indexes, malformed spans, whitespace words, and oversized m
   );
 });
 
-test("returns defensive immutable geometry copies", () => {
+test("returns defensive immutable mapping geometry copies", () => {
   const sourceBbox = [10, 10, 30, 20];
   const index = buildTesseractWordTextIndex(
     resultWithWords([word("value", 87, sourceBbox)]),
@@ -170,4 +171,117 @@ test("returns defensive immutable geometry copies", () => {
     mapping.wordBoxes[0].bbox[0] = 999;
   }, TypeError);
   assert.deepEqual(mapping.wordBoxes[0].bbox, [10, 10, 30, 20]);
+});
+
+test("builds separate RTL candidate boxes and a diagnostic enclosing box", () => {
+  const index = buildTesseractWordTextIndex(
+    resultWithWords([
+      word("050-123", 91, [80, 30, 140, 45]),
+      word("4567", 89, [30, 30, 70, 45]),
+    ]),
+  );
+  const mapping = mapTextSpanToTesseractWordBoxes(index, 0, index.sourceText.length);
+  const geometry = buildTesseractCandidateGeometry(mapping);
+
+  assert.deepEqual(geometry, {
+    startWordIndex: 0,
+    endWordIndexExclusive: 2,
+    wordBoxes: [
+      { wordIndex: 0, bbox: [80, 30, 140, 45] },
+      { wordIndex: 1, bbox: [30, 30, 70, 45] },
+    ],
+    enclosingBbox: [30, 30, 140, 45],
+  });
+  const serialized = JSON.stringify(geometry);
+  assert.equal(serialized.includes("050-123"), false);
+  assert.equal(serialized.includes("confidence"), false);
+});
+
+test("builds one-box candidate geometry without expansion", () => {
+  const index = buildTesseractWordTextIndex(
+    resultWithWords([word("(demo@example.test)", 88, [20, 20, 180, 40])]),
+  );
+  const start = index.sourceText.indexOf("demo@example.test");
+  const mapping = mapTextSpanToTesseractWordBoxes(
+    index,
+    start,
+    start + "demo@example.test".length,
+  );
+
+  assert.deepEqual(buildTesseractCandidateGeometry(mapping), {
+    startWordIndex: 0,
+    endWordIndexExclusive: 1,
+    wordBoxes: [{ wordIndex: 0, bbox: [20, 20, 180, 40] }],
+    enclosingBbox: [20, 20, 180, 40],
+  });
+});
+
+test("rejects forged, duplicate, and reordered candidate mappings", () => {
+  for (const mapping of [
+    { startWordIndex: 0, endWordIndexExclusive: 1, wordBoxes: [] },
+    {
+      startWordIndex: 0,
+      endWordIndexExclusive: 2,
+      wordBoxes: [
+        { wordIndex: 0, confidence: 90, bbox: [0, 0, 10, 10] },
+        { wordIndex: 0, confidence: 90, bbox: [12, 0, 22, 10] },
+      ],
+    },
+    {
+      startWordIndex: 0,
+      endWordIndexExclusive: 2,
+      wordBoxes: [
+        { wordIndex: 1, confidence: 90, bbox: [0, 0, 10, 10] },
+        { wordIndex: 0, confidence: 90, bbox: [12, 0, 22, 10] },
+      ],
+    },
+  ]) {
+    assert.throws(() => buildTesseractCandidateGeometry(mapping), /trusted mapper/);
+  }
+});
+
+test("rejects boxes from different visual lines", () => {
+  const index = buildTesseractWordTextIndex(
+    resultWithWords([
+      word("050-123", 90, [80, 10, 140, 22]),
+      word("4567", 90, [30, 26, 70, 40]),
+    ]),
+  );
+  const mapping = mapTextSpanToTesseractWordBoxes(index, 0, index.sourceText.length);
+
+  assert.throws(() => buildTesseractCandidateGeometry(mapping), /text-line band/);
+});
+
+test("rejects a large horizontal gap that would create an unsafe union", () => {
+  const index = buildTesseractWordTextIndex(
+    resultWithWords(
+      [
+        word("050-123", 90, [10, 10, 40, 30]),
+        word("4567", 90, [100, 10, 130, 30]),
+      ],
+      "050-123 4567",
+      { width: 160, height: 60 },
+    ),
+  );
+  const mapping = mapTextSpanToTesseractWordBoxes(index, 0, index.sourceText.length);
+
+  assert.throws(() => buildTesseractCandidateGeometry(mapping), /unsafe horizontal gap/);
+});
+
+test("returns defensive immutable candidate geometry copies", () => {
+  const index = buildTesseractWordTextIndex(
+    resultWithWords([word("value", 87, [10, 10, 30, 20])]),
+  );
+  const geometry = buildTesseractCandidateGeometry(
+    mapTextSpanToTesseractWordBoxes(index, 0, 5),
+  );
+
+  assert.throws(() => {
+    geometry.wordBoxes[0].bbox[0] = 999;
+  }, TypeError);
+  assert.throws(() => {
+    geometry.enclosingBbox[0] = 999;
+  }, TypeError);
+  assert.deepEqual(geometry.wordBoxes[0].bbox, [10, 10, 30, 20]);
+  assert.deepEqual(geometry.enclosingBbox, [10, 10, 30, 20]);
 });

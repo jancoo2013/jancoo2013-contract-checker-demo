@@ -2,6 +2,12 @@ import type { HebrewOcrResult } from "../modules/tesseract-ocr";
 import { validateHebrewOcrResult } from "./tesseractResult.ts";
 
 export const MAX_MAPPED_WORD_BOXES = 64;
+export const MAX_WORD_GAP_HEIGHT_MULTIPLIER = 2;
+
+type ImageSize = Readonly<{
+  width: number;
+  height: number;
+}>;
 
 export type IndexedTesseractWord = Readonly<{
   wordIndex: number;
@@ -28,7 +34,22 @@ export type TesseractWordSpanMapping = Readonly<{
   wordBoxes: readonly MappedTesseractWordBox[];
 }>;
 
+export type TesseractCandidateWordBox = Readonly<{
+  wordIndex: number;
+  bbox: readonly [number, number, number, number];
+}>;
+
+export type TesseractCandidateGeometry = Readonly<{
+  startWordIndex: number;
+  endWordIndexExclusive: number;
+  wordBoxes: readonly TesseractCandidateWordBox[];
+  enclosingBbox: readonly [number, number, number, number];
+}>;
+
 const trustedIndexes = new WeakSet<object>();
+const indexImageSizes = new WeakMap<object, ImageSize>();
+const trustedMappings = new WeakSet<object>();
+const mappingImageSizes = new WeakMap<object, ImageSize>();
 const WORD_WHITESPACE = /\s/u;
 const ONLY_WHITESPACE = /^\s*$/u;
 
@@ -45,6 +66,24 @@ function containsNonAsciiSpaceWhitespace(value: string): boolean {
     }
   }
   return false;
+}
+
+function assertBoxInsideImage(
+  bbox: readonly [number, number, number, number],
+  imageSize: ImageSize,
+): void {
+  const [left, top, right, bottom] = bbox;
+  if (
+    !bbox.every(Number.isInteger) ||
+    left < 0 ||
+    top < 0 ||
+    right > imageSize.width ||
+    bottom > imageSize.height ||
+    left >= right ||
+    top >= bottom
+  ) {
+    throw new Error("MappedTesseract word box is outside the source image.");
+  }
 }
 
 /**
@@ -89,7 +128,9 @@ export function buildTesseractWordTextIndex(value: unknown): TesseractWordTextIn
     sourceText: result.text,
     words: Object.freeze(words),
   });
+  const imageSize = Object.freeze({ width: result.width, height: result.height });
   trustedIndexes.add(index);
+  indexImageSizes.set(index, imageSize);
   return index;
 }
 
@@ -142,10 +183,99 @@ export function mapTextSpanToTesseractWordBoxes(
   );
   const firstWord = overlappingWords[0];
   const lastWord = overlappingWords[overlappingWords.length - 1];
-
-  return Object.freeze({
+  const mapping = Object.freeze({
     startWordIndex: firstWord.wordIndex,
     endWordIndexExclusive: lastWord.wordIndex + 1,
     wordBoxes: Object.freeze(mappedWordBoxes),
+  });
+  const imageSize = indexImageSizes.get(index);
+  if (imageSize === undefined) {
+    throw new Error("Trusted Tesseract index is missing source image metadata.");
+  }
+  trustedMappings.add(mapping);
+  mappingImageSizes.set(mapping, imageSize);
+  return mapping;
+}
+
+/**
+ * Convert one trusted same-line word-span mapping into value-free candidate geometry.
+ *
+ * Exact word boxes remain separate. The enclosing box is diagnostic only and must
+ * not be treated as the production mask when it would cover gaps between words.
+ */
+export function buildTesseractCandidateGeometry(
+  mapping: TesseractWordSpanMapping,
+): TesseractCandidateGeometry {
+  if (typeof mapping !== "object" || mapping === null || !trustedMappings.has(mapping)) {
+    throw new Error("Tesseract word-span mapping was not produced by the trusted mapper.");
+  }
+
+  const imageSize = mappingImageSizes.get(mapping);
+  if (imageSize === undefined) {
+    throw new Error("Trusted Tesseract mapping is missing source image metadata.");
+  }
+  if (
+    mapping.wordBoxes.length === 0 ||
+    mapping.endWordIndexExclusive - mapping.startWordIndex !== mapping.wordBoxes.length
+  ) {
+    throw new Error("Tesseract word-span mapping has inconsistent word indexes.");
+  }
+
+  let commonTop = Number.NEGATIVE_INFINITY;
+  let commonBottom = Number.POSITIVE_INFINITY;
+  let enclosingLeft = Number.POSITIVE_INFINITY;
+  let enclosingTop = Number.POSITIVE_INFINITY;
+  let enclosingRight = Number.NEGATIVE_INFINITY;
+  let enclosingBottom = Number.NEGATIVE_INFINITY;
+
+  mapping.wordBoxes.forEach((wordBox, offset) => {
+    if (wordBox.wordIndex !== mapping.startWordIndex + offset) {
+      throw new Error("Tesseract candidate word indexes are duplicated or non-consecutive.");
+    }
+    assertBoxInsideImage(wordBox.bbox, imageSize);
+    const [left, top, right, bottom] = wordBox.bbox;
+    commonTop = Math.max(commonTop, top);
+    commonBottom = Math.min(commonBottom, bottom);
+    enclosingLeft = Math.min(enclosingLeft, left);
+    enclosingTop = Math.min(enclosingTop, top);
+    enclosingRight = Math.max(enclosingRight, right);
+    enclosingBottom = Math.max(enclosingBottom, bottom);
+  });
+
+  if (commonTop >= commonBottom) {
+    throw new Error("Mapped Tesseract word boxes do not share one text-line band.");
+  }
+
+  const physicalOrder = [...mapping.wordBoxes].sort(
+    (first, second) => first.bbox[0] - second.bbox[0] || first.bbox[2] - second.bbox[2],
+  );
+  for (let index = 1; index < physicalOrder.length; index += 1) {
+    const previous = physicalOrder[index - 1].bbox;
+    const current = physicalOrder[index].bbox;
+    const gap = current[0] - previous[2];
+    const maxHeight = Math.max(previous[3] - previous[1], current[3] - current[1]);
+    if (gap > maxHeight * MAX_WORD_GAP_HEIGHT_MULTIPLIER) {
+      throw new Error("Mapped Tesseract word boxes are separated by an unsafe horizontal gap.");
+    }
+  }
+
+  const wordBoxes = mapping.wordBoxes.map((wordBox) =>
+    Object.freeze({
+      wordIndex: wordBox.wordIndex,
+      bbox: copyBbox(wordBox.bbox),
+    }),
+  );
+
+  const enclosingBbox: readonly [number, number, number, number] = copyBbox([
+    enclosingLeft,
+    enclosingTop,
+    enclosingRight,
+    enclosingBottom,
+  ]);
+  return Object.freeze({
+    startWordIndex: mapping.startWordIndex,
+    endWordIndexExclusive: mapping.endWordIndexExclusive,
+    wordBoxes: Object.freeze(wordBoxes),
+    enclosingBbox,
   });
 }
