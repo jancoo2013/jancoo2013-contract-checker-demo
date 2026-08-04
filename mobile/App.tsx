@@ -15,6 +15,7 @@ import TesseractOcr, {
   HebrewOcrResult,
   PickedImage,
 } from "./modules/tesseract-ocr";
+import { validateHebrewOcrResult } from "./src/tesseractResult";
 
 const SYNTHETIC_ASSET = require("./assets/synthetic-redacted-contract.png") as ImageSourcePropType;
 const SYNTHETIC_FILENAME = "synthetic_page.png";
@@ -257,7 +258,7 @@ export default function App() {
 
     setLocalOcr({ status: "running" });
     try {
-      const ocrResult = await TesseractOcr.recognizeAsync(selectedImage.uri);
+      const ocrResult = validateHebrewOcrResult(await TesseractOcr.recognizeAsync(selectedImage.uri));
       setLocalOcr({ status: "success", result: ocrResult });
     } catch (error: unknown) {
       setLocalOcr({ status: "error", error: errorMessage(error) });
@@ -348,6 +349,7 @@ export default function App() {
             <Text style={styles.resultTitle}>Raw Tesseract result</Text>
             <Text style={styles.value}>elapsed: {localOcr.result.elapsedMs} ms</Text>
             <Text style={styles.value}>mean confidence: {localOcr.result.meanConfidence}</Text>
+            <Text style={styles.value}>word boxes: {localOcr.result.wordBoxes.length}</Text>
             <Text style={styles.value}>
               decoded bitmap: {localOcr.result.width} × {localOcr.result.height}
             </Text>

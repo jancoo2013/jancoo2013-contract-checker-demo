@@ -1,14 +1,24 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-04, PR #179, `pii-direct-value-match-provenance-v1`.
+Последнее обновление: 2026-08-04, PR #180, `android-tesseract-word-boxes-v1`.
 
 Активный трек: `local-pii-redaction`.
 
-Единственный следующий шаг: `pii-direct-value-match-provenance-v1`.
+Единственный следующий шаг: `android-tesseract-word-boxes-v1`.
 
 Этот документ — каноническая operational-точка восстановления privacy/OCR-проекта. Архитектуру задают `docs/ARCHITECTURE.md` и `docs/CUSTOM_OCR_PIPELINE.md`; точные входы, выходы и proof boundaries отдельных компонентов задают их component contracts. При конфликте обязательных документов работа останавливается до отдельного исправления.
 
-## 0. Изменение PR #179
+## 0. Изменение PR #180
+
+- После merge PR #179 владелец продукта явно выбрал первый bounded detector integration slice: существующий Android-only Tesseract pass теперь возвращает для каждого распознанного слова локальные `text`, `confidence` и `bbox` в координатах фактически декодированного bitmap.
+- Native result ограничен `5000` посещёнными words и `256` символами на word; invalid confidence, malformed/reversed/out-of-bounds bbox и превышение batch fail closed вместо публикации частичного результата.
+- `ResultIterator` всегда удаляется в `finally` до освобождения Tesseract и bitmap. Повторного OCR pass нет: word boxes читаются из результатов того же `getUTF8Text()` recognition.
+- TypeScript bridge contract получил closed `TesseractWordBox`; runtime validator повторно проверяет summary, batch, text, confidence и bbox до помещения результата в React state. UI показывает только count новых boxes; существующий raw-text diagnostic не расширен логированием или сохранением.
+- Dependency-free Node regressions проходят `4/4`, strict TypeScript check и Expo Android prebuild проходят. Новый PR workflow выполняет те же checks и компилирует generated Android debug APK; device install, launch и smoke в этом PR не заявляются.
+- Реальные договоры и PII не использовались и не коммитились. Результат остаётся локальным на устройстве; backend, external OCR/LLM, dependencies, direct-pattern Python adapters, candidate schema, renderer, review pack и privacy boundary не изменены.
+- Word boxes ещё не являются PII candidates и не разрешают masks или внешний handoff. По merge-gated workflow `next_step_id` остаётся `android-tesseract-word-boxes-v1` до merge PR #180 и нового чтения resulting `main`.
+
+### Изменение PR #179
 
 - `adapt_direct_value_match_to_candidate` теперь требует caller-supplied local source text и до evidence/candidate construction повторно запускает `find_direct_value_matches`.
 - Candidate создаётся только когда переданный `DirectValueMatch` в точности присутствует среди approved finder results: совпадают PII class, detector ID, start и end.
@@ -400,6 +410,7 @@ raw phone photo
 | Review pack builder | `controlled_pii_review_pack_builder_v0` | One-command local assembly, byte-identical sources, exact hashes/bindings, strict line manifest, no-overwrite publication и cleanup покрыты synthetic focused tests и CI | Удобство фактической передачи pack и human pilot |
 | Android PII reviewer | Standalone Expo APK + PR #157 dimensions fix + PR #158 first-paint corrective | Автономный запуск; direct PNG-byte validation; реальный pack открывается на Samsung A55 как 3 страницы; first-paint, loading indicator, touch gate и локальное сохранение результата подтверждены на Samsung A55 | Publication/readback результата на компьютере, human pilot |
 | Android development automation | `doctor` v0 + `build` v0 + `run` v0 + `logs` v0 + `restart` v0 | Полный Windows PowerShell 5.1 doctor-run; Java 21 fail-closed preflight; Temurin JDK 17 preflight; SDK handoff; успешная локальная release-сборка; подтверждённые install, launcher, process check, process-scoped warning/error logs и stop/start/process confirmation на Samsung A55 без Metro | Остаточный риск PII в произвольных error strings |
+| Android Tesseract word boxes | Runtime slice v1 in PR #180 | Existing on-device Hebrew recognition pass возвращает bounded word text/confidence/in-bounds bbox; native iterator cleanup, TypeScript boundary validation, synthetic contract tests и Android CI build входят в PR | Direct PII candidate mapping, real-contract geometry/recall, masks, privacy safety и device smoke |
 | Mask diagnostics runner | `one-command-pii-mask-diagnostics-v0` | Временный `origin/main` worktree, отсутствие branch switch, sibling no-overwrite report и cleanup покрыты synthetic tests и CI; выполнен real local run на repository-external `2_review_pack`: geometry-only report охватил 3 страницы, 46 candidates и `66.6%` общей закрытой площади; contract text, images, PII values, IDs, hashes и raw documents не коммитились | Повторный run на заново собранном pack после PR #162; correctness evidence-based detector; production privacy safety; generalization across contracts |
 | Android detector/renderer | Не реализован | — | On-device automatic detection and masking |
 | External OCR handoff | Не подключён | Разрешён только после privacy gate | Безопасность derivative не доказана |
@@ -427,7 +438,7 @@ Standalone launch, открытие реального трёхстраничн�
 
 ## 10. Активный блокер и pilot input
 
-Class-binding consistency defect, malformed-span bypass и direct-value provenance закрыты reference-level gates; direct-value, marker-to-value и visual chains проходят через минимальные executable decision adapters. Product blockers остаются прежними: evidence extraction ещё не объединён в detector, upstream local source text не подключён к direct adapter, реальный pixel-based visual classifier не реализован, а `marker_layout_baseline_v0` по-прежнему создаёт broad-zone findings по фиксированным вертикальным зонам и не годится для production metrics или Android automasking.
+Class-binding consistency defect, malformed-span bypass и direct-value provenance закрыты reference-level gates; direct-value, marker-to-value и visual chains проходят через минимальные executable decision adapters. Android runtime теперь получает bounded word text и pixel bbox из существующего локального Tesseract pass, но ещё не преобразует их в direct-value evidence/candidates и не связан с Python reference adapters. Реальный pixel-based visual classifier не реализован, а `marker_layout_baseline_v0` по-прежнему создаёт broad-zone findings по фиксированным вертикальным зонам и не годится для production metrics или Android automasking.
 
 Human pilot остаётся обязательным позже для `missed_pii`, `incomplete_mask` и `over_redaction`, но сначала candidates должны нести проверяемое evidence и запрещать zone-only `auto_mask`.
 
@@ -435,15 +446,15 @@ Human pilot остаётся обязательным позже для `missed_
 
 ## 11. Единственный следующий шаг
 
-**`pii-direct-value-match-provenance-v1`: MERGE-GATED — реализован в PR #179 и остаётся каноническим идентификатором до merge и нового чтения resulting `main`.**
+**`android-tesseract-word-boxes-v1`: MERGE-GATED — реализован в PR #180 и остаётся каноническим идентификатором до merge и нового чтения resulting `main`.**
 
 Граница шага:
 
-1. Не начинать detector/runtime integration до merge PR #179.
+1. Не начинать direct PII candidate mapping или masking до merge PR #180.
 2. После merge заново прочитать binding sources и оба state-файла с resulting `main`.
-3. Проверить фактический merged diff, review findings и CI exact final head SHA.
-4. Только после этого владелец продукта может явно выбрать первый bounded detector integration slice и обновить `next_step_id` в отдельном PR.
-5. До post-merge выбора не добавлять detector orchestration, renderer/review-pack/Android/runtime integration, OCR, pixel classifier, dependencies, external APIs или реальные данные.
+3. Проверить фактический merged diff, review findings, word-result tests и Android build для exact final head SHA.
+4. Только после этого владелец продукта может явно выбрать следующий bounded slice, например mapping approved direct-value patterns to exact word-box geometry, и обновить `next_step_id` в отдельном PR.
+5. До post-merge выбора не добавлять candidates, masks, renderer/review-pack integration, pixel classifier, dependencies, external APIs или реальные данные.
 
 ## 12. Правила работы и восстановления новой сессии
 

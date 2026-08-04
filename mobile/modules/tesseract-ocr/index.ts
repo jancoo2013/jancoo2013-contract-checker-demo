@@ -14,8 +14,15 @@ export type HebrewModelDownloadResult = {
   bytes: number;
 };
 
+export type TesseractWordBox = {
+  text: string;
+  confidence: number;
+  bbox: [number, number, number, number];
+};
+
 export type HebrewOcrResult = {
   text: string;
+  wordBoxes: TesseractWordBox[];
   elapsedMs: number;
   meanConfidence: number;
   width: number;
