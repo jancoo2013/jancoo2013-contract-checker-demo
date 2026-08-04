@@ -4,7 +4,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from .pii_direct_patterns import DirectValueMatch, make_direct_value_evidence
+from .pii_direct_patterns import (
+    DirectValueMatch,
+    find_direct_value_matches,
+    make_direct_value_evidence,
+)
 from .pii_evidence_decisions import combine_evidence_into_candidate
 
 
@@ -20,8 +24,14 @@ def _validate_match_span(match: DirectValueMatch) -> None:
         raise ValueError("match offsets must form an ordered non-negative non-empty span")
 
 
+def _validate_match_provenance(match: DirectValueMatch, source_text: str) -> None:
+    if match not in find_direct_value_matches(source_text):
+        raise ValueError("match must exactly match an approved finder result")
+
+
 def adapt_direct_value_match_to_candidate(
     match: DirectValueMatch,
+    source_text: str,
     candidate_id: object,
     evidence_id: object,
     geometry: object,
@@ -30,11 +40,12 @@ def adapt_direct_value_match_to_candidate(
 ) -> dict[str, Any]:
     """Build one class-bound candidate without deriving pixel geometry.
 
-    The caller owns the exact geometry and image bounds. This adapter only
-    connects the existing value-free evidence helper to the existing
-    fail-closed decision combiner.
+    The caller owns the local source text, exact geometry, and image bounds.
+    This adapter verifies finder provenance, then connects the existing
+    value-free evidence helper to the existing fail-closed decision combiner.
     """
     _validate_match_span(match)
+    _validate_match_provenance(match, source_text)
     evidence = make_direct_value_evidence(match, evidence_id, geometry)
     return combine_evidence_into_candidate(
         candidate_id,
