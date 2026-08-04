@@ -26,7 +26,10 @@ function validResult() {
 
 test("accepts a bounded in-image word result", () => {
   const result = validResult();
-  assert.equal(validateHebrewOcrResult(result), result);
+  const validated = validateHebrewOcrResult(result);
+  assert.equal(validated.text, result.text);
+  assert.deepEqual(validated.wordBoxes, result.wordBoxes);
+  assert.deepEqual(validated.directPiiWordBoxes, []);
 });
 
 test("rejects malformed or out-of-image coordinates", () => {
