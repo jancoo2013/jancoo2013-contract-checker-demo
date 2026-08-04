@@ -28,6 +28,8 @@ private const val HEBREW_MODEL_URL =
 private const val MIN_MODEL_BYTES = 500_000L
 private const val MAX_MODEL_BYTES = 5_000_000L
 private const val MAX_IMAGE_PIXELS = 12_000_000L
+private const val MAX_WORD_BOXES = 5_000
+private const val MAX_WORD_TEXT_CHARS = 256
 
 class TesseractOcrModule : Module() {
   private val context: Context
@@ -254,6 +256,68 @@ class TesseractOcrModule : Module() {
     throw IllegalArgumentException("Only local file and content image URIs are supported.")
   }
 
+  private fun collectWordBoxes(
+    tesseract: TessBaseAPI,
+    imageWidth: Int,
+    imageHeight: Int
+  ): List<Map<String, Any>> {
+    val iterator = tesseract.getResultIterator() ?: return emptyList()
+    val wordBoxes = ArrayList<Map<String, Any>>()
+    var visitedWords = 0
+
+    try {
+      iterator.begin()
+      do {
+        visitedWords += 1
+        if (visitedWords > MAX_WORD_BOXES) {
+          throw IllegalStateException("Tesseract word result exceeds the bounded batch size.")
+        }
+
+        val wordText = iterator
+          .getUTF8Text(TessBaseAPI.PageIteratorLevel.RIL_WORD)
+          ?.trim()
+          .orEmpty()
+        if (wordText.isEmpty()) {
+          continue
+        }
+        if (wordText.length > MAX_WORD_TEXT_CHARS) {
+          throw IllegalStateException("Tesseract returned an unexpectedly long word result.")
+        }
+
+        val confidence = iterator.confidence(TessBaseAPI.PageIteratorLevel.RIL_WORD)
+        if (!confidence.isFinite() || confidence < 0.0f || confidence > 100.0f) {
+          throw IllegalStateException("Tesseract returned an invalid word confidence.")
+        }
+
+        val boundingBox = iterator.getBoundingBox(TessBaseAPI.PageIteratorLevel.RIL_WORD)
+        if (
+          boundingBox == null ||
+          boundingBox.size != 4 ||
+          boundingBox[0] < 0 ||
+          boundingBox[1] < 0 ||
+          boundingBox[2] > imageWidth ||
+          boundingBox[3] > imageHeight ||
+          boundingBox[0] >= boundingBox[2] ||
+          boundingBox[1] >= boundingBox[3]
+        ) {
+          throw IllegalStateException("Tesseract returned an invalid word bounding box.")
+        }
+
+        wordBoxes.add(
+          mapOf(
+            "text" to wordText,
+            "confidence" to confidence.toDouble(),
+            "bbox" to boundingBox.toList()
+          )
+        )
+      } while (iterator.next(TessBaseAPI.PageIteratorLevel.RIL_WORD))
+    } finally {
+      iterator.delete()
+    }
+
+    return wordBoxes
+  }
+
   private fun recognize(uriString: String): Map<String, Any> {
     if (!isModelInstalled()) {
       throw IllegalStateException("The Hebrew OCR model is not installed.")
@@ -274,9 +338,11 @@ class TesseractOcrModule : Module() {
       tesseract.setImage(bitmap)
 
       val text = tesseract.getUTF8Text().orEmpty()
+      val wordBoxes = collectWordBoxes(tesseract, bitmap.width, bitmap.height)
       val elapsedMs = SystemClock.elapsedRealtime() - startedAt
       return mapOf(
         "text" to text,
+        "wordBoxes" to wordBoxes,
         "elapsedMs" to elapsedMs,
         "meanConfidence" to tesseract.meanConfidence(),
         "width" to bitmap.width,
