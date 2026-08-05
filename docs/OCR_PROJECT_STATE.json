@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-05-40",
+  "state_version": "privacy-ocr-2026-08-05-41",
   "active_track": "local-pii-redaction",
-  "next_step_id": "android-tesseract-real-photo-quality-gate-v1",
-  "next_step_summary": "Merge-gated corrective PR #187 blocks PII overlay authorization when real-device Tesseract returns no word boxes, mean confidence below the provisional threshold 60, or whitespace-bearing ambiguous word boxes; after merge, rebuild from resulting main and repeat the same target-device photo before selecting a separate preprocessing/OCR-input improvement.",
-  "last_recorded_pr": 187,
-  "last_recorded_change": "android-tesseract-real-photo-quality-gate-v1",
+  "next_step_id": "visual-pii-synthetic-baseline-v1",
+  "next_step_summary": "Build one repository-owned offline synthetic baseline for visual PII-region localization without full-page Hebrew transcription: generate value-free boxes for printed PII fields/values, handwriting, signatures, stamps, non-PII text and ambiguous sensitive regions; evaluate held-out synthetic recall/coverage; do not add Android integration, production masks, external APIs or real images to CI.",
+  "last_recorded_pr": 189,
+  "last_recorded_change": "visual-pii-localization-architecture-reset-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-08-05"
