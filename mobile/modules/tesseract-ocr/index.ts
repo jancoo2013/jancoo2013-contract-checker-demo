@@ -1,5 +1,7 @@
 import { requireNativeModule } from "expo-modules-core";
 
+import { validateHebrewOcrForPiiMasking } from "../../src/tesseractResult";
+
 export type PickedImage = {
   canceled: boolean;
   uri?: string;
@@ -36,4 +38,14 @@ type TesseractOcrNativeModule = {
   recognizeAsync(uri: string): Promise<HebrewOcrResult>;
 };
 
-export default requireNativeModule<TesseractOcrNativeModule>("TesseractOcr");
+const nativeModule = requireNativeModule<TesseractOcrNativeModule>("TesseractOcr");
+
+const tesseractOcr: TesseractOcrNativeModule = {
+  isModelInstalledAsync: () => nativeModule.isModelInstalledAsync(),
+  downloadHebrewModelAsync: () => nativeModule.downloadHebrewModelAsync(),
+  pickImageAsync: () => nativeModule.pickImageAsync(),
+  recognizeAsync: async (uri: string) =>
+    validateHebrewOcrForPiiMasking(await nativeModule.recognizeAsync(uri)),
+};
+
+export default tesseractOcr;
