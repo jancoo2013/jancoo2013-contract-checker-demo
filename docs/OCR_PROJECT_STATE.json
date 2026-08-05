@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-05-39",
+  "state_version": "privacy-ocr-2026-08-05-40",
   "active_track": "local-pii-redaction",
-  "next_step_id": "android-tesseract-pii-candidate-overlay-v1",
-  "next_step_summary": "Merge-gated: PR #186 ports the approved direct-value finder to Android TypeScript, maps email/Israeli phone/checksum-valid ID/checksum-valid IL IBAN spans through trusted Tesseract geometry, and shows only those candidates by default in the local development overlay; keep this identifier until merge, a new reading of resulting main, and manual target-device review before selecting an alignment fix or broader evidence binding.",
-  "last_recorded_pr": 186,
-  "last_recorded_change": "android-tesseract-pii-candidate-overlay-v1",
+  "next_step_id": "android-tesseract-real-photo-quality-gate-v1",
+  "next_step_summary": "Merge-gated corrective PR #187 blocks PII overlay authorization when real-device Tesseract returns no word boxes, mean confidence below the provisional threshold 60, or whitespace-bearing ambiguous word boxes; after merge, rebuild from resulting main and repeat the same target-device photo before selecting a separate preprocessing/OCR-input improvement.",
+  "last_recorded_pr": 187,
+  "last_recorded_change": "android-tesseract-real-photo-quality-gate-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-08-05"
