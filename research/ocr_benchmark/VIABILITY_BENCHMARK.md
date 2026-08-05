@@ -57,19 +57,16 @@ and serverless runner belong to later bounded PRs inside the same active
 
 ## Produce Surya output
 
-The existing research harness can produce the raw Surya directory without
-adding Surya to application dependencies:
+Use an isolated Surya environment; do not add Surya to application
+dependencies. Write the standard `results.json` into a local ignored directory:
 
 ```bash
-python -m research.ocr_benchmark.benchmark \
-  --input-dir tests/tmp/surya_viability/pages \
-  --output-dir tests/tmp/surya_viability/run \
-  --surya-executable /path/to/surya_ocr \
-  --chandra-executable /path/to/chandra
+surya_ocr tests/tmp/surya_viability/pages \
+  --output_dir tests/tmp/surya_viability/run/raw/surya2
 ```
 
-For a Surya-only run, an isolated invocation may instead write the same
-`results.json` shape under a local raw directory. Do not commit that output.
+Record the exact package/model/backend configuration outside the repository.
+Do not commit the generated images or OCR output.
 
 ## Evaluate quality and geometry
 
