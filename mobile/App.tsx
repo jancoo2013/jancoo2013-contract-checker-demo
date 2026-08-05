@@ -20,6 +20,10 @@ import {
   buildTesseractDevelopmentInspectionOverlay,
   type TesseractDevelopmentInspectionOverlay,
 } from "./src/piiDevelopmentOverlayInspection";
+import {
+  buildTesseractPiiCandidateOverlay,
+  type TesseractPiiCandidateOverlay,
+} from "./src/piiCandidateOverlay";
 import { validateHebrewOcrResult } from "./src/tesseractResult";
 
 const SYNTHETIC_ASSET = require("./assets/synthetic-redacted-contract.png") as ImageSourcePropType;
@@ -83,6 +87,13 @@ type DevelopmentOverlayState =
   | Readonly<{ status: "idle" }>
   | Readonly<{ status: "ready"; overlay: TesseractDevelopmentInspectionOverlay }>
   | Readonly<{ status: "error"; error: string }>;
+
+type PiiCandidateOverlayState =
+  | Readonly<{ status: "idle" }>
+  | Readonly<{ status: "ready"; overlay: TesseractPiiCandidateOverlay }>
+  | Readonly<{ status: "error"; error: string }>;
+
+type OverlayMode = "pii-candidates" | "all-ocr-word-boxes";
 
 function resolveApiBaseUrl(): string {
   return (process.env.EXPO_PUBLIC_API_BASE_URL ?? "").trim().replace(/\/+$/, "");
@@ -200,6 +211,7 @@ export default function App() {
   const [localOcr, setLocalOcr] = useState<LocalOcrState>({ status: "idle" });
   const [previewSize, setPreviewSize] = useState<PreviewSize>();
   const [showDevelopmentOverlay, setShowDevelopmentOverlay] = useState(true);
+  const [overlayMode, setOverlayMode] = useState<OverlayMode>("pii-candidates");
 
   useEffect(() => {
     let active = true;
@@ -244,6 +256,25 @@ export default function App() {
     }
   }, [localOcr, previewSize]);
 
+  const piiCandidateOverlayState = useMemo<PiiCandidateOverlayState>(() => {
+    if (localOcr.status !== "success" || !localOcr.result || !previewSize) {
+      return { status: "idle" };
+    }
+
+    try {
+      return {
+        status: "ready",
+        overlay: buildTesseractPiiCandidateOverlay(
+          localOcr.result,
+          previewSize.width,
+          previewSize.height,
+        ),
+      };
+    } catch (error: unknown) {
+      return { status: "error", error: errorMessage(error) };
+    }
+  }, [localOcr, previewSize]);
+
   async function handleDownloadModel() {
     setModelStatus("downloading");
     setModelMessage("Downloading the Hebrew OCR model. No contract image is uploaded.");
@@ -278,6 +309,7 @@ export default function App() {
       });
       setLocalOcr({ status: "idle" });
       setShowDevelopmentOverlay(true);
+      setOverlayMode("pii-candidates");
     } catch (error: unknown) {
       setLocalOcr({ status: "error", error: errorMessage(error) });
     }
@@ -295,6 +327,7 @@ export default function App() {
 
     setLocalOcr({ status: "running" });
     setShowDevelopmentOverlay(true);
+    setOverlayMode("pii-candidates");
     try {
       const ocrResult = validateHebrewOcrResult(await TesseractOcr.recognizeAsync(selectedImage.uri));
       setLocalOcr({ status: "success", result: ocrResult });
@@ -341,6 +374,34 @@ export default function App() {
 
   const successResponse = result.status === "success" ? result.response : undefined;
   const warningCount = successResponse?.evidence_warnings.length ?? 0;
+  const activeOverlayReady =
+    overlayMode === "pii-candidates"
+      ? piiCandidateOverlayState.status === "ready"
+      : developmentOverlayState.status === "ready";
+  const activeOverlayOpacity =
+    overlayMode === "pii-candidates"
+      ? piiCandidateOverlayState.status === "ready"
+        ? piiCandidateOverlayState.overlay.opacity
+        : 0
+      : developmentOverlayState.status === "ready"
+        ? developmentOverlayState.overlay.opacity
+        : 0;
+  const activeOverlayRects =
+    overlayMode === "pii-candidates"
+      ? piiCandidateOverlayState.status === "ready"
+        ? piiCandidateOverlayState.overlay.candidateRects
+        : []
+      : developmentOverlayState.status === "ready"
+        ? developmentOverlayState.overlay.wordRects
+        : [];
+  const activeOverlayError =
+    overlayMode === "pii-candidates"
+      ? piiCandidateOverlayState.status === "error"
+        ? piiCandidateOverlayState.error
+        : undefined
+      : developmentOverlayState.status === "error"
+        ? developmentOverlayState.error
+        : undefined;
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -373,10 +434,10 @@ export default function App() {
               </Text>
               <View style={styles.previewFrame} onLayout={handlePreviewLayout}>
                 <Image source={{ uri: selectedImage.uri }} style={styles.previewImage} resizeMode="contain" />
-                {showDevelopmentOverlay && developmentOverlayState.status === "ready"
-                  ? developmentOverlayState.overlay.wordRects.map((rect) => (
+                {showDevelopmentOverlay && activeOverlayReady
+                  ? activeOverlayRects.map((rect, rectIndex) => (
                       <View
-                        key={`development-word-${rect.wordIndex}`}
+                        key={`development-word-${overlayMode}-${rectIndex}-${rect.wordIndex}`}
                         pointerEvents="none"
                         style={[
                           styles.developmentMask,
@@ -385,7 +446,7 @@ export default function App() {
                             top: rect.top,
                             width: rect.width,
                             height: rect.height,
-                            opacity: developmentOverlayState.overlay.opacity,
+                            opacity: activeOverlayOpacity,
                           },
                         ]}
                       />
@@ -413,22 +474,44 @@ export default function App() {
           <View style={styles.inspectionBox}>
             <Text style={styles.resultTitle}>Development overlay inspection</Text>
             <Text style={styles.caption}>
-              Red semi-transparent rectangles show every validated Tesseract word box from this local OCR pass. They are not PII decisions and are never saved or sent.
+              {overlayMode === "pii-candidates"
+                ? "Red semi-transparent rectangles show approved direct-value PII candidates from this local OCR pass: email, Israeli phone, checksum-valid Israeli ID, and checksum-valid IL IBAN. They are not a masking decision, do not prove complete PII coverage, and are never saved or sent."
+                : "Red semi-transparent rectangles show every validated Tesseract word box from this local OCR pass. They are not PII decisions and are never saved or sent."}
             </Text>
-            {developmentOverlayState.status === "ready" ? (
+            {overlayMode === "pii-candidates" && piiCandidateOverlayState.status === "ready" ? (
               <>
                 <Text style={styles.value}>
-                  visible rectangles: {developmentOverlayState.overlay.wordRects.length}
+                  candidate rectangles: {piiCandidateOverlayState.overlay.candidateRects.length}
                 </Text>
+                <Text style={styles.value}>
+                  candidates: total {piiCandidateOverlayState.overlay.summary.totalCandidates}, email {piiCandidateOverlayState.overlay.summary.email}, phone {piiCandidateOverlayState.overlay.summary.phone}, ID {piiCandidateOverlayState.overlay.summary.israeliId}, IBAN {piiCandidateOverlayState.overlay.summary.bankIdentifier}
+                </Text>
+              </>
+            ) : null}
+            {overlayMode === "all-ocr-word-boxes" && developmentOverlayState.status === "ready" ? (
+              <Text style={styles.value}>
+                visible rectangles: {developmentOverlayState.overlay.wordRects.length}
+              </Text>
+            ) : null}
+            {activeOverlayReady ? (
+              <>
                 <Button
-                  title={showDevelopmentOverlay ? "Hide development overlay" : "Show development overlay"}
+                  title={showDevelopmentOverlay ? "Hide overlay" : "Show overlay"}
                   onPress={() => setShowDevelopmentOverlay((visible) => !visible)}
-                  disabled={developmentOverlayState.overlay.wordRects.length === 0}
+                  disabled={activeOverlayRects.length === 0}
+                />
+                <Button
+                  title={overlayMode === "pii-candidates" ? "Switch to all OCR boxes" : "Switch to PII candidates"}
+                  onPress={() =>
+                    setOverlayMode((current) =>
+                      current === "pii-candidates" ? "all-ocr-word-boxes" : "pii-candidates",
+                    )
+                  }
                 />
               </>
             ) : null}
-            {developmentOverlayState.status === "error" ? (
-              <Text style={styles.errorText}>{developmentOverlayState.error}</Text>
+            {activeOverlayError ? (
+              <Text style={styles.errorText}>{activeOverlayError}</Text>
             ) : null}
           </View>
         ) : null}
