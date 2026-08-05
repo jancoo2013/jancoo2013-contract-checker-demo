@@ -152,14 +152,19 @@ function qualityBlockMessage(assessment: TesseractPiiQualityAssessment): string 
   return `OCR unusable — masking blocked: ${details.join("; ")}.`;
 }
 
-/**
- * Validate one local Tesseract result and fail closed before any PII authorization.
- *
- * The quality assessment is value-free. Low mean confidence, an empty word batch, or
- * whitespace-bearing word boxes prevent candidate overlay construction instead of
- * allowing garbage OCR to appear as a successful masking pass.
- */
+/** Validate the native bridge structure without making a PII usability decision. */
 export function validateHebrewOcrResult(value: unknown): HebrewOcrResult {
+  return validateHebrewOcrStructure(value);
+}
+
+/**
+ * Validate one runtime Tesseract result and fail closed before any PII authorization.
+ *
+ * Low mean confidence, an empty word batch, or whitespace-bearing word boxes prevent
+ * the runtime result from reaching candidate overlay construction. Diagnostics remain
+ * value-free; structurally valid synthetic fixtures may still use the structural validator.
+ */
+export function validateHebrewOcrForPiiMasking(value: unknown): HebrewOcrResult {
   const result = validateHebrewOcrStructure(value);
   const assessment = assessValidatedResult(result);
   if (!assessment.usableForPiiMasking) {
