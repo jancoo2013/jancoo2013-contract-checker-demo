@@ -1,52 +1,52 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-05, PR #187, `android-tesseract-real-photo-quality-gate-v1`.
+Последнее обновление: 2026-08-05, PR #188, `on-device-hebrew-ocr-replacement-audit-v1`.
 
 Активный трек: `local-pii-redaction`.
 
-Единственный следующий шаг: `android-tesseract-real-photo-quality-gate-v1`.
+Единственный следующий шаг: `android-mlkit-latin-direct-pii-spike-v1`.
 
 Этот документ — каноническая operational-точка восстановления privacy/OCR-проекта. Архитектуру задают `docs/ARCHITECTURE.md` и `docs/CUSTOM_OCR_PIPELINE.md`; evidence/masking contract задаёт `docs/PII_EVIDENCE_DETECTOR_V1.md`; машиночитаемое состояние хранится в `docs/OCR_PROJECT_STATE.json`. Подробная история до PR #187 остаётся в Git history.
 
-## 0. Изменение PR #187
+## 0. Изменение PR #188
 
-- Первый целевой device review после merge PR #186 выполнен на реальной фотографии договора.
-- Native Tesseract завершил вызов, но вернул непригодный для PII-авторизации результат: mean confidence `38`, `324` word boxes и один `RIL_WORD` box с внутренним whitespace.
-- До PR #187 приложение показывало общий OCR status `success`, после чего candidate overlay падал позже с технической ошибкой `Tesseract word box ... contains whitespace`.
-- Добавлен value-free fail-closed quality gate перед любым PII candidate overlay.
-- Gate блокирует masking authorization, если:
-  - Tesseract не вернул word boxes;
-  - mean confidence ниже provisional development threshold `60`;
-  - хотя бы один word box содержит внутренний whitespace и поэтому неоднозначен для exact text-span mapping.
-- Блокировка возвращает явное сообщение `OCR unusable — masking blocked` с безопасными диагностическими числами и reason codes; OCR text и matched PII values в diagnostic assessment не сохраняются.
-- Низкокачественный или неоднозначный OCR больше не может выглядеть как успешный masking pass.
-- Выбранное изображение и OCR остаются локальными; derivative не создаётся, наружу ничего не отправляется.
-- Этот PR не улучшает распознавание, не меняет модель `heb.traineddata`, `PSM_AUTO`, preprocessing, orientation, crop, contrast или page segmentation.
+- Tesseract окончательно признан NO-GO для реальных фотографий ивритских договоров: ранее проверялись обе Hebrew-модели, а target-device интеграция подтвердила фактически непригодное распознавание.
+- Повторять Tesseract `fast`/full, PSM, confidence tuning или preprocessing ради спасения этого OCR запрещено без нового явного решения владельца продукта.
+- Surya исключена: текущая модель примерно 650M параметров и не имеет поддерживаемого Android deployment path для Samsung A55.
+- PaddleOCR/PP-OCRv5 исключён как готовая замена: в актуальном официальном multilingual-наборе нет Hebrew recognizer.
+- EasyOCR исключён: Hebrew не является доступной стандартной моделью, поддерживаемого Android product path нет.
+- Полноценной готовой on-device Hebrew OCR-замены, удовлетворяющей всем MVP-ограничениям, аудит не нашёл.
+- Единственный немедленный кандидат — bundled Google ML Kit Latin Text Recognition v2, но только для четырёх direct-value классов: email, Israeli phone, checksum Israeli ID, checksum IL IBAN.
+- ML Kit Latin не считается Hebrew OCR и не закрывает имена, адреса, marker-value поля, подписи, печати или рукописные данные.
+- Custom ONNX Runtime Mobile/LiteRT recognizer остаётся технически возможным отдельным research path, но не готовой заменой.
 
-## 1. Актуальная Android/Tesseract цепочка
+Полный отчёт: `docs/ON_DEVICE_HEBREW_OCR_REPLACEMENT_AUDIT_V1.md`.
 
-| PR | Изменение | Доказано | Не доказано |
+## 1. Актуальная цепочка доказательств
+
+| PR/аудит | Изменение | Доказано | Не доказано |
 |---|---|---|---|
 | #179 | Direct-value provenance adapter | Exact class/detector/start/end совпадение с approved Python finder | Android orchestration и real recall |
-| #180 | Android Tesseract word boxes | Bounded local text/confidence/in-bounds bbox | Real-contract recall и target-device correctness |
+| #180 | Android Tesseract word boxes | Bounded local text/confidence/in-bounds bbox | Пригодное распознавание real photos |
 | #181 | Text span → word boxes | Exact same-line span mapping, cross-line fail closed | Approved finder runtime binding |
 | #182 | Candidate geometry | Immutable separate boxes и geometry gates | Real candidate correctness |
 | #183 | Development overlay layout | Contain-fit value-free rectangles, opacity `0.35` | Реальное UI alignment |
 | #185 | All-word inspection UI | Реальное локальное изображение + every OCR word box | PII selection и device visual verdict |
 | #186 | Direct PII candidate overlay | Approved direct finder parity + candidate-only default UI | Complete PII recall и production mask safety |
 | #187 | Real-photo OCR quality gate | Low-quality/ambiguous OCR blocks PII authorization before overlay | Улучшение OCR и real-photo candidate recall |
+| #188 | On-device replacement audit | Tesseract/Surya/PaddleOCR/EasyOCR rejected; ML Kit Latin admitted only for direct values | Реальный ML Kit recall на mixed Hebrew pages |
 
 ## 2. Privacy boundary
 
 ```text
 raw phone photo
-→ on-device preprocessing
-→ on-device PII evidence detection
-→ authorized local candidate geometry
+→ local Latin/digit element recognition with geometry
+→ deterministic direct-value PII checks
+→ separate visual evidence paths for Hebrew fields/names/addresses/signatures/handwriting
 → irreversible local pixel replacement
 → local fail-closed privacy validation
 → anonymized derivative
-→ approved external OCR
+→ approved external full Hebrew OCR
 → secondary text redaction
 → legal-risk analysis
 → Russian report
@@ -63,7 +63,8 @@ raw phone photo
 - direct-value overlay покрывает только четыре high-confidence класса и не доказывает complete PII coverage;
 - geometry/UI сами по себе не авторизуют production mask;
 - OCR completion не равно OCR usability;
-- при низком качестве OCR, неоднозначной evidence, geometry или validation внешний handoff блокируется.
+- неподдерживаемый Hebrew script нельзя выдавать за Hebrew OCR;
+- при низком качестве recognition, неоднозначной evidence, geometry или validation внешний handoff блокируется.
 
 ## 3. Реальное состояние компонентов
 
@@ -71,35 +72,36 @@ raw phone photo
 |---|---|---|---|
 | Reference evidence chain | Python v0/v1 | Pattern, marker/value, provenance, deterministic dispositions | Полная Android orchestration |
 | Android direct-value finder | PR #186 | Parity для email/phone/checksum ID/checksum IL IBAN | Real-contract recall |
-| Android Tesseract words | Runtime slice v1 | Bounded local OCR word text/confidence/bbox | Пригодное распознавание real photos |
-| OCR quality gate | PR #187 | Explicit fail-closed block for empty/low-confidence/ambiguous result | Правильность threshold для всех камер и документов |
-| Span/geometry/overlay | PR #181–#183 | Exact word boxes и contain-fit rectangles | Device visual correctness на usable OCR |
-| Development UI | PR #185–#187 | All-word diagnostic, direct-candidate mode, explicit quality block | Production UX и complete coverage |
+| Android Tesseract | Retired NO-GO | Real-photo failure and fail-closed quality block | Ничего больше не исследуется в active MVP |
+| ML Kit Latin direct-value path | Не реализован | Official on-device Android API, geometry and Latin/digit capability | Recall на mixed Hebrew contract photos |
+| Hebrew names/addresses/signatures | Не реализованы | Требуются отдельные evidence paths | Модель, recall и production safety |
+| Custom ONNX/LiteRT recognizer | Paused research option | Android deployment substrates exist | Suitable model, memory, latency, accuracy |
 | Production mask renderer | Не реализован в `main`; PR #184 закрыт | — | Непрозрачная необратимая Android-маска |
 | Local privacy validator | Не реализован | — | Complete coverage и fail-closed handoff |
 | External OCR handoff | Не подключён | Допустим только после privacy gate | Derivative safety |
 
 ## 4. Активный блокер
 
-Реальный device review показал, что текущий полноформатный Tesseract pass по фотографии страницы непригоден для PII detection: распознанный текст искажен, mean confidence равен `38`, а exact word mapping встречает неоднозначный whitespace-bearing box.
+Готового локального full-page Hebrew OCR для Samsung A55 в утверждённом стеке нет. Это больше не задача «подкрутить качество Tesseract».
 
-PR #187 исправляет только ложный статус успеха и делает блокировку явной. Он намеренно не пытается «спасти» мусорный OCR и не ослабляет exact mapping ради появления прямоугольников.
+Ближайшая проверяемая гипотеза уже: может ли небольшой официальный Android recognizer, не понимающий Hebrew script, надёжно извлечь расположенные внутри ивритской страницы прямые значения из цифр и латиницы.
 
-После merge повторный тест той же фотографии должен подтвердить:
-
-1. экран больше не показывает masking pass как `success`;
-2. candidate overlay не строится;
-3. пользователь получает `OCR unusable — masking blocked`;
-4. диагностическое сообщение содержит только confidence/threshold/counts/reasons и не содержит OCR text или PII values;
-5. прежняя техническая ошибка про конкретный word-box не является основным user-facing результатом.
+Даже успешный результат не закроет complete PII coverage. Имена, адреса, подписи и рукопись останутся отдельным обязательным блокером.
 
 ## 5. Единственный следующий шаг
 
-**`android-tesseract-real-photo-quality-gate-v1`: MERGE-GATED — PR #187.**
+**`android-mlkit-latin-direct-pii-spike-v1`.**
 
-До merge, нового чтения resulting `main` и повторного target-device теста запрещено возвращаться к opaque renderer, добавлять external handoff или утверждать, что локальное PII-маскирование работает.
+Разрешённый bounded scope:
 
-После успешного retest выбирается отдельный bounded шаг по OCR input quality. Наиболее вероятный следующий слой: локальное определение/выравнивание страницы, ориентация и контролируемая подготовка изображения перед Tesseract. Он не входит в PR #187.
+1. bundled ML Kit Latin recognizer только в development Android path;
+2. тот же selected-image локальный сценарий;
+3. adapter из Latin/digit elements + geometry в существующий direct-value contract;
+4. только email/phone/checksum ID/checksum IL IBAN;
+5. development overlay и value-free diagnostics;
+6. без Tesseract fallback, Hebrew marker inference, production masks и external handoff.
+
+Target-device go/no-go выполняется на Samsung A55 и реальных локальных фотографиях. Если direct-value recall остаётся непригодным, поиск взаимозаменяемых готовых OCR прекращается; следующим решением становится custom narrow ONNX/LiteRT model либо изменение privacy workflow.
 
 ## 6. Правила восстановления и работы
 
