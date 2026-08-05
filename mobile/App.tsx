@@ -4,6 +4,7 @@ import {
   Button,
   Image,
   ImageSourcePropType,
+  LayoutChangeEvent,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -15,6 +16,10 @@ import TesseractOcr, {
   HebrewOcrResult,
   PickedImage,
 } from "./modules/tesseract-ocr";
+import {
+  buildTesseractDevelopmentInspectionOverlay,
+  type TesseractDevelopmentInspectionOverlay,
+} from "./src/piiDevelopmentOverlayInspection";
 import { validateHebrewOcrResult } from "./src/tesseractResult";
 
 const SYNTHETIC_ASSET = require("./assets/synthetic-redacted-contract.png") as ImageSourcePropType;
@@ -68,6 +73,16 @@ type LocalOcrState = {
   result?: HebrewOcrResult;
   error?: string;
 };
+
+type PreviewSize = Readonly<{
+  width: number;
+  height: number;
+}>;
+
+type DevelopmentOverlayState =
+  | Readonly<{ status: "idle" }>
+  | Readonly<{ status: "ready"; overlay: TesseractDevelopmentInspectionOverlay }>
+  | Readonly<{ status: "error"; error: string }>;
 
 function resolveApiBaseUrl(): string {
   return (process.env.EXPO_PUBLIC_API_BASE_URL ?? "").trim().replace(/\/+$/, "");
@@ -183,6 +198,8 @@ export default function App() {
   const [modelMessage, setModelMessage] = useState<string>("");
   const [selectedImage, setSelectedImage] = useState<SelectedImage>();
   const [localOcr, setLocalOcr] = useState<LocalOcrState>({ status: "idle" });
+  const [previewSize, setPreviewSize] = useState<PreviewSize>();
+  const [showDevelopmentOverlay, setShowDevelopmentOverlay] = useState(true);
 
   useEffect(() => {
     let active = true;
@@ -207,6 +224,25 @@ export default function App() {
       active = false;
     };
   }, []);
+
+  const developmentOverlayState = useMemo<DevelopmentOverlayState>(() => {
+    if (localOcr.status !== "success" || !localOcr.result || !previewSize) {
+      return { status: "idle" };
+    }
+
+    try {
+      return {
+        status: "ready",
+        overlay: buildTesseractDevelopmentInspectionOverlay(
+          localOcr.result,
+          previewSize.width,
+          previewSize.height,
+        ),
+      };
+    } catch (error: unknown) {
+      return { status: "error", error: errorMessage(error) };
+    }
+  }, [localOcr, previewSize]);
 
   async function handleDownloadModel() {
     setModelStatus("downloading");
@@ -241,6 +277,7 @@ export default function App() {
         height: picked.height,
       });
       setLocalOcr({ status: "idle" });
+      setShowDevelopmentOverlay(true);
     } catch (error: unknown) {
       setLocalOcr({ status: "error", error: errorMessage(error) });
     }
@@ -257,12 +294,20 @@ export default function App() {
     }
 
     setLocalOcr({ status: "running" });
+    setShowDevelopmentOverlay(true);
     try {
       const ocrResult = validateHebrewOcrResult(await TesseractOcr.recognizeAsync(selectedImage.uri));
       setLocalOcr({ status: "success", result: ocrResult });
     } catch (error: unknown) {
       setLocalOcr({ status: "error", error: errorMessage(error) });
     }
+  }
+
+  function handlePreviewLayout(event: LayoutChangeEvent) {
+    const { width, height } = event.nativeEvent.layout;
+    setPreviewSize((current) =>
+      current?.width === width && current.height === height ? current : { width, height },
+    );
   }
 
   async function handleSend() {
@@ -326,7 +371,27 @@ export default function App() {
               <Text style={styles.caption}>
                 Source size: {selectedImage.width ?? "?"} × {selectedImage.height ?? "?"}
               </Text>
-              <Image source={{ uri: selectedImage.uri }} style={styles.preview} resizeMode="contain" />
+              <View style={styles.previewFrame} onLayout={handlePreviewLayout}>
+                <Image source={{ uri: selectedImage.uri }} style={styles.previewImage} resizeMode="contain" />
+                {showDevelopmentOverlay && developmentOverlayState.status === "ready"
+                  ? developmentOverlayState.overlay.wordRects.map((rect) => (
+                      <View
+                        key={`development-word-${rect.wordIndex}`}
+                        pointerEvents="none"
+                        style={[
+                          styles.developmentMask,
+                          {
+                            left: rect.left,
+                            top: rect.top,
+                            width: rect.width,
+                            height: rect.height,
+                            opacity: developmentOverlayState.overlay.opacity,
+                          },
+                        ]}
+                      />
+                    ))
+                  : null}
+              </View>
             </>
           ) : (
             <Text style={styles.caption}>No image selected.</Text>
@@ -343,6 +408,30 @@ export default function App() {
           <Text style={styles.label}>Local OCR state</Text>
           <Text style={localOcr.status === "error" ? styles.errorText : styles.value}>{localOcr.status}</Text>
         </View>
+
+        {localOcr.status === "success" && localOcr.result ? (
+          <View style={styles.inspectionBox}>
+            <Text style={styles.resultTitle}>Development overlay inspection</Text>
+            <Text style={styles.caption}>
+              Red semi-transparent rectangles show every validated Tesseract word box from this local OCR pass. They are not PII decisions and are never saved or sent.
+            </Text>
+            {developmentOverlayState.status === "ready" ? (
+              <>
+                <Text style={styles.value}>
+                  visible rectangles: {developmentOverlayState.overlay.wordRects.length}
+                </Text>
+                <Button
+                  title={showDevelopmentOverlay ? "Hide development overlay" : "Show development overlay"}
+                  onPress={() => setShowDevelopmentOverlay((visible) => !visible)}
+                  disabled={developmentOverlayState.overlay.wordRects.length === 0}
+                />
+              </>
+            ) : null}
+            {developmentOverlayState.status === "error" ? (
+              <Text style={styles.errorText}>{developmentOverlayState.error}</Text>
+            ) : null}
+          </View>
+        ) : null}
 
         {localOcr.status === "success" && localOcr.result ? (
           <View style={styles.resultBox}>
@@ -482,10 +571,38 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     height: 260,
   },
+  previewFrame: {
+    alignSelf: "stretch",
+    backgroundColor: "#ffffff",
+    borderColor: "#cbd5e1",
+    borderRadius: 6,
+    borderWidth: 1,
+    height: 260,
+    overflow: "hidden",
+    position: "relative",
+  },
+  previewImage: {
+    height: "100%",
+    width: "100%",
+  },
+  developmentMask: {
+    backgroundColor: "#ef4444",
+    borderColor: "#991b1b",
+    borderWidth: 1,
+    position: "absolute",
+  },
   divider: {
     backgroundColor: "#cbd5e1",
     height: 1,
     marginVertical: 6,
+  },
+  inspectionBox: {
+    backgroundColor: "#fff7ed",
+    borderColor: "#f97316",
+    borderRadius: 6,
+    borderWidth: 1,
+    gap: 8,
+    padding: 12,
   },
   resultBox: {
     backgroundColor: "#ecfdf5",
