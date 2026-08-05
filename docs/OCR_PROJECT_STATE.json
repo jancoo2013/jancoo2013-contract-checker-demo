@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-05-42",
+  "state_version": "privacy-ocr-2026-08-05-43",
   "active_track": "serverless-gpu-ocr",
   "next_step_id": "serverless-gpu-ocr-viability-benchmark-v1",
-  "next_step_summary": "Build one bounded model-neutral serverless-compatible OCR benchmark worker using Surya as the first candidate unless blocked: process only synthetic/public/owner-controlled redacted Hebrew contract-like pages; measure cold start, queue delay, warm execution, ten-page latency, geometry, VRAM and estimated billed cost; inspect logs/results for raw-content leakage; do not add Android upload, production encryption, real user contracts, production masks, Gemini calls, permanent storage or a custom VPS queue.",
-  "last_recorded_pr": 190,
-  "last_recorded_change": "serverless-gpu-ocr-architecture-v1",
+  "next_step_summary": "Continue the active bounded Surya viability benchmark after PR #191: render the fixed ten-page synthetic packet with recorded font/page hashes; add one serverless-compatible runner; pin package/model/backend/GPU configuration; measure queue delay when available, cold first-page and warm ten-page execution, worker lifetime, billed seconds, cost, total-device peak VRAM and OOM behavior; evaluate output through the checked-in quality/geometry oracle; inspect logs and retained artifacts for raw-content leakage; keep generated pages/raw OCR/reports outside version control; do not add Android upload, production encryption, real user contracts, production masks, Gemini calls, permanent storage or a custom VPS queue.",
+  "last_recorded_pr": 191,
+  "last_recorded_change": "serverless-gpu-ocr-viability-benchmark-oracle-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-08-05"

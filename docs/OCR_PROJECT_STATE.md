@@ -1,6 +1,6 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-05, PR #190, `serverless-gpu-ocr-architecture-v1`.
+Последнее обновление: 2026-08-05, PR #191, `serverless-gpu-ocr-viability-benchmark-oracle-v1`.
 
 Активный трек: `serverless-gpu-ocr`.
 
@@ -8,7 +8,17 @@
 
 Этот документ — каноническая operational-точка восстановления privacy/OCR-проекта. Архитектуру задают `AGENTS.md`, `docs/ARCHITECTURE.md`, `docs/CUSTOM_OCR_PIPELINE.md` и `docs/SERVERLESS_GPU_OCR_PIPELINE_V1.md`. `docs/VISUAL_PII_LOCALIZATION_V1.md` сохраняет paused local-only alternative. Evidence/masking contract задаёт `docs/PII_EVIDENCE_DETECTOR_V1.md`; машиночитаемое состояние хранится в `docs/OCR_PROJECT_STATE.json`.
 
-## 0. Изменение PR #190
+## 0. Изменение PR #191
+
+- Добавлен первый bounded slice активного `serverless-gpu-ocr-viability-benchmark-v1`: фиксированный синтетический десятистраничный Hebrew contract-like source packet без реальных PII.
+- Добавлен deterministic quality/geometry oracle поверх существующего Surya `results.json` loader.
+- Oracle проверяет normalized Hebrew CER/word similarity, пять обязательных legal sentinels, семь critical values, exact ten-page set и page/block bbox integrity.
+- `quality_geometry_verdict=PASS` означает только прохождение текстового и геометрического sub-gate.
+- PR не добавляет renderer, serverless runner, Surya dependency, model weights, credentials, provider endpoint, real contract, raw OCR artifact, GPU execution или overall viability claim.
+- Cold start, warm execution, queue delay, VRAM, OOM, worker lifetime, billed seconds, cost, provider logs/retention и cleanup остаются неизмеренными.
+- Активный `next_step_id` не меняется: benchmark продолжается следующими bounded slices и фактическим provider run.
+
+## 0.1. Изменение PR #190
 
 - Владелец продукта явно выбрал encrypted on-demand serverless GPU OCR вместо активной local-only visual localization разработки.
 - Former absolute rule `raw photos never leave the device` superseded for this consent-based mode.
@@ -74,6 +84,9 @@ Only sanitized derivatives may proceed to Gemini or another legal-analysis model
 | Geometry gates and irreversible mask rules | Preserved |
 | Android Tesseract full-page OCR | NO-GO; historical diagnostic only |
 | Local visual PII detector | Paused research/fallback |
+| Surya viability fixture + quality/geometry oracle | Implemented in PR #191 |
+| Benchmark renderer/serverless runner | Not implemented |
+| Actual Surya GPU viability result | Not measured |
 | Production serverless worker | Not implemented |
 | Production encryption/key management | Not implemented |
 | Server-side PII sanitizer | Not implemented |
@@ -96,30 +109,31 @@ Current provider pricing and Surya benchmarks are planning inputs only. The repo
 
 ## 5. Единственный следующий шаг
 
-**`serverless-gpu-ocr-viability-benchmark-v1`**.
+**`serverless-gpu-ocr-viability-benchmark-v1`** remains active.
 
-Bounded scope:
+Remaining bounded benchmark work:
 
-1. one model-neutral serverless-compatible benchmark worker around one OCR candidate;
-2. Surya as first candidate unless a blocking license/runtime issue is found before implementation;
-3. only synthetic, public, or owner-controlled redacted pages in repository automation;
-4. one fixed multi-page Hebrew contract-like packet;
-5. output text, reading order, line/block geometry, latency, VRAM, and estimated billed cost;
-6. separate cold-start, queue-delay, and warm-execution measurements;
-7. inspect logs/results for raw page content and raw OCR leakage;
-8. no Android upload, production encryption, real user contracts, production masks, Gemini call, permanent storage, or custom VPS queue.
+1. add a deterministic renderer for the checked-in synthetic source packet and record font/page hashes;
+2. add one serverless-compatible Surya runner without production upload or permanent storage;
+3. pin package/model/backend/GPU configuration;
+4. measure queue delay when available, cold first-page time, warm ten-page time, worker lifetime, billed seconds, provider price, total/peak VRAM and OOM status;
+5. feed the output through the PR #191 quality/geometry oracle;
+6. inspect provider/runtime logs and retained artifacts for raw image/OCR leakage;
+7. record licensing, provider retention/deletion and data-region status as verified or unresolved;
+8. keep generated pages, raw OCR, reports, logs and provider artifacts outside version control;
+9. do not add Android upload, production encryption, real user contracts, production masks, Gemini calls, permanent storage or a custom VPS queue.
 
 Provisional go/no-go gate:
 
-- materially usable Hebrew output on held-out contract-like pages;
+- materially usable Hebrew output on the fixed packet;
 - stable line/block geometry;
 - one ten-page job completes without OOM on an economically acceptable GPU class;
-- warm compute cost below `$0.10` per ten-page contract;
-- cold and warm latency measured rather than inferred;
-- no raw content in logs or retained benchmark metadata;
-- licensing and provider retention explicitly verified or recorded unresolved.
+- all required legal sentinels and critical values survive normalization;
+- cold and warm latency, VRAM and billed cost are measured rather than inferred;
+- no raw content appears in logs or retained benchmark metadata;
+- licensing and provider retention are verified or explicitly recorded unresolved.
 
-These are research gates, not production privacy, accuracy, latency, or cost guarantees.
+A PASS on the synthetic packet permits a later held-out owner-controlled photo benchmark. It does not permit production upload, PII sanitization or legal-analysis integration.
 
 ## 6. Deferred infrastructure
 
