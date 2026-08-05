@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-05-41",
-  "active_track": "local-pii-redaction",
-  "next_step_id": "visual-pii-synthetic-baseline-v1",
-  "next_step_summary": "Build one repository-owned offline synthetic baseline for visual PII-region localization without full-page Hebrew transcription: generate value-free boxes for printed PII fields/values, handwriting, signatures, stamps, non-PII text and ambiguous sensitive regions; evaluate held-out synthetic recall/coverage; do not add Android integration, production masks, external APIs or real images to CI.",
-  "last_recorded_pr": 189,
-  "last_recorded_change": "visual-pii-localization-architecture-reset-v1",
+  "state_version": "privacy-ocr-2026-08-05-42",
+  "active_track": "serverless-gpu-ocr",
+  "next_step_id": "serverless-gpu-ocr-viability-benchmark-v1",
+  "next_step_summary": "Build one bounded model-neutral serverless-compatible OCR benchmark worker using Surya as the first candidate unless blocked: process only synthetic/public/owner-controlled redacted Hebrew contract-like pages; measure cold start, queue delay, warm execution, ten-page latency, geometry, VRAM and estimated billed cost; inspect logs/results for raw-content leakage; do not add Android upload, production encryption, real user contracts, production masks, Gemini calls, permanent storage or a custom VPS queue.",
+  "last_recorded_pr": 190,
+  "last_recorded_change": "serverless-gpu-ocr-architecture-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-08-05"
