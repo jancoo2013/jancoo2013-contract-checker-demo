@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-05-38",
+  "state_version": "privacy-ocr-2026-08-05-39",
   "active_track": "local-pii-redaction",
-  "next_step_id": "android-tesseract-development-overlay-ui-v1",
-  "next_step_summary": "Merge-gated: PR #185 overlays every validated word box from the real local Android Tesseract pass on the actual contain-fit image preview with fixed 0.35 opacity, explicitly as all-word geometry inspection rather than a PII decision; keep this identifier unchanged until merge, a new reading of resulting main, and manual target-device visual review before selecting an alignment fix or detector binding.",
-  "last_recorded_pr": 185,
-  "last_recorded_change": "android-tesseract-development-overlay-ui-v1",
+  "next_step_id": "android-tesseract-pii-candidate-overlay-v1",
+  "next_step_summary": "Merge-gated: PR #186 ports the approved direct-value finder to Android TypeScript, maps email/Israeli phone/checksum-valid ID/checksum-valid IL IBAN spans through trusted Tesseract geometry, and shows only those candidates by default in the local development overlay; keep this identifier until merge, a new reading of resulting main, and manual target-device review before selecting an alignment fix or broader evidence binding.",
+  "last_recorded_pr": 186,
+  "last_recorded_change": "android-tesseract-pii-candidate-overlay-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-08-05"
