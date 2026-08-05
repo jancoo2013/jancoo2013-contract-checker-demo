@@ -1,135 +1,183 @@
-# Local PII redaction and OCR handoff pipeline
+# OCR and privacy handoff pipeline
 
-Status: active product contract. Read together with `docs/ARCHITECTURE.md`. The current implementation status, blockers, continuity rules, and single next step are recorded in `docs/OCR_PROJECT_STATE.md`.
+Status: active product contract. Read together with `docs/ARCHITECTURE.md`, `docs/SERVERLESS_GPU_OCR_PIPELINE_V1.md`, and `docs/OCR_PROJECT_STATE.md`.
 
-This file records the image-processing direction chosen for the MVP so that later work does not silently turn the local privacy component into a general-purpose Hebrew OCR project.
+This file records the current MVP image-processing direction so that later work does not silently restore the failed Tesseract-on-phone path or build unbounded cloud storage around sensitive documents.
 
 ## Non-negotiable decisions
 
-1. The local mobile component exists to detect and irreversibly mask likely PII regions before any image or document leaves the device.
-2. Raw contract photos, recoverable PII, and unredacted OCR text never go to an external OCR or LLM service.
-3. After the local privacy boundary is passed, an approved external OCR/LLM service may receive only the anonymized image/document.
-4. The MVP does not require exact local transcription of every Hebrew line, clause number, punctuation mark, or mixed-script token.
-5. Hebrew labels such as `ת.ז.` and other markers are detection signals, not a requirement to produce a complete local transcript.
-6. The primary quality goals are PII-region recall, complete mask coverage, and bounded over-redaction of legally relevant content. Full-line CER is not the MVP privacy metric.
-7. Human verification, when used, checks whether PII was missed or incompletely covered and whether important legal text was unnecessarily destroyed. It does not require full Hebrew transcription.
-8. Page geometry, bounded decoding, provenance, fail-closed validation, and atomic publication remain required where they support the privacy pipeline.
-9. The existing project-owned recognizer, CTC, synthetic-data, Gold, and CER work is preserved as paused research. It is not deleted, but it is not the active MVP path.
-10. Reactivating full local OCR requires an explicit product-owner decision and updates to this file, `docs/ARCHITECTURE.md`, and `docs/OCR_PROJECT_STATE.md` in the same PR.
+1. Tesseract full-page Hebrew OCR on the target phone is a proven NO-GO for the active MVP.
+2. The product owner has explicitly selected encrypted serverless GPU processing as the next architecture to benchmark.
+3. A raw contract may leave the device only after explicit user consent and only for the approved bounded serverless job.
+4. Raw images and raw OCR text must not be sent onward to Gemini, Google Vision, general LLM APIs, analytics, logs, GitHub, CI, Airtable, or unrelated services.
+5. Encryption protects transport and temporary storage, but the authorized worker necessarily decrypts the document in memory to process it. Product disclosure must state this plainly.
+6. The serverless worker must produce sanitized image/text derivatives before legal-analysis handoff.
+7. Raw job inputs, transient plaintext, job keys, and raw OCR output must be deleted after completion or terminal failure according to verified provider/runtime behavior.
+8. Model throughput claims do not establish single-contract latency, cold-start time, GPU fit, cost, Hebrew quality, or privacy behavior. Those must be measured.
+9. The first step is a benchmark, not a production upload flow.
+10. The paused local visual detector work remains available as research or a future auxiliary layer, but it is not the active next step.
 
-## Product runtime pipeline
+## Active target pipeline
 
 ```text
-raw phone photo
-→ on-device geometric and image preprocessing
-→ on-device PII-region detection
-→ irreversible local masks with explicit reasons/statuses
-→ local fail-closed privacy validation
-→ anonymized image/document
-→ approved external full OCR
-→ secondary text redaction
-→ evidence blocks
-→ legal-risk analysis
+raw phone photos
+→ client-side normalization and encryption
+→ bounded asynchronous serverless job
+→ GPU worker decrypts in volatile memory
+→ Hebrew OCR and layout extraction
+→ PII detection and irreversible image/text redaction
+→ privacy validation
+→ anonymized derivative and evidence blocks
+→ approved LLM legal-risk analysis
 → Russian report
+→ deletion of raw and transient job material
 ```
 
-The local privacy layer may use layout, known page zones, Hebrew field markers, digit patterns, signatures, handwriting cues, and conservative region expansion. It must not depend on exact full-page transcription to decide whether a region is sensitive.
+The serverless worker is part of the trusted processing boundary. It is not equivalent to zero-knowledge processing and must not be described as if the provider can never access plaintext during execution.
 
-Known page zones are weak context only. A line's vertical position or page role must never be the sole reason for an automatic mask. `marker_layout_baseline_v0` is retained only as a diagnostic comparator; production candidates must carry explicit evidence under `docs/PII_EVIDENCE_DETECTOR_V1.md`.
+## Initial serverless topology
 
-An external service is downstream of the privacy boundary only. The original photo remains local and unchanged; the exported derivative must not permit recovery of masked pixels.
+For the viability benchmark and earliest MVP slice:
 
-Production integration with raw user photos remains blocked until the PII classes, mask semantics, fail-closed behavior, and evaluation contract are approved and tested. Offline work may use synthetic, redacted, or locally controlled data.
+- use the serverless platform's queue rather than adding a separate VPS;
+- configure minimum workers `0` so compute scales to zero;
+- cap maximum workers, execution timeout, job TTL, and result retention;
+- keep one model instance loaded per worker lifecycle;
+- process contract pages as one bounded job or controlled page batch;
+- avoid Redis, RabbitMQ, MinIO, PostgreSQL, and permanent document storage until evidence shows they are necessary;
+- return only sanitized artifacts plus value-free performance metrics.
+
+A later lightweight API service may mediate authentication, ephemeral keys, billing, retries, and provider abstraction. It is not required to prove OCR viability.
+
+## Privacy and data handling
+
+Raw contract material may exist only in:
+
+- local device storage/memory;
+- encrypted transport;
+- encrypted short-lived job storage when needed;
+- volatile authorized worker memory;
+- tightly controlled transient worker files only when unavoidable and automatically deleted.
+
+Forbidden locations include:
+
+- GitHub and CI artifacts;
+- Airtable;
+- application or provider logs;
+- crash reports and analytics;
+- persistent unencrypted volumes;
+- long-lived task results;
+- downstream LLM prompts;
+- developer screenshots or fixtures containing real PII.
+
+The production design must define:
+
+- per-job encryption and key lifetime;
+- authentication and authorization;
+- provider/data-region policy;
+- retention and deletion verification;
+- log scrubbing;
+- timeout and cancellation cleanup;
+- incident response;
+- consent and privacy-policy language;
+- processor/legal review.
+
+These requirements are not satisfied merely by using AES or HTTPS.
 
 ## PII classes and preservation rules
 
-The MVP privacy layer must cover at least:
+The sanitization layer must cover at least:
 
-- person names and identifying party fields;
+- person names and party identifiers;
 - Israeli ID / `ת.ז.` values;
 - phone numbers and email addresses;
-- all addresses, including the rented property's address, which are always masked;
+- full addresses, including the rented property address;
 - signatures, initials, stamps, and handwritten identifying entries;
-- bank-account, IBAN, cheque, and other financial identifiers;
+- bank accounts, IBAN, cheques, and other financial identifiers;
 - landlord, tenant, agent, and guarantor identifying details;
-- any additional region that cannot be classified safely but is likely to contain PII.
+- ambiguous regions likely to contain identifying data.
 
-Monetary amounts, dates, clause numbers, risk wording, deposit amounts, rent amounts, notice periods, repair obligations, and other legally relevant content are not PII by default. The detector should preserve them unless they are inseparable from a sensitive identifier.
+Monetary amounts, dates, clause numbers, notice periods, deposit amounts, rent amounts, repair obligations, and legally relevant wording are not PII by default and should be preserved when safely separable.
 
-Do not require a mask on every page. Prefer row/zone-level masking and conservative expansion around a detected PII value. If a sensitive field cannot be isolated safely, fail closed or mask the smallest safe enclosing region rather than guessing.
+Blur is not an approved irreversible mask. Sanitized image output must replace sensitive pixels opaquely and must not retain recoverable data in alpha channels, hidden layers, metadata, caches, or overlays.
 
 ## Evaluation model
 
-The annotation target is a PII region or mask, not an exact line transcription.
+The serverless OCR benchmark must measure:
 
-A controlled evaluation set should record:
+- Hebrew transcription quality on held-out contract-like pages;
+- RTL order and mixed Hebrew/digit behavior;
+- text-block or line geometry correctness;
+- cold-start delay;
+- warm execution time;
+- total ten-page contract latency;
+- GPU type, VRAM use, and OOM behavior;
+- queue delay;
+- billed worker seconds and estimated cost;
+- log and result-retention behavior.
 
-- page/image identifier and immutable source hash;
-- PII class;
-- bounding box or polygon covering the full sensitive region;
-- whether the region is readable, ambiguous, handwritten, truncated, or inseparable from nearby legal text;
-- optional marker/reason metadata without storing real PII in GitHub.
+Later privacy evaluation must still use:
 
-Primary metrics:
+- PII-region recall;
+- complete mask coverage;
+- missed-sensitive-area rate;
+- over-redaction of legally relevant content;
+- page/contract-level privacy pass rate.
 
-- PII-region recall: proportion of annotated sensitive regions detected;
-- complete-coverage rate: proportion of detected regions whose full sensitive pixels are covered;
-- missed-sensitive-area rate: uncovered sensitive pixels or regions;
-- over-redaction rate: legally relevant non-PII content removed by masks;
-- page-level privacy pass rate: pages with no missed or partially exposed PII.
+Evaluation splits are grouped by whole contract and template family. Real raw contracts and readable PII never enter GitHub or public CI.
 
-Evaluation splits are made by whole contract, not by page or line. All pages from one contract remain in one split; known template families should also remain grouped where feasible. A new contract is a held-out generalization test, not permission to add contract-specific thresholds, coordinates, or exceptions. Metrics must be reported per contract as well as in aggregate.
+## Candidate policy
 
-A visually plausible mask or a correct detection of the label `ת.ז.` is not enough if the associated value remains partly visible. Precision alone is not enough because a single missed identifier can violate the privacy boundary.
+Surya is the first benchmark candidate, not a committed production dependency.
 
-## Human review role
+Before production selection, verify:
 
-A Hebrew-capable reviewer may be needed to identify context-dependent names, addresses, guarantor details, or free-text PII that cannot be recognized from fixed labels alone. The reviewer verifies region classification and mask completeness.
+- Hebrew quality on our own photographs;
+- coordinates and reading order;
+- handwriting/signature behavior;
+- single-job performance rather than only high-concurrency throughput;
+- fit on the selected economical GPU class;
+- current source-code and model-weight licences;
+- provider retention and regional availability.
 
-The reviewer is not expected to:
+The worker request/response contract must remain model-neutral so another OCR model can replace Surya.
 
-- transcribe nine pages;
-- correct every OCR character;
-- create a full Hebrew Gold transcript;
-- judge whether the contract is legally safe.
+## Active next step
 
-A reviewer may confirm that a region contains PII without preserving the PII value in the exported annotation.
+The only permitted next step is `serverless-gpu-ocr-viability-benchmark-v1`.
 
-## Paused project-owned OCR research
+It may add a benchmark worker and reproducible synthetic/redacted test packet, but it must not add:
 
-The repository already contains useful research assets:
-
-- deterministic synthetic Hebrew line generation;
-- dataset and evaluation contracts;
-- page normalization, boundary detection, and line segmentation references;
-- candidate freezing and review workflow documents;
-- recognizer input, CTC text-order/decoder contracts, memory bounds, and isolated CPU runtime.
-
-These assets are retained because parts of them may support marker recognition, digit detection, future offline OCR, or controlled research. They do not justify continuing to a CRNN, training loop, weights, predictions, full-line Gold Set, reviewer transcription APK, or CER claim on the active MVP path.
-
-If the full local OCR track is reactivated later, its existing Gold/leakage/provenance defects must be corrected before training or quality claims. Until then, those findings are recorded technical debt, not the next MVP step.
+- production Android upload;
+- real user contracts;
+- production encryption/key management;
+- legal-analysis calls;
+- permanent storage;
+- a custom VPS queue;
+- production masks or privacy claims.
 
 ## Detours to avoid
 
-- Do not implement a compact CRNN merely because recognizer-boundary code already exists.
-- Do not treat full-line CER as proof that PII redaction is safe.
-- Do not send raw images to Gemini, Google Vision, cloud OCR, or any external image API.
-- Do not preserve masked pixels in alpha channels, hidden layers, reversible overlays, debug exports, or cached derivatives sent externally.
-- Do not mask whole pages by default when row/zone-level privacy can preserve legal content.
-- Do not classify monetary amounts as PII solely because they contain digits.
-- Do not ask the user or reviewer to rewrite the contract manually.
-- Do not combine privacy detection, full OCR, legal analysis, and Android product integration into one unmeasurable PR.
+- Do not restore Tesseract as an active fallback.
+- Do not claim that a ten-page contract runs in fractions of a second without measuring single-job latency.
+- Do not infer cost from model execution alone while ignoring cold start and idle timeout.
+- Do not build an always-on GPU server for sporadic MVP traffic.
+- Do not add Redis, RabbitMQ, MinIO, or PostgreSQL before the platform queue benchmark.
+- Do not send raw OCR text to Gemini before deterministic redaction.
+- Do not call encrypted server processing “local” or “zero access.”
+- Do not use real PII in repository tests.
+- Do not treat deletion intentions as verified deletion guarantees.
 
 ## Repository workflow
 
-Use one small branch and one ready-for-review PR per measurable step; do not auto-merge it. Each privacy/OCR PR states:
+Use one bounded branch and PR per measurable step. Every privacy/OCR PR must state:
 
-- which single state step it implements;
-- whether it reads or writes any real, synthetic, redacted, or annotated data;
-- which privacy or quality metric changed;
-- which external engines, APIs, or dependencies were used;
-- whether any runtime application behavior changed.
+- whether raw, synthetic, redacted, or encrypted data is processed;
+- which provider/model/dependency is used;
+- whether any plaintext can leave the device;
+- retention and logging behavior;
+- exact benchmark/test commands;
+- final SHA and changed paths;
+- remaining privacy, legal, quality, cost, and licensing limitations.
 
-Each privacy/OCR PR also updates `docs/OCR_PROJECT_STATE.md` when implementation status, evidence, blockers, or the single next step changes. A working session is not allowed to derive current project state from chat history when the repository can carry it.
-
-When the next action is ambiguous, return to this file and `docs/OCR_PROJECT_STATE.md`. Do not resume full local OCR without an explicit product decision.
+Do not merge automatically.

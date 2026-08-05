@@ -39,37 +39,40 @@ The current prototype supports:
 - reset all masks on page;
 - in-memory handoff of masked pages via `Продолжить к распознаванию текста` for a future OCR stage;
 - optional/debug/supportive PDF download or export if implemented in current main;
-- no OCR pipeline in production yet.
-
-Images are not sent to Gemini, Google Vision, OCR services, or external image APIs.
+- no production serverless OCR pipeline yet.
 
 The current image redaction flow is a closed technical test, not a complete production privacy layer.
 
+Tesseract full-page Hebrew OCR on the target Samsung A55 has been tested and rejected for the active MVP path.
+
 ## 3. Target MVP Pipeline
 
-The target MVP should move in this order:
+The product owner explicitly selected encrypted on-demand serverless GPU OCR as the active architecture to benchmark.
 
 ```text
-raw image/document
-→ on-device automatic PII-region detection and irreversible masking
-→ local fail-closed privacy validation
-→ anonymized image/document
-→ approved external full OCR
-→ secondary text PII redaction
-→ numbered evidence blocks
+raw phone photos
+→ client-side normalization and encryption
+→ bounded asynchronous serverless job
+→ GPU worker decrypts in volatile memory
+→ full-page Hebrew OCR and layout extraction
+→ server-side PII detection and irreversible image/text redaction
+→ privacy validation
+→ anonymized derivative and numbered evidence blocks
 → structured LLM risk extraction
 → Python validation
 → completeness audit
 → three user-facing report cards
 → detailed “Разбор по пунктам”
-→ optional Hebrew source expansion
+→ deletion of raw and transient job material
 ```
 
-The local mobile component is a privacy detector/redactor, not a required full Hebrew transcription engine. It may use layout, page zones, Hebrew field markers, digit patterns, signatures, handwriting cues, and conservative mask expansion.
+The former absolute rule that raw photos must never leave the device is superseded for this consent-based serverless processing mode.
 
-An approved external OCR/LLM service may receive only the anonymized derivative after the local privacy boundary has passed. Raw photos and recoverable PII must not leave the device.
+This does not authorize raw contract material to be sent to Gemini, Google Vision, general LLM APIs, analytics, logs, GitHub, CI, Airtable, or unrelated services. The approved serverless worker is the only remote component allowed to process raw page images and raw OCR text.
 
-The existing project-owned recognizer, CTC, synthetic-data, Gold, and CER work is paused research rather than an MVP dependency. Do not resume CRNN or training work without an explicit product decision recorded in the binding privacy/OCR documents.
+The paused on-device visual PII detector remains a possible future auxiliary or fallback layer, not the active next step.
+
+The existing project-owned recognizer, CTC, synthetic-data, Gold, and CER work remains paused research. Tesseract must not be restored as an active fallback.
 
 Do not connect runtime Airtable API before the local JSON/YAML risk configuration is stable. Airtable is a project knowledge base and control table, not the runtime MVP backend.
 
@@ -104,21 +107,47 @@ For MVP code, prefer repo-local JSON/YAML configuration exported or copied from 
 
 ## 5. Privacy Model
 
-Raw photos, documents, or text containing personal data must not be sent to external OCR or LLM services.
+The serverless GPU worker is part of the trusted processing boundary.
+
+Raw material may exist only in:
+
+- the user's device;
+- encrypted transport;
+- encrypted short-lived job storage when needed;
+- volatile worker memory while the authorized job is executing;
+- tightly controlled transient worker files only when unavoidable and automatically deleted.
+
+The worker necessarily decrypts the contract during processing. Encryption therefore protects transport and storage, not computation. The product must not describe this as local processing, zero-access processing, or a guarantee that the provider can never access plaintext.
 
 Production target pipeline:
 
 ```text
 raw image/document
-→ local/browser/mobile PII-region detection
-→ irreversible local masking
-→ local privacy validation
-→ anonymized image/document
-→ approved external OCR
-→ secondary text PII redaction
-→ LLM audit
+→ client-side encryption
+→ serverless GPU OCR/layout
+→ PII detection and irreversible image/text redaction
+→ privacy validation
+→ anonymized derivative
+→ numbered evidence blocks
+→ approved LLM audit
 → Russian report
+→ cleanup of raw job material
 ```
+
+Before public release, the product must define and verify:
+
+- explicit user consent;
+- plain-language disclosure of remote processing;
+- per-job key lifecycle;
+- authentication and authorization;
+- provider and data-region policy;
+- processor terms and legal review;
+- retention and deletion behavior;
+- log scrubbing;
+- cleanup after success, failure, timeout, and cancellation;
+- incident response.
+
+Only sanitized image/text derivatives may proceed to Gemini or another legal-analysis model.
 
 PII includes at least:
 
@@ -141,31 +170,33 @@ Security check amount 7,500 ₪ should remain visible.
 ID number or bank/check number should be redacted.
 ```
 
-Do not require a mask on every page. Many middle pages of a lease may contain no personal data. Privacy logic should detect likely personal-data rows by Hebrew field labels, layout context, known PII markers, digits, signatures, and handwriting cues. It should mask only the rows or zones likely to contain personal data while preserving monetary amounts and legal-risk content.
+Do not require a mask on every page. The privacy layer should preserve legally relevant wording whenever it can safely separate it from identifiers.
 
-The anonymized derivative must not preserve recoverable pixels in alpha channels, hidden layers, reversible overlays, metadata, or debug artifacts that are sent externally.
+The anonymized derivative must not preserve recoverable pixels in alpha channels, hidden layers, reversible overlays, metadata, caches, or debug artifacts.
 
-## 6. Active MVP PII-Region Detection
+## 6. Active MVP OCR and PII Sanitization
 
-Local image privacy logic should search for Hebrew field labels and row patterns such as:
+The active OCR worker must return usable Hebrew text plus line/block geometry. OCR output alone is not a privacy pass.
 
-- tenant name field;
-- landlord name field;
-- Israeli ID field;
-- phone field;
-- email field;
-- address field;
-- signature field;
-- bank details field;
-- guarantor identifying fields.
+The server-side sanitization layer should identify at least:
 
-The detector should classify rows or zones into at least three groups:
+- tenant and landlord names;
+- Israeli ID fields and values;
+- phone and email fields;
+- property and party addresses;
+- signatures and initials;
+- handwriting containing identifying data;
+- bank and cheque identifiers;
+- guarantor identifying fields;
+- ambiguous sensitive regions.
 
-1. PII rows/zones that must be masked before external OCR/LLM use.
-2. Risk-relevant rows that should be preserved for analysis.
-3. Ambiguous rows/zones that require fail-closed masking or local review.
+The sanitizer should classify image/text regions into at least three groups:
 
-Risk-relevant rows include, for example:
+1. PII that must be irreversibly removed before downstream analysis.
+2. Risk-relevant content that should be preserved.
+3. Ambiguous content that blocks downstream handoff or requires controlled review.
+
+Risk-relevant content includes, for example:
 
 - שכר דירה;
 - דמי שכירות;
@@ -188,17 +219,23 @@ Risk-relevant rows include, for example:
 - ועד בית;
 - ארנונה.
 
-Do not blindly redact a full page only because one PII-like label appears on it. Prefer row/zone-level masking with conservative expansion around the sensitive value.
+Do not blindly redact a full page because one PII-like label appears. Prefer row/field/region-level masking with conservative expansion around sensitive values.
 
-### Evidence rule for automatic masks
+### Evidence rule for automatic sanitization
 
-Page position, page number, first/last-page status, right alignment, short-line geometry, or digit presence are weak context only. None of them may create an automatic mask by itself. An automatic mask requires direct value evidence, marker-to-value/field relation, or validated handwriting/signature/stamp evidence. Zone-only findings may be routed to local review but must not be exported as production masks. The binding decision and evaluation contract is `docs/PII_EVIDENCE_DETECTOR_V1.md`.
+Page position, page number, alignment, short-line geometry, handwriting appearance, or digit presence are weak context only. None may independently authorize a production mask.
 
-Detector evaluation must be grouped by whole contract. Pages or lines from one contract must not be split between development and held-out evaluation, and contract-specific coordinates or one-off exceptions are forbidden.
+An automatic mask requires direct value evidence, marker-to-value/field relation, validated visual handwriting/signature/stamp evidence, or another approved evidence class under `docs/PII_EVIDENCE_DETECTOR_V1.md`.
 
-The annotation and verification target is a PII region or mask, not an exact full-line transcript. Primary metrics are PII-region recall, complete mask coverage, missed-sensitive-area rate, page-level privacy pass rate, and over-redaction of legally relevant non-PII content.
+Detector evaluation remains grouped by whole contract and template family. Contract-specific coordinates and one-off exceptions are forbidden.
 
-A Hebrew-capable reviewer verifies whether sensitive regions were missed or incompletely covered and whether important legal text was unnecessarily removed. The reviewer is not expected to transcribe the contract or correct every OCR character.
+Primary privacy metrics remain:
+
+- PII-region recall;
+- complete mask coverage;
+- missed-sensitive-area rate;
+- page/contract-level privacy pass rate;
+- over-redaction of legally relevant content.
 
 ## 7. Evidence and Citation Architecture
 
@@ -214,14 +251,14 @@ The model must not generate contract quotes.
 
 Instead:
 
-1. Python/OCR layer splits the contract into numbered evidence blocks.
+1. The OCR layer splits sanitized contract text into numbered evidence blocks.
 2. Each block receives a stable ID, for example:
    - `P1-B03`
    - `P2-B07`
-3. Gemini receives numbered blocks.
+3. Gemini receives numbered sanitized blocks.
 4. Gemini returns structured JSON with `evidence_block_ids`.
 5. Python validates that the IDs exist.
-6. Python retrieves the exact original Hebrew text from the source block if needed.
+6. Python retrieves the exact sanitized Hebrew source text if needed.
 7. The user sees a Russian explanation by default.
 8. The Hebrew original is available only behind an optional expander such as `Показать оригинал на иврите`.
 
@@ -240,7 +277,7 @@ Embeddings are not part of MVP evidence validation. Semantic similarity is not l
 
 ## 8. LLM/Python Responsibility Split
 
-The LLM should extract structured findings.
+The LLM should extract structured findings from sanitized evidence blocks.
 
 Python should validate and decide what is shown.
 
@@ -264,7 +301,7 @@ Python should validate:
 - marker checks where applicable;
 - aggregation into report cards.
 
-The model is not the source of truth. The uploaded contract text/images after preprocessing are the source of truth.
+The model is not the source of truth. The sanitized uploaded contract text/images and deterministic evidence mapping are the source of truth.
 
 ## 9. Completeness Audit
 
@@ -503,13 +540,15 @@ The assistant must not say who will win a legal dispute.
 
 ## 17. Rejected or Deferred Approaches
 
-Rejected for MVP:
+Rejected for the active MVP:
 
-- sending raw contract photos or recoverable PII to external OCR/LLM services;
-- treating full local Hebrew OCR as a prerequisite for privacy-safe image handoff;
-- requiring a mask on every page before OCR handoff;
-- using the current manual masking test as a complete production privacy layer;
-- asking the user to manually redact everything without guidance;
+- Tesseract full-page Hebrew OCR on the target phone;
+- pretending that encrypted server processing is local or zero-access;
+- sending raw images or raw OCR text from the trusted worker to Gemini or unrelated OCR/LLM APIs;
+- permanent unencrypted storage of user contracts;
+- building an always-on GPU server for sporadic MVP traffic;
+- adding a VPS, Redis, RabbitMQ, MinIO, or PostgreSQL before the platform-queue benchmark proves a need;
+- relying on high-concurrency throughput numbers as proof of single-contract latency;
 - relying on exact LLM-generated quotes;
 - exposing long Hebrew quotes by default in the user report;
 - using embeddings as legal evidence validation;
@@ -518,7 +557,10 @@ Rejected for MVP:
 
 Deferred:
 
+- on-device visual PII localization as a primary path;
 - project-owned full Hebrew OCR, CRNN training, full-line Gold transcription, and Android recognizer export;
+- production encryption and key management;
+- custom VPS orchestration and persistent queue/storage;
 - runtime Airtable API integration;
 - template/reference comparison;
 - curated legal/risk knowledge base RAG;
@@ -526,19 +568,18 @@ Deferred:
 
 ## 18. Development Principle
 
-Keep the architecture conservative.
+Keep the architecture measurable and replaceable.
 
-For non-privacy product work, build in this order:
+For the active image track, build in this order:
 
-1. Structured text audit.
-2. Evidence blocks.
-3. Python validation.
-4. Completeness audit.
-5. Three-card report + `Разбор по пунктам`.
-6. Privacy-safe anonymized image/OCR handoff.
+1. Serverless GPU OCR viability benchmark using only synthetic/redacted pages.
+2. Candidate quality, geometry, latency, VRAM, and cost decision.
+3. Bounded encrypted job-envelope and cleanup contract.
+4. Server-side PII sanitization and privacy evaluation.
+5. Sanitized evidence blocks.
+6. LLM risk analysis and report integration.
+7. Production consent, legal, provider, region, and incident controls.
 
-The user has explicitly selected automatic local PII detection and irreversible redaction as the current active image-processing track. Follow `docs/CUSTOM_OCR_PIPELINE.md` and `docs/OCR_PROJECT_STATE.md`. Full project-owned OCR research is paused unless explicitly reactivated.
+The first benchmark must not be treated as production deployment.
 
-Do not let the LLM become the source of truth.
-
-The source of truth is always the uploaded contract text/images after preprocessing.
+The source of truth is the sanitized contract evidence produced by the approved processing pipeline, not the LLM.
