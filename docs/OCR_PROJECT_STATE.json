@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-05-40",
+  "state_version": "privacy-ocr-2026-08-05-41",
   "active_track": "local-pii-redaction",
-  "next_step_id": "android-tesseract-real-photo-quality-gate-v1",
-  "next_step_summary": "Merge-gated corrective PR #187 blocks PII overlay authorization when real-device Tesseract returns no word boxes, mean confidence below the provisional threshold 60, or whitespace-bearing ambiguous word boxes; after merge, rebuild from resulting main and repeat the same target-device photo before selecting a separate preprocessing/OCR-input improvement.",
-  "last_recorded_pr": 187,
-  "last_recorded_change": "android-tesseract-real-photo-quality-gate-v1",
+  "next_step_id": "android-mlkit-latin-direct-pii-spike-v1",
+  "next_step_summary": "Run one bounded Samsung A55 development spike with bundled ML Kit Latin Text Recognition v2 for digit/Latin direct-value candidates only: email, Israeli phone, checksum-valid Israeli ID and checksum-valid IL IBAN. Do not treat it as Hebrew OCR, do not add Tesseract fallback, Hebrew marker inference, production masks or external handoff.",
+  "last_recorded_pr": 188,
+  "last_recorded_change": "on-device-hebrew-ocr-replacement-audit-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-08-05"
