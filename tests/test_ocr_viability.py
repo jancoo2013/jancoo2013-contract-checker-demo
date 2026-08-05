@@ -113,6 +113,11 @@ class OCRViabilityTests(unittest.TestCase):
         self.assertFalse(report["passed"])
         self.assertEqual(report["invalid_text_blocks"], 1)
 
+        nonfinite = valid.copy()
+        nonfinite[5] = _page_result(6, "טקסט")
+        nonfinite[5].blocks[0]["bbox"] = [10, 20, float("nan"), 80]
+        self.assertFalse(evaluate_geometry(nonfinite)["passed"])
+
     def test_full_quality_geometry_oracle_passes_all_gates(self):
         manifest = _expected_manifest()
         results = [
