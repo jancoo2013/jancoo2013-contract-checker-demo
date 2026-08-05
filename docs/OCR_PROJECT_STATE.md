@@ -1,24 +1,27 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-05, PR #186, `android-tesseract-pii-candidate-overlay-v1`.
+Последнее обновление: 2026-08-05, PR #187, `android-tesseract-real-photo-quality-gate-v1`.
 
 Активный трек: `local-pii-redaction`.
 
-Единственный следующий шаг: `android-tesseract-pii-candidate-overlay-v1`.
+Единственный следующий шаг: `android-tesseract-real-photo-quality-gate-v1`.
 
-Этот документ — каноническая operational-точка восстановления privacy/OCR-проекта. Архитектуру задают `docs/ARCHITECTURE.md` и `docs/CUSTOM_OCR_PIPELINE.md`; evidence/masking contract задаёт `docs/PII_EVIDENCE_DETECTOR_V1.md`; машиночитаемое состояние хранится в `docs/OCR_PROJECT_STATE.json`. Подробная история до PR #186 остаётся в Git history.
+Этот документ — каноническая operational-точка восстановления privacy/OCR-проекта. Архитектуру задают `docs/ARCHITECTURE.md` и `docs/CUSTOM_OCR_PIPELINE.md`; evidence/masking contract задаёт `docs/PII_EVIDENCE_DETECTOR_V1.md`; машиночитаемое состояние хранится в `docs/OCR_PROJECT_STATE.json`. Подробная история до PR #187 остаётся в Git history.
 
-## 0. Изменение PR #186
+## 0. Изменение PR #187
 
-- Добавлен Android/TypeScript parity-port approved Python direct-value finder для четырёх high-confidence классов: `email`, Israeli `phone`, checksum-valid `israeli_id`, checksum-valid Israeli `bank_identifier`/IL IBAN.
-- Сохранены канонические detector IDs, приоритет классов, overlap suppression, exact source spans и fail-closed rejection числовых подстрок внутри более длинных separated tokens.
-- Approved spans проходят существующую trusted цепочку: Tesseract full-text index → exact span-to-word-box mapping → candidate geometry → contain-fit development overlay.
-- Development UI по умолчанию показывает полупрозрачные прямоугольники только для approved direct-value candidates и выводит value-free counts по классам.
-- Режим всех OCR word boxes PR #185 сохранён отдельным development-переключателем для технической диагностики геометрии.
-- Candidate overlay не содержит matched value, source offsets, confidence или detector ID; output помечен `developmentOnly`, `notMaskDecision` и `notCompletePiiCoverage`.
-- Выбранное изображение, OCR result и overlay остаются локальными; derivative не создаётся и наружу не отправляется.
-- Локально проходят `6/6` focused PII-candidate tests, `5/5` existing inspection-overlay tests и оба strict TypeScript checks.
-- Ручная проверка на целевом Android-устройстве обязательна после merge: совпадение масок с email/phone/ID/IBAN, отсутствие системного смещения и корректность portrait/landscape/EXIF/letterboxing.
+- Первый целевой device review после merge PR #186 выполнен на реальной фотографии договора.
+- Native Tesseract завершил вызов, но вернул непригодный для PII-авторизации результат: mean confidence `38`, `324` word boxes и один `RIL_WORD` box с внутренним whitespace.
+- До PR #187 приложение показывало общий OCR status `success`, после чего candidate overlay падал позже с технической ошибкой `Tesseract word box ... contains whitespace`.
+- Добавлен value-free fail-closed quality gate перед любым PII candidate overlay.
+- Gate блокирует masking authorization, если:
+  - Tesseract не вернул word boxes;
+  - mean confidence ниже provisional development threshold `60`;
+  - хотя бы один word box содержит внутренний whitespace и поэтому неоднозначен для exact text-span mapping.
+- Блокировка возвращает явное сообщение `OCR unusable — masking blocked` с безопасными диагностическими числами и reason codes; OCR text и matched PII values в diagnostic assessment не сохраняются.
+- Низкокачественный или неоднозначный OCR больше не может выглядеть как успешный masking pass.
+- Выбранное изображение и OCR остаются локальными; derivative не создаётся, наружу ничего не отправляется.
+- Этот PR не улучшает распознавание, не меняет модель `heb.traineddata`, `PSM_AUTO`, preprocessing, orientation, crop, contrast или page segmentation.
 
 ## 1. Актуальная Android/Tesseract цепочка
 
@@ -31,6 +34,7 @@
 | #183 | Development overlay layout | Contain-fit value-free rectangles, opacity `0.35` | Реальное UI alignment |
 | #185 | All-word inspection UI | Реальное локальное изображение + every OCR word box | PII selection и device visual verdict |
 | #186 | Direct PII candidate overlay | Approved direct finder parity + candidate-only default UI | Complete PII recall и production mask safety |
+| #187 | Real-photo OCR quality gate | Low-quality/ambiguous OCR blocks PII authorization before overlay | Улучшение OCR и real-photo candidate recall |
 
 ## 2. Privacy boundary
 
@@ -58,7 +62,8 @@ raw phone photo
 - fuzzy matching запрещён для PII authorization;
 - direct-value overlay покрывает только четыре high-confidence класса и не доказывает complete PII coverage;
 - geometry/UI сами по себе не авторизуют production mask;
-- при неполной evidence, geometry или validation внешний handoff блокируется.
+- OCR completion не равно OCR usability;
+- при низком качестве OCR, неоднозначной evidence, geometry или validation внешний handoff блокируется.
 
 ## 3. Реальное состояние компонентов
 
@@ -66,31 +71,35 @@ raw phone photo
 |---|---|---|---|
 | Reference evidence chain | Python v0/v1 | Pattern, marker/value, provenance, deterministic dispositions | Полная Android orchestration |
 | Android direct-value finder | PR #186 | Parity для email/phone/checksum ID/checksum IL IBAN | Real-contract recall |
-| Android Tesseract words | Runtime slice v1 | Bounded local OCR word text/confidence/bbox | Target-device recall и orientation correctness |
-| Span/geometry/overlay | PR #181–#183 | Exact word boxes и contain-fit rectangles | Device visual correctness |
-| Development UI | PR #185–#186 | All-word diagnostic + direct-candidate default mode | Production UX и complete coverage |
+| Android Tesseract words | Runtime slice v1 | Bounded local OCR word text/confidence/bbox | Пригодное распознавание real photos |
+| OCR quality gate | PR #187 | Explicit fail-closed block for empty/low-confidence/ambiguous result | Правильность threshold для всех камер и документов |
+| Span/geometry/overlay | PR #181–#183 | Exact word boxes и contain-fit rectangles | Device visual correctness на usable OCR |
+| Development UI | PR #185–#187 | All-word diagnostic, direct-candidate mode, explicit quality block | Production UX и complete coverage |
 | Production mask renderer | Не реализован в `main`; PR #184 закрыт | — | Непрозрачная необратимая Android-маска |
 | Local privacy validator | Не реализован | — | Complete coverage и fail-closed handoff |
 | External OCR handoff | Не подключён | Допустим только после privacy gate | Derivative safety |
 
 ## 4. Активный блокер
 
-PR #186 делает ручной тест понятным без знания иврита: проверяются визуально узнаваемые email, телефоны, девятизначные ID и IL IBAN. Однако даже правильное попадание всех показанных прямоугольников не доказывает, что система нашла все PII на странице.
+Реальный device review показал, что текущий полноформатный Tesseract pass по фотографии страницы непригоден для PII detection: распознанный текст искажен, mean confidence равен `38`, а exact word mapping встречает неоднозначный whitespace-bearing box.
 
-Device review должен ответить:
+PR #187 исправляет только ложный статус успеха и делает блокировку явной. Он намеренно не пытается «спасти» мусорный OCR и не ослабляет exact mapping ради появления прямоугольников.
 
-1. полностью ли прямоугольник закрывает найденное значение;
-2. не смещены ли прямоугольники по X/Y;
-3. корректны ли portrait/landscape и EXIF orientation;
-4. не захватываются ли соседние слова или промежутки;
-5. стабилен ли результат на нескольких разрешениях и фотографиях;
-6. какие PII визуально присутствуют, но не были показаны candidate overlay.
+После merge повторный тест той же фотографии должен подтвердить:
+
+1. экран больше не показывает masking pass как `success`;
+2. candidate overlay не строится;
+3. пользователь получает `OCR unusable — masking blocked`;
+4. диагностическое сообщение содержит только confidence/threshold/counts/reasons и не содержит OCR text или PII values;
+5. прежняя техническая ошибка про конкретный word-box не является основным user-facing результатом.
 
 ## 5. Единственный следующий шаг
 
-**`android-tesseract-pii-candidate-overlay-v1`: MERGE-GATED — реализован в PR #186.**
+**`android-tesseract-real-photo-quality-gate-v1`: MERGE-GATED — PR #187.**
 
-До merge, нового чтения resulting `main` и ручного device review запрещено возвращаться к opaque renderer, добавлять external handoff или утверждать, что маскирование работает корректно. После review выбирается один bounded шаг: исправление alignment/direct-pattern binding либо расширение approved evidence orchestration для marker/value и visual PII.
+До merge, нового чтения resulting `main` и повторного target-device теста запрещено возвращаться к opaque renderer, добавлять external handoff или утверждать, что локальное PII-маскирование работает.
+
+После успешного retest выбирается отдельный bounded шаг по OCR input quality. Наиболее вероятный следующий слой: локальное определение/выравнивание страницы, ориентация и контролируемая подготовка изображения перед Tesseract. Он не входит в PR #187.
 
 ## 6. Правила восстановления и работы
 
