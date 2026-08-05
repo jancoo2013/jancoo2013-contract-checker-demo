@@ -6,6 +6,7 @@ import {
   MAX_TESSERACT_WORD_BOXES,
   MIN_TESSERACT_PII_MEAN_CONFIDENCE,
   assessHebrewOcrForPiiMasking,
+  validateHebrewOcrForPiiMasking,
   validateHebrewOcrResult,
 } from "../src/tesseractResult.ts";
 
@@ -29,6 +30,7 @@ function validResult() {
 test("accepts a bounded high-quality in-image word result", () => {
   const result = validResult();
   assert.equal(validateHebrewOcrResult(result), result);
+  assert.equal(validateHebrewOcrForPiiMasking(result), result);
   assert.deepEqual(assessHebrewOcrForPiiMasking(result), {
     usableForPiiMasking: true,
     blockingReasons: [],
@@ -49,7 +51,7 @@ test("blocks low-confidence OCR before PII overlay construction", () => {
   assert.equal(assessment.usableForPiiMasking, false);
   assert.deepEqual(assessment.blockingReasons, ["mean_confidence_below_threshold"]);
   assert.throws(
-    () => validateHebrewOcrResult(result),
+    () => validateHebrewOcrForPiiMasking(result),
     /OCR unusable — masking blocked: mean confidence 38 is below 60/,
   );
 });
@@ -64,23 +66,24 @@ test("blocks whitespace-bearing ambiguous word boxes without exposing their valu
   assert.equal(assessment.diagnostics.ambiguousWordBoxCount, 1);
   assert.equal(JSON.stringify(assessment).includes("sensitive value"), false);
   assert.throws(
-    () => validateHebrewOcrResult(result),
+    () => validateHebrewOcrForPiiMasking(result),
     /OCR unusable — masking blocked: 1 ambiguous word box contains whitespace/,
   );
 });
 
-test("blocks an empty OCR word batch", () => {
+test("keeps empty OCR structurally valid but blocks it for PII masking", () => {
   const result = validResult();
   result.text = "";
   result.wordBoxes = [];
   result.meanConfidence = 0;
 
+  assert.equal(validateHebrewOcrResult(result), result);
   assert.deepEqual(assessHebrewOcrForPiiMasking(result).blockingReasons, [
     "no_word_boxes",
     "mean_confidence_below_threshold",
   ]);
   assert.throws(
-    () => validateHebrewOcrResult(result),
+    () => validateHebrewOcrForPiiMasking(result),
     /no OCR word boxes were returned; mean confidence 0 is below 60/,
   );
 });
