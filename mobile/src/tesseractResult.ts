@@ -1,7 +1,25 @@
 import type { HebrewOcrResult, TesseractWordBox } from "../modules/tesseract-ocr";
 
 export const MAX_TESSERACT_WORD_BOXES = 5_000;
+export const MIN_TESSERACT_PII_MEAN_CONFIDENCE = 60;
 const MAX_WORD_TEXT_CHARS = 256;
+const WORD_WHITESPACE = /\s/u;
+
+export type TesseractPiiQualityBlockReason =
+  | "no_word_boxes"
+  | "mean_confidence_below_threshold"
+  | "ambiguous_word_boxes";
+
+export type TesseractPiiQualityAssessment = Readonly<{
+  usableForPiiMasking: boolean;
+  blockingReasons: readonly TesseractPiiQualityBlockReason[];
+  diagnostics: Readonly<{
+    meanConfidence: number;
+    minimumMeanConfidence: typeof MIN_TESSERACT_PII_MEAN_CONFIDENCE;
+    wordBoxCount: number;
+    ambiguousWordBoxCount: number;
+  }>;
+}>;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -53,7 +71,7 @@ function validateWordBox(
   return value as TesseractWordBox;
 }
 
-export function validateHebrewOcrResult(value: unknown): HebrewOcrResult {
+function validateHebrewOcrStructure(value: unknown): HebrewOcrResult {
   if (!isRecord(value)) {
     throw new Error("Tesseract OCR result is not an object.");
   }
@@ -79,4 +97,73 @@ export function validateHebrewOcrResult(value: unknown): HebrewOcrResult {
   const height = value.height as number;
   value.wordBoxes.forEach((wordBox, index) => validateWordBox(wordBox, width, height, index));
   return value as HebrewOcrResult;
+}
+
+function assessValidatedResult(result: HebrewOcrResult): TesseractPiiQualityAssessment {
+  const ambiguousWordBoxCount = result.wordBoxes.reduce(
+    (count, wordBox) => count + (WORD_WHITESPACE.test(wordBox.text) ? 1 : 0),
+    0,
+  );
+  const blockingReasons: TesseractPiiQualityBlockReason[] = [];
+
+  if (result.wordBoxes.length === 0) {
+    blockingReasons.push("no_word_boxes");
+  }
+  if (result.meanConfidence < MIN_TESSERACT_PII_MEAN_CONFIDENCE) {
+    blockingReasons.push("mean_confidence_below_threshold");
+  }
+  if (ambiguousWordBoxCount > 0) {
+    blockingReasons.push("ambiguous_word_boxes");
+  }
+
+  return Object.freeze({
+    usableForPiiMasking: blockingReasons.length === 0,
+    blockingReasons: Object.freeze(blockingReasons),
+    diagnostics: Object.freeze({
+      meanConfidence: result.meanConfidence,
+      minimumMeanConfidence: MIN_TESSERACT_PII_MEAN_CONFIDENCE,
+      wordBoxCount: result.wordBoxes.length,
+      ambiguousWordBoxCount,
+    }),
+  });
+}
+
+export function assessHebrewOcrForPiiMasking(value: unknown): TesseractPiiQualityAssessment {
+  return assessValidatedResult(validateHebrewOcrStructure(value));
+}
+
+function qualityBlockMessage(assessment: TesseractPiiQualityAssessment): string {
+  const details: string[] = [];
+  const { diagnostics, blockingReasons } = assessment;
+
+  if (blockingReasons.includes("no_word_boxes")) {
+    details.push("no OCR word boxes were returned");
+  }
+  if (blockingReasons.includes("mean_confidence_below_threshold")) {
+    details.push(
+      `mean confidence ${diagnostics.meanConfidence} is below ${diagnostics.minimumMeanConfidence}`,
+    );
+  }
+  if (blockingReasons.includes("ambiguous_word_boxes")) {
+    const count = diagnostics.ambiguousWordBoxCount;
+    details.push(`${count} ambiguous word box${count === 1 ? "" : "es"} contains whitespace`);
+  }
+
+  return `OCR unusable — masking blocked: ${details.join("; ")}.`;
+}
+
+/**
+ * Validate one local Tesseract result and fail closed before any PII authorization.
+ *
+ * The quality assessment is value-free. Low mean confidence, an empty word batch, or
+ * whitespace-bearing word boxes prevent candidate overlay construction instead of
+ * allowing garbage OCR to appear as a successful masking pass.
+ */
+export function validateHebrewOcrResult(value: unknown): HebrewOcrResult {
+  const result = validateHebrewOcrStructure(value);
+  const assessment = assessValidatedResult(result);
+  if (!assessment.usableForPiiMasking) {
+    throw new Error(qualityBlockMessage(assessment));
+  }
+  return result;
 }
