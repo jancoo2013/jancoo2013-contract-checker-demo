@@ -1,14 +1,10 @@
 # Visual PII Localization v1
 
-Status: approved architecture reset for the active local privacy track.
+Status: paused research direction after the product decision to benchmark serverless GPU OCR. This document remains as a record of the local-only alternative and may be reactivated if the serverless path fails privacy, quality, licensing, latency, or cost gates.
 
-## 1. Product objective
+## 1. Original objective
 
-The on-device component must locate and irreversibly redact likely PII regions before any image leaves the device.
-
-It is not required to produce a complete Hebrew transcript of the contract.
-
-The active problem is therefore:
+The on-device component was intended to locate and irreversibly redact likely PII regions before any image left the device, without producing a complete Hebrew transcript.
 
 ```text
 page image
@@ -18,7 +14,7 @@ page image
 → irreversible local masks
 ```
 
-The rejected dependency is:
+The rejected local dependency remained:
 
 ```text
 full-page Hebrew OCR
@@ -26,100 +22,56 @@ full-page Hebrew OCR
 → reverse mapping into image coordinates
 ```
 
-Tesseract remains retained only as historical diagnostic code. It is not an active masking dependency and must not be used as a fallback that can authorize masks.
+Tesseract remains retained only as historical diagnostic code and must not be restored as a production masking fallback.
 
-## 2. First model boundary
+## 2. Why this track is paused
 
-The first learned component is a compact visual region detector/classifier. It receives an image crop or page tile and returns only class, score and geometry.
+The product owner explicitly selected an encrypted serverless GPU processing mode because:
 
-Initial classes:
+- a capable GPU OCR model is too heavy for the target Samsung A55;
+- serverless workers can scale to zero;
+- the expected compute cost is low enough to benchmark;
+- full server-side OCR can simplify both Hebrew recognition and subsequent PII localization.
 
-- `printed_pii_field_or_value`;
-- `handwritten_entry`;
-- `signature_or_initials`;
-- `stamp_or_seal`;
-- `non_pii_text`;
-- `ambiguous_sensitive_region`.
+The active contract is now `docs/SERVERLESS_GPU_OCR_PIPELINE_V1.md`.
 
-The first model does not need to read names, addresses or Hebrew sentences. It must learn visual and layout evidence sufficient to propose regions for later deterministic disposition.
+## 3. Preserved research assets
 
-## 3. Evidence boundary
+The following remain useful and are not deleted:
 
-A model score alone does not authorize `auto_mask`.
+- visual classes for handwriting, signatures, stamps, printed PII, and ambiguous regions;
+- value-free bounding-box annotations;
+- deterministic evidence and geometry gates;
+- `auto_mask / local_review / keep` dispositions;
+- irreversible pixel replacement requirements;
+- contract-level evaluation splits;
+- sensitive-region recall and complete-coverage metrics.
 
-Model output becomes one evidence item inside the existing decision chain. Production disposition remains one of:
+These may later become a local pre-filter, a server-side auxiliary detector, or a fallback privacy layer.
 
-- `auto_mask` only when approved evidence and geometry rules are satisfied;
-- `local_review` for plausible but incomplete evidence;
-- `keep` only when the region is safely classified as non-PII.
+## 4. Conditions for reactivation
 
-Page position, alignment, handwriting appearance or digit density cannot independently authorize a mask.
+The local visual track may be reactivated only through an explicit product decision if the serverless benchmark shows one or more of:
 
-## 4. Data strategy
+- unacceptable Hebrew OCR quality;
+- unacceptable cold-start or execution latency;
+- cost above the product budget;
+- incompatible licensing;
+- unavailable acceptable data region or processor terms;
+- inability to establish bounded retention and deletion;
+- unacceptable privacy or legal risk.
 
-Training and evaluation data may contain only:
+## 5. Deferred first experiment
 
-- synthetic pages and crops;
-- generated fictitious PII;
-- locally controlled real crops that never enter GitHub or external services;
-- value-free annotations containing class and geometry only.
+`visual-pii-synthetic-baseline-v1` is no longer the active next step.
 
-Real contracts are split by whole contract. Pages or crops from one contract must not cross train, validation and held-out evaluation boundaries.
+Its prior scope remains preserved for possible later use:
 
-GitHub must never contain raw contract images, readable PII, signatures, account details or reversible masked derivatives.
+1. synthetic page-tile generation;
+2. value-free bounding boxes;
+3. one compact visual detector;
+4. held-out synthetic evaluation;
+5. mobile-compatible export only after a research gate;
+6. no production mask or Android integration in the same step.
 
-## 5. First experiment
-
-The first implementation step is `visual-pii-synthetic-baseline-v1`.
-
-It must build an offline, repository-owned baseline without Android integration:
-
-1. generate synthetic page tiles with printed text-like regions, fictitious form fields, handwriting-like strokes and signatures;
-2. emit value-free bounding-box annotations;
-3. train or fit one compact baseline detector/classifier;
-4. evaluate region recall and false-positive behavior on held-out synthetic templates;
-5. export one mobile-compatible model artifact only if the baseline meets the provisional gate;
-6. do not add the model to the Android runtime in the same PR.
-
-## 6. Provisional go/no-go gate
-
-The baseline may proceed to a real-crop evaluation only when all conditions hold:
-
-- sensitive-region recall at least `0.98` on held-out synthetic contracts;
-- complete-box coverage at least `0.97`;
-- no contract-specific coordinates or template IDs used as features;
-- false positives are reported separately for legally relevant printed text;
-- model artifact and inference runtime fit the later Samsung A55 budget;
-- evaluation is reproducible from repository-owned synthetic generation rules.
-
-These thresholds are research gates, not production safety claims.
-
-## 7. Out of scope for the baseline
-
-The first baseline must not:
-
-- read full Hebrew text;
-- recognize names or addresses character by character;
-- connect Gemini, Google Vision or any external OCR;
-- add production masks;
-- change the Android application;
-- use real contract images in CI;
-- claim complete PII coverage;
-- reactivate CRNN full-line OCR research.
-
-## 8. Expected continuation
-
-If the synthetic baseline fails, the architecture returns to review before any Android work.
-
-If it passes, the next separate steps are:
-
-```text
-local real-crop evaluation
-→ mobile export/inference benchmark
-→ evidence adapter
-→ development overlay
-→ irreversible mask renderer
-→ local privacy validator
-```
-
-Each step requires its own bounded PR and evidence gate.
+No quality claim from this paused design has been established.
