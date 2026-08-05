@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import unicodedata
 from pathlib import Path
 from typing import Any, Sequence
@@ -100,7 +101,13 @@ def _valid_bbox(value: Any, image_bbox: Any) -> bool:
         return False
     if not isinstance(image_bbox, list) or len(image_bbox) != 4:
         return False
-    if not all(isinstance(item, (int, float)) for item in [*value, *image_bbox]):
+    numbers = [*value, *image_bbox]
+    if not all(
+        isinstance(item, (int, float))
+        and not isinstance(item, bool)
+        and math.isfinite(item)
+        for item in numbers
+    ):
         return False
     x0, y0, x1, y1 = (float(item) for item in value)
     ix0, iy0, ix1, iy1 = (float(item) for item in image_bbox)
