@@ -33,12 +33,9 @@ def _bounds(
     rotation: float = 0.0,
     crop: tuple[int, int, int, int] | None = None,
 ) -> ContentRegionBounds:
-    coordinate_space = (
-        "source_preview" if decision == "full_frame_fallback" else "deskewed_preview"
-    )
-    reasons = () if decision == "accepted" else ("insufficient_line_bands",)
+    source_space = decision == "full_frame_fallback"
     return ContentRegionBounds(
-        coordinate_space=coordinate_space,
+        coordinate_space="source_preview" if source_space else "deskewed_preview",
         preview_size=preview_size,
         deskew_rotation_degrees=rotation,
         decision=decision,
@@ -46,20 +43,14 @@ def _bounds(
         line_bands=(),
         candidate_content_bounds=crop,
         safe_crop_bounds=crop if decision == "accepted" else None,
-        rejection_reasons=reasons,
+        rejection_reasons=() if decision == "accepted" else ("insufficient_line_bands",),
     )
 
 
 def _pattern(size: tuple[int, int]) -> Image.Image:
     image = Image.new("RGB", size, "white")
-    draw = ImageDraw.Draw(image)
-    draw.rectangle(
-        (
-            size[0] // 4,
-            size[1] // 4,
-            size[0] * 3 // 4,
-            size[1] * 3 // 4,
-        ),
+    ImageDraw.Draw(image).rectangle(
+        (size[0] // 4, size[1] // 4, size[0] * 3 // 4, size[1] * 3 // 4),
         fill="black",
     )
     return image
@@ -72,7 +63,6 @@ class ContentRegionDeskewCropTests(unittest.TestCase):
             angle=_angle(),
             bounds=_bounds((900, 1200), crop=(100, 150, 800, 1050)),
         )
-
         self.assertEqual(result.decision, "deskewed_and_cropped")
         self.assertEqual(result.crop_box_source, (100, 150, 800, 1050))
         self.assertEqual(result.output_size, (700, 900))
@@ -85,7 +75,6 @@ class ContentRegionDeskewCropTests(unittest.TestCase):
             angle=_angle(),
             bounds=_bounds((1350, 1800), crop=(101, 151, 1249, 1649)),
         )
-
         self.assertEqual(result.crop_box_source, (134, 201, 1666, 2199))
         self.assertEqual(result.output_size, (1532, 1998))
 
@@ -97,7 +86,6 @@ class ContentRegionDeskewCropTests(unittest.TestCase):
             angle=_angle(rotation=-7.0),
             bounds=_bounds((300, 400), decision="rotation_only", rotation=-7.0),
         )
-
         self.assertEqual(result.decision, "full_frame_fallback")
         self.assertEqual(result.rotation_applied_degrees, 0.0)
         self.assertIsNone(result.crop_box_source)
@@ -109,13 +97,8 @@ class ContentRegionDeskewCropTests(unittest.TestCase):
         result = apply_content_region_deskew_crop(
             image,
             angle=_angle(decision="rejected", rotation=4.0),
-            bounds=_bounds(
-                (300, 400),
-                decision="full_frame_fallback",
-                rotation=4.0,
-            ),
+            bounds=_bounds((300, 400), decision="full_frame_fallback", rotation=4.0),
         )
-
         self.assertEqual(result.decision, "full_frame_fallback")
         self.assertIn("low_confidence", result.fallback_reasons)
         self.assertTrue(np.array_equal(np.asarray(result.image), original))
@@ -129,7 +112,6 @@ class ContentRegionDeskewCropTests(unittest.TestCase):
             angle=_angle(rotation=-6.0),
             bounds=_bounds((300, 400), rotation=-6.0, crop=crop),
         )
-
         self.assertEqual(result.decision, "deskewed_and_cropped")
         self.assertEqual(result.rotation_applied_degrees, -6.0)
         self.assertEqual(result.output_size, (260, 340))
@@ -145,7 +127,6 @@ class ContentRegionDeskewCropTests(unittest.TestCase):
             angle=_angle(decision="rejected"),
             bounds=_bounds((20, 40), decision="full_frame_fallback"),
         )
-
         self.assertEqual(result.source_size, (20, 40))
         self.assertEqual(result.output_size, (20, 40))
 
@@ -156,9 +137,7 @@ class ContentRegionDeskewCropTests(unittest.TestCase):
                 image,
                 angle=_angle(rotation=3.0),
                 bounds=_bounds(
-                    (300, 400),
-                    rotation=2.0,
-                    crop=(20, 30, 280, 370),
+                    (300, 400), rotation=2.0, crop=(20, 30, 280, 370)
                 ),
             )
         with self.assertRaises(ContentRegionDeskewCropError):
@@ -170,18 +149,15 @@ class ContentRegionDeskewCropTests(unittest.TestCase):
 
     def test_invalid_accepted_crop_contract_raises(self) -> None:
         image = _pattern((300, 400))
-        with self.assertRaises(ContentRegionDeskewCropError):
-            apply_content_region_deskew_crop(
-                image,
-                angle=_angle(),
-                bounds=_bounds((300, 400), crop=(20, 30, 301, 370)),
-            )
-        with self.assertRaises(ContentRegionDeskewCropError):
-            apply_content_region_deskew_crop(
-                image,
-                angle=_angle(),
-                bounds=_bounds((300, 400), crop=None),
-            )
+        for crop in ((20, 30, 301, 370), None):
+            with self.subTest(crop=crop), self.assertRaises(
+                ContentRegionDeskewCropError
+            ):
+                apply_content_region_deskew_crop(
+                    image,
+                    angle=_angle(),
+                    bounds=_bounds((300, 400), crop=crop),
+                )
 
 
 if __name__ == "__main__":
