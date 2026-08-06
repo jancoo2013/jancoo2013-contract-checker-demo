@@ -1,14 +1,25 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-06, PR #195, `ocr-text-angle-estimator-v1`.
+Последнее обновление: 2026-08-06, PR #196, `ocr-content-region-bounds-v1`.
 
 Активный трек: `serverless-gpu-ocr`.
 
-Канонический следующий шаг остаётся `serverless-gpu-ocr-viability-benchmark-v1`, но фактический provider run временно отложен по явному решению владельца продукта до завершения трёх bounded client-normalization шагов. После PR #195 следующее разрешённое исключение: `ocr-content-region-bounds-v1`.
+Фактический Surya/provider run остаётся отложенным по явному решению владельца продукта до рабочего preprocessing/capture-quality контура. После PR #196 следующий разрешённый bounded-шаг: `ocr-content-region-deskew-crop-v1`.
 
 Этот документ — каноническая operational-точка восстановления privacy/OCR-проекта. Архитектуру задают `AGENTS.md`, `docs/ARCHITECTURE.md`, `docs/CUSTOM_OCR_PIPELINE.md` и `docs/SERVERLESS_GPU_OCR_PIPELINE_V1.md`. `docs/VISUAL_PII_LOCALIZATION_V1.md` сохраняет paused local-only alternative. Evidence/masking contract задаёт `docs/PII_EVIDENCE_DETECTOR_V1.md`; машиночитаемое состояние хранится в `docs/OCR_PROJECT_STATE.json`.
 
-## 0. Изменение PR #195
+## 0. Изменение PR #196
+
+- Добавлен fail-safe content-region bounds detector поверх boolean mask из PR #194 и accepted deskew rotation из PR #195.
+- Внутри bounded preview формируются text-line bands, dominant content region, candidate bounds и padded safe crop bounds в coordinate space `deskewed_preview`.
+- Решение ограничено `accepted / rotation_only / full_frame_fallback`; только `accepted` содержит `safe_crop_bounds`.
+- Rejected upstream angle немедленно даёт `full_frame_fallback`; пустая/шумовая маска, недостаток строк, касание рамки, слишком малая или почти full-frame область и низкая confidence запрещают crop.
+- Узкий боковой шум не должен расширять dominant bounds.
+- PR не меняет пиксели изображения, не применяет rotation/crop, не добавляет perspective correction, illumination/glare/blur gates, Android realtime analyzer, OCR, Surya, upload, encryption или PII processing.
+- Focused synthetic validation: 8/8 tests.
+- Следующий разрешённый bounded-шаг после merge: `ocr-content-region-deskew-crop-v1`.
+
+## 0.1. Изменение PR #195
 
 - Добавлен bounded text-angle estimator поверх boolean mask из PR #194.
 - Поиск ограничен диапазоном ±12° с шагом 1° и выполняется на analysis preview не более 900 px по длинной стороне.
@@ -18,7 +29,7 @@
 - Focused synthetic validation: 7/7 tests; покрыты нулевой угол, наклон в обе стороны, пустая маска, случайный шум, search-limit rejection и invalid input contract.
 - Следующее разрешённое normalization-исключение после merge: `ocr-content-region-bounds-v1`.
 
-## 0.1. Изменение PR #194
+## 0.2. Изменение PR #194
 
 - PR #193 был закрыт без merge и не изменил `main`.
 - Его scope разделён на три bounded шага: `ocr-local-contrast-text-mask-v1` → `ocr-text-angle-estimator-v1` → `ocr-content-region-bounds-v1`.
@@ -29,7 +40,7 @@
 - Focused synthetic validation: 4/4 tests; покрыты текст без видимой границы листа, плавный shadow gradient, bounded preview/no-upscale и pre-conversion pixel safety limit.
 - Следующее разрешённое normalization-исключение после merge: `ocr-text-angle-estimator-v1`.
 
-## 0.2. Изменение PR #192
+## 0.3. Изменение PR #192
 
 - Добавлен `docs/FUTURE_PRODUCT_AND_ARCHITECTURE_IDEAS.md` — документационный backlog продуктовых, UX, privacy и архитектурных идей из рабочего голосового диалога.
 - Зафиксированы направления для будущей разработки: Contract Question Engine, evidence IDs вместо генерируемых LLM-цитат, ролевые PII placeholders, Israel-only Region Guard, server-side GPU OCR, UX ожидания, нейтральное звуковое уведомление и полная продуктовая обвязка.
@@ -37,7 +48,7 @@
 - Runtime, data handling, зависимости, OCR worker, Android-код, внешние API и production privacy boundary не изменены.
 - Активный трек `serverless-gpu-ocr` и единственный следующий шаг `serverless-gpu-ocr-viability-benchmark-v1` остаются без изменений.
 
-## 0.3. Изменение PR #191
+## 0.4. Изменение PR #191
 
 - Добавлен первый bounded slice активного `serverless-gpu-ocr-viability-benchmark-v1`: фиксированный синтетический десятистраничный Hebrew contract-like source packet без реальных PII.
 - Добавлен deterministic quality/geometry oracle поверх существующего Surya `results.json` loader.
@@ -47,7 +58,7 @@
 - Cold start, warm execution, queue delay, VRAM, OOM, worker lifetime, billed seconds, cost, provider logs/retention и cleanup остаются неизмеренными.
 - Активный `next_step_id` не меняется: benchmark продолжается следующими bounded slices и фактическим provider run.
 
-## 0.4. Изменение PR #190
+## 0.5. Изменение PR #190
 
 - Владелец продукта явно выбрал encrypted on-demand serverless GPU OCR вместо активной local-only visual localization разработки.
 - Former absolute rule `raw photos never leave the device` superseded for this consent-based mode.
@@ -115,7 +126,7 @@ Only sanitized derivatives may proceed to Gemini or another legal-analysis model
 | Local visual PII detector | Paused research/fallback |
 | Local-contrast text mask | Implemented as offline Python reference in PR #194; not integrated into Android/runtime |
 | Text-angle estimator | Implemented as offline Python reference in PR #195; not integrated into Android/runtime |
-| Content-region bounds/decision | Not implemented; next bounded normalization exception |
+| Content-region bounds/decision | Implemented as offline Python reference in PR #196; no runtime crop/deskew application |
 | Surya viability fixture + quality/geometry oracle | Implemented in PR #191 |
 | Benchmark renderer/serverless runner | Not implemented |
 | Actual Surya GPU viability result | Not measured |
@@ -143,13 +154,17 @@ Current provider pricing and Surya benchmarks are planning inputs only. The repo
 
 **`serverless-gpu-ocr-viability-benchmark-v1`** remains the canonical architecture step.
 
-По явному решению владельца продукта фактический Surya/provider run временно отложен до завершения следующей bounded sequence:
+По явному решению владельца продукта фактический Surya/provider run временно отложен до рабочего preprocessing/capture-quality контура.
+
+Завершённые bounded reference-шаги:
 
 1. `ocr-local-contrast-text-mask-v1` — PR #194;
 2. `ocr-text-angle-estimator-v1` — PR #195;
-3. `ocr-content-region-bounds-v1` — следующий разрешённый шаг после merge; строки, основная область и fail-safe decision без применения crop/deskew.
+3. `ocr-content-region-bounds-v1` — PR #196.
 
-Эта sequence не разрешает автоматически добавлять perspective correction, shadow cleanup, glare/blur gates, Android realtime analyzer или runtime crop. Каждый из них требует отдельного bounded решения.
+Следующий разрешённый шаг: `ocr-content-region-deskew-crop-v1`. Он может применять rotation/crop только при accepted upstream decisions и обязан сохранять полный кадр при любой неопределённости.
+
+Perspective correction, illumination/shadow normalization, glare/blur gates, Android realtime capture analyzer и финальная runtime integration всё ещё требуют отдельных bounded решений до Surya benchmark.
 
 После normalization sequence remaining benchmark work:
 
