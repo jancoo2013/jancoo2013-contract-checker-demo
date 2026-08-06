@@ -1,25 +1,21 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-06, PR #197, `restore-pr-context-gate-v1`.
+Последнее обновление: 2026-08-06, PR #198, `pr-context-gate-canary-v1`.
 
 Активный трек: `serverless-gpu-ocr`.
 
-Следующий обязательный шаг: `pr-context-gate-canary-v1`. До успешного canary-run проверка `validate-context` остаётся необязательной. После подтверждённого зелёного запуска её нужно снова сделать required и вернуться к `ocr-content-region-deskew-crop-v1`.
+Следующий implementation-шаг: `ocr-content-region-deskew-crop-v1`, но начинать его можно только после успешного автоматического и ручного canary-run PR #198 и возврата `validate-context` в required checks.
 
-Этот документ — каноническая operational-точка восстановления privacy/OCR-проекта. Подробная история PR #190–#196 сохраняется в Git history и описаниях соответствующих PR.
+Этот документ — каноническая operational-точка восстановления privacy/OCR-проекта. Подробная история PR #190–#197 сохраняется в Git history и описаниях соответствующих PR.
 
-## 0. Изменение PR #197
+## 0. Изменение PR #198
 
-- Workflow `PR context gate` сохранён с прежним job ID `validate-context`.
-- Удалена зависимость от скачиваемых `actions/checkout` и `actions/setup-python`, на разрешении которых последний реальный запуск был отменён до выполнения валидатора.
-- Exact base/head snapshots загружаются через GitHub REST API встроенными `curl` и `tar`; Python берётся из стандартного GitHub-hosted runner.
-- Автоматический trigger остаётся `pull_request_target`, поэтому workflow и исполняемый validator берутся из trusted default branch.
-- Candidate revision извлекается только как данные; выполняется исключительно `trusted/scripts/check_pr_context_gate.py`.
-- Добавлен `workflow_dispatch` с положительным целочисленным `pr_number` для ручной post-merge диагностики.
-- Permissions остаются read-only: `contents: read`, `pull-requests: read`.
-- Добавлен dependency-free structural test workflow-контракта; focused suite: 5/5.
-- Этот PR не может доказать собственный end-to-end trigger: `pull_request_target` использует workflow из `main`. После merge обязателен отдельный canary PR.
-- Runtime приложения, OCR, Android, изображения, upload, encryption, PII, Gemini, provider calls и storage не изменены.
+- Добавлен минимальный документационный canary `pr-context-gate-canary-v1` для workflow из merged PR #197.
+- Canary не меняет workflow, validator, product/runtime code, OCR, Android, изображения, зависимости, provider integration, upload, encryption, PII, Gemini или storage.
+- Успех требует автоматического `PR context gate / validate-context` на exact final head SHA и отдельного успешного `workflow_dispatch` для PR #198.
+- Run IDs и exact-head evidence фиксируются в PR description/conversation, чтобы не создавать новый commit SHA после наблюдаемого запуска.
+- `validate-context` остаётся необязательным до подтверждения обоих запусков.
+- После merge canary проверка возвращается в required checks; затем разрешён `ocr-content-region-deskew-crop-v1`.
 
 ## 1. Активная целевая цепочка
 
@@ -55,19 +51,18 @@ Tesseract full-page OCR on Samsung A55 remains NO-GO and cannot return as active
 | Surya quality/geometry oracle | Synthetic oracle implemented, PR #191 |
 | Actual Surya GPU/provider viability result | Not measured |
 
-The next image-processing implementation remains `ocr-content-region-deskew-crop-v1`, but it is paused until the CI canary succeeds.
+The next image-processing implementation remains `ocr-content-region-deskew-crop-v1`, paused until the CI canary succeeds and the required check is restored.
 
 ## 3. GitHub Actions gate status
 
 Current policy:
 
 1. `validate-context` is temporarily not required by the `main` ruleset.
-2. PR #197 must be merged manually while that requirement is absent.
-3. A small `pr-context-gate-canary-v1` PR must then be opened against the merged workflow.
-4. The canary passes only if `PR context gate / validate-context` appears automatically and succeeds on the exact canary head SHA.
-5. Manual `workflow_dispatch` should also successfully validate that PR number.
-6. Only after both observations may `validate-context` be restored as a required check.
-7. A missing, permanently queued, skipped, cancelled, or stale-head status is not a successful canary.
+2. PR #198 is the canary against the dependency-free workflow merged in PR #197.
+3. The canary passes only if `PR context gate / validate-context` appears automatically and succeeds on the exact final head SHA.
+4. Manual `workflow_dispatch` must also successfully validate PR #198.
+5. Only after both observations may PR #198 be merged and `validate-context` restored as a required check.
+6. A missing, permanently queued, skipped, cancelled, failed, or stale-head status is not a successful canary.
 
 The workflow remains fail-closed for undeclared paths and invalid state continuity. It does not prove semantic correctness of implementation code.
 
@@ -85,18 +80,16 @@ Raw images and raw OCR remain prohibited in Gemini, general OCR/LLM APIs, logs, 
 
 Production remains blocked until consent, authentication, key lifecycle, approved region/provider behavior, retention/deletion, log scrubbing, cleanup, legal review and incident response are separately defined and verified.
 
-## 5. Следующий шаг — `pr-context-gate-canary-v1`
+## 5. Следующий шаг — `ocr-content-region-deskew-crop-v1`
 
-Canary scope должен быть минимальным и не менять product/runtime behavior. Он должен:
+До начала implementation обязательно:
 
-- содержать точный Context Gate v1;
-- обновить оба state-файла;
-- не менять OCR, Android, dependencies, images, PII, provider integration или privacy boundary;
-- дождаться автоматического `PR context gate / validate-context` на exact head;
-- отдельно пройти manual `workflow_dispatch` по номеру PR;
-- зафиксировать run IDs и итог без преждевременного возврата required-check.
+- автоматический canary-run PR #198 завершён успешно на exact final head;
+- ручной `workflow_dispatch` для PR #198 завершён успешно;
+- PR #198 merged;
+- `validate-context` снова добавлен в required checks для `main`.
 
-После успешного canary:
+После этого разрешён bounded deskew/crop step, который применяет rotation/crop только при accepted upstream decisions и сохраняет full frame при любой неопределённости.
 
 ```text
 restore validate-context as required
