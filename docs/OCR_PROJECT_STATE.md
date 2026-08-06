@@ -15,10 +15,12 @@
   - raw/transient material — исходные страницы, raw OCR, PII-bearing payloads, ключи и временные артефакты; они подлежат bounded zero-retention после завершения или terminal failure;
   - persistable sanitized material — финальные отчёты и sanitized evidence, которые могут храниться для пользователя только при account-scoped authorization, encryption, deletion и defined backup lifecycle.
 - Зафиксирован Israel-only fail-closed gate: restricted material разрешено отправлять только на явно allowlisted инфраструктуру физически в Израиле; автоматический fallback, retry или replication в другой регион запрещены.
-- Добавлена обязательная отдельная final-diff security review для каждого PR в дополнение к обычному Codex review.
-- PR template теперь требует `Security impact`, проверенные области, findings, unverified runtime/provider behavior и ровно один итоговый verdict: `Security review: PASS` или `Security review: BLOCKING FINDINGS`.
-- `AGENTS.md` и `docs/CODEX_WORKFLOW.md` делают `SECURITY.md` binding source и запрещают Ready/merge recommendation при blocking security finding.
-- README кратко поясняет актуальную serverless privacy/security-границу и то, что финальные обезличенные отчёты сохраняются отдельно от raw/transient material.
+- Добавлена обязательная final-diff security review для каждого PR, выполняемая в обычном per-PR контуре orchestrating assistant.
+- Отдельный Codex review больше не является обязательным условием Ready или merge.
+- Codex используется для пакетного аудита накопленных merged-изменений примерно два раза в неделю либо по прямому запросу владельца продукта.
+- PR template требует `Security impact`, проверенные области, findings, unverified runtime/provider behavior и ровно один итоговый verdict: `Security review: PASS` или `Security review: BLOCKING FINDINGS`.
+- `AGENTS.md` и `docs/CODEX_WORKFLOW.md` делают `SECURITY.md` binding source, запрещают Ready/merge recommendation при blocking security finding и определяют periodic Codex batch audit.
+- README кратко поясняет актуальную serverless privacy/security-границу, хранение финальных обезличенных отчётов и отсутствие per-PR Codex gate.
 - Runtime, зависимости, network destinations, OCR, Gemini, Android, storage implementation и provider configuration не изменены.
 - Documentation-only validation: все семь Context Gate paths существуют и изменены; Markdown/JSON state синхронизированы; `active_track` и `next_step_id` сохранены; application tests не запускались как неприменимые к process/documentation-only diff.
 - Runtime/provider claims остаются непроверенными: Israel physical region, provider retention/deletion, cleanup, report authorization, encryption, backup expiry и incident response должны быть реализованы и проверены до production.
@@ -76,17 +78,24 @@ GitHub Actions remain enabled but are no longer part of the blocking contour:
 
 - `validate-context` stays non-required;
 - queued, delayed, missing or cancelled runs are best-effort diagnostics;
-- an Actions result does not replace code or security review.
+- an Actions result does not replace per-PR audit or security review.
 
 Every implementation, documentation, test, process, and state PR requires before merge:
 
 1. focused local tests on the exact final branch version when applicable;
 2. assistant self-audit of scope, diff, state continuity, credentials, raw data and generated files;
-3. an actually completed Codex review, with findings resolved or explicitly accepted;
-4. a separate mandatory final-diff security review under `SECURITY.md` with `Security review: PASS`;
-5. explicit product-owner merge approval.
+3. a mandatory final-diff security review under `SECURITY.md` with `Security review: PASS`;
+4. explicit product-owner merge approval.
 
-A Codex usage-limit message is not a completed review. A generic Codex review is not the mandatory security review. `Not applicable` is not an accepted security verdict, including for documentation-only PRs.
+An individual Codex review is not required before Ready or merge.
+
+Codex batch-audit policy:
+
+- audit accumulated merged work approximately twice per week or when explicitly requested by the product owner;
+- inspect the range since the previous completed audit;
+- look for cross-PR integration defects, security/privacy regressions, stale tests, unsupported claims and contract drift;
+- pending batch audit does not block ordinary PR merges;
+- only a concrete finding or explicit owner freeze blocks the affected work.
 
 ## 4. Privacy and security boundary
 
@@ -135,7 +144,9 @@ glare/blur/capture-quality gates
 4. менять только declared paths и approved bounded step;
 5. обновить оба state-файла фактическим номером PR;
 6. выполнить focused validation на exact final head SHA;
-7. провести self-audit, получить завершённый Codex review и отдельный `Security review: PASS`;
+7. провести assistant self-audit и отдельный `Security review: PASS`;
 8. не merge без явного решения владельца продукта.
 
 Последний полный cold-start audit: PR #177 после merge PR #176.
+
+Последний periodic Codex batch audit: ещё не проводился после принятия новой cadence-политики PR #201.
