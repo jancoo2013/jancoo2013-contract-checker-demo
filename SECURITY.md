@@ -115,7 +115,7 @@ Security review must consider at least:
 
 ## 5. Mandatory security review for every PR
 
-Every PR, including documentation-only and test-only PRs, must receive a final-diff security review before it is marked Ready. A generic code review is not a substitute.
+Every PR, including documentation-only and test-only PRs, must receive a final-diff security review before it is marked Ready. This review belongs to the normal per-PR audit performed by the orchestrating assistant; a separate Codex review is not required.
 
 The reviewer must inspect the exact final head and cover, as applicable:
 
@@ -155,7 +155,15 @@ The PR must not be marked Ready or recommended for merge when any of the followi
 - security evidence is stale, refers to a different head SHA, or claims runtime/provider behavior that was not actually tested;
 - binding security, privacy, architecture, or state documents conflict.
 
-## 6. Final report persistence contract
+## 6. Periodic Codex batch audit
+
+Codex is not a required reviewer for each PR. Instead, it should review accumulated merged changes approximately twice per week or when the product owner explicitly requests an audit.
+
+The batch audit should cover the range since the previous completed audit and look for cross-PR integration defects, security/privacy regressions, stale tests, unsupported claims, contract drift, unsafe dependencies, resource-amplification risks, and cleanup or authorization gaps.
+
+A pending batch audit does not block ordinary PR merges. A concrete blocking finding or an explicit product-owner freeze may pause only the affected area.
+
+## 7. Final report persistence contract
 
 The product may retain all final reports for the authenticated user. This convenience must not turn the report store into a hidden archive of original contracts.
 
@@ -172,7 +180,7 @@ The production design must define:
 - audit events without report contents;
 - handling of a report when later privacy validation detects a defect.
 
-## 7. Vulnerability handling
+## 8. Vulnerability handling
 
 Do not publish exploit details, credentials, or real contract data in a public issue. Report sensitive findings through a private channel agreed with the repository owner. Use synthetic proof material only.
 
