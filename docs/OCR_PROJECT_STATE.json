@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-06-48",
+  "state_version": "privacy-ocr-2026-08-06-49",
   "active_track": "serverless-gpu-ocr",
-  "next_step_id": "pr-context-gate-canary-v1",
-  "next_step_summary": "PR #197 restores the PR context gate workflow without downloadable Actions and adds a manual workflow_dispatch diagnostic. After merge, create one bounded canary PR and require an actual successful PR context gate / validate-context run on its exact head. Keep validate-context non-required until that canary succeeds. After the canary, restore validate-context as a required check and resume ocr-content-region-deskew-crop-v1. No OCR, Android runtime, image processing, provider call, upload, encryption, PII handling, Gemini call or permanent storage is authorized by this infrastructure step.",
-  "last_recorded_pr": 197,
-  "last_recorded_change": "restore-pr-context-gate-v1",
+  "next_step_id": "ocr-content-region-deskew-crop-v1",
+  "next_step_summary": "PR #198 is the bounded pr-context-gate-canary-v1. It may be merged only after PR context gate / validate-context appears automatically and succeeds on the exact final head, and a manual workflow_dispatch for PR #198 also succeeds. After merge, restore validate-context as a required main-branch check before starting ocr-content-region-deskew-crop-v1. This canary does not authorize OCR, Android runtime, image processing, provider calls, upload, encryption, PII handling, Gemini calls or permanent storage.",
+  "last_recorded_pr": 198,
+  "last_recorded_change": "pr-context-gate-canary-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-08-06"
