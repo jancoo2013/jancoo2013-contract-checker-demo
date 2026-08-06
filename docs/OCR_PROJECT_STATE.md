@@ -1,14 +1,25 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-05, PR #191, `serverless-gpu-ocr-viability-benchmark-oracle-v1`.
+Последнее обновление: 2026-08-06, PR #193, `ocr-content-region-detector-v1`.
 
 Активный трек: `serverless-gpu-ocr`.
 
-Единственный следующий шаг: `serverless-gpu-ocr-viability-benchmark-v1`.
+Канонический следующий шаг остаётся `serverless-gpu-ocr-viability-benchmark-v1`, но фактический provider run отложен до завершения явно разрешённой владельцем серии bounded client-normalization corrections. Следующее такое исключение: `ocr-content-region-deskew-crop-v1`.
 
 Этот документ — каноническая operational-точка восстановления privacy/OCR-проекта. Архитектуру задают `AGENTS.md`, `docs/ARCHITECTURE.md`, `docs/CUSTOM_OCR_PIPELINE.md` и `docs/SERVERLESS_GPU_OCR_PIPELINE_V1.md`. `docs/VISUAL_PII_LOCALIZATION_V1.md` сохраняет paused local-only alternative. Evidence/masking contract задаёт `docs/PII_EVIDENCE_DETECTOR_V1.md`; машиночитаемое состояние хранится в `docs/OCR_PROJECT_STATE.json`.
 
-## 0. Изменение PR #191
+## 0. Изменение PR #193
+
+- Владелец продукта явно потребовал завершить client-side image normalization до фактического запуска Surya benchmark.
+- Добавлен deterministic `content_region_detector.py`, который использует локальный контраст и геометрию строк вместо обязательного поиска границ белого листа.
+- Детектор работает на bounded preview до 1800 px, оценивает dominant text angle в диапазоне ±12°, возвращает line boxes и padded content bounds в `deskewed_preview` coordinate space.
+- Решение fail-safe: `accepted`, `rotation_only` или `full_frame_fallback`; сомнительная геометрия не разрешает обрезку.
+- Добавлены JSON report и optional debug overlay; реальные изображения договоров, OCR, crop, perspective warp, upload, encryption и runtime integration не добавлены.
+- Focused synthetic validation: 9/9 tests; покрыты white-on-white background, skew, edge-touching content, blank page, slow shadow gradient, JSON contract, overlay, pixel limit и CLI.
+- PR является явно разрешённым bounded architecture exception. Канонический Surya benchmark не отменён, но его фактическое выполнение отложено до завершения normalization sequence.
+- Следующее разрешённое исключение после merge: `ocr-content-region-deskew-crop-v1`, которое применит rotation/crop policy без perspective correction и без Surya integration.
+
+## 0.1. Изменение PR #191
 
 - Добавлен первый bounded slice активного `serverless-gpu-ocr-viability-benchmark-v1`: фиксированный синтетический десятистраничный Hebrew contract-like source packet без реальных PII.
 - Добавлен deterministic quality/geometry oracle поверх существующего Surya `results.json` loader.
@@ -18,7 +29,7 @@
 - Cold start, warm execution, queue delay, VRAM, OOM, worker lifetime, billed seconds, cost, provider logs/retention и cleanup остаются неизмеренными.
 - Активный `next_step_id` не меняется: benchmark продолжается следующими bounded slices и фактическим provider run.
 
-## 0.1. Изменение PR #190
+## 0.2. Изменение PR #190
 
 - Владелец продукта явно выбрал encrypted on-demand serverless GPU OCR вместо активной local-only visual localization разработки.
 - Former absolute rule `raw photos never leave the device` superseded for this consent-based mode.
@@ -84,6 +95,8 @@ Only sanitized derivatives may proceed to Gemini or another legal-analysis model
 | Geometry gates and irreversible mask rules | Preserved |
 | Android Tesseract full-page OCR | NO-GO; historical diagnostic only |
 | Local visual PII detector | Paused research/fallback |
+| Content-driven region detector | Implemented as offline Python reference in PR #193; not integrated into Android/runtime |
+| Content deskew/crop application | Not implemented |
 | Surya viability fixture + quality/geometry oracle | Implemented in PR #191 |
 | Benchmark renderer/serverless runner | Not implemented |
 | Actual Surya GPU viability result | Not measured |
@@ -107,11 +120,24 @@ Therefore `model throughput` does not equal end-to-end contract latency or per-c
 
 Current provider pricing and Surya benchmarks are planning inputs only. The repository must not claim that one contract is processed in fractions of a second until single-job cold and warm measurements exist.
 
-## 5. Единственный следующий шаг
+## 5. Канонический следующий шаг и временный normalization gate
 
-**`serverless-gpu-ocr-viability-benchmark-v1`** remains active.
+**`serverless-gpu-ocr-viability-benchmark-v1`** remains the canonical architecture step.
 
-Remaining bounded benchmark work:
+By explicit product-owner decision, actual Surya/provider execution is temporarily blocked until the client-side normalization block is brought to a working fail-safe state through bounded exceptions. PR #193 implements detection only. The next approved exception is:
+
+**`ocr-content-region-deskew-crop-v1`**
+
+Bounded scope for that exception:
+
+1. consume the PR #193 `accepted / rotation_only / full_frame_fallback` decision;
+2. apply bounded deskew rotation;
+3. crop only on `accepted`, preserve full frame on fallback, and never invent pixels;
+4. retain a safety margin around text content;
+5. emit deterministic provenance and debug output;
+6. do not add perspective correction, shadow normalization, Surya, provider calls, Android upload, real contracts, encryption, PII masks, Gemini calls or permanent storage.
+
+After the normalization sequence is complete, remaining benchmark work is:
 
 1. add a deterministic renderer for the checked-in synthetic source packet and record font/page hashes;
 2. add one serverless-compatible Surya runner without production upload or permanent storage;
