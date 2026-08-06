@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-06-44",
+  "state_version": "privacy-ocr-2026-08-06-45",
   "active_track": "serverless-gpu-ocr",
   "next_step_id": "serverless-gpu-ocr-viability-benchmark-v1",
-  "next_step_summary": "Continue the active bounded Surya viability benchmark after PR #191: render the fixed ten-page synthetic packet with recorded font/page hashes; add one serverless-compatible runner; pin package/model/backend/GPU configuration; measure queue delay when available, cold first-page and warm ten-page execution, worker lifetime, billed seconds, cost, total-device peak VRAM and OOM behavior; evaluate output through the checked-in quality/geometry oracle; inspect logs and retained artifacts for raw-content leakage; keep generated pages/raw OCR/reports outside version control; do not add Android upload, production encryption, real user contracts, production masks, Gemini calls, permanent storage or a custom VPS queue.",
-  "last_recorded_pr": 192,
-  "last_recorded_change": "future-product-architecture-ideas-v1",
+  "next_step_summary": "The canonical Surya viability benchmark remains active, but actual provider execution is temporarily deferred by explicit product-owner instruction until client-side normalization is completed in three bounded exceptions. PR #193 was closed without merge and superseded. PR #194 implements only ocr-local-contrast-text-mask-v1. After merge, the next authorized exception is ocr-text-angle-estimator-v1, followed by ocr-content-region-bounds-v1. These exceptions must not add crop/deskew application, Surya/provider calls, Android upload, real contracts, encryption, PII masks, Gemini calls or permanent storage unless separately authorized.",
+  "last_recorded_pr": 194,
+  "last_recorded_change": "ocr-local-contrast-text-mask-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-08-06"
