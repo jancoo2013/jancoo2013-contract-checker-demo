@@ -1,31 +1,121 @@
 name: PR context gate
+
 on:
   pull_request_target:
     types: [opened, edited, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number to validate
+        required: true
+        type: string
+
 permissions:
   contents: read
   pull-requests: read
+
+concurrency:
+  group: pr-context-gate-${{ github.event.pull_request.number || inputs.pr_number }}
+  cancel-in-progress: true
+
 jobs:
   validate-context:
-    if: ${{ github.event.pull_request.draft == false }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
-      - name: Checkout trusted base revision
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.base.sha }}
-          path: trusted
-          persist-credentials: false
-      - name: Checkout candidate revision as untrusted data
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          path: candidate
-          persist-credentials: false
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
+      - name: Resolve pull request metadata
+        id: pr
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          DISPATCH_PR_NUMBER: ${{ inputs.pr_number }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import pathlib
+          import urllib.request
+
+          event_name = os.environ["EVENT_NAME"]
+          event_path = pathlib.Path(os.environ["GITHUB_EVENT_PATH"])
+          output_path = pathlib.Path(os.environ["RUNNER_TEMP"]) / "context-gate-event.json"
+
+          if event_name == "workflow_dispatch":
+              raw_number = os.environ.get("DISPATCH_PR_NUMBER", "").strip()
+              if not raw_number.isdigit() or int(raw_number) < 1:
+                  raise SystemExit("pr_number must be a positive integer")
+              number = int(raw_number)
+              url = (
+                  f'{os.environ["GITHUB_API_URL"]}/repos/'
+                  f'{os.environ["GITHUB_REPOSITORY"]}/pulls/{number}'
+              )
+              request = urllib.request.Request(
+                  url,
+                  headers={
+                      "Authorization": f'Bearer {os.environ["GH_TOKEN"]}',
+                      "Accept": "application/vnd.github+json",
+                      "X-GitHub-Api-Version": "2022-11-28",
+                      "User-Agent": "pr-context-gate",
+                  },
+              )
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  pull_request = json.load(response)
+              if pull_request.get("draft") is True:
+                  raise SystemExit("manual validation requires a ready-for-review PR")
+              event = {"number": number, "pull_request": pull_request}
+          else:
+              event = json.loads(event_path.read_text(encoding="utf-8"))
+              pull_request = event.get("pull_request")
+              if not isinstance(pull_request, dict):
+                  raise SystemExit("pull_request event payload is missing")
+
+          base_sha = pull_request.get("base", {}).get("sha")
+          head_sha = pull_request.get("head", {}).get("sha")
+          if not isinstance(base_sha, str) or len(base_sha) != 40:
+              raise SystemExit("invalid base SHA")
+          if not isinstance(head_sha, str) or len(head_sha) != 40:
+              raise SystemExit("invalid head SHA")
+
+          output_path.write_text(json.dumps(event), encoding="utf-8")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"base_sha={base_sha}\n")
+              output.write(f"head_sha={head_sha}\n")
+              output.write(f"event_path={output_path}\n")
+          PY
+
+      - name: Download trusted and candidate snapshots
+        env:
+          BASE_SHA: ${{ steps.pr.outputs.base_sha }}
+          HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
+        run: |
+          set -euo pipefail
+          download_snapshot() {
+            local name="$1"
+            local sha="$2"
+            local archive="$RUNNER_TEMP/$name.tar.gz"
+            mkdir "$name"
+            curl --fail --silent --show-error --location --retry 3 \
+              --retry-all-errors \
+              --connect-timeout 15 \
+              --max-time 90 \
+              --header "Authorization: Bearer $GH_TOKEN" \
+              --header "Accept: application/vnd.github+json" \
+              --header "X-GitHub-Api-Version: 2022-11-28" \
+              "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/tarball/$sha" \
+              --output "$archive"
+            tar --extract --gzip --file "$archive" --directory "$name" --strip-components=1
+          }
+          download_snapshot trusted "$BASE_SHA"
+          download_snapshot candidate "$HEAD_SHA"
+
       - name: Validate PR context and state continuity
-        run: python trusted/scripts/check_pr_context_gate.py --event "$GITHUB_EVENT_PATH" --base-root trusted --head-root candidate
+        env:
+          CONTEXT_GATE_EVENT_PATH: ${{ steps.pr.outputs.event_path }}
+        run: >-
+          python3 trusted/scripts/check_pr_context_gate.py
+          --event "$CONTEXT_GATE_EVENT_PATH"
+          --base-root trusted
+          --head-root candidate
