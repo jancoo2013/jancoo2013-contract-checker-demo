@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-06-49",
+  "state_version": "privacy-ocr-2026-08-06-50",
   "active_track": "serverless-gpu-ocr",
-  "next_step_id": "ocr-content-region-deskew-crop-v1",
-  "next_step_summary": "PR #198 is the bounded pr-context-gate-canary-v1. It may be merged only after PR context gate / validate-context appears automatically and succeeds on the exact final head, and a manual workflow_dispatch for PR #198 also succeeds. After merge, restore validate-context as a required main-branch check before starting ocr-content-region-deskew-crop-v1. This canary does not authorize OCR, Android runtime, image processing, provider calls, upload, encryption, PII handling, Gemini calls or permanent storage.",
-  "last_recorded_pr": 198,
-  "last_recorded_change": "pr-context-gate-canary-v1",
+  "next_step_id": "github-actions-trigger-settings-audit-v1",
+  "next_step_summary": "PR #198 was merged after its canary had already failed: no automatic PR context gate / validate-context run appeared for either the opened or edited event on exact head 6d6406c352a353cfdc3c5a8ce804c288d1cfd58b, and no successful manual workflow_dispatch was confirmed. Keep validate-context non-required. The next bounded step is a repository-settings and workflow-status audit covering Actions enablement, allowed actions, workflow enabled state and a manual dispatch attempt, followed by a new canary PR. Do not start ocr-content-region-deskew-crop-v1 or restore the required check until a fresh automatic and manual canary both succeed.",
+  "last_recorded_pr": 199,
+  "last_recorded_change": "record-failed-context-gate-canary-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-08-06"
