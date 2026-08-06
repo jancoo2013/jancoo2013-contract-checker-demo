@@ -61,14 +61,15 @@ class ContentRegionResult:
 
 
 def _preview(image: Image.Image) -> tuple[Image.Image, float]:
-    oriented = ImageOps.exif_transpose(image).convert("RGB")
-    width, height = oriented.size
-    if width <= 0 or height <= 0:
+    raw_width, raw_height = image.size
+    if raw_width <= 0 or raw_height <= 0:
         raise ContentRegionDetectionError("source image dimensions must be positive")
-    if width * height > MAX_SOURCE_PIXELS:
+    if raw_width * raw_height > MAX_SOURCE_PIXELS:
         raise ContentRegionDetectionError(
             f"source exceeds the {MAX_SOURCE_PIXELS:,}-pixel safety limit"
         )
+    oriented = ImageOps.exif_transpose(image).convert("RGB")
+    width, height = oriented.size
     scale = min(1.0, PREVIEW_LONG_SIDE / max(width, height))
     if scale < 1.0:
         oriented = oriented.resize(
@@ -124,7 +125,10 @@ def _estimate_rotation(mask: np.ndarray) -> tuple[float, float]:
     ]
     best_angle, best_score = max(scored, key=lambda item: (item[1], -abs(item[0])))
     median_score = float(np.median([score for _, score in scored]))
-    gain = 0.0 if best_score <= 0.0 else max(0.0, (best_score - median_score) / best_score)
+    gain = 0.0 if best_score <= 0.0 else max(
+        0.0,
+        (best_score - median_score) / best_score,
+    )
     return best_angle, min(1.0, gain * 3.0)
 
 
@@ -179,7 +183,10 @@ def _line_boxes(mask: np.ndarray) -> list[BBox]:
 def _main_cluster(boxes: Sequence[BBox], width: int) -> list[BBox]:
     if not boxes:
         return []
-    centers = np.array([(box[0] + box[2]) / 2.0 for box in boxes], dtype=np.float64)
+    centers = np.array(
+        [(box[0] + box[2]) / 2.0 for box in boxes],
+        dtype=np.float64,
+    )
     widths = np.array([box[2] - box[0] for box in boxes], dtype=np.float64)
     median_center = float(np.median(centers))
     median_width = float(np.median(widths))
@@ -239,11 +246,8 @@ def detect_content_region(image: Image.Image) -> ContentRegionResult:
     line_score = min(1.0, len(boxes) / 8.0)
     width_score = 0.0
     if boxes:
-        width_score = min(
-            1.0,
-            float(np.median([box[2] - box[0] for box in boxes]))
-            / (preview.width * 0.55),
-        )
+        median_line_width = float(np.median([box[2] - box[0] for box in boxes]))
+        width_score = min(1.0, median_line_width / (preview.width * 0.55))
     confidence = round(
         0.5 * line_score + 0.3 * projection_confidence + 0.2 * width_score,
         4,
