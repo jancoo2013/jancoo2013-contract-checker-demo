@@ -2,10 +2,10 @@
   "schema_version": 1,
   "state_version": "privacy-ocr-2026-08-06-50",
   "active_track": "serverless-gpu-ocr",
-  "next_step_id": "github-actions-trigger-settings-audit-v1",
-  "next_step_summary": "PR #198 was merged after its canary had already failed: no automatic PR context gate / validate-context run appeared for either the opened or edited event on exact head 6d6406c352a353cfdc3c5a8ce804c288d1cfd58b, and no successful manual workflow_dispatch was confirmed. Keep validate-context non-required. The next bounded step is a repository-settings and workflow-status audit covering Actions enablement, allowed actions, workflow enabled state and a manual dispatch attempt, followed by a new canary PR. Do not start ocr-content-region-deskew-crop-v1 or restore the required check until a fresh automatic and manual canary both succeed.",
+  "next_step_id": "ocr-content-region-deskew-crop-v1",
+  "next_step_summary": "PR #199 records the product-owner decision to stop blocking development on GitHub Actions. validate-context remains non-required and GitHub workflow results are best-effort diagnostics only. Every implementation PR must instead complete focused local tests, assistant self-audit, and an actual Codex review before owner-approved merge. If Codex review cannot run because of account or usage limits, the PR is not considered reviewed until that review is completed. The next bounded implementation step is ocr-content-region-deskew-crop-v1; no Surya/provider call, Android upload, production encryption, PII handoff, Gemini call or permanent storage is authorized by this process decision.",
   "last_recorded_pr": 199,
-  "last_recorded_change": "record-failed-context-gate-canary-v1",
+  "last_recorded_change": "adopt-codex-review-fallback-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-08-06"
