@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-06-46",
+  "state_version": "privacy-ocr-2026-08-06-47",
   "active_track": "serverless-gpu-ocr",
-  "next_step_id": "serverless-gpu-ocr-viability-benchmark-v1",
-  "next_step_summary": "The canonical Surya viability benchmark remains active, but actual provider execution is temporarily deferred by explicit product-owner instruction until client-side normalization is completed in three bounded exceptions. PR #193 was closed without merge and superseded. PR #194 implements ocr-local-contrast-text-mask-v1. PR #195 implements only ocr-text-angle-estimator-v1. After merge, the next authorized exception is ocr-content-region-bounds-v1. These exceptions must not add crop/deskew application, Surya/provider calls, Android upload, real contracts, encryption, PII masks, Gemini calls or permanent storage unless separately authorized.",
-  "last_recorded_pr": 195,
-  "last_recorded_change": "ocr-text-angle-estimator-v1",
+  "next_step_id": "ocr-content-region-deskew-crop-v1",
+  "next_step_summary": "PR #196 implements only ocr-content-region-bounds-v1: deskewed-preview line bands, candidate bounds, safe padded bounds and fail-safe accepted/rotation_only/full_frame_fallback decisions without changing image pixels. The next authorized bounded step is ocr-content-region-deskew-crop-v1, which may apply rotation and crop only when upstream angle and bounds decisions are accepted, must preserve full-frame fallback otherwise, and must not add Surya/provider calls, illumination/glare/blur processing, Android realtime capture analysis, real contracts, upload, encryption, PII masks, Gemini calls or permanent storage. Actual Surya/provider execution remains deferred by explicit product-owner instruction until the preprocessing and capture-quality block is operational.",
+  "last_recorded_pr": 196,
+  "last_recorded_change": "ocr-content-region-bounds-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-08-06"
