@@ -64,6 +64,12 @@ Replace this block with the exact bounded change contract. Keep exactly one Cont
 - Final head SHA covered by validation and security review:
 - Remaining limitations:
 
+## Review Policy
+
+- Per-PR Codex review required: no.
+- Periodic Codex batch audit: approximately twice per week or on explicit product-owner request.
+- Pending batch audit blocks this PR: no, unless a concrete finding or explicit freeze applies.
+
 ## Merge
 
 - [ ] State-update commit is present.
