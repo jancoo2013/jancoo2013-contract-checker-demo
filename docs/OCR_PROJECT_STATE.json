@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-06-51",
+  "state_version": "privacy-ocr-2026-08-06-56",
   "active_track": "serverless-gpu-ocr",
   "next_step_id": "ocr-illumination-shadow-normalization-v1",
-  "next_step_summary": "PR #200 adds the bounded full-resolution deskew/crop reference transform. It applies geometry only when both the angle and content-region decisions are accepted; all valid non-accepted outcomes preserve the full EXIF-normalized frame. GitHub Actions remain non-required and best-effort. Before merge, require focused local tests on the exact final branch, assistant self-audit, an actually completed Codex review, and explicit product-owner approval. After merge, implement bounded illumination/shadow normalization without OCR, Android runtime integration, provider calls, upload, PII handling, Gemini calls or permanent storage.",
-  "last_recorded_pr": 200,
-  "last_recorded_change": "ocr-content-region-deskew-crop-v1",
+  "next_step_summary": "PR #201 adds a binding SECURITY.md, a mandatory per-PR final-diff security review, an explicit Israel-only fail-closed rule for original images/raw OCR/PII-bearing payloads, and a separate persistence contract for sanitized final reports. Individual Codex review is not required before Ready or merge. Codex instead performs periodic batch audits of accumulated merged work approximately twice per week or on explicit product-owner request. Runtime behavior, dependencies, provider configuration, active_track, and the bounded OCR next step remain unchanged. After merge, implement bounded illumination/shadow normalization without OCR, Android runtime integration, provider calls, upload, PII handling, Gemini calls, permanent storage implementation, or security-policy changes.",
+  "last_recorded_pr": 201,
+  "last_recorded_change": "security-policy-mandatory-review-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-08-06"

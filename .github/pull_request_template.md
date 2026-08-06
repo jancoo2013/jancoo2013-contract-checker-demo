@@ -32,20 +32,48 @@ Replace this block with the exact bounded change contract. Keep exactly one Cont
 
 - Runtime behavior changed: yes / no
 - Data handling changed: yes / no
+- Privacy boundary changed: yes / no
+- Security invariants changed: yes / no
+- Final report persistence changed: yes / no
 - State metadata changed: yes / no
 - New dependencies: none / describe
-- External APIs or services added: none / describe
+- External APIs, network destinations, permissions, or services added: none / describe
 - OCR or Gemini image calls added: no / describe
-- Real contracts, page images, contract text, or PII written to GitHub: no
+- Real contracts, page images, contract text, raw OCR, credentials, or PII written to GitHub: no
+
+## Security Review
+
+- Security impact: `NONE` / `LOW` / `HIGH`
+- Areas inspected:
+  - data flows and trust boundaries;
+  - raw/transient material, report storage, retention, deletion, caches, and backups;
+  - authentication, authorization, ownership checks, and IDOR/enumeration risk;
+  - secrets, tokens, signed URLs, logs, analytics, crash reports, and errors;
+  - Israel-only endpoint allowlisting and absence of cross-region fallback;
+  - hostile input, parsing, paths, SSRF, resource bounds, retries, concurrency, and cost amplification;
+  - redaction irreversibility, privacy validation, dependencies, permissions, and supply chain;
+  - cleanup on success, failure, timeout, cancellation, and interruption.
+- Findings and disposition:
+- Runtime/provider behavior not verified:
+- Final verdict: `Security review: PASS` / `Security review: BLOCKING FINDINGS`
 
 ## Validation
 
 - Tests or checks run:
 - Results:
+- Final head SHA covered by validation and security review:
 - Remaining limitations:
+
+## Review Policy
+
+- Per-PR Codex review required: no.
+- Periodic Codex batch audit: approximately twice per week or on explicit product-owner request.
+- Pending batch audit blocks this PR: no, unless a concrete finding or explicit freeze applies.
 
 ## Merge
 
 - [ ] State-update commit is present.
+- [ ] Final-diff security review is complete.
+- [ ] `Security review: PASS` and no blocking finding remains.
 - [ ] Ready for review.
 - [ ] No auto-merge requested.

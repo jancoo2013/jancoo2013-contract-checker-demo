@@ -1,14 +1,31 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-06, PR #200, `ocr-content-region-deskew-crop-v1`.
+Последнее обновление: 2026-08-06, PR #201, `security-policy-mandatory-review-v1`.
 
 Активный трек: `serverless-gpu-ocr`.
 
-Следующий bounded-шаг после merge PR #200: `ocr-illumination-shadow-normalization-v1`.
+Следующий bounded-шаг после merge PR #201: `ocr-illumination-shadow-normalization-v1`.
 
 Этот документ — каноническая operational-точка восстановления privacy/OCR-проекта. Подробная история сохраняется в Git history и описаниях PR.
 
-## 0. Изменение PR #200
+## 0. Изменение PR #201
+
+- Добавлен корневой `SECURITY.md` как binding security policy для каждой ветки и каждого PR.
+- Разделены два класса данных:
+  - raw/transient material — исходные страницы, raw OCR, PII-bearing payloads, ключи и временные артефакты; они подлежат bounded zero-retention после завершения или terminal failure;
+  - persistable sanitized material — финальные отчёты и sanitized evidence, которые могут храниться для пользователя только при account-scoped authorization, encryption, deletion и defined backup lifecycle.
+- Зафиксирован Israel-only fail-closed gate: restricted material разрешено отправлять только на явно allowlisted инфраструктуру физически в Израиле; автоматический fallback, retry или replication в другой регион запрещены.
+- Добавлена обязательная final-diff security review для каждого PR, выполняемая в обычном per-PR контуре orchestrating assistant.
+- Отдельный Codex review не является обязательным условием Ready или merge.
+- Codex используется для пакетного аудита накопленных merged-изменений примерно два раза в неделю либо по прямому запросу владельца продукта.
+- PR template требует `Security impact`, проверенные области, findings, unverified runtime/provider behavior и ровно один итоговый verdict: `Security review: PASS` или `Security review: BLOCKING FINDINGS`; отдельный раздел явно фиксирует отсутствие per-PR Codex gate.
+- `AGENTS.md` и `docs/CODEX_WORKFLOW.md` делают `SECURITY.md` binding source, запрещают Ready/merge recommendation при blocking security finding и определяют periodic Codex batch audit.
+- README кратко поясняет актуальную serverless privacy/security-границу, хранение финальных обезличенных отчётов и отсутствие per-PR Codex gate.
+- Runtime, зависимости, network destinations, OCR, Gemini, Android, storage implementation и provider configuration не изменены.
+- Documentation-only validation: все семь Context Gate paths существуют и изменены; Markdown/JSON state синхронизированы; `active_track` и `next_step_id` сохранены; application tests не запускались как неприменимые к process/documentation-only diff.
+- Runtime/provider claims остаются непроверенными: Israel physical region, provider retention/deletion, cleanup, report authorization, encryption, backup expiry и incident response должны быть реализованы и проверены до production.
+
+### Предыдущее изменение PR #200
 
 - Добавлен offline Python reference-компонент физического deskew/crop полного изображения.
 - Входы — `TextAngleEstimate` из PR #195 и `ContentRegionBounds` из PR #196.
@@ -35,6 +52,7 @@ raw phone photos
 → approved LLM legal-risk analysis
 → Russian report
 → deletion of raw and transient job material
+→ optional persistent storage of the sanitized final report under exact account authorization
 ```
 
 Tesseract full-page OCR on Samsung A55 remains NO-GO and cannot return as active fallback.
@@ -60,30 +78,42 @@ GitHub Actions remain enabled but are no longer part of the blocking contour:
 
 - `validate-context` stays non-required;
 - queued, delayed, missing or cancelled runs are best-effort diagnostics;
-- an Actions result does not replace code review.
+- an Actions result does not replace per-PR audit or security review.
 
-Every implementation PR requires before merge:
+Every implementation, documentation, test, process, and state PR requires before merge:
 
-1. focused local tests on the exact final branch version;
+1. focused local tests on the exact final branch version when applicable;
 2. assistant self-audit of scope, diff, state continuity, credentials, raw data and generated files;
-3. an actually completed Codex review, with findings resolved or explicitly accepted;
+3. a mandatory final-diff security review under `SECURITY.md` with `Security review: PASS`;
 4. explicit product-owner merge approval.
 
-A Codex usage-limit message is not a completed review.
+An individual Codex review is not required before Ready or merge.
 
-## 4. Privacy boundary
+Codex batch-audit policy:
 
-Raw material may exist only in:
+- audit accumulated merged work approximately twice per week or when explicitly requested by the product owner;
+- inspect the range since the previous completed audit;
+- look for cross-PR integration defects, security/privacy regressions, stale tests, unsupported claims and contract drift;
+- pending batch audit does not block ordinary PR merges;
+- only a concrete finding or explicit owner freeze blocks the affected work.
+
+## 4. Privacy and security boundary
+
+Restricted raw/transient material may exist only in:
 
 - user device;
 - encrypted transport;
-- encrypted short-lived job storage when needed;
+- approved encrypted short-lived job storage when needed;
 - volatile authorized worker memory;
 - bounded transient worker files only when unavoidable and automatically deleted.
 
-Raw images and raw OCR remain prohibited in Gemini, general OCR/LLM APIs, logs, analytics, crash reports, GitHub, CI, Airtable and unrelated services. Only sanitized derivatives may proceed to legal analysis.
+Original images, raw OCR and any PII-bearing payload may enter only explicitly approved infrastructure physically located in Israel. Any unapproved endpoint or region must fail closed before upload or job creation. Automatic fallback, retry, replication or disaster-recovery routing outside Israel is prohibited for restricted material.
 
-Production remains blocked until consent, authentication, key lifecycle, approved Israel-only provider behavior, retention/deletion, log scrubbing, cleanup, legal review and incident response are separately defined and verified.
+Raw images and raw OCR remain prohibited in Gemini, general OCR/LLM APIs, logs, analytics, crash reports, GitHub, CI, Airtable и unrelated services. Only sanitized derivatives may proceed to legal analysis.
+
+Final reports are not zero-retention objects. The product may retain all final reports for the authenticated user only when they contain sanitized analysis/evidence and no original images, raw OCR, recoverable PII, secrets or reversible hidden layers. Persistent report operations require exact account-scoped authorization, encryption, user deletion, account deletion, retention and backup-expiry behavior.
+
+Production remains blocked until consent, authentication, report authorization, key lifecycle, approved Israel-only provider behavior, retention/deletion, log scrubbing, cleanup, backup lifecycle, legal review, abuse controls and incident response are separately implemented and verified.
 
 ## 5. Следующий шаг — `ocr-illumination-shadow-normalization-v1`
 
@@ -93,7 +123,7 @@ Production remains blocked until consent, authentication, key lifecycle, approve
 - подключать Android runtime или камеру;
 - вызывать внешнего provider;
 - отправлять или сохранять изображения;
-- менять PII, Gemini, encryption или production storage.
+- менять PII, Gemini, encryption, production storage или security policy.
 
 После него:
 
@@ -108,13 +138,15 @@ glare/blur/capture-quality gates
 
 Перед новой privacy/OCR веткой:
 
-1. прочитать binding sources с актуального `main`;
+1. прочитать binding sources с актуального `main`, включая `SECURITY.md`;
 2. проверить отсутствие overlapping open PRs;
 3. опубликовать exact Context Gate v1;
 4. менять только declared paths и approved bounded step;
 5. обновить оба state-файла фактическим номером PR;
 6. выполнить focused validation на exact final head SHA;
-7. провести self-audit и получить завершённый Codex review;
+7. провести assistant self-audit и отдельный `Security review: PASS`;
 8. не merge без явного решения владельца продукта.
 
 Последний полный cold-start audit: PR #177 после merge PR #176.
+
+Последний periodic Codex batch audit: ещё не проводился после принятия новой cadence-политики PR #201.

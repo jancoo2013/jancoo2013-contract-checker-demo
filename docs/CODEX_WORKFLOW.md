@@ -1,185 +1,202 @@
-# Codex Orchestration Protocol
+# Codex Execution and Periodic Audit Protocol
 
-Status: repository execution protocol. This document defines how the product owner, orchestrating assistant, and Codex divide work. It does not override `AGENTS.md`, product architecture, privacy/OCR contracts, or the current state files.
+Status: repository protocol for bounded Codex execution and periodic batch audits. This document does not override `AGENTS.md`, `SECURITY.md`, product architecture, privacy/OCR contracts, or the current state files.
 
 ## 1. Roles
 
-- The product owner chooses product direction, approves bounded steps, and decides whether to merge.
-- The orchestrating assistant reads the repository state, proposes one bounded step, writes the exact Codex task, and independently audits the resulting PR.
-- Codex is the repository executor. It reads the repository, creates the branch, changes files, runs available checks, fixes in-scope failures, opens the PR, and never merges it.
+- The product owner chooses product direction, approves bounded steps, decides whether to merge, and may request an immediate audit.
+- The orchestrating assistant reads repository state, defines bounded work, audits each PR, maintains state continuity, and performs the per-PR security review.
+- Codex may be used in two separate modes:
+  1. **bounded executor** for a specifically assigned implementation task;
+  2. **periodic batch auditor** for a range of accumulated merged work.
 
-Do not transfer implementation code manually between ChatGPT, Android Studio, and GitHub. Android Studio may be used only for visual inspection or a separately justified low-level diagnostic.
+Codex review is not required after every PR and is not a normal merge prerequisite.
 
-## 2. Current state is never hard-coded here
+## 2. Binding sources
 
-Permanent process documents must not name a supposedly current PR number, branch, `active_track`, or `next_step_id` as operational truth.
-
-At the start of every task, read the current values from the actual `main` branch:
+Before either execution or audit, read current versions from the relevant base or audit endpoint:
 
 1. `AGENTS.md`
-2. `docs/ARCHITECTURE.md`
-3. `docs/CUSTOM_OCR_PIPELINE.md`
-4. `docs/OCR_PROJECT_STATE.md`
-5. `docs/OCR_PROJECT_STATE.json`
+2. `SECURITY.md`
+3. `docs/ARCHITECTURE.md`
+4. `docs/CUSTOM_OCR_PIPELINE.md`
+5. `docs/SERVERLESS_GPU_OCR_PIPELINE_V1.md`
+6. `docs/OCR_PROJECT_STATE.md`
+7. `docs/OCR_PROJECT_STATE.json`
 
-Conversation history may explain product-owner intent, but it does not replace repository state. If the binding documents disagree, stop before implementation and propose a separate consistency fix.
+Conversation history may explain intent but does not replace repository state. Stop and report a conflict when binding documents disagree.
 
-## 3. One task packet per PR
+## 3. Mode A — bounded Codex execution
 
-Before Codex starts implementation, the orchestrating assistant prepares one bounded task packet containing:
+When Codex is explicitly assigned one PR, the task packet must contain:
 
 - repository and base branch;
-- the five binding sources;
-- the actual current `active_track` and `next_step_id` read from `main`;
+- actual current `active_track` and `next_step_id`;
 - one measurable change;
-- exactly one Context Gate v1 JSON object;
-- the complete list of allowed paths;
+- exactly one Context Gate v1 object;
+- complete allowed paths;
 - explicit forbidden changes;
 - expected behavior;
 - focused tests and final validation;
 - failure and blocker policy;
 - draft/Ready requirements;
-- a no-auto-merge instruction.
+- no-auto-merge instruction.
 
-Avoid broad instructions such as “improve the detector”, “clean up the code”, or “fix anything you find”. One PR implements one measurable step.
+Avoid broad instructions such as “improve security”, “clean up the subsystem”, or “fix everything you find”.
 
-## 4. Required execution order
+### 3.1 Execution order
 
-Codex must use this sequence:
+Codex must:
 
-1. Read all five binding documents from the current base branch.
-2. Confirm that Markdown and JSON state agree.
-3. Check for an overlapping open PR.
-4. Publish the Context Gate v1 in its initial task report before changing files.
-5. Create a new branch from the current `main` head.
-6. Implement only the bounded change and run focused checks.
-7. Open the PR against `main` as a draft, copying the same single Context Gate JSON block into the PR body.
-8. After the PR number exists, update both state files in the same branch.
-9. Re-run all required final checks after the last code, documentation, and state change.
-10. Inspect the final diff and verify that actual changed paths exactly match `allowed_paths`.
-11. Record final validation evidence and remaining limitations in the PR body.
-12. Mark the PR ready for review.
-13. Do not merge and do not enable auto-merge.
+1. read all binding documents from the current base;
+2. confirm state agreement and check overlapping open PRs;
+3. publish the Context Gate before modifying files;
+4. create a branch from the current `main` head;
+5. implement only the bounded change;
+6. run focused checks;
+7. open the PR as draft;
+8. update both state files after the PR number exists;
+9. re-run final checks after the last change;
+10. verify declared and actual paths match exactly;
+11. record exact validation evidence and remaining limitations;
+12. leave merge and auto-merge disabled.
 
-The Context Gate may be published before a PR exists, but the PR body must contain the same object and exactly one Context Gate JSON block.
+When Codex implements the PR, its final implementation report is not an additional independent Codex review gate. The orchestrating assistant still performs the normal per-PR audit and security verdict.
 
-## 5. Final-SHA evidence
+### 3.2 Final-SHA evidence
 
-A passing command from an earlier commit is not final proof.
-
-Before Ready, Codex must report:
+Report:
 
 - base SHA;
 - final head SHA;
-- exact commands run;
-- command results or exit codes;
-- relevant workflow run identifiers when CI was used;
-- whether build, install, launch, logs, or device smoke actually ran.
+- exact commands and results;
+- workflow/job identifiers when used;
+- which build, install, launch, device, log, provider, deletion, retention, region, or authorization checks actually ran;
+- all runtime/provider behavior that remains unverified.
 
-All claimed final tests, builds, and device checks must apply to the same final head SHA that is presented for review. If state or code changes after a passing test, the required final checks must run again.
+Claims from an earlier commit are stale after code, documentation, state, dependency, configuration, or workflow changes.
 
-Never claim build, install, launch, device smoke, log inspection, or external-service behavior from static review alone.
+### 3.3 Bounded failure loop
 
-## 6. Bounded failure loop
+On a required-command failure:
 
-When a required command fails, Codex should not stop at the first obvious in-scope error. It must:
+1. inspect output and repository-owned diagnostics;
+2. identify the first actionable root cause;
+3. make the smallest in-scope correction;
+4. rerun the failed command;
+5. rerun final focused validation after it passes.
 
-1. Read the command output and any repository-owned failure log.
-2. Identify the first actionable root cause.
-3. Make the smallest correction allowed by the Context Gate.
-4. Re-run the failed command.
-5. After it passes, re-run focused tests and the final required validation on the resulting diff.
+Make no more than two consecutive correction attempts for the same root cause without returning to the product owner. Stop earlier when the category changes, the fix becomes speculative, or scope expands.
 
-Codex may make at most two consecutive correction attempts for the same root cause without returning to the product owner. Stop earlier if the failure changes category, the proposed correction becomes speculative, or the task boundary is no longer clear.
+Stop and report a blocker when continuation requires:
 
-Codex must stop and report a blocker when continuation requires:
-
-- a new dependency;
-- a different subsystem;
-- an architecture or product decision;
-- a privacy-boundary change;
-- unavailable credentials;
-- an unavailable authorized device;
+- a new dependency or subsystem;
+- a product, architecture, privacy, or security decision;
+- unavailable credentials, device, GPU, or approved region;
 - a destructive device action;
 - a larger allowed-path list;
-- sending real contracts or recoverable PII to an external service.
+- real contracts or recoverable PII sent to an external service;
+- weakening an Israel-only, deletion, authorization, redaction, secret-handling, or fail-closed invariant.
 
-Environment failures in Java, Android SDK, Node, Gradle, adb, credentials, or device authorization must not be hidden by changing product code.
+## 4. Mode B — periodic Codex batch audit
 
-## 7. Repository hygiene
+The default review policy is a batch audit of accumulated merged work approximately twice per week, not a review after every PR.
 
-Unless explicitly required by the approved task, do not commit:
+A periodic audit should cover the commit or PR range since the last completed audit. When no prior audit marker exists, choose a bounded recent range and record its start and end SHAs.
 
-- build directories or generated binaries;
-- APK files or workflow artifacts;
-- local logs or diagnostic dumps;
-- caches, IDE metadata, temporary scripts, or temporary workflows;
-- repository-external review packs or reports;
-- lock-file changes when dependencies did not change.
+### 4.1 Audit goals
 
-Before Ready, inspect the diff specifically for generated, temporary, binary, environment-specific, and undeclared files.
+Inspect for defects that are easier to detect across several PRs than within one diff:
 
-Do not introduce speculative abstractions, opportunistic refactors, adjacent features, or “future-proofing” outside the measurable change.
+- cross-PR integration errors and contract drift;
+- inconsistent state or binding documents;
+- security/privacy regressions;
+- raw data, PII, credential, log, analytics, or artifact exposure;
+- Israel-only endpoint or fallback violations;
+- authorization/IDOR risks in stored reports;
+- incomplete cleanup, retention, deletion, or backup behavior;
+- stale or missing tests;
+- unsupported runtime/provider claims;
+- resource, retry, concurrency, GPU-cost, and denial-of-service risks;
+- dependency, permission, workflow, and supply-chain changes;
+- scope creep, dead code, duplicated logic, and contradictory component contracts.
 
-## 8. Android execution
+### 4.2 Audit output
 
-For mobile work, use the repository-owned Windows PowerShell commands defined in `AGENTS.md` from the repository root. Apply `test`, `doctor`, `build`, `run`, `logs`, and `restart` only under their documented conditions.
+The audit must report:
 
-The final Android evidence must distinguish:
-
-- static code review;
-- JavaScript tests;
-- environment validation;
-- standalone APK build;
-- device installation;
-- application launch;
-- runtime smoke;
-- log inspection.
-
-One does not prove another.
-
-## 9. Truthful Codex dispatch
-
-The orchestrating assistant must not say that a task was sent to Codex, that Codex is running, or that Codex completed work unless an actual Codex invocation occurred.
-
-When direct Codex invocation is unavailable, provide the complete ready-to-run task packet and state that execution has not started. Do not substitute an improvised GitHub workflow while describing it as Codex.
-
-## 10. Independent PR audit
-
-The orchestrating assistant must inspect GitHub independently rather than accept the Codex summary as proof. The audit checks:
-
-- the PR base and base SHA;
-- the final head SHA;
-- exactly one Context Gate JSON block;
-- declared versus actual changed paths;
-- implementation scope and hidden architecture expansion;
-- focused and final test evidence;
-- whether final checks ran after the last change;
-- build/install/device claims;
-- Markdown/JSON state agreement;
-- unauthorized changes to `active_track` or `next_step_id`;
-- privacy-boundary compliance;
-- generated or temporary files;
-- auto-merge state.
-
-The audit verdict must state:
-
-- what changed;
-- what is actually proved;
+- start SHA and end SHA;
+- included PRs or commits;
+- binding state read at the end SHA;
+- checks and tests actually run;
+- findings grouped as blocking, corrective, or observation;
 - what remains unverified;
-- any findings;
-- whether the PR can be merged.
+- whether an immediate product freeze is warranted;
+- bounded corrective PR recommendations.
 
-Use one of these outcomes:
+Use these outcomes:
 
-1. `MERGEABLE` — no blocking finding remains.
-2. `CORRECTIVE REQUIRED IN THIS PR` — the fix is bounded and does not require a new product decision.
-3. `BLOCKED PENDING PRODUCT DECISION` — continuing would expand scope or change architecture, dependencies, privacy, or product direction.
+1. `BATCH AUDIT CLEAR` — no blocking defect found in the inspected range.
+2. `CORRECTIVE PR REQUIRED` — one or more bounded fixes are needed, but ordinary unrelated work may continue.
+3. `FREEZE AFFECTED AREA` — a serious security, privacy, architecture, or data-integrity issue requires pausing the affected subsystem pending owner decision or correction.
 
-Do not recommend merge when there is a blocking defect, state inconsistency, undeclared file, stale validation, unsupported claim, or enabled auto-merge.
+A pending periodic audit does not block ordinary PR merges. Only an explicit product-owner freeze or a concrete blocking finding affecting the current PR changes that.
 
-## 11. PR size and scope
+### 4.3 Audit continuity
 
-Target no more than 300 changed implementation lines. Treat 400 implementation lines as the normal hard limit. Documentation and state are assessed separately for reasonableness but do not justify an oversized implementation.
+Record the last completed audit range and date in the canonical project state or the dedicated audit record selected by the product owner. The next audit begins after that end SHA so ranges do not silently overlap or leave gaps.
 
-One Codex task must not bundle multiple sequential PRs. The next step is selected only after the current PR is merged and the new `main` state is read again.
+The “approximately twice per week” target is an operating cadence, not an automated merge condition. Missing the target does not invalidate already merged PRs.
+
+## 5. Per-PR audit remains with the orchestrating assistant
+
+For each individual PR, the orchestrating assistant checks:
+
+- base and final head SHA;
+- exactly one Context Gate JSON block;
+- declared versus actual paths;
+- bounded scope;
+- final validation evidence;
+- state agreement;
+- privacy and security invariants;
+- credentials, raw data, generated files, and provider artifacts;
+- auto-merge state;
+- the mandatory security verdict required by `SECURITY.md`.
+
+Possible per-PR outcomes:
+
+1. `MERGEABLE`
+2. `CORRECTIVE REQUIRED IN THIS PR`
+3. `BLOCKED PENDING PRODUCT DECISION`
+
+This per-PR audit does not require a separate Codex review.
+
+## 6. Repository hygiene
+
+Unless explicitly required, do not commit:
+
+- build directories, generated binaries, APKs, or workflow artifacts;
+- local logs, diagnostic dumps, caches, or IDE metadata;
+- temporary scripts or workflows;
+- lock-file changes without a dependency change;
+- credentials, tokens, signed URLs, endpoint IDs, real job payloads, raw OCR, page images, or recoverable PII.
+
+Do not introduce opportunistic refactors, speculative abstractions, adjacent features, or “future-proofing” outside the approved task or audit correction.
+
+## 7. Truthful Codex dispatch
+
+Do not claim that Codex was invoked, is running, completed a task, or completed an audit unless an actual invocation occurred.
+
+When direct invocation is unavailable, provide a ready-to-run task or audit packet and state that execution has not started. Do not label an improvised GitHub action as Codex work.
+
+## 8. Android and serverless evidence
+
+For Android work, distinguish static review, JavaScript tests, environment validation, APK build, installation, launch, runtime smoke, logs, and security behavior. One does not prove another.
+
+For serverless work, distinguish static configuration review from actual evidence of region, retention, deletion, cleanup, authentication, authorization, resource limits, and provider behavior.
+
+## 9. PR size and scope
+
+Target no more than 300 changed implementation lines per PR and treat 400 as the normal hard limit. Documentation does not justify an oversized implementation.
+
+A bounded Codex task must not bundle multiple sequential PRs. A periodic audit may inspect multiple PRs but must propose corrections as separate bounded PRs.
