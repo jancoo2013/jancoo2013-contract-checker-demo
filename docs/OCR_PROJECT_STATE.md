@@ -1,6 +1,6 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-05, PR #191, `serverless-gpu-ocr-viability-benchmark-oracle-v1`.
+Последнее обновление: 2026-08-06, PR #192, `future-product-architecture-ideas-v1`.
 
 Активный трек: `serverless-gpu-ocr`.
 
@@ -8,7 +8,15 @@
 
 Этот документ — каноническая operational-точка восстановления privacy/OCR-проекта. Архитектуру задают `AGENTS.md`, `docs/ARCHITECTURE.md`, `docs/CUSTOM_OCR_PIPELINE.md` и `docs/SERVERLESS_GPU_OCR_PIPELINE_V1.md`. `docs/VISUAL_PII_LOCALIZATION_V1.md` сохраняет paused local-only alternative. Evidence/masking contract задаёт `docs/PII_EVIDENCE_DETECTOR_V1.md`; машиночитаемое состояние хранится в `docs/OCR_PROJECT_STATE.json`.
 
-## 0. Изменение PR #191
+## 0. Изменение PR #192
+
+- Добавлен `docs/FUTURE_PRODUCT_AND_ARCHITECTURE_IDEAS.md` — документационный backlog продуктовых, UX, privacy и архитектурных идей из рабочего голосового диалога.
+- Зафиксированы направления для будущей разработки: Contract Question Engine, evidence IDs вместо генерируемых LLM-цитат, ролевые PII placeholders, Israel-only Region Guard, server-side GPU OCR, UX ожидания, нейтральное звуковое уведомление и полная продуктовая обвязка.
+- Документ не объявляет эти идеи реализованными и не заменяет binding architecture/state sources.
+- Runtime, data handling, зависимости, OCR worker, Android-код, внешние API и production privacy boundary не изменены.
+- Активный трек `serverless-gpu-ocr` и единственный следующий шаг `serverless-gpu-ocr-viability-benchmark-v1` остаются без изменений.
+
+## 0.1. Изменение PR #191
 
 - Добавлен первый bounded slice активного `serverless-gpu-ocr-viability-benchmark-v1`: фиксированный синтетический десятистраничный Hebrew contract-like source packet без реальных PII.
 - Добавлен deterministic quality/geometry oracle поверх существующего Surya `results.json` loader.
@@ -18,7 +26,7 @@
 - Cold start, warm execution, queue delay, VRAM, OOM, worker lifetime, billed seconds, cost, provider logs/retention и cleanup остаются неизмеренными.
 - Активный `next_step_id` не меняется: benchmark продолжается следующими bounded slices и фактическим provider run.
 
-## 0.1. Изменение PR #190
+## 0.2. Изменение PR #190
 
 - Владелец продукта явно выбрал encrypted on-demand serverless GPU OCR вместо активной local-only visual localization разработки.
 - Former absolute rule `raw photos never leave the device` superseded for this consent-based mode.
