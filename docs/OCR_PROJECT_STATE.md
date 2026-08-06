@@ -16,9 +16,9 @@
   - persistable sanitized material — финальные отчёты и sanitized evidence, которые могут храниться для пользователя только при account-scoped authorization, encryption, deletion и defined backup lifecycle.
 - Зафиксирован Israel-only fail-closed gate: restricted material разрешено отправлять только на явно allowlisted инфраструктуру физически в Израиле; автоматический fallback, retry или replication в другой регион запрещены.
 - Добавлена обязательная final-diff security review для каждого PR, выполняемая в обычном per-PR контуре orchestrating assistant.
-- Отдельный Codex review больше не является обязательным условием Ready или merge.
+- Отдельный Codex review не является обязательным условием Ready или merge.
 - Codex используется для пакетного аудита накопленных merged-изменений примерно два раза в неделю либо по прямому запросу владельца продукта.
-- PR template требует `Security impact`, проверенные области, findings, unverified runtime/provider behavior и ровно один итоговый verdict: `Security review: PASS` или `Security review: BLOCKING FINDINGS`.
+- PR template требует `Security impact`, проверенные области, findings, unverified runtime/provider behavior и ровно один итоговый verdict: `Security review: PASS` или `Security review: BLOCKING FINDINGS`; отдельный раздел явно фиксирует отсутствие per-PR Codex gate.
 - `AGENTS.md` и `docs/CODEX_WORKFLOW.md` делают `SECURITY.md` binding source, запрещают Ready/merge recommendation при blocking security finding и определяют periodic Codex batch audit.
 - README кратко поясняет актуальную serverless privacy/security-границу, хранение финальных обезличенных отчётов и отсутствие per-PR Codex gate.
 - Runtime, зависимости, network destinations, OCR, Gemini, Android, storage implementation и provider configuration не изменены.
@@ -109,7 +109,7 @@ Restricted raw/transient material may exist only in:
 
 Original images, raw OCR and any PII-bearing payload may enter only explicitly approved infrastructure physically located in Israel. Any unapproved endpoint or region must fail closed before upload or job creation. Automatic fallback, retry, replication or disaster-recovery routing outside Israel is prohibited for restricted material.
 
-Raw images and raw OCR remain prohibited in Gemini, general OCR/LLM APIs, logs, analytics, crash reports, GitHub, CI, Airtable and unrelated services. Only sanitized derivatives may proceed to legal analysis.
+Raw images and raw OCR remain prohibited in Gemini, general OCR/LLM APIs, logs, analytics, crash reports, GitHub, CI, Airtable и unrelated services. Only sanitized derivatives may proceed to legal analysis.
 
 Final reports are not zero-retention objects. The product may retain all final reports for the authenticated user only when they contain sanitized analysis/evidence and no original images, raw OCR, recoverable PII, secrets or reversible hidden layers. Persistent report operations require exact account-scoped authorization, encryption, user deletion, account deletion, retention and backup-expiry behavior.
 
