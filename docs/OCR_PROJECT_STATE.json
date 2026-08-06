@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-05-43",
+  "state_version": "privacy-ocr-2026-08-06-44",
   "active_track": "serverless-gpu-ocr",
   "next_step_id": "serverless-gpu-ocr-viability-benchmark-v1",
-  "next_step_summary": "Continue the active bounded Surya viability benchmark after PR #191: render the fixed ten-page synthetic packet with recorded font/page hashes; add one serverless-compatible runner; pin package/model/backend/GPU configuration; measure queue delay when available, cold first-page and warm ten-page execution, worker lifetime, billed seconds, cost, total-device peak VRAM and OOM behavior; evaluate output through the checked-in quality/geometry oracle; inspect logs and retained artifacts for raw-content leakage; keep generated pages/raw OCR/reports outside version control; do not add Android upload, production encryption, real user contracts, production masks, Gemini calls, permanent storage or a custom VPS queue.",
-  "last_recorded_pr": 191,
-  "last_recorded_change": "serverless-gpu-ocr-viability-benchmark-oracle-v1",
+  "next_step_summary": "The Surya viability benchmark remains the canonical architecture step, but actual provider execution is temporarily blocked by an explicit product-owner requirement to complete bounded client-side normalization corrections first. PR #193 adds content-driven text-region detection only. The next authorized exception is ocr-content-region-deskew-crop-v1: consume accepted/rotation_only/full_frame_fallback, apply bounded deskew, crop only when accepted with safety margin, preserve full frame on fallback, emit deterministic provenance/debug output, and do not add perspective correction, Surya/provider calls, Android upload, real contracts, encryption, PII masks, Gemini calls or permanent storage. Resume the remaining benchmark slices after the normalization sequence is complete.",
+  "last_recorded_pr": 193,
+  "last_recorded_change": "ocr-content-region-detector-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
-  "updated_on": "2026-08-05"
+  "updated_on": "2026-08-06"
 }
