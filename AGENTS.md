@@ -16,7 +16,7 @@ Component contracts define exact inputs, outputs, schemas, and limits only for t
 
 Do not derive current architecture from chat history, old PRs, branch names, partially implemented code, or one agent's memory. The JSON companion does not replace `docs/OCR_PROJECT_STATE.md`; it makes the active state identifiers machine-readable. If the JSON and Markdown state documents disagree, or any binding documents conflict, stop implementation and report the conflict.
 
-`docs/CODEX_WORKFLOW.md` defines the repository execution protocol for the product owner, orchestrating assistant, and Codex. Read it after the binding sources. It cannot override product architecture, security, privacy contracts, or current state. Permanent process documents must not hard-code a supposedly current PR number, branch, `active_track`, or `next_step_id`; those values are read from the current state files on `main` at the start of each task.
+`docs/CODEX_WORKFLOW.md` defines the repository execution and periodic-audit protocol for the product owner, orchestrating assistant, and Codex. Read it after the binding sources. It cannot override product architecture, security, privacy contracts, or current state. Permanent process documents must not hard-code a supposedly current PR number, branch, `active_track`, or `next_step_id`; those values are read from the current state files on `main` at the start of each task.
 
 ## 2. Mandatory PR Context Gate v1
 
@@ -202,21 +202,22 @@ Documentation-only PRs do not require application tests, but must validate that:
 - List changed files and explain why each is in scope.
 - State whether runtime behavior, data handling, dependencies, external APIs, OCR, Gemini image calls, privacy boundary, security invariants, report persistence, or state metadata changed.
 - Report tests or validation performed and any remaining limitations.
-- Codex must not merge the PR or enable auto-merge.
+- An individual Codex review is not required before Ready or merge.
+- Codex must not merge a PR or enable auto-merge when it is used as an executor or reviewer.
 
 Every 3–5 merged privacy/OCR PRs, run the repository-only cold-start audit defined in `docs/OCR_PROJECT_STATE.md`.
 
 ## 9. Orchestration and truthful dispatch
 
-The orchestrating assistant prepares one exact task packet and independently audits the resulting PR. Codex executes inside the repository. Detailed mechanics are defined in `docs/CODEX_WORKFLOW.md`.
+The orchestrating assistant prepares one exact task packet and independently audits the resulting PR. Codex may execute a bounded task when explicitly invoked and may perform periodic batch audits. Detailed mechanics are defined in `docs/CODEX_WORKFLOW.md`.
 
 Do not say that a task was sent to Codex, that Codex is running, or that Codex completed work unless an actual Codex invocation occurred. When direct invocation is unavailable, provide the complete ready-to-run task packet and state that execution has not started. Do not substitute an improvised GitHub workflow while describing it as Codex.
 
-The independent audit must verify the base, final head SHA, one Context Gate JSON block, actual changed paths, scope, final validation evidence, state agreement, privacy boundary, security verdict, generated files, credentials, provider artifacts, and auto-merge state before recommending merge.
+The independent per-PR audit must verify the base, final head SHA, one Context Gate JSON block, actual changed paths, scope, final validation evidence, state agreement, privacy boundary, security verdict, generated files, credentials, provider artifacts, and auto-merge state before recommending merge.
 
-## 10. Mandatory Security Review Gate
+## 10. Mandatory Security Review Gate and Periodic Codex Audit
 
-`SECURITY.md` is binding for every PR. Codex and the orchestrating assistant must inspect the exact final diff rather than relying on the task description or an earlier commit.
+`SECURITY.md` is binding for every PR. The orchestrating assistant must inspect the exact final diff rather than relying on the task description or an earlier commit.
 
 Before a PR is marked Ready, its body must include:
 
@@ -228,4 +229,6 @@ Before a PR is marked Ready, its body must include:
 
 A documentation-only, test-only, or state-only change still requires a security review. `Not applicable` is not a valid verdict.
 
-Any blocking condition listed in `SECURITY.md` prevents Ready and prevents a merge recommendation. Security review is additional to the normal Codex code review; neither substitutes for the other.
+Any blocking condition listed in `SECURITY.md` prevents Ready and prevents a merge recommendation.
+
+Codex review is not a per-PR merge gate. Instead, Codex should audit the accumulated merged work approximately twice per week, or whenever the product owner explicitly requests it. A periodic audit should inspect the range since the previous completed audit, identify cross-PR integration defects, security/privacy regressions, stale tests or unsupported claims, and open bounded corrective work when needed. Pending periodic audit does not block ordinary PR merges unless the product owner explicitly freezes the affected area.
