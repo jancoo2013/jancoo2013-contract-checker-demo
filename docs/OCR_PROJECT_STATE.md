@@ -1,14 +1,25 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-06, PR #192, `future-product-architecture-ideas-v1`.
+Последнее обновление: 2026-08-06, PR #194, `ocr-local-contrast-text-mask-v1`.
 
 Активный трек: `serverless-gpu-ocr`.
 
-Единственный следующий шаг: `serverless-gpu-ocr-viability-benchmark-v1`.
+Канонический следующий шаг остаётся `serverless-gpu-ocr-viability-benchmark-v1`, но фактический provider run временно отложен по явному решению владельца продукта до завершения трёх bounded client-normalization шагов. После PR #194 следующее разрешённое исключение: `ocr-text-angle-estimator-v1`.
 
 Этот документ — каноническая operational-точка восстановления privacy/OCR-проекта. Архитектуру задают `AGENTS.md`, `docs/ARCHITECTURE.md`, `docs/CUSTOM_OCR_PIPELINE.md` и `docs/SERVERLESS_GPU_OCR_PIPELINE_V1.md`. `docs/VISUAL_PII_LOCALIZATION_V1.md` сохраняет paused local-only alternative. Evidence/masking contract задаёт `docs/PII_EVIDENCE_DETECTOR_V1.md`; машиночитаемое состояние хранится в `docs/OCR_PROJECT_STATE.json`.
 
-## 0. Изменение PR #192
+## 0. Изменение PR #194
+
+- PR #193 был закрыт без merge и не изменил `main`.
+- Его scope разделён на три bounded шага: `ocr-local-contrast-text-mask-v1` → `ocr-text-angle-estimator-v1` → `ocr-content-region-bounds-v1`.
+- PR #194 добавляет только deterministic preview-scale local-contrast mask для тёмных текстоподобных пикселей.
+- Используются EXIF orientation, preview не более 1800 px, локальная оценка фона и adaptive threshold; маленькие изображения не увеличиваются.
+- Выход ограничен grayscale preview, boolean mask, scale, threshold и foreground ratio.
+- Угол текста, строки, content bounds, решения crop/deskew, CLI, overlay, OCR, Surya, Android integration, upload, encryption и PII processing не добавлены.
+- Focused synthetic validation: 4/4 tests; покрыты текст без видимой границы листа, плавный shadow gradient, bounded preview/no-upscale и pre-conversion pixel safety limit.
+- Следующее разрешённое normalization-исключение после merge: `ocr-text-angle-estimator-v1`.
+
+## 0.1. Изменение PR #192
 
 - Добавлен `docs/FUTURE_PRODUCT_AND_ARCHITECTURE_IDEAS.md` — документационный backlog продуктовых, UX, privacy и архитектурных идей из рабочего голосового диалога.
 - Зафиксированы направления для будущей разработки: Contract Question Engine, evidence IDs вместо генерируемых LLM-цитат, ролевые PII placeholders, Israel-only Region Guard, server-side GPU OCR, UX ожидания, нейтральное звуковое уведомление и полная продуктовая обвязка.
@@ -16,7 +27,7 @@
 - Runtime, data handling, зависимости, OCR worker, Android-код, внешние API и production privacy boundary не изменены.
 - Активный трек `serverless-gpu-ocr` и единственный следующий шаг `serverless-gpu-ocr-viability-benchmark-v1` остаются без изменений.
 
-## 0.1. Изменение PR #191
+## 0.2. Изменение PR #191
 
 - Добавлен первый bounded slice активного `serverless-gpu-ocr-viability-benchmark-v1`: фиксированный синтетический десятистраничный Hebrew contract-like source packet без реальных PII.
 - Добавлен deterministic quality/geometry oracle поверх существующего Surya `results.json` loader.
@@ -26,7 +37,7 @@
 - Cold start, warm execution, queue delay, VRAM, OOM, worker lifetime, billed seconds, cost, provider logs/retention и cleanup остаются неизмеренными.
 - Активный `next_step_id` не меняется: benchmark продолжается следующими bounded slices и фактическим provider run.
 
-## 0.2. Изменение PR #190
+## 0.3. Изменение PR #190
 
 - Владелец продукта явно выбрал encrypted on-demand serverless GPU OCR вместо активной local-only visual localization разработки.
 - Former absolute rule `raw photos never leave the device` superseded for this consent-based mode.
@@ -92,6 +103,9 @@ Only sanitized derivatives may proceed to Gemini or another legal-analysis model
 | Geometry gates and irreversible mask rules | Preserved |
 | Android Tesseract full-page OCR | NO-GO; historical diagnostic only |
 | Local visual PII detector | Paused research/fallback |
+| Local-contrast text mask | Implemented as offline Python reference in PR #194; not integrated into Android/runtime |
+| Text-angle estimator | Not implemented; next bounded normalization exception |
+| Content-region bounds/decision | Not implemented |
 | Surya viability fixture + quality/geometry oracle | Implemented in PR #191 |
 | Benchmark renderer/serverless runner | Not implemented |
 | Actual Surya GPU viability result | Not measured |
@@ -115,11 +129,19 @@ Therefore `model throughput` does not equal end-to-end contract latency or per-c
 
 Current provider pricing and Surya benchmarks are planning inputs only. The repository must not claim that one contract is processed in fractions of a second until single-job cold and warm measurements exist.
 
-## 5. Единственный следующий шаг
+## 5. Канонический benchmark и временный normalization gate
 
-**`serverless-gpu-ocr-viability-benchmark-v1`** remains active.
+**`serverless-gpu-ocr-viability-benchmark-v1`** remains the canonical architecture step.
 
-Remaining bounded benchmark work:
+По явному решению владельца продукта фактический Surya/provider run временно отложен до завершения следующей bounded sequence:
+
+1. `ocr-local-contrast-text-mask-v1` — PR #194;
+2. `ocr-text-angle-estimator-v1` — следующий разрешённый шаг после merge;
+3. `ocr-content-region-bounds-v1` — строки, основная область и fail-safe decision без применения crop/deskew.
+
+Эта sequence не разрешает автоматически добавлять perspective correction, shadow cleanup, glare/blur gates, Android realtime analyzer или runtime crop. Каждый из них требует отдельного bounded решения.
+
+После normalization sequence remaining benchmark work:
 
 1. add a deterministic renderer for the checked-in synthetic source packet and record font/page hashes;
 2. add one serverless-compatible Surya runner without production upload or permanent storage;
