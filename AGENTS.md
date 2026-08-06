@@ -5,17 +5,18 @@
 Before creating a branch or modifying any file, read the current versions from the PR base branch:
 
 1. `AGENTS.md` — repository working rules.
-2. `docs/ARCHITECTURE.md` — product architecture source of truth.
-3. `docs/CUSTOM_OCR_PIPELINE.md` — binding privacy/OCR product contract.
-4. `docs/SERVERLESS_GPU_OCR_PIPELINE_V1.md` — active remote-processing boundary and benchmark contract.
-5. `docs/OCR_PROJECT_STATE.md` — canonical operational state, blockers, completed changes, and the single permitted next privacy/OCR step.
-6. `docs/OCR_PROJECT_STATE.json` — machine-readable identifier mirror for the canonical state document.
+2. `SECURITY.md` — binding security invariants and mandatory final-diff security review gate.
+3. `docs/ARCHITECTURE.md` — product architecture source of truth.
+4. `docs/CUSTOM_OCR_PIPELINE.md` — binding privacy/OCR product contract.
+5. `docs/SERVERLESS_GPU_OCR_PIPELINE_V1.md` — active remote-processing boundary and benchmark contract.
+6. `docs/OCR_PROJECT_STATE.md` — canonical operational state, blockers, completed changes, and the single permitted next privacy/OCR step.
+7. `docs/OCR_PROJECT_STATE.json` — machine-readable identifier mirror for the canonical state document.
 
 Component contracts define exact inputs, outputs, schemas, and limits only for the component being changed.
 
 Do not derive current architecture from chat history, old PRs, branch names, partially implemented code, or one agent's memory. The JSON companion does not replace `docs/OCR_PROJECT_STATE.md`; it makes the active state identifiers machine-readable. If the JSON and Markdown state documents disagree, or any binding documents conflict, stop implementation and report the conflict.
 
-`docs/CODEX_WORKFLOW.md` defines the repository execution protocol for the product owner, orchestrating assistant, and Codex. Read it after the binding sources. It cannot override product architecture, privacy contracts, or current state. Permanent process documents must not hard-code a supposedly current PR number, branch, `active_track`, or `next_step_id`; those values are read from the current state files on `main` at the start of each task.
+`docs/CODEX_WORKFLOW.md` defines the repository execution protocol for the product owner, orchestrating assistant, and Codex. Read it after the binding sources. It cannot override product architecture, security, privacy contracts, or current state. Permanent process documents must not hard-code a supposedly current PR number, branch, `active_track`, or `next_step_id`; those values are read from the current state files on `main` at the start of each task.
 
 ## 2. Mandatory PR Context Gate v1
 
@@ -51,7 +52,7 @@ An exception does not silently replace the product next step.
 
 Every PR, including documentation-only and process-only PRs, must update `docs/OCR_PROJECT_STATE.md` in the same branch with a concise record of what that PR changes. The JSON companion must also be updated so that `state_version`, `updated_on`, `last_recorded_pr`, and `last_recorded_change` identify the new state snapshot.
 
-Any change to `active_track`, `next_step_id`, blockers, proven evidence, implementation state, privacy boundary, or the permitted next step must keep the Markdown and JSON state documents semantically synchronized in the same PR.
+Any change to `active_track`, `next_step_id`, blockers, proven evidence, implementation state, privacy boundary, security invariants, or the permitted next step must keep the Markdown and JSON state documents semantically synchronized in the same PR.
 
 If the requested task conflicts with the binding documents, do not mark the PR ready for review.
 
@@ -94,6 +95,7 @@ The first implementation step is a synthetic/redacted viability benchmark. Do no
 - Monetary amounts, dates, clause numbers, notice periods, and legally relevant wording are not PII by default.
 - Do not require a mask on every page. Preserve legally relevant content whenever it can be separated safely from PII.
 - For repository benchmarks, use only synthetic, public, owner-controlled redacted, or otherwise non-identifying test pages.
+- Final reports may be persisted only under the sanitized-report contract in `SECURITY.md`; report persistence does not permit retention of original pages, raw OCR, recoverable PII, or processing secrets.
 
 ## 5. Development Scope
 
@@ -104,7 +106,7 @@ The first implementation step is a synthetic/redacted viability benchmark. Do no
 - Prefer existing project patterns and readable code.
 - Target no more than 300 changed implementation lines per PR; treat 400 as the normal hard limit.
 - Never accept a worker session's claim that work is complete without inspecting its diff and validation results.
-- The orchestrating assistant owns bounded handoff, diff review, test review, and state updates. The product owner is not responsible for transferring project history between sessions.
+- The orchestrating assistant owns bounded handoff, diff review, test review, state updates, and independent security review. The product owner is not responsible for transferring project history between sessions.
 - Unless explicitly required by the task, do not commit build directories, binaries, APKs, model weights, workflow artifacts, local logs, caches, IDE metadata, temporary scripts, temporary workflows, repository-external reports, or lock-file changes when dependencies did not change.
 - For serverless work, keep provider credentials, endpoint IDs, encryption keys, signed URLs, and real job payloads out of the repository.
 
@@ -173,7 +175,7 @@ Do not make more than two consecutive correction attempts for the same root caus
 
 All claimed final tests, builds, installs, launches, logs, device checks, and serverless benchmarks must apply to the same final head SHA presented for review. Record the base SHA, final head SHA, exact commands, results or exit codes, and relevant workflow/job identifiers. If code, documentation, state, container image, or benchmark fixture changes after a passing command, re-run the required final checks.
 
-Do not claim build, installation, launch, log, deletion, retention, privacy, or benchmark validation unless the corresponding command or inspection actually ran successfully. Android Studio may be used for human visual inspection, but it is not the required automation or evidence path.
+Do not claim build, installation, launch, log, deletion, retention, privacy, security, or benchmark validation unless the corresponding command or inspection actually ran successfully. Android Studio may be used for human visual inspection, but it is not the required automation or evidence path.
 
 Documentation-only PRs do not require application tests, but must validate that:
 
@@ -181,7 +183,8 @@ Documentation-only PRs do not require application tests, but must validate that:
 - machine-readable state metadata is internally consistent with the canonical state document;
 - the PR template uses the same Context Gate v1 fields as the validator;
 - the current PR is recorded in both state files;
-- privacy-boundary changes are explicit and synchronized across binding documents;
+- privacy-boundary and security-invariant changes are explicit and synchronized across binding documents;
+- the PR body contains the required security impact, final security verdict, findings, and unverified items;
 - no product next step changed unintentionally.
 
 ## 8. Pull Request Requirements
@@ -190,14 +193,14 @@ Documentation-only PRs do not require application tests, but must validate that:
 - Open every PR as a draft first so that its PR number is known.
 - Do not auto-merge.
 - Include exactly one completed Context Gate v1 JSON block in the PR body.
-- Use this order: read current binding sources and state; check overlapping open PRs; publish the Context Gate before edits; branch from current `main`; implement and run focused checks; open a draft PR; update both state files after the PR number exists; run final checks on the final head SHA; inspect declared versus actual paths; then mark Ready.
+- Use this order: read current binding sources and state; check overlapping open PRs; publish the Context Gate before edits; branch from current `main`; implement and run focused checks; open a draft PR; update both state files after the PR number exists; run final checks on the final head SHA; inspect declared versus actual paths; complete the mandatory security review; then mark Ready.
 - After the PR number exists, add a final state-update commit to the same branch:
   - record the PR number, date, bounded change, validation, remaining limitations, and next-step effect in `docs/OCR_PROJECT_STATE.md`;
   - increment `state_version` and set `last_recorded_pr` and `last_recorded_change` in `docs/OCR_PROJECT_STATE.json`;
   - keep `active_track` and `next_step_id` unchanged unless the product owner explicitly changes them.
-- Mark the PR ready for review only after the state-update commit is present, both state files agree, required validation applies to the final head SHA, and the final diff contains no undeclared, generated, temporary, binary, credential, or environment-specific files.
+- Mark the PR ready for review only after the state-update commit is present, both state files agree, required validation applies to the final head SHA, the mandatory final-diff security review is `PASS`, and the final diff contains no undeclared, generated, temporary, binary, credential, or environment-specific files.
 - List changed files and explain why each is in scope.
-- State whether runtime behavior, data handling, dependencies, external APIs, OCR, Gemini image calls, privacy boundary, or state metadata changed.
+- State whether runtime behavior, data handling, dependencies, external APIs, OCR, Gemini image calls, privacy boundary, security invariants, report persistence, or state metadata changed.
 - Report tests or validation performed and any remaining limitations.
 - Codex must not merge the PR or enable auto-merge.
 
@@ -209,4 +212,20 @@ The orchestrating assistant prepares one exact task packet and independently aud
 
 Do not say that a task was sent to Codex, that Codex is running, or that Codex completed work unless an actual Codex invocation occurred. When direct invocation is unavailable, provide the complete ready-to-run task packet and state that execution has not started. Do not substitute an improvised GitHub workflow while describing it as Codex.
 
-The independent audit must verify the base, final head SHA, one Context Gate JSON block, actual changed paths, scope, final validation evidence, state agreement, privacy boundary, generated files, credentials, provider artifacts, and auto-merge state before recommending merge.
+The independent audit must verify the base, final head SHA, one Context Gate JSON block, actual changed paths, scope, final validation evidence, state agreement, privacy boundary, security verdict, generated files, credentials, provider artifacts, and auto-merge state before recommending merge.
+
+## 10. Mandatory Security Review Gate
+
+`SECURITY.md` is binding for every PR. Codex and the orchestrating assistant must inspect the exact final diff rather than relying on the task description or an earlier commit.
+
+Before a PR is marked Ready, its body must include:
+
+- `Security impact: NONE`, `LOW`, or `HIGH`;
+- exactly one verdict: `Security review: PASS` or `Security review: BLOCKING FINDINGS`;
+- the security areas inspected;
+- every finding and its disposition;
+- runtime/provider behavior that remains unverified.
+
+A documentation-only, test-only, or state-only change still requires a security review. `Not applicable` is not a valid verdict.
+
+Any blocking condition listed in `SECURITY.md` prevents Ready and prevents a merge recommendation. Security review is additional to the normal Codex code review; neither substitutes for the other.
