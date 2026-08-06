@@ -121,19 +121,19 @@ class ContentRegionDeskewCropTests(unittest.TestCase):
         self.assertTrue(np.array_equal(np.asarray(result.image), original))
 
     def test_accepted_skew_applies_rotation_before_crop(self) -> None:
+        image = _pattern((300, 400))
+        crop = (20, 30, 280, 370)
+        unrotated = np.asarray(image.crop(crop))
         result = apply_content_region_deskew_crop(
-            _pattern((300, 400)),
+            image,
             angle=_angle(rotation=-6.0),
-            bounds=_bounds(
-                (300, 400),
-                rotation=-6.0,
-                crop=(20, 30, 280, 370),
-            ),
+            bounds=_bounds((300, 400), rotation=-6.0, crop=crop),
         )
 
         self.assertEqual(result.decision, "deskewed_and_cropped")
         self.assertEqual(result.rotation_applied_degrees, -6.0)
         self.assertEqual(result.output_size, (260, 340))
+        self.assertFalse(np.array_equal(np.asarray(result.image), unrotated))
 
     def test_exif_orientation_precedes_contract_validation(self) -> None:
         image = _pattern((40, 20))
