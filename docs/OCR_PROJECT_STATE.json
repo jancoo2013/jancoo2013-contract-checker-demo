@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-06-52",
+  "state_version": "privacy-ocr-2026-08-06-53",
   "active_track": "serverless-gpu-ocr",
   "next_step_id": "ocr-illumination-shadow-normalization-v1",
-  "next_step_summary": "PR #201 adds a binding SECURITY.md, a mandatory final-diff security review gate for every PR, an explicit Israel-only fail-closed rule for original images/raw OCR/PII-bearing payloads, and a separate persistence contract for sanitized final reports. Runtime behavior, dependencies, provider configuration, active_track, and the bounded OCR next step remain unchanged. After merge, implement bounded illumination/shadow normalization without OCR, Android runtime integration, provider calls, upload, PII handling, Gemini calls, permanent storage implementation, or security-policy changes.",
+  "next_step_summary": "PR #201 adds a binding SECURITY.md, a mandatory per-PR final-diff security review, an explicit Israel-only fail-closed rule for original images/raw OCR/PII-bearing payloads, and a separate persistence contract for sanitized final reports. Individual Codex review is not required before Ready or merge. Codex instead performs periodic batch audits of accumulated merged work approximately twice per week or on explicit product-owner request. Runtime behavior, dependencies, provider configuration, active_track, and the bounded OCR next step remain unchanged. After merge, implement bounded illumination/shadow normalization without OCR, Android runtime integration, provider calls, upload, PII handling, Gemini calls, permanent storage implementation, or security-policy changes.",
   "last_recorded_pr": 201,
   "last_recorded_change": "security-policy-mandatory-review-v1",
   "state_update_required_per_pr": true,
