@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-06-56",
+  "state_version": "privacy-ocr-2026-08-09-57",
   "active_track": "serverless-gpu-ocr",
-  "next_step_id": "ocr-illumination-shadow-normalization-v1",
-  "next_step_summary": "PR #201 adds a binding SECURITY.md, a mandatory per-PR final-diff security review, an explicit Israel-only fail-closed rule for original images/raw OCR/PII-bearing payloads, and a separate persistence contract for sanitized final reports. Individual Codex review is not required before Ready or merge. Codex instead performs periodic batch audits of accumulated merged work approximately twice per week or on explicit product-owner request. Runtime behavior, dependencies, provider configuration, active_track, and the bounded OCR next step remain unchanged. After merge, implement bounded illumination/shadow normalization without OCR, Android runtime integration, provider calls, upload, PII handling, Gemini calls, permanent storage implementation, or security-policy changes.",
-  "last_recorded_pr": 201,
-  "last_recorded_change": "security-policy-mandatory-review-v1",
+  "next_step_id": "ocr-document-geometry-block-audit-v1",
+  "next_step_summary": "PR #202 integrates the existing bounded text-mask, text-angle, content-region and full-resolution deskew/crop components into one end-to-end document geometry normalizer. It also removes stale next-step declarations from binding architecture documents so only the canonical state selects the current PR. After merge, do not add illumination/shadow, OCR, PII, Android, provider or serverless implementation to this block. The next step is a targeted Codex cold-start audit of the document geometry block only: PRs #194, #195, #196, #200 and #202 and their current component/tests. If the audit is clear, freeze the geometry block and then select the next product step; if it finds defects, fix only those defects in bounded corrective PRs.",
+  "last_recorded_pr": 202,
+  "last_recorded_change": "ocr-document-geometry-integration-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
-  "updated_on": "2026-08-06"
+  "updated_on": "2026-08-09"
 }
