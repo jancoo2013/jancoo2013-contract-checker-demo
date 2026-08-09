@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-09-60",
+  "state_version": "privacy-ocr-2026-08-09-61",
   "active_track": "serverless-gpu-ocr",
-  "next_step_id": "ocr-document-geometry-block-reaudit-v1",
-  "next_step_summary": "Focused Codex geometry audit at main SHA 6b30b0a66ccebf8efac49b1b368039ca453519cc returned FREEZE AFFECTED AREA with three findings. PR #203 corrected unsafe cropping of disconnected legitimate content. PR #204 corrected contradictory accepted stage contracts authorizing crop. PR #205 adds the final corrective: an explicit pre-copy resource contract for the current offline Python geometry reference with a 32M absolute pixel cap, 8192 maximum source dimension, 384 MiB mode-aware accounted peak-memory ceiling, and fail-closed unsupported modes. The geometry block remains frozen after merge. Do not continue preprocessing. The only next step is ocr-document-geometry-block-reaudit-v1: rerun a targeted Codex audit of this geometry block, including the three corrective PRs, and lift the freeze only on BATCH AUDIT CLEAR.",
-  "last_recorded_pr": 205,
-  "last_recorded_change": "ocr-geometry-resource-budget-v1",
+  "next_step_id": "ocr-accepted-stage-contract-validation-v2",
+  "next_step_summary": "The second focused Codex re-audit of the document geometry block at main SHA 2126f510f9f178e74c9b487693a99af4ef7d42f1 returned FREEZE AFFECTED AREA. PR #206 addresses only the first new blocking finding: compact or fragmented legitimate content outside the proposed crop could still be removed. The new bounded guard treats qualifying compact/fragmented outside foreground as unsafe while preserving the existing exemption for a long narrow vertical artifact, forcing the established full-frame fallback. Geometry remains frozen. After merge, implement only ocr-accepted-stage-contract-validation-v2 for the remaining search-bound and line-evidence contract gaps. Preview-memory accounting and LAB mode/transform alignment remain separate later corrective findings; after all focused corrections, rerun the same targeted geometry audit before lifting the freeze.",
+  "last_recorded_pr": 206,
+  "last_recorded_change": "ocr-disconnected-compact-content-failsafe-v2",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-08-09"
