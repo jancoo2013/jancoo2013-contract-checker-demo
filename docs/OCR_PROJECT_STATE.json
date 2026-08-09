@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-09-58",
+  "state_version": "privacy-ocr-2026-08-09-59",
   "active_track": "serverless-gpu-ocr",
-  "next_step_id": "ocr-geometry-transform-contract-validation-v1",
-  "next_step_summary": "Focused Codex audit of the document geometry block at main SHA 6b30b0a66ccebf8efac49b1b368039ca453519cc returned FREEZE AFFECTED AREA. PR #203 addresses only the blocking finding that an accepted dominant crop could delete legitimate disconnected content such as a second column or short edge/header/footer text. The new fail-safe rejects crop acceptance when additional horizontal line-like foreground remains outside the padded candidate, preserving the full frame through the existing rotation_only fallback. The geometry block remains frozen. After merge, implement only the second audit corrective: reject contradictory accepted geometry stage contracts in ocr-geometry-transform-contract-validation-v1. The resource-budget corrective remains separate and later, followed by a targeted re-audit before geometry freeze is lifted.",
-  "last_recorded_pr": 203,
-  "last_recorded_change": "ocr-content-region-disconnected-content-failsafe-v1",
+  "next_step_id": "ocr-geometry-resource-budget-v1",
+  "next_step_summary": "Focused Codex audit of the document geometry block remains in FREEZE AFFECTED AREA. PR #203 corrected the blocking disconnected-content crop defect. PR #204 corrects the second audit finding by making the physical deskew/crop API reject internally contradictory accepted angle/content-region contracts instead of trusting decision=accepted alone. Accepted contracts now require acceptance-level confidence, no rejection reasons, consistent angle sign semantics, and valid candidate/safe crop containment. The geometry block remains frozen. After merge, implement only the remaining audit corrective ocr-geometry-resource-budget-v1, then rerun the same targeted document-geometry audit before lifting the freeze.",
+  "last_recorded_pr": 204,
+  "last_recorded_change": "ocr-geometry-transform-contract-validation-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-08-09"
