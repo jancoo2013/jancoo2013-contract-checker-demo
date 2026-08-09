@@ -5,8 +5,14 @@ import math
 
 from PIL import Image, ImageOps
 
-from research.hebrew_contract_ocr.content_region_bounds import ContentRegionBounds
-from research.hebrew_contract_ocr.text_angle_estimator import TextAngleEstimate
+from research.hebrew_contract_ocr.content_region_bounds import (
+    MIN_CONFIDENCE as CONTENT_REGION_MIN_CONFIDENCE,
+    ContentRegionBounds,
+)
+from research.hebrew_contract_ocr.text_angle_estimator import (
+    MIN_CONFIDENCE as TEXT_ANGLE_MIN_CONFIDENCE,
+    TextAngleEstimate,
+)
 from research.hebrew_contract_ocr.text_ink_mask import (
     MAX_SOURCE_PIXELS,
     PREVIEW_LONG_SIDE,
@@ -32,6 +38,23 @@ class ContentRegionDeskewCropResult:
     fallback_reasons: tuple[str, ...]
 
 
+def _validate_accepted_confidence(
+    value: object,
+    *,
+    minimum: float,
+    label: str,
+) -> None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ContentRegionDeskewCropError(f"{label} confidence must be numeric")
+    numeric = float(value)
+    if not math.isfinite(numeric):
+        raise ContentRegionDeskewCropError(f"{label} confidence must be finite")
+    if not minimum <= numeric <= 1.0:
+        raise ContentRegionDeskewCropError(
+            f"accepted {label} confidence is outside its acceptance range"
+        )
+
+
 def _validate_angle(angle: TextAngleEstimate) -> None:
     if not isinstance(angle, TextAngleEstimate):
         raise ContentRegionDeskewCropError("angle must be a TextAngleEstimate")
@@ -42,18 +65,45 @@ def _validate_angle(angle: TextAngleEstimate) -> None:
     if abs(angle.deskew_rotation_degrees) > MAX_ABS_DESKEW_DEGREES:
         raise ContentRegionDeskewCropError("deskew rotation exceeds the bounded contract")
 
+    if angle.decision == "accepted":
+        _validate_accepted_confidence(
+            angle.confidence,
+            minimum=TEXT_ANGLE_MIN_CONFIDENCE,
+            label="angle",
+        )
+        if angle.rejection_reasons:
+            raise ContentRegionDeskewCropError(
+                "accepted angle cannot contain rejection reasons"
+            )
+        if not math.isfinite(angle.dominant_text_angle_degrees):
+            raise ContentRegionDeskewCropError("dominant text angle must be finite")
+        if not math.isclose(
+            angle.dominant_text_angle_degrees,
+            -angle.deskew_rotation_degrees,
+            rel_tol=0.0,
+            abs_tol=1e-6,
+        ):
+            raise ContentRegionDeskewCropError(
+                "accepted dominant text angle and deskew rotation disagree"
+            )
 
-def _validate_box(box: object, preview_size: tuple[int, int]) -> Box:
+
+def _validate_box(
+    box: object,
+    preview_size: tuple[int, int],
+    *,
+    label: str,
+) -> Box:
     if (
         not isinstance(box, tuple)
         or len(box) != 4
         or any(not isinstance(value, int) or isinstance(value, bool) for value in box)
     ):
-        raise ContentRegionDeskewCropError("safe crop bounds must be four integers")
+        raise ContentRegionDeskewCropError(f"{label} must be four integers")
     left, top, right, bottom = box
     width, height = preview_size
     if not (0 <= left < right <= width and 0 <= top < bottom <= height):
-        raise ContentRegionDeskewCropError("safe crop bounds exceed the preview")
+        raise ContentRegionDeskewCropError(f"{label} exceed the preview")
     return box
 
 
@@ -104,7 +154,35 @@ def _validate_bounds(
             raise ContentRegionDeskewCropError(
                 "crop acceptance requires an accepted angle"
             )
-        return _validate_box(bounds.safe_crop_bounds, bounds.preview_size)
+        _validate_accepted_confidence(
+            bounds.confidence,
+            minimum=CONTENT_REGION_MIN_CONFIDENCE,
+            label="content-region",
+        )
+        if bounds.rejection_reasons:
+            raise ContentRegionDeskewCropError(
+                "accepted content region cannot contain rejection reasons"
+            )
+        candidate_box = _validate_box(
+            bounds.candidate_content_bounds,
+            bounds.preview_size,
+            label="candidate content bounds",
+        )
+        safe_box = _validate_box(
+            bounds.safe_crop_bounds,
+            bounds.preview_size,
+            label="safe crop bounds",
+        )
+        if not (
+            safe_box[0] <= candidate_box[0]
+            and safe_box[1] <= candidate_box[1]
+            and safe_box[2] >= candidate_box[2]
+            and safe_box[3] >= candidate_box[3]
+        ):
+            raise ContentRegionDeskewCropError(
+                "safe crop bounds must contain candidate content bounds"
+            )
+        return safe_box
 
     if bounds.safe_crop_bounds is not None:
         raise ContentRegionDeskewCropError(
