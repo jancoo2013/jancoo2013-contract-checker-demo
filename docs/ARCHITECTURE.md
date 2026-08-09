@@ -570,16 +570,19 @@ Deferred:
 
 Keep the architecture measurable and replaceable.
 
-For the active image track, build in this order:
+The canonical current privacy/OCR step is selected only by `docs/OCR_PROJECT_STATE.md` and its JSON mirror. Architecture documents define ordering constraints and gates, but they do not independently choose the next PR.
 
-1. Serverless GPU OCR viability benchmark using only synthetic/redacted pages.
-2. Candidate quality, geometry, latency, VRAM, and cost decision.
-3. Bounded encrypted job-envelope and cleanup contract.
-4. Server-side PII sanitization and privacy evaluation.
-5. Sanitized evidence blocks.
-6. LLM risk analysis and report integration.
-7. Production consent, legal, provider, region, and incident controls.
+For the active image track, the current planned order is:
 
-The first benchmark must not be treated as production deployment.
+1. Complete bounded client-side document geometry normalization (orientation, text-geometry analysis, fail-safe deskew/crop) and audit that block as a unit.
+2. Run the serverless GPU OCR viability benchmark using only synthetic/redacted pages.
+3. Make the candidate quality, geometry, latency, VRAM, and cost decision.
+4. Define the bounded encrypted job-envelope and cleanup contract.
+5. Implement server-side PII sanitization and privacy evaluation.
+6. Produce sanitized evidence blocks.
+7. Integrate LLM risk analysis and report generation.
+8. Add production consent, legal, provider, Israel-region, authorization, retention, and incident controls.
+
+The serverless benchmark must not be treated as production deployment, and completing the client-side geometry block does not authorize upload, OCR, PII processing, or provider integration.
 
 The source of truth is the sanitized contract evidence produced by the approved processing pipeline, not the LLM.
