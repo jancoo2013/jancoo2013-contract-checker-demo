@@ -38,6 +38,28 @@ def _text_mask(
     return np.asarray(image, dtype=np.uint8) < 128
 
 
+def _two_column_mask() -> np.ndarray:
+    image = Image.new("L", (900, 1200), 255)
+    draw = ImageDraw.Draw(image)
+    for y in (180, 280, 380, 480, 580, 680, 780):
+        for left, right in ((80, 336), (560, 820)):
+            x = left
+            while x < right:
+                draw.rectangle((x, y, min(right - 1, x + 12), y + 22), fill=0)
+                x += 20
+    return np.asarray(image, dtype=np.uint8) < 128
+
+
+def _mask_with_disconnected_edge_line() -> np.ndarray:
+    image = Image.fromarray(np.where(_text_mask(), 0, 255).astype(np.uint8), mode="L")
+    draw = ImageDraw.Draw(image)
+    x = 20
+    while x < 115:
+        draw.rectangle((x, 80, min(114, x + 10), 100), fill=0)
+        x += 16
+    return np.asarray(image, dtype=np.uint8) < 128
+
+
 class ContentRegionBoundsTests(unittest.TestCase):
     def test_horizontal_text_returns_safe_bounds(self) -> None:
         result = estimate_content_region(
@@ -111,6 +133,28 @@ class ContentRegionBoundsTests(unittest.TestCase):
         self.assertEqual(result.decision, "accepted")
         self.assertIsNotNone(result.candidate_content_bounds)
         self.assertGreater(result.candidate_content_bounds[0], 100)
+
+    def test_two_columns_fail_safe_instead_of_dropping_second_column(self) -> None:
+        result = estimate_content_region(
+            _two_column_mask(),
+            deskew_rotation_degrees=0.0,
+            angle_decision="accepted",
+        )
+
+        self.assertEqual(result.decision, "rotation_only")
+        self.assertIn("disconnected_content_outside_crop", result.rejection_reasons)
+        self.assertIsNone(result.safe_crop_bounds)
+
+    def test_disconnected_edge_line_fails_safe(self) -> None:
+        result = estimate_content_region(
+            _mask_with_disconnected_edge_line(),
+            deskew_rotation_degrees=0.0,
+            angle_decision="accepted",
+        )
+
+        self.assertEqual(result.decision, "rotation_only")
+        self.assertIn("disconnected_content_outside_crop", result.rejection_reasons)
+        self.assertIsNone(result.safe_crop_bounds)
 
     def test_random_noise_is_not_crop_accepted(self) -> None:
         random = np.random.default_rng(19)

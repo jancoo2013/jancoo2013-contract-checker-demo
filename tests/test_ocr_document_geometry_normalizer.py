@@ -50,6 +50,33 @@ def _document(
     return image
 
 
+def _two_column_document() -> Image.Image:
+    image = Image.new("L", (900, 1200), 250)
+    draw = ImageDraw.Draw(image)
+    for y in (180, 280, 380, 480, 580, 680, 780):
+        for left, right in ((80, 336), (560, 820)):
+            x = left
+            while x < right:
+                draw.rectangle((x, y, min(right - 1, x + 12), y + 22), fill=15)
+                x += 20
+    return image
+
+
+def _add_short_line(
+    image: Image.Image,
+    *,
+    left: int,
+    top: int,
+    right: int,
+) -> Image.Image:
+    draw = ImageDraw.Draw(image)
+    x = left
+    while x < right:
+        draw.rectangle((x, top, min(right - 1, x + 10), top + 20), fill=15)
+        x += 16
+    return image
+
+
 class DocumentGeometryNormalizerTests(unittest.TestCase):
     def test_horizontal_document_runs_full_stack_and_crops(self) -> None:
         result = normalize_document_geometry(_document())
@@ -108,6 +135,63 @@ class DocumentGeometryNormalizerTests(unittest.TestCase):
         self.assertEqual(result.angle.decision, "accepted")
         self.assertEqual(result.bounds.decision, "accepted")
         self.assertEqual(result.decision, "deskewed_and_cropped")
+
+    def test_two_columns_preserve_full_frame(self) -> None:
+        image = _two_column_document()
+        original = np.asarray(image).copy()
+
+        result = normalize_document_geometry(image)
+
+        self.assertEqual(result.angle.decision, "accepted")
+        self.assertEqual(result.bounds.decision, "rotation_only")
+        self.assertIn(
+            "disconnected_content_outside_crop",
+            result.bounds.rejection_reasons,
+        )
+        self.assertEqual(result.decision, "full_frame_fallback")
+        self.assertTrue(np.array_equal(np.asarray(result.image), original))
+
+    def test_disconnected_header_preserves_full_frame(self) -> None:
+        image = _add_short_line(_document(), left=330, top=60, right=470)
+        original = np.asarray(image).copy()
+
+        result = normalize_document_geometry(image)
+
+        self.assertEqual(result.bounds.decision, "rotation_only")
+        self.assertIn(
+            "disconnected_content_outside_crop",
+            result.bounds.rejection_reasons,
+        )
+        self.assertEqual(result.decision, "full_frame_fallback")
+        self.assertTrue(np.array_equal(np.asarray(result.image), original))
+
+    def test_disconnected_footer_preserves_full_frame(self) -> None:
+        image = _add_short_line(_document(), left=350, top=1080, right=500)
+        original = np.asarray(image).copy()
+
+        result = normalize_document_geometry(image)
+
+        self.assertEqual(result.bounds.decision, "rotation_only")
+        self.assertIn(
+            "disconnected_content_outside_crop",
+            result.bounds.rejection_reasons,
+        )
+        self.assertEqual(result.decision, "full_frame_fallback")
+        self.assertTrue(np.array_equal(np.asarray(result.image), original))
+
+    def test_short_edge_content_preserves_full_frame(self) -> None:
+        image = _add_short_line(_document(), left=20, top=80, right=115)
+        original = np.asarray(image).copy()
+
+        result = normalize_document_geometry(image)
+
+        self.assertEqual(result.bounds.decision, "rotation_only")
+        self.assertIn(
+            "disconnected_content_outside_crop",
+            result.bounds.rejection_reasons,
+        )
+        self.assertEqual(result.decision, "full_frame_fallback")
+        self.assertTrue(np.array_equal(np.asarray(result.image), original))
 
     def test_source_pixel_limit_fails_closed_before_transform(self) -> None:
         image = Image.new("L", (10, 10), 250)
