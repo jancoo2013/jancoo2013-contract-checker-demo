@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from dataclasses import replace
 import unittest
+from unittest.mock import patch
 
 import numpy as np
 from PIL import Image, ImageDraw
 
+import research.hebrew_contract_ocr.geometry_resource_budget as resource_module
 from research.hebrew_contract_ocr.content_region_bounds import ContentRegionBounds
 from research.hebrew_contract_ocr.content_region_deskew_crop import (
     ContentRegionDeskewCropError,
@@ -210,6 +212,16 @@ class ContentRegionDeskewCropTests(unittest.TestCase):
                     image,
                     angle=_angle(),
                     bounds=bounds,
+                )
+
+    def test_resource_budget_fails_before_physical_transform(self) -> None:
+        image = _pattern((10, 10))
+        with patch.object(resource_module, "MAX_SOURCE_PIXELS", 99):
+            with self.assertRaises(ContentRegionDeskewCropError):
+                apply_content_region_deskew_crop(
+                    image,
+                    angle=_angle(decision="rejected"),
+                    bounds=_bounds((10, 10), decision="full_frame_fallback"),
                 )
 
 

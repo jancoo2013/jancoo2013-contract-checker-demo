@@ -6,7 +6,7 @@ from unittest.mock import patch
 import numpy as np
 from PIL import Image, ImageDraw
 
-import research.hebrew_contract_ocr.text_ink_mask as mask_module
+import research.hebrew_contract_ocr.geometry_resource_budget as resource_module
 from research.hebrew_contract_ocr.text_ink_mask import (
     TextInkMaskError,
     build_text_ink_mask,
@@ -48,7 +48,7 @@ class OCRTextInkMaskTests(unittest.TestCase):
 
     def test_source_pixel_limit_fails_before_preview_conversion(self) -> None:
         image = Image.new("L", (10, 10), 255)
-        with patch.object(mask_module, "MAX_SOURCE_PIXELS", 99):
+        with patch.object(resource_module, "MAX_SOURCE_PIXELS", 99):
             with self.assertRaises(TextInkMaskError):
                 build_text_ink_mask(image)
 

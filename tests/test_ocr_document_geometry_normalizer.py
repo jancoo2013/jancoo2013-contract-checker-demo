@@ -196,7 +196,7 @@ class DocumentGeometryNormalizerTests(unittest.TestCase):
     def test_source_pixel_limit_fails_closed_before_transform(self) -> None:
         image = Image.new("L", (10, 10), 250)
         with patch(
-            "research.hebrew_contract_ocr.text_ink_mask.MAX_SOURCE_PIXELS",
+            "research.hebrew_contract_ocr.geometry_resource_budget.MAX_SOURCE_PIXELS",
             99,
         ):
             with self.assertRaises(TextInkMaskError):
