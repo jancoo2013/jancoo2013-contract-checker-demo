@@ -13,6 +13,7 @@ MAX_ABS_DESKEW_DEGREES = 12.0
 MIN_LINE_COUNT = 4
 MIN_ANCHOR_WIDTH_RATIO = 0.18
 MIN_BAND_WIDTH_RATIO = 0.06
+MIN_OUTSIDE_BAND_WIDTH_RATIO = 0.025
 MAX_BAND_HEIGHT_RATIO = 0.09
 MIN_CONTENT_WIDTH_RATIO = 0.20
 MIN_CONTENT_HEIGHT_RATIO = 0.12
@@ -90,7 +91,11 @@ def _merge_runs(runs: list[tuple[int, int]], max_gap: int) -> list[tuple[int, in
     return merged
 
 
-def _line_bands(mask: np.ndarray) -> list[Box]:
+def _line_bands(
+    mask: np.ndarray,
+    *,
+    min_band_width_ratio: float = MIN_BAND_WIDTH_RATIO,
+) -> list[Box]:
     height, width = mask.shape
     row_counts = np.count_nonzero(mask, axis=1).astype(np.float64)
     window = max(3, int(round(height * 0.004)))
@@ -126,7 +131,7 @@ def _line_bands(mask: np.ndarray) -> list[Box]:
                 int(col_counts[run[0] : run[1]].sum()),
             ),
         )
-        if right - left < width * MIN_BAND_WIDTH_RATIO:
+        if right - left < width * min_band_width_ratio:
             continue
         bands.append((left, top, right, bottom))
     return bands
@@ -156,6 +161,18 @@ def _dominant_bands(bands: list[Box], width: int) -> list[Box]:
         <= width * 0.12
     ]
     return sorted(selected, key=lambda box: (box[1], box[0]))
+
+
+def _has_disconnected_content_outside(mask: np.ndarray, crop_box: Box) -> bool:
+    outside = mask.copy()
+    left, top, right, bottom = crop_box
+    outside[top:bottom, left:right] = False
+    return bool(
+        _line_bands(
+            outside,
+            min_band_width_ratio=MIN_OUTSIDE_BAND_WIDTH_RATIO,
+        )
+    )
 
 
 def estimate_content_region(
@@ -233,6 +250,8 @@ def estimate_content_region(
         padded_height_ratio = (padded[3] - padded[1]) / height
         if padded_width_ratio >= 0.985 or padded_height_ratio >= 0.985:
             reasons.add("content_region_nearly_full_frame")
+        if _has_disconnected_content_outside(deskewed, padded):
+            reasons.add("disconnected_content_outside_crop")
         if not reasons:
             safe = padded
 
