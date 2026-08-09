@@ -94,6 +94,21 @@ class DocumentGeometryNormalizerTests(unittest.TestCase):
         self.assertEqual(result.decision, "deskewed_and_cropped")
         self.assertGreater(result.image.width, result.preview_size[0] // 2)
 
+    def test_exif_orientation_is_consistent_across_preview_and_transform(self) -> None:
+        oriented = _document()
+        stored = oriented.transpose(Image.Transpose.ROTATE_90)
+        exif = Image.Exif()
+        exif[274] = 6
+        stored.info["exif"] = exif.tobytes()
+
+        result = normalize_document_geometry(stored)
+
+        self.assertEqual(result.preview_size, oriented.size)
+        self.assertEqual(result.transform.source_size, oriented.size)
+        self.assertEqual(result.angle.decision, "accepted")
+        self.assertEqual(result.bounds.decision, "accepted")
+        self.assertEqual(result.decision, "deskewed_and_cropped")
+
     def test_source_pixel_limit_fails_closed_before_transform(self) -> None:
         image = Image.new("L", (10, 10), 250)
         with patch(
