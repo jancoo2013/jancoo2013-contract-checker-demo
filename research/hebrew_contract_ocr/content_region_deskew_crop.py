@@ -9,14 +9,15 @@ from research.hebrew_contract_ocr.content_region_bounds import (
     MIN_CONFIDENCE as CONTENT_REGION_MIN_CONFIDENCE,
     ContentRegionBounds,
 )
+from research.hebrew_contract_ocr.geometry_resource_budget import (
+    GeometryResourceBudgetError,
+    validate_geometry_resource_budget,
+)
 from research.hebrew_contract_ocr.text_angle_estimator import (
     MIN_CONFIDENCE as TEXT_ANGLE_MIN_CONFIDENCE,
     TextAngleEstimate,
 )
-from research.hebrew_contract_ocr.text_ink_mask import (
-    MAX_SOURCE_PIXELS,
-    PREVIEW_LONG_SIDE,
-)
+from research.hebrew_contract_ocr.text_ink_mask import PREVIEW_LONG_SIDE
 
 
 MAX_ABS_DESKEW_DEGREES = 12.0
@@ -192,17 +193,11 @@ def _validate_bounds(
 
 
 def _oriented_source(image: Image.Image) -> Image.Image:
-    if not isinstance(image, Image.Image):
-        raise ContentRegionDeskewCropError("image must be a PIL image")
-    oriented = ImageOps.exif_transpose(image)
-    width, height = oriented.size
-    if width <= 0 or height <= 0:
-        raise ContentRegionDeskewCropError("source image dimensions must be positive")
-    if width * height > MAX_SOURCE_PIXELS:
-        raise ContentRegionDeskewCropError(
-            f"source exceeds the {MAX_SOURCE_PIXELS:,}-pixel safety limit"
-        )
-    return oriented
+    try:
+        validate_geometry_resource_budget(image)
+    except GeometryResourceBudgetError as exc:
+        raise ContentRegionDeskewCropError(str(exc)) from exc
+    return ImageOps.exif_transpose(image)
 
 
 def _expected_preview_size(source_size: tuple[int, int]) -> tuple[int, int]:
