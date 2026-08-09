@@ -7,14 +7,14 @@ This file records the current MVP image-processing direction so that later work 
 ## Non-negotiable decisions
 
 1. Tesseract full-page Hebrew OCR on the target phone is a proven NO-GO for the active MVP.
-2. The product owner has explicitly selected encrypted serverless GPU processing as the next architecture to benchmark.
+2. The product owner has explicitly selected encrypted serverless GPU processing as the active remote OCR architecture to benchmark before production use.
 3. A raw contract may leave the device only after explicit user consent and only for the approved bounded serverless job.
 4. Raw images and raw OCR text must not be sent onward to Gemini, Google Vision, general LLM APIs, analytics, logs, GitHub, CI, Airtable, or unrelated services.
 5. Encryption protects transport and temporary storage, but the authorized worker necessarily decrypts the document in memory to process it. Product disclosure must state this plainly.
 6. The serverless worker must produce sanitized image/text derivatives before legal-analysis handoff.
 7. Raw job inputs, transient plaintext, job keys, and raw OCR output must be deleted after completion or terminal failure according to verified provider/runtime behavior.
 8. Model throughput claims do not establish single-contract latency, cold-start time, GPU fit, cost, Hebrew quality, or privacy behavior. Those must be measured.
-9. The first step is a benchmark, not a production upload flow.
+9. The first serverless OCR implementation step is a benchmark, not a production upload flow.
 10. The paused local visual detector work remains available as research or a future auxiliary layer, but it is not the active next step.
 
 ## Active target pipeline
@@ -142,11 +142,11 @@ Before production selection, verify:
 
 The worker request/response contract must remain model-neutral so another OCR model can replace Surya.
 
-## Active next step
+## Serverless benchmark gate
 
-The only permitted next step is `serverless-gpu-ocr-viability-benchmark-v1`.
+The canonical current privacy/OCR step is defined only by `docs/OCR_PROJECT_STATE.md` and its JSON mirror. This document does not independently select the next PR.
 
-It may add a benchmark worker and reproducible synthetic/redacted test packet, but it must not add:
+When the canonical state reaches `serverless-gpu-ocr-viability-benchmark-v1`, that bounded step may add a benchmark worker and reproducible synthetic/redacted test packet, but it must not add:
 
 - production Android upload;
 - real user contracts;

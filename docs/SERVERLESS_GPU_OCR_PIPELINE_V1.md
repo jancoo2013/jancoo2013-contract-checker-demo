@@ -111,11 +111,11 @@ Surya is the first benchmark candidate because it supports Hebrew, returns geome
 
 The architecture must remain replaceable: the worker interface is model-neutral.
 
-## 8. First implementation step
+## 8. Required serverless benchmark step
 
-The next bounded step is `serverless-gpu-ocr-viability-benchmark-v1`.
+The canonical current privacy/OCR step is defined by `docs/OCR_PROJECT_STATE.md` and its JSON mirror. This serverless architecture document does not independently select the next PR.
 
-It must:
+When the canonical state reaches `serverless-gpu-ocr-viability-benchmark-v1`, the benchmark must:
 
 1. build one local/serverless-compatible benchmark worker around one OCR candidate;
 2. use only synthetic, public, or owner-controlled redacted test pages in repository automation;
