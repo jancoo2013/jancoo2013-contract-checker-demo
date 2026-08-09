@@ -1,39 +1,43 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-09, PR #204, `ocr-geometry-transform-contract-validation-v1`.
+Последнее обновление: 2026-08-09, PR #205, `ocr-geometry-resource-budget-v1`.
 
 Активный трек: `serverless-gpu-ocr`.
 
-Следующий bounded-шаг после merge PR #204: `ocr-geometry-resource-budget-v1`.
+Следующий bounded-шаг после merge PR #205: `ocr-document-geometry-block-reaudit-v1`.
 
 Этот документ — каноническая operational-точка восстановления privacy/OCR-проекта. Только он вместе с `docs/OCR_PROJECT_STATE.json` выбирает текущий `next_step_id`; архитектурные документы задают границы и обязательные будущие gates, но не выбирают следующий PR самостоятельно.
 
-## 0. Изменение PR #204
+## 0. Изменение PR #205
 
-PR #204 — второй bounded corrective после focused Codex audit document geometry block.
+PR #205 — третий и последний bounded corrective после focused Codex audit document geometry block.
 
-Исправляется только finding #2: прежний physical deskew/crop API доверял `decision="accepted"` даже когда вручную собранные stage objects противоречили собственным acceptance semantics.
+Исправляется finding #3: прежний общий лимит `150_000_000` source pixels был конечным, но не задавал практически ограниченный memory contract для full-resolution EXIF/convert/rotation/crop path.
 
 Изменение:
 
-- accepted `TextAngleEstimate` требует acceptance-level confidence;
-- accepted angle не может содержать rejection reasons;
-- `dominant_text_angle_degrees` должен быть согласован со знаком `deskew_rotation_degrees`;
-- accepted `ContentRegionBounds` требует acceptance-level confidence и пустые rejection reasons;
-- candidate и safe crop boxes должны быть валидны;
-- safe crop должен полностью содержать candidate content bounds;
-- internally contradictory accepted objects теперь вызывают `ContentRegionDeskewCropError` до physical rotation/crop;
-- content-region heuristic, OCR, PII, Android, illumination/shadow, provider/serverless, Gemini, upload, encryption, persistence, network и dependencies не меняются.
+- добавлен единый `geometry_resource_budget.py` для текущего offline Python reference runtime;
+- абсолютный source-pixel cap снижен до `32_000_000`;
+- максимальная отдельная dimension ограничена `8192` pixels;
+- введён mode-aware accounted peak-memory ceiling `384 MiB`;
+- accounting различает modes, которые physical transform обрабатывает нативно, и modes, требующие full-resolution RGB conversion;
+- resource metadata проверяется до `ImageOps.exif_transpose`, grayscale conversion и physical full-resolution transform copies;
+- неизвестные/unaccounted PIL modes fail closed;
+- preview path и direct physical-transform API используют один resource contract;
+- boundary tests не создают изображения максимального размера: limits проверяются по size/mode metadata;
+- модель является консервативным accounting contract, а не заявлением о точно измеренном RSS/Pillow allocator peak.
 
-Geometry block остаётся frozen. После PR #204 остаётся ровно один finding исходного geometry audit: explicit full-resolution memory/resource budget.
+Этот guard ограничивает дополнительные geometry operations над переданным PIL image. Он не является отдельной гарантией того, сколько памяти уже потратил внешний decoder до передачи image в API; production capture/decode path должен сохранять собственные pre-decode/input limits.
 
-## 1. Focused Codex audit — результат и corrective status
+Geometry block остаётся frozen до повторного targeted Codex audit.
 
-Audit endpoint:
+## 1. Focused Codex audit — corrective status
+
+Исходный audit endpoint:
 
 `6b30b0a66ccebf8efac49b1b368039ca453519cc` — merge PR #202.
 
-Audit scope был намеренно ограничен только document geometry block:
+Исходный audit scope был намеренно ограничен только document geometry block:
 
 - PR #194 — text/ink mask;
 - PR #195 — text-angle estimator;
@@ -43,16 +47,16 @@ Audit scope был намеренно ограничен только document g
 
 Codex outcome: `FREEZE AFFECTED AREA`.
 
-Найдено три concrete finding:
+Найденные findings и corrective status:
 
 1. **BLOCKING — disconnected legitimate content could be cropped away.**
    - Corrected by PR #203.
 2. **CORRECTIVE — contradictory manually constructed `accepted` stage contracts could authorize physical crop.**
    - Corrected by PR #204.
-3. **CORRECTIVE — inherited 150M source-pixel limit is finite but does not prove an acceptable worst-case memory budget for full-resolution PIL operations.**
-   - Следующий bounded corrective: `ocr-geometry-resource-budget-v1`.
+3. **CORRECTIVE — inherited 150M source-pixel limit did not prove a practical full-resolution memory budget.**
+   - Corrected by PR #205, subject to targeted re-audit.
 
-После PR #205 geometry block должен пройти повторный targeted Codex audit. Только `BATCH AUDIT CLEAR` на исправленном end SHA разрешает снять freeze с первого блока.
+Ни один finding не считается окончательно закрытым для freeze только на основании self-review. Geometry block должен пройти повторный targeted Codex audit на актуальном `main` после merge PR #205.
 
 ## 2. Первый блок — document geometry normalization
 
@@ -60,6 +64,7 @@ Codex outcome: `FREEZE AFFECTED AREA`.
 
 ```text
 source PIL image
+→ validate bounded source dimensions/mode/accounted memory
 → EXIF orientation inside preview/transform contracts
 → local-contrast text/ink mask
 → bounded dominant text-angle estimate
@@ -74,10 +79,11 @@ source PIL image
 
 | Component | Status |
 |---|---|
-| Local-contrast text mask | Offline Python reference, PR #194 |
+| Geometry resource budget | Offline Python reference, PR #205 |
+| Local-contrast text mask | Offline Python reference, PR #194; shared resource guard PR #205 |
 | Bounded text-angle estimator | Offline Python reference, PR #195 |
 | Content-region bounds/decision | Offline Python reference, PR #196; disconnected-content corrective PR #203 |
-| Physical deskew/crop application | Offline Python reference, PR #200; accepted-contract corrective PR #204 |
+| Physical deskew/crop application | Offline Python reference, PR #200; accepted-contract corrective PR #204; shared resource guard PR #205 |
 | End-to-end geometry normalizer | Offline Python integration, PR #202 |
 
 Не входят в этот block и не должны добавляться до его clean re-audit:
@@ -92,15 +98,27 @@ source PIL image
 - Gemini/LLM integration;
 - report persistence.
 
-## 3. Следующий шаг — `ocr-geometry-resource-budget-v1`
+## 3. Следующий шаг — `ocr-document-geometry-block-reaudit-v1`
 
-После merge PR #204 разрешён только третий и последний corrective из focused audit.
+После merge PR #205 разработка preprocessing снова останавливается.
 
-Цель: заменить недоказанный общий лимит `150_000_000` source pixels на явный practically bounded resource contract для full-resolution geometry path.
+Codex должен повторно проверить **только document geometry block**, не весь repository. Audit должен учитывать актуальный код после corrective PRs #203, #204 и #205 и исходные implementation PRs #194, #195, #196, #200 и #202.
 
-Следующий PR должен ограничиться input/resource safety этого geometry block: decoded size/mode/dimensions и worst-case memory amplification. Он не должен менять crop heuristic, accepted-contract semantics, OCR, PII, Android, provider/serverless или добавлять новый preprocessing.
+Основные вопросы re-audit:
 
-После него — повторный targeted Codex audit того же document geometry block, а не продолжение pipeline.
+1. устранён ли риск удаления disconnected legitimate content;
+2. fail-closed ли contradictory accepted contracts;
+3. действительно ли новый source/resource contract выполняется до дорогих full-resolution copies и разумно ограничивает mode-specific memory amplification;
+4. не создали ли corrective PRs новые coordinate, EXIF, crop, fallback или resource regressions;
+5. достаточны ли synthetic/adversarial tests для freeze этого блока.
+
+Допустимые outcomes:
+
+- `BATCH AUDIT CLEAR` → первый geometry block можно считать frozen/закрытым и только после этого выбрать следующий product step;
+- `CORRECTIVE PR REQUIRED` → исправлять только конкретные defects этого же блока;
+- `FREEZE AFFECTED AREA` → блок остаётся frozen.
+
+До результата re-audit не начинать illumination/shadow, OCR, PII, Android, provider/serverless или другие соседние направления.
 
 ## 4. Активная целевая цепочка продукта
 
@@ -122,7 +140,7 @@ raw phone photos
 
 Tesseract full-page OCR on Samsung A55 remains NO-GO and cannot return as active fallback.
 
-Serverless GPU OCR viability benchmark remains a required future gate. It is not part of the frozen geometry corrective sequence.
+Serverless GPU OCR viability benchmark remains a required future gate. It is not part of the frozen geometry corrective/re-audit sequence.
 
 ## 5. Review and merge policy
 
@@ -135,7 +153,7 @@ GitHub Actions остаются best-effort diagnostics и не входят в 
 3. mandatory final-diff security review по `SECURITY.md` с `Security review: PASS`;
 4. явное решение владельца продукта о merge.
 
-Individual Codex review перед каждым PR не требуется.
+Individual Codex review перед каждым PR не требуется. Codex используется для целевых/batch audits, включая следующий geometry re-audit.
 
 ## 6. Privacy and security boundary
 
@@ -165,3 +183,5 @@ Production остаётся blocked до реализации и проверк�
 Последний полный repository cold-start audit: PR #177 после merge PR #176.
 
 Последний focused geometry audit: Codex at `6b30b0a66ccebf8efac49b1b368039ca453519cc`, outcome `FREEZE AFFECTED AREA`.
+
+Следующий audit: targeted geometry re-audit после merge PR #205.
