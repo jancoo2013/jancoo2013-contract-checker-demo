@@ -5,9 +5,14 @@ from dataclasses import dataclass
 import numpy as np
 from PIL import Image, ImageFilter, ImageOps
 
+from research.hebrew_contract_ocr.geometry_resource_budget import (
+    MAX_SOURCE_PIXELS,
+    GeometryResourceBudgetError,
+    validate_geometry_resource_budget,
+)
+
 
 PREVIEW_LONG_SIDE = 1800
-MAX_SOURCE_PIXELS = 150_000_000
 
 
 class TextInkMaskError(ValueError):
@@ -24,13 +29,10 @@ class TextInkMaskResult:
 
 
 def _make_preview(image: Image.Image) -> tuple[Image.Image, float]:
-    width, height = image.size
-    if width <= 0 or height <= 0:
-        raise TextInkMaskError("source image dimensions must be positive")
-    if width * height > MAX_SOURCE_PIXELS:
-        raise TextInkMaskError(
-            f"source exceeds the {MAX_SOURCE_PIXELS:,}-pixel safety limit"
-        )
+    try:
+        validate_geometry_resource_budget(image)
+    except GeometryResourceBudgetError as exc:
+        raise TextInkMaskError(str(exc)) from exc
 
     preview = ImageOps.exif_transpose(image).convert("L")
     scale = min(1.0, PREVIEW_LONG_SIDE / max(preview.size))
