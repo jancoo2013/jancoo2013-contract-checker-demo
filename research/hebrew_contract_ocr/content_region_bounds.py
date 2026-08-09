@@ -184,14 +184,20 @@ def _has_compact_foreground(outside: np.ndarray) -> bool:
 
     for top, bottom in row_runs:
         band = outside[top:bottom]
-        ys, xs = np.nonzero(band)
-        if xs.size < min_pixels:
+        if int(np.count_nonzero(band)) < min_pixels:
             continue
 
-        left = int(xs.min())
-        right = int(xs.max()) + 1
-        actual_top = top + int(ys.min())
-        actual_bottom = top + int(ys.max()) + 1
+        rows_present = np.any(band, axis=1)
+        cols_present = np.any(band, axis=0)
+        row_indices = np.flatnonzero(rows_present)
+        col_indices = np.flatnonzero(cols_present)
+        if not row_indices.size or not col_indices.size:
+            continue
+
+        left = int(col_indices[0])
+        right = int(col_indices[-1]) + 1
+        actual_top = top + int(row_indices[0])
+        actual_bottom = top + int(row_indices[-1]) + 1
         band_width = right - left
         band_height = actual_bottom - actual_top
 
