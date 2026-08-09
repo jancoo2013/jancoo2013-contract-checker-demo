@@ -14,6 +14,11 @@ MIN_LINE_COUNT = 4
 MIN_ANCHOR_WIDTH_RATIO = 0.18
 MIN_BAND_WIDTH_RATIO = 0.06
 MIN_OUTSIDE_BAND_WIDTH_RATIO = 0.025
+MIN_OUTSIDE_COMPACT_ROW_RATIO = 0.002
+MIN_OUTSIDE_COMPACT_PIXELS = 20
+MIN_OUTSIDE_COMPACT_AREA_RATIO = 0.00001
+MIN_OUTSIDE_VERTICAL_ARTIFACT_HEIGHT_RATIO = 0.08
+MAX_OUTSIDE_VERTICAL_ARTIFACT_ASPECT = 6.0
 MAX_BAND_HEIGHT_RATIO = 0.09
 MIN_CONTENT_WIDTH_RATIO = 0.20
 MIN_CONTENT_HEIGHT_RATIO = 0.12
@@ -163,16 +168,54 @@ def _dominant_bands(bands: list[Box], width: int) -> list[Box]:
     return sorted(selected, key=lambda box: (box[1], box[0]))
 
 
+def _has_compact_foreground(outside: np.ndarray) -> bool:
+    height, width = outside.shape
+    row_counts = np.count_nonzero(outside, axis=1)
+    row_threshold = max(2, int(math.ceil(width * MIN_OUTSIDE_COMPACT_ROW_RATIO)))
+    active_rows = row_counts >= row_threshold
+    row_runs = _merge_runs(
+        _runs(active_rows),
+        max_gap=max(1, int(round(height * 0.002))),
+    )
+    min_pixels = max(
+        MIN_OUTSIDE_COMPACT_PIXELS,
+        int(round(width * height * MIN_OUTSIDE_COMPACT_AREA_RATIO)),
+    )
+
+    for top, bottom in row_runs:
+        band = outside[top:bottom]
+        ys, xs = np.nonzero(band)
+        if xs.size < min_pixels:
+            continue
+
+        left = int(xs.min())
+        right = int(xs.max()) + 1
+        actual_top = top + int(ys.min())
+        actual_bottom = top + int(ys.max()) + 1
+        band_width = right - left
+        band_height = actual_bottom - actual_top
+
+        long_vertical_artifact = (
+            band_height > band_width * MAX_OUTSIDE_VERTICAL_ARTIFACT_ASPECT
+            and band_height
+            >= height * MIN_OUTSIDE_VERTICAL_ARTIFACT_HEIGHT_RATIO
+        )
+        if not long_vertical_artifact:
+            return True
+
+    return False
+
+
 def _has_disconnected_content_outside(mask: np.ndarray, crop_box: Box) -> bool:
     outside = mask.copy()
     left, top, right, bottom = crop_box
     outside[top:bottom, left:right] = False
-    return bool(
-        _line_bands(
-            outside,
-            min_band_width_ratio=MIN_OUTSIDE_BAND_WIDTH_RATIO,
-        )
-    )
+    if _line_bands(
+        outside,
+        min_band_width_ratio=MIN_OUTSIDE_BAND_WIDTH_RATIO,
+    ):
+        return True
+    return _has_compact_foreground(outside)
 
 
 def estimate_content_region(
