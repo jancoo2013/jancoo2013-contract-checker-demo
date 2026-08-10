@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-09-61",
+  "state_version": "privacy-ocr-2026-08-10-62",
   "active_track": "serverless-gpu-ocr",
-  "next_step_id": "ocr-accepted-stage-contract-validation-v2",
-  "next_step_summary": "The second focused Codex re-audit of the document geometry block at main SHA 2126f510f9f178e74c9b487693a99af4ef7d42f1 returned FREEZE AFFECTED AREA. PR #206 addresses only the first new blocking finding: compact or fragmented legitimate content outside the proposed crop could still be removed. The new bounded guard treats qualifying compact/fragmented outside foreground as unsafe while preserving the existing exemption for a long narrow vertical artifact, forcing the established full-frame fallback. Geometry remains frozen. After merge, implement only ocr-accepted-stage-contract-validation-v2 for the remaining search-bound and line-evidence contract gaps. Preview-memory accounting and LAB mode/transform alignment remain separate later corrective findings; after all focused corrections, rerun the same targeted geometry audit before lifting the freeze.",
-  "last_recorded_pr": 206,
-  "last_recorded_change": "ocr-disconnected-compact-content-failsafe-v2",
+  "next_step_id": "ocr-geometry-resource-accounting-mode-alignment-v2",
+  "next_step_summary": "The second focused Codex re-audit of document geometry at main SHA 2126f510f9f178e74c9b487693a99af4ef7d42f1 returned FREEZE AFFECTED AREA with two blocking and two corrective remaining findings. PR #206 addresses compact/fragmented disconnected content outside accepted crops. PR #207 addresses the remaining accepted-stage blocking finding: accepted rotations at the estimator search limit now fail closed, accepted line evidence must meet the producer minimum, every line band is bounded, and candidate bounds must equal the union of supplied accepted line evidence before physical transform. Geometry remains frozen. After merge, implement only ocr-geometry-resource-accounting-mode-alignment-v2: make preview working-set accounting conservative and align the resource mode allowlist with the physical transform capability, including the audited LAB mismatch. Then rerun the same targeted geometry audit and lift the freeze only on BATCH AUDIT CLEAR.",
+  "last_recorded_pr": 207,
+  "last_recorded_change": "ocr-accepted-stage-contract-validation-v2",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
-  "updated_on": "2026-08-09"
+  "updated_on": "2026-08-10"
 }
