@@ -1,31 +1,36 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-09, PR #206, `ocr-disconnected-compact-content-failsafe-v2`.
+Последнее обновление: 2026-08-10, PR #207, `ocr-accepted-stage-contract-validation-v2`.
 
 Активный трек: `serverless-gpu-ocr`.
 
-Следующий bounded-шаг после merge PR #206: `ocr-accepted-stage-contract-validation-v2`.
+Следующий bounded-шаг после merge PR #207: `ocr-geometry-resource-accounting-mode-alignment-v2`.
 
 Этот документ — каноническая operational-точка восстановления privacy/OCR-проекта. Только он вместе с `docs/OCR_PROJECT_STATE.json` выбирает текущий `next_step_id`; архитектурные документы задают границы и обязательные будущие gates, но не выбирают следующий PR самостоятельно.
 
-## 0. Изменение PR #206
+## 0. Изменение PR #207
 
-PR #206 — первый bounded corrective после второго focused Codex re-audit document geometry block.
+PR #207 — второй bounded corrective после второго focused Codex re-audit document geometry block.
 
-Повторный аудит показал, что PR #203 закрыл исходные wide disconnected-content cases, но accepted crop всё ещё мог удалить очень короткий или fragmented legitimate content вне dominant crop: например compact page-number-like marks шириной 12/18/22 px и разделённые короткие marks.
+Повторный аудит показал, что PR #204 закрыл первоначальные contradictory accepted-contract cases, но physical transform всё ещё мог принять два невозможных состояния:
 
-Изменение PR #206:
+- вручную собранный accepted angle на `-12°` или `+12°`, хотя реальный estimator всегда отвергает search-limit candidate;
+- accepted `ContentRegionBounds` с пустыми/недостаточными или несвязанными `line_bands`, которые не подтверждают заявленный `candidate_content_bounds`.
 
-- существующий wide disconnected-line guard PR #203 сохраняется;
-- добавлен bounded compact-foreground guard для содержимого вне padded crop candidate;
-- compact evidence группируется по близким активным строкам и total foreground, поэтому больше не требует непрерывного horizontal run шириной минимум 2.5% страницы;
-- compact/fragmented outside content добавляет `disconnected_content_outside_crop`;
-- decision становится `rotation_only`, а существующий physical-transform contract сохраняет полный кадр;
-- long narrow vertical artifact остаётся отдельным exemption, чтобы прежний side-noise case не запрещал безопасный crop;
-- synthetic coverage включает compact footer widths 4/12/18/22 px, fragmented separated marks и +7° skew;
-- crop heuristic вне этого fail-safe, accepted-stage contract validation, resource accounting, OCR, PII, Android, provider/serverless и другие subsystem boundaries не меняются.
+Изменение PR #207:
 
-Geometry block остаётся frozen. PR #206 не закрывает остальные findings второго re-audit.
+- accepted deskew rotation обязан находиться **строго внутри** estimator search boundary; `±12°` fail closed;
+- это search-bound противоречие отклоняется до EXIF transpose/full-resolution transform;
+- accepted content-region contract обязан содержать минимум `MIN_LINE_COUNT` line bands;
+- каждый line-band box валидируется внутри declared preview;
+- `candidate_content_bounds` обязан точно совпадать с union supplied accepted `line_bands`;
+- пустое, недостаточное или unrelated line evidence больше не может авторизовать physical crop;
+- existing confidence/rejection-reason/sign/candidate/safe-containment validation PR #204 сохраняется;
+- content-region heuristic, disconnected-content guard, resource accounting, OCR, PII, Android, provider/serverless и другие subsystem boundaries не меняются.
+
+Pre-state focused validation: exact changed source/test blobs compile; isolated physical-transform suite with unchanged upstream dataclass/constant stubs — 14/14 PASS. Final integration validation выполняется после state update на final head.
+
+Geometry block остаётся frozen. PR #207 не закрывает два resource/mode findings второго re-audit.
 
 ## 1. Focused geometry audits — current status
 
@@ -54,22 +59,20 @@ Audit endpoint:
 
 Outcome: `FREEZE AFFECTED AREA`.
 
-Повторный audit подтвердил, что исходные large examples стали безопаснее, но нашёл четыре concrete remaining findings:
+Findings и corrective status:
 
 1. **BLOCKING — compact or fragmented disconnected legitimate content can still be cropped away.**
-   - Corrective: PR #206 `ocr-disconnected-compact-content-failsafe-v2`.
+   - Addressed by PR #206 `ocr-disconnected-compact-content-failsafe-v2`.
 2. **BLOCKING — accepted-stage validation still permits impossible crop authorization.**
-   - Accepted `±12°` can pass transform validation although the real estimator rejects search-limit candidates.
-   - Accepted bounds can carry empty/unrelated `line_bands` that do not justify the candidate crop.
-   - Следующий bounded corrective: `ocr-accepted-stage-contract-validation-v2`.
+   - Search-limit `±12°` and line-evidence/candidate consistency addressed by PR #207 `ocr-accepted-stage-contract-validation-v2`.
 3. **CORRECTIVE — geometry peak accounting is not yet a conservative upper bound for preview analysis.**
    - Preview grayscale/background/NumPy working buffers are not fully represented by the current accounting formula.
-   - Separate later corrective required.
-4. **CORRECTIVE — resource-supported `LAB` mode is not aligned with the current physical transform conversion capability.**
-   - `LAB` passes the resource allowlist but accepted physical transform later cannot convert it to RGB using the current Pillow path.
-   - Separate later corrective required; may be combined with the remaining resource-accounting corrective if scope remains bounded.
+   - Remaining corrective: `ocr-geometry-resource-accounting-mode-alignment-v2`.
+4. **CORRECTIVE — resource-supported `LAB` mode is not aligned with current physical transform conversion capability.**
+   - `LAB` passes the current resource allowlist but accepted physical transform cannot convert it to RGB using the current Pillow path.
+   - Remaining corrective: combine mode allowlist alignment with the bounded resource-accounting corrective above.
 
-Ни один finding не считается окончательно закрытым для geometry freeze только на основании self-review. После всех bounded correctives весь document geometry block должен снова пройти targeted Codex re-audit. Только `BATCH AUDIT CLEAR` разрешает снять freeze.
+Ни один finding не считается окончательно закрытым для geometry freeze только на основании self-review. После remaining bounded resource/mode corrective весь document geometry block должен снова пройти targeted Codex re-audit. Только `BATCH AUDIT CLEAR` разрешает снять freeze.
 
 ## 2. Первый блок — document geometry normalization
 
@@ -83,7 +86,8 @@ source PIL image
 → bounded dominant text-angle estimate
 → bounded content-region decision
 → reject wide/compact/fragmented meaningful content outside proposed crop
-→ validate accepted stage-contract consistency
+→ validate accepted search-bound + line-evidence/candidate consistency
+→ validate accepted confidence/reasons/sign/safe containment
 → full-resolution deskew + conservative crop only when fully accepted
 → otherwise full-frame fail-safe
 → DocumentGeometryNormalizationResult
@@ -97,7 +101,7 @@ source PIL image
 | Local-contrast text mask | Offline Python reference, PR #194; shared resource guard PR #205 |
 | Bounded text-angle estimator | Offline Python reference, PR #195 |
 | Content-region bounds/decision | Offline Python reference, PR #196; wide disconnected-content corrective PR #203; compact/fragmented corrective PR #206 |
-| Physical deskew/crop application | Offline Python reference, PR #200; accepted-contract corrective PR #204; shared resource guard PR #205 |
+| Physical deskew/crop application | Offline Python reference, PR #200; accepted-contract corrective PR #204; shared resource guard PR #205; accepted-contract v2 PR #207 |
 | End-to-end geometry normalizer | Offline Python integration, PR #202 |
 
 Не входят в этот block и не должны добавляться до его clean re-audit:
@@ -112,20 +116,18 @@ source PIL image
 - Gemini/LLM integration;
 - report persistence.
 
-## 3. Следующий шаг — `ocr-accepted-stage-contract-validation-v2`
+## 3. Следующий шаг — `ocr-geometry-resource-accounting-mode-alignment-v2`
 
-После merge PR #206 разрешён только следующий bounded corrective из второго Codex re-audit.
+После merge PR #207 разрешён только последний bounded corrective из второго Codex re-audit.
 
-Цель: закрыть remaining accepted-stage contract gaps без изменения content-region heuristic или resource accounting:
+Цель — закрыть два тесно связанных remaining resource-contract findings без изменения geometry heuristics:
 
-- accepted angle должен быть strictly inside estimator search boundary, поэтому `±12°` не может авторизовать physical crop;
-- accepted content-region contract должен содержать достаточное и валидное line evidence;
-- candidate bounds должны соответствовать supplied accepted line evidence, а не быть произвольным box;
-- impossible/malformed accepted objects должны reject до physical transformation.
+1. сделать peak accounting консервативным для preview-analysis phase, учитывая одновременно живущие grayscale/background/NumPy working buffers и temporaries;
+2. выровнять accepted PIL mode allowlist с реально поддерживаемым current physical transform path; audited `LAB` mismatch должен fail closed в initial resource guard, если отдельный безопасный conversion path не вводится в этом bounded PR.
 
-Не включать в этот PR preview-memory accounting, LAB mode alignment, новый preprocessing, OCR, Android, PII или provider/serverless work.
+PR должен сохранять существующие source-pixel, long-side и mode-aware limits либо изменять их только если это необходимо для консервативного accounting proof. Не включать новый preprocessing, OCR, Android, PII, provider/serverless, upload, storage или dependencies.
 
-После contract-validation v2 остаются отдельные resource/mode correctives из второго audit, затем требуется ещё один targeted geometry re-audit.
+После merge этого corrective разработка geometry снова останавливается. Следующий шаг — targeted Codex re-audit **только document geometry block**. Freeze снимается только при `BATCH AUDIT CLEAR`.
 
 ## 4. Активная целевая цепочка продукта
 
