@@ -128,11 +128,19 @@ def _validate_accepted_line_evidence(bounds: ContentRegionBounds) -> None:
         raise ContentRegionDeskewCropError(
             "accepted content region preview size must be two positive integers"
         )
+    if max(bounds.preview_size) > PREVIEW_LONG_SIDE:
+        raise ContentRegionDeskewCropError(
+            "accepted content region preview exceeds the bounded preview contract"
+        )
     if not isinstance(bounds.line_bands, tuple):
         raise ContentRegionDeskewCropError("accepted line bands must be a tuple")
     if len(bounds.line_bands) < CONTENT_REGION_MIN_LINE_COUNT:
         raise ContentRegionDeskewCropError(
             "accepted content region lacks the minimum line evidence"
+        )
+    if len(bounds.line_bands) > bounds.preview_size[1]:
+        raise ContentRegionDeskewCropError(
+            "accepted content region has too many line bands for the preview"
         )
 
     validated_bands = tuple(
@@ -143,6 +151,10 @@ def _validate_accepted_line_evidence(bounds: ContentRegionBounds) -> None:
         )
         for index, box in enumerate(bounds.line_bands)
     )
+    if len(set(validated_bands)) < CONTENT_REGION_MIN_LINE_COUNT:
+        raise ContentRegionDeskewCropError(
+            "accepted content region lacks distinct line evidence"
+        )
     candidate_box = _validate_box(
         bounds.candidate_content_bounds,
         bounds.preview_size,
