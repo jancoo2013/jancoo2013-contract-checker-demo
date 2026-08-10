@@ -14,6 +14,7 @@
 
 ```text
 local source + module-owned preview
+→ require exact session-local source↔preview binding
 → rerun and validate native angle contract
 → rejected/uncertain: 0° full-frame fallback
 → accepted: EXIF-normalized full-resolution deskew
@@ -23,6 +24,8 @@ local source + module-owned preview
 
 Границы PR #213:
 
+- current `preview.png` session-bound к exact source URI, который его создал; transform с другим source URI fail-closed;
+- source URI binding хранится только в памяти module instance и не пишется на диск/в logs;
 - JavaScript не передаёт угол физического transform; native-код сам повторно получает и проверяет результат angle estimator;
 - accepted angle должен быть finite, строго внутри ±12°, иметь confidence >= 0.45, пустые rejection reasons и согласованный sign contract;
 - rejected/uncertain angle не вращает source: `rotationAppliedDegrees = 0`;
@@ -104,6 +107,7 @@ The phone validation implementation is intentionally split before coding each la
 
 `android-geometry-full-frame-deskew-v1` — PR #213
 
+- binds the active preview to the exact local source URI for the current module session;
 - reruns and structurally validates native angle evidence before physical transform;
 - accepted angle applies full-resolution deskew after EXIF normalization;
 - expanded white canvas preserves the complete source frame;
