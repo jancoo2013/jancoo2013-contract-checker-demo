@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-10-65",
-  "active_track": "serverless-gpu-ocr",
-  "next_step_id": "serverless-gpu-ocr-viability-benchmark-v1",
-  "next_step_summary": "PR #210 defines the finite binding code-freeze contract for the document geometry normalization block in docs/DOCUMENT_GEOMETRY_FREEZE_CRITERIA_V1.md. Under that contract, the geometry implementation is code-level frozen at PR #209 merge SHA 7fe4bc88df2427ea90442f7b074c3cfe4e0de33a: meaningful-content safety uses the current explicit bounded evidence thresholds, internal producer-impossible semantic metric forgeries do not move the freeze gate when structural mutation invariants remain validated, and only the finite regression/reopen criteria can reopen the block. Real-photo/product validation remains a later validation layer. The next authorized implementation step returns to the approved active track: serverless-gpu-ocr-viability-benchmark-v1. Do not add illumination/shadow, perspective, Android upload, production encryption, PII, Gemini, permanent storage, or other production infrastructure to that benchmark PR.",
-  "last_recorded_pr": 210,
-  "last_recorded_change": "ocr-document-geometry-freeze-criteria-v1",
+  "state_version": "privacy-ocr-2026-08-10-66",
+  "active_track": "android-geometry-validation",
+  "next_step_id": "android-geometry-angle-estimator-v1",
+  "next_step_summary": "Product-owner validation gate inserted after the code-level geometry freeze and before serverless OCR benchmarking. PR #211 adds only the first Android runtime layer: local file/content URI -> bounded source validation -> EXIF-normalized orientation -> exact grayscale preview with long side <=1800 -> local cache PNG and dimensions. It does not estimate angle, deskew, crop, run OCR, upload data, call a backend, or modify the frozen Python geometry baseline. Next implement android-geometry-angle-estimator-v1 over this bounded preview contract. Then add physical full-frame deskew and a small validation UI before the Samsung A55 manual validation run. serverless-gpu-ocr-viability-benchmark-v1 remains deferred until that device validation sequence is recorded.",
+  "last_recorded_pr": 211,
+  "last_recorded_change": "android-geometry-preview-contract-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-08-10"
