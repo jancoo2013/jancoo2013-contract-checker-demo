@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-10-66",
+  "state_version": "privacy-ocr-2026-08-10-67",
   "active_track": "android-geometry-validation",
-  "next_step_id": "android-geometry-angle-estimator-v1",
-  "next_step_summary": "Product-owner validation gate inserted after the code-level geometry freeze and before serverless OCR benchmarking. PR #211 adds only the first Android runtime layer: local file/content URI -> bounded source validation -> EXIF-normalized orientation -> exact grayscale preview with long side <=1800 -> local cache PNG and dimensions. It does not estimate angle, deskew, crop, run OCR, upload data, call a backend, or modify the frozen Python geometry baseline. Next implement android-geometry-angle-estimator-v1 over this bounded preview contract. Then add physical full-frame deskew and a small validation UI before the Samsung A55 manual validation run. serverless-gpu-ocr-viability-benchmark-v1 remains deferred until that device validation sequence is recorded.",
-  "last_recorded_pr": 211,
-  "last_recorded_change": "android-geometry-preview-contract-v1",
+  "next_step_id": "android-geometry-full-frame-deskew-v1",
+  "next_step_summary": "PR #212 adds only the second Android geometry validation layer over the bounded preview contract from PR #211: module-owned grayscale preview -> bounded local text/ink evidence -> fixed -12..+12 degree projection search -> value-free angle/confidence/decision result. It does not physically rotate or crop the source image, run OCR, add UI, upload data, call a backend, or modify the frozen Python geometry baseline. Next implement android-geometry-full-frame-deskew-v1: apply only an accepted validated angle to the local full-resolution source while preserving the full frame and adding no crop/UI/network/OCR. Then add the small validation UI before the Samsung A55 manual validation run. serverless-gpu-ocr-viability-benchmark-v1 remains deferred until that device validation sequence is recorded.",
+  "last_recorded_pr": 212,
+  "last_recorded_change": "android-geometry-angle-estimator-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-08-10"
