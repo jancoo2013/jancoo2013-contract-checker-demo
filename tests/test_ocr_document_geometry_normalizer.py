@@ -99,6 +99,12 @@ def _compact_footer_document(
     return image
 
 
+def _source_edge_annotation_document(*, angle: float = 7.0) -> Image.Image:
+    image = _document(angle=angle)
+    ImageDraw.Draw(image).rectangle((0, 0, 39, 39), fill=15)
+    return image
+
+
 class DocumentGeometryNormalizerTests(unittest.TestCase):
     def test_horizontal_document_runs_full_stack_and_crops(self) -> None:
         result = normalize_document_geometry(_document())
@@ -120,6 +126,24 @@ class DocumentGeometryNormalizerTests(unittest.TestCase):
         self.assertEqual(result.bounds.decision, "accepted")
         self.assertEqual(result.decision, "deskewed_and_cropped")
         self.assertNotEqual(result.transform.rotation_applied_degrees, 0.0)
+
+    def test_source_edge_annotation_preserves_full_frame_before_deskew(self) -> None:
+        image = _source_edge_annotation_document()
+        original = np.asarray(image).copy()
+
+        result = normalize_document_geometry(image)
+
+        self.assertEqual(result.angle.decision, "accepted")
+        self.assertAlmostEqual(result.angle.deskew_rotation_degrees, -7.0, delta=2.0)
+        self.assertEqual(result.bounds.decision, "rotation_only")
+        self.assertIn(
+            "source_edge_content_clipped_by_deskew",
+            result.bounds.rejection_reasons,
+        )
+        self.assertEqual(result.decision, "full_frame_fallback")
+        self.assertEqual(result.transform.rotation_applied_degrees, 0.0)
+        self.assertIsNone(result.transform.crop_box_source)
+        self.assertTrue(np.array_equal(np.asarray(result.image), original))
 
     def test_blank_document_fails_safe_to_full_frame(self) -> None:
         image = Image.new("L", (900, 1200), 250)
