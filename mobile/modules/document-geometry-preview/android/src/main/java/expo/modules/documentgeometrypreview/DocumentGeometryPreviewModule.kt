@@ -29,16 +29,11 @@ class DocumentGeometryPreviewModule : Module() {
 
   override fun definition() = ModuleDefinition {
     Name("DocumentGeometryPreview")
-
-    AsyncFunction("buildPreviewAsync") Coroutine { uriString: String ->
-      buildPreview(uriString)
-    }
+    AsyncFunction("buildPreviewAsync") Coroutine { uriString: String -> buildPreview(uriString) }
   }
 
-  private fun cacheRoot(): File = File(context.cacheDir, "document-geometry-preview")
-
   private fun prepareCache(): File {
-    val root = cacheRoot()
+    val root = File(context.cacheDir, "document-geometry-preview")
     root.deleteRecursively()
     if (!root.mkdirs() && !root.isDirectory) {
       throw IllegalStateException("Unable to create geometry preview cache.")
@@ -104,9 +99,7 @@ class DocumentGeometryPreviewModule : Module() {
 
   private fun decodePreviewSource(file: File, width: Int, height: Int): Bitmap {
     var sample = 1
-    while (max(width, height) / (sample * 2) >= PREVIEW_LONG_SIDE) {
-      sample *= 2
-    }
+    while (max(width, height) / (sample * 2) >= PREVIEW_LONG_SIDE) sample *= 2
     val options = BitmapFactory.Options().apply {
       inSampleSize = sample
       inPreferredConfig = Bitmap.Config.ARGB_8888
@@ -122,13 +115,11 @@ class DocumentGeometryPreviewModule : Module() {
       ExifInterface.ORIENTATION_ROTATE_180 -> matrix.setRotate(180f)
       ExifInterface.ORIENTATION_FLIP_VERTICAL -> matrix.setScale(1f, -1f)
       ExifInterface.ORIENTATION_TRANSPOSE -> {
-        matrix.setRotate(90f)
-        matrix.postScale(-1f, 1f)
+        matrix.setRotate(90f); matrix.postScale(-1f, 1f)
       }
       ExifInterface.ORIENTATION_ROTATE_90 -> matrix.setRotate(90f)
       ExifInterface.ORIENTATION_TRANSVERSE -> {
-        matrix.setRotate(-90f)
-        matrix.postScale(-1f, 1f)
+        matrix.setRotate(-90f); matrix.postScale(-1f, 1f)
       }
       ExifInterface.ORIENTATION_ROTATE_270 -> matrix.setRotate(-90f)
       ExifInterface.ORIENTATION_NORMAL, ExifInterface.ORIENTATION_UNDEFINED -> return bitmap
@@ -139,11 +130,11 @@ class DocumentGeometryPreviewModule : Module() {
     return oriented
   }
 
-  private fun scaleToPreview(bitmap: Bitmap): Bitmap {
-    val scale = minOf(1.0, PREVIEW_LONG_SIDE.toDouble() / max(bitmap.width, bitmap.height))
-    if (scale >= 1.0) return bitmap
-    val width = max(1, (bitmap.width * scale).roundToInt())
-    val height = max(1, (bitmap.height * scale).roundToInt())
+  private fun scaleToPreview(bitmap: Bitmap, sourceWidth: Int, sourceHeight: Int): Bitmap {
+    val scale = minOf(1.0, PREVIEW_LONG_SIDE.toDouble() / max(sourceWidth, sourceHeight))
+    val width = max(1, (sourceWidth * scale).roundToInt())
+    val height = max(1, (sourceHeight * scale).roundToInt())
+    if (bitmap.width == width && bitmap.height == height) return bitmap
     val scaled = Bitmap.createScaledBitmap(bitmap, width, height, true)
     if (scaled !== bitmap) bitmap.recycle()
     return scaled
@@ -161,47 +152,56 @@ class DocumentGeometryPreviewModule : Module() {
 
   private fun buildPreview(uriString: String): Map<String, Any> {
     val root = prepareCache()
-    val source = materializeLocalImage(uriString, root)
-    val (sourceWidth, sourceHeight) = readBounds(source)
-    val orientation = readExifOrientation(source)
-    var bitmap = decodePreviewSource(source, sourceWidth, sourceHeight)
-    bitmap = orient(bitmap, orientation)
-    val swapsAxes = orientation in setOf(
-      ExifInterface.ORIENTATION_TRANSPOSE,
-      ExifInterface.ORIENTATION_ROTATE_90,
-      ExifInterface.ORIENTATION_TRANSVERSE,
-      ExifInterface.ORIENTATION_ROTATE_270,
-    )
-    val orientedWidth = if (swapsAxes) sourceHeight else sourceWidth
-    val orientedHeight = if (swapsAxes) sourceWidth else sourceHeight
-    bitmap = scaleToPreview(bitmap)
-    bitmap = grayscale(bitmap)
-
-    val previewWidth = bitmap.width
-    val previewHeight = bitmap.height
-    val output = File(root, "preview.png")
+    var copiedSource: File? = null
+    var completed = false
     try {
-      FileOutputStream(output).use { stream ->
-        if (!bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)) {
-          throw IllegalStateException("Unable to encode the geometry preview.")
-        }
-      }
-    } finally {
-      bitmap.recycle()
-    }
-    if (!output.isFile || output.length() <= 0L) {
-      throw IllegalStateException("Geometry preview output is missing.")
-    }
+      val source = materializeLocalImage(uriString, root)
+      if (source.parentFile == root) copiedSource = source
+      val (sourceWidth, sourceHeight) = readBounds(source)
+      val orientation = readExifOrientation(source)
+      val swapsAxes = orientation in listOf(
+        ExifInterface.ORIENTATION_TRANSPOSE,
+        ExifInterface.ORIENTATION_ROTATE_90,
+        ExifInterface.ORIENTATION_TRANSVERSE,
+        ExifInterface.ORIENTATION_ROTATE_270,
+      )
+      val orientedWidth = if (swapsAxes) sourceHeight else sourceWidth
+      val orientedHeight = if (swapsAxes) sourceWidth else sourceHeight
 
-    return mapOf(
-      "previewUri" to Uri.fromFile(output).toString(),
-      "sourceWidth" to sourceWidth,
-      "sourceHeight" to sourceHeight,
-      "orientedWidth" to orientedWidth,
-      "orientedHeight" to orientedHeight,
-      "previewWidth" to previewWidth,
-      "previewHeight" to previewHeight,
-      "exifOrientation" to orientation,
-    )
+      var bitmap = decodePreviewSource(source, sourceWidth, sourceHeight)
+      bitmap = orient(bitmap, orientation)
+      bitmap = scaleToPreview(bitmap, orientedWidth, orientedHeight)
+      bitmap = grayscale(bitmap)
+      val previewWidth = bitmap.width
+      val previewHeight = bitmap.height
+      val output = File(root, "preview.png")
+      try {
+        FileOutputStream(output).use { stream ->
+          if (!bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)) {
+            throw IllegalStateException("Unable to encode the geometry preview.")
+          }
+        }
+      } finally {
+        bitmap.recycle()
+      }
+      if (!output.isFile || output.length() <= 0L) {
+        throw IllegalStateException("Geometry preview output is missing.")
+      }
+
+      completed = true
+      return mapOf(
+        "previewUri" to Uri.fromFile(output).toString(),
+        "sourceWidth" to sourceWidth,
+        "sourceHeight" to sourceHeight,
+        "orientedWidth" to orientedWidth,
+        "orientedHeight" to orientedHeight,
+        "previewWidth" to previewWidth,
+        "previewHeight" to previewHeight,
+        "exifOrientation" to orientation,
+      )
+    } finally {
+      copiedSource?.delete()
+      if (!completed) root.deleteRecursively()
+    }
   }
 }
