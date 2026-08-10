@@ -2,7 +2,7 @@
   "name": "contract-checker-mobile-transport-test",
   "version": "0.1.0",
   "private": true,
-  "main": "expo/AppEntry",
+  "main": "geometryEntry.js",
   "scripts": {
     "start": "expo start --dev-client",
     "android": "expo run:android",
