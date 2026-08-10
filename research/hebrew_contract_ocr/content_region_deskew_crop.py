@@ -11,6 +11,7 @@ from research.hebrew_contract_ocr.content_region_bounds import (
     ContentRegionBounds,
 )
 from research.hebrew_contract_ocr.geometry_resource_budget import (
+    PREVIEW_LONG_SIDE,
     GeometryResourceBudgetError,
     validate_geometry_resource_budget,
 )
@@ -19,7 +20,6 @@ from research.hebrew_contract_ocr.text_angle_estimator import (
     MIN_CONFIDENCE as TEXT_ANGLE_MIN_CONFIDENCE,
     TextAngleEstimate,
 )
-from research.hebrew_contract_ocr.text_ink_mask import PREVIEW_LONG_SIDE
 
 
 MAX_ABS_DESKEW_DEGREES = 12.0

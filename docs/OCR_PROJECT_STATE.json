@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-10-62",
+  "state_version": "privacy-ocr-2026-08-10-63",
   "active_track": "serverless-gpu-ocr",
-  "next_step_id": "ocr-geometry-resource-accounting-mode-alignment-v2",
-  "next_step_summary": "The second focused Codex re-audit of document geometry at main SHA 2126f510f9f178e74c9b487693a99af4ef7d42f1 returned FREEZE AFFECTED AREA with two blocking and two corrective remaining findings. PR #206 addresses compact/fragmented disconnected content outside accepted crops. PR #207 addresses the remaining accepted-stage blocking finding: accepted rotations at the estimator search limit now fail closed, accepted line evidence must meet the producer minimum, every line band is bounded, and candidate bounds must equal the union of supplied accepted line evidence before physical transform. Geometry remains frozen. After merge, implement only ocr-geometry-resource-accounting-mode-alignment-v2: make preview working-set accounting conservative and align the resource mode allowlist with the physical transform capability, including the audited LAB mismatch. Then rerun the same targeted geometry audit and lift the freeze only on BATCH AUDIT CLEAR.",
-  "last_recorded_pr": 207,
-  "last_recorded_change": "ocr-accepted-stage-contract-validation-v2",
+  "next_step_id": "ocr-document-geometry-block-reaudit-v2",
+  "next_step_summary": "The second focused Codex re-audit of document geometry at main SHA 2126f510f9f178e74c9b487693a99af4ef7d42f1 returned FREEZE AFFECTED AREA with two blocking and two corrective remaining findings. PR #206 addresses compact/fragmented disconnected content outside accepted crops. PR #207 addresses the remaining accepted-stage search-bound and line-evidence contract gaps. PR #208 addresses the final two resource-contract findings by making accounting phase-aware for the bounded preview working set, retaining explicit full-resolution transform accounting, centralizing the 1800-pixel preview limit, and failing LAB closed before EXIF/conversion because the audited reference runtime cannot rely on the current physical transform conversion path. Geometry remains frozen. After merge, do not continue preprocessing; run only ocr-document-geometry-block-reaudit-v2 against the complete current geometry block and lift the freeze only on BATCH AUDIT CLEAR.",
+  "last_recorded_pr": 208,
+  "last_recorded_change": "ocr-geometry-resource-accounting-mode-alignment-v2",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-08-10"

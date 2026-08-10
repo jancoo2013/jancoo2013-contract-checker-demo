@@ -7,12 +7,10 @@ from PIL import Image, ImageFilter, ImageOps
 
 from research.hebrew_contract_ocr.geometry_resource_budget import (
     MAX_SOURCE_PIXELS,
+    PREVIEW_LONG_SIDE,
     GeometryResourceBudgetError,
     validate_geometry_resource_budget,
 )
-
-
-PREVIEW_LONG_SIDE = 1800
 
 
 class TextInkMaskError(ValueError):

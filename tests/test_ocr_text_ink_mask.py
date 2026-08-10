@@ -8,6 +8,7 @@ from PIL import Image, ImageDraw
 
 import research.hebrew_contract_ocr.geometry_resource_budget as resource_module
 from research.hebrew_contract_ocr.text_ink_mask import (
+    PREVIEW_LONG_SIDE,
     TextInkMaskError,
     build_text_ink_mask,
 )
@@ -41,7 +42,7 @@ class OCRTextInkMaskTests(unittest.TestCase):
         large = build_text_ink_mask(Image.new("L", (2400, 3200), 255))
         small = build_text_ink_mask(Image.new("L", (600, 800), 255))
 
-        self.assertEqual(max(large.preview.size), 1800)
+        self.assertEqual(max(large.preview.size), PREVIEW_LONG_SIDE)
         self.assertLess(large.source_to_preview_scale, 1.0)
         self.assertEqual(small.preview.size, (600, 800))
         self.assertEqual(small.source_to_preview_scale, 1.0)
@@ -51,6 +52,15 @@ class OCRTextInkMaskTests(unittest.TestCase):
         with patch.object(resource_module, "MAX_SOURCE_PIXELS", 99):
             with self.assertRaises(TextInkMaskError):
                 build_text_ink_mask(image)
+
+    def test_lab_mode_fails_before_exif_or_grayscale_conversion(self) -> None:
+        image = Image.new("LAB", (10, 10))
+        with patch(
+            "research.hebrew_contract_ocr.text_ink_mask.ImageOps.exif_transpose"
+        ) as exif_transpose:
+            with self.assertRaisesRegex(TextInkMaskError, "unsupported"):
+                build_text_ink_mask(image)
+            exif_transpose.assert_not_called()
 
 
 if __name__ == "__main__":
