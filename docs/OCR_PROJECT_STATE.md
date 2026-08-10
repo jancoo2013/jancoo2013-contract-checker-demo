@@ -1,51 +1,46 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-10, PR #211, `android-geometry-preview-contract-v1`.
+Последнее обновление: 2026-08-10, PR #212, `android-geometry-angle-estimator-v1`.
 
 Активный трек: `android-geometry-validation`.
 
-Следующий bounded-шаг после merge PR #211: `android-geometry-angle-estimator-v1`.
+Следующий bounded-шаг после merge PR #212: `android-geometry-full-frame-deskew-v1`.
 
 Этот документ вместе с `docs/OCR_PROJECT_STATE.json` является канонической operational-точкой восстановления privacy/OCR-проекта. Архитектурные документы задают обязательные границы, но текущий `next_step_id` выбирается только state-файлами.
 
-## 0. Изменение PR #211 — первый Android validation layer
+## 0. Изменение PR #212 — Android angle-estimator layer
 
-После code-level freeze document geometry block владелец продукта потребовал сначала проверить выравнивание на реальном Samsung A55 и только затем переходить к serverless OCR benchmark.
-
-Это validation detour, а не отмена frozen Python reference.
-
-PR #211 добавляет только первый Android runtime layer:
+После PR #211 Android validation path имеет локальный bounded grayscale preview. PR #212 добавляет только следующий слой анализа этого preview:
 
 ```text
-local file/content URI
-→ bounded encoded-size check
-→ bounded source dimensions/pixels
-→ sampled local decode
-→ EXIF orientation normalization
-→ exact grayscale preview, long side <= 1800 px
-→ local cache PNG + dimensions
+module-owned grayscale preview <= 1800 px
+→ validate exact local cache contract
+→ bounded local text/ink evidence
+→ nearest-neighbor analysis mask <= 900 px
+→ fixed projection search from -12° to +12°, step 1°
+→ dominant text angle + deskew rotation + confidence
+→ accepted/rejected decision + rejection reasons
 ```
 
-Границы PR #211:
+Границы PR #212:
 
-- local `file://` и `content://` input only;
-- encoded source <= 48 MiB;
-- source long side <= 8192 px;
-- source pixels <= 32,000,000;
-- decode sampling выполняется до preview processing;
-- preview long side <= 1800 px;
-- `content://` source copy удаляется после обработки;
-- failed run очищает собственный geometry-preview cache;
-- нет angle estimation;
-- нет physical deskew;
+- input только `preview.png`, созданный модулем PR #211 в app cache;
+- произвольный внешний file/content URI в angle API не принимается;
+- preview long side <= 1800 px и preview pixels <= 1800×1800;
+- analysis mask long side <= 900 px;
+- search range строго `[-12°, +12°]`, шаг `1°`;
+- thresholds/reasons согласованы с frozen Python angle contract;
+- Android local-background step использует bounded separable box-background approximation и не заявляет pixel-identical Gaussian parity с Python research reference;
+- результат value-free: только angle/confidence/decision/reasons и scalar evidence;
+- нет physical rotation;
 - нет crop;
 - нет UI;
 - нет OCR/Tesseract;
 - нет network/backend/upload;
-- нет новых external dependencies;
+- нет новых dependencies/permissions/workflows;
 - frozen Python geometry implementation не меняется.
 
-Android preview contract намеренно строится отдельным маленьким PR до переноса следующего слоя. Это исправляет ошибочный процесс, при котором полный Android deskew runtime сначала был написан большим куском, а затем пытался быть разрезан постфактум. Экспериментальная ветка `agent/android-document-geometry-validation-v1` не является base или evidence для текущей реализации.
+Реальное поведение angle estimator на Samsung A55 этим PR не считается доказанным. Оно проверяется только после добавления physical full-frame deskew и dev validation UI.
 
 ## 1. Frozen Python document geometry block
 
@@ -88,26 +83,28 @@ The code-level freeze remains valid while Android validation proceeds. Android/p
 
 The phone validation implementation is intentionally split before coding each layer.
 
-### Completed/current
+### Completed
 
 `android-geometry-preview-contract-v1` — PR #211
 
 - local bounded decode;
 - EXIF normalization;
 - exact <=1800 px grayscale preview;
-- no geometry decision yet.
+- no geometry decision.
+
+`android-geometry-angle-estimator-v1` — PR #212
+
+- consumes only the bounded module-owned preview;
+- creates bounded text/ink evidence;
+- performs fixed ±12° projection search;
+- returns angle/confidence/decision/reasons;
+- no physical transform.
 
 ### Next
 
-`android-geometry-angle-estimator-v1`
-
-Must consume only the bounded preview contract from PR #211 and return the deskew-angle evidence/decision required for validation. It must not physically rotate or crop an image and must not add UI/network/OCR.
-
-### Then
-
 `android-geometry-full-frame-deskew-v1`
 
-Apply only a validated accepted angle to a local full-resolution image. No crop in this device validation slice.
+Apply only a validated `accepted` deskew angle to the local full-resolution image. Preserve the full frame; do not crop. Keep source/resource bounds and EXIF coordinate/sign behavior explicit. Do not add UI/network/OCR.
 
 ### Then
 
@@ -224,6 +221,6 @@ Last focused Python geometry audit: Codex at `876e49bceb0136af6ee851a2656aaf689d
 
 Frozen Python geometry code baseline: `7fe4bc88df2427ea90442f7b074c3cfe4e0de33a`.
 
-Current PR: #211 `android-geometry-preview-contract-v1`.
+Current PR: #212 `android-geometry-angle-estimator-v1`.
 
-Next step after merge PR #211: `android-geometry-angle-estimator-v1`.
+Next step after merge PR #212: `android-geometry-full-frame-deskew-v1`.
