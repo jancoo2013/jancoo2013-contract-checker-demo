@@ -77,6 +77,28 @@ def _add_short_line(
     return image
 
 
+def _compact_footer_document(
+    *,
+    angle: float = 0.0,
+    fragmented: bool = False,
+) -> Image.Image:
+    image = _document()
+    draw = ImageDraw.Draw(image)
+    if fragmented:
+        draw.rectangle((400, 1120, 405, 1138), fill=15)
+        draw.rectangle((489, 1120, 494, 1138), fill=15)
+    else:
+        draw.rectangle((440, 1120, 451, 1138), fill=15)
+    if angle:
+        image = image.rotate(
+            angle,
+            resample=Image.Resampling.BICUBIC,
+            expand=False,
+            fillcolor=250,
+        )
+    return image
+
+
 class DocumentGeometryNormalizerTests(unittest.TestCase):
     def test_horizontal_document_runs_full_stack_and_crops(self) -> None:
         result = normalize_document_geometry(_document())
@@ -185,6 +207,36 @@ class DocumentGeometryNormalizerTests(unittest.TestCase):
 
         result = normalize_document_geometry(image)
 
+        self.assertEqual(result.bounds.decision, "rotation_only")
+        self.assertIn(
+            "disconnected_content_outside_crop",
+            result.bounds.rejection_reasons,
+        )
+        self.assertEqual(result.decision, "full_frame_fallback")
+        self.assertTrue(np.array_equal(np.asarray(result.image), original))
+
+    def test_compact_footer_preserves_full_frame_at_zero_and_skew(self) -> None:
+        for angle in (0.0, 7.0):
+            with self.subTest(angle=angle):
+                image = _compact_footer_document(angle=angle)
+                original = np.asarray(image).copy()
+                result = normalize_document_geometry(image)
+
+                self.assertEqual(result.angle.decision, "accepted")
+                self.assertEqual(result.bounds.decision, "rotation_only")
+                self.assertIn(
+                    "disconnected_content_outside_crop",
+                    result.bounds.rejection_reasons,
+                )
+                self.assertEqual(result.decision, "full_frame_fallback")
+                self.assertTrue(np.array_equal(np.asarray(result.image), original))
+
+    def test_fragmented_compact_footer_preserves_full_frame(self) -> None:
+        image = _compact_footer_document(fragmented=True)
+        original = np.asarray(image).copy()
+        result = normalize_document_geometry(image)
+
+        self.assertEqual(result.angle.decision, "accepted")
         self.assertEqual(result.bounds.decision, "rotation_only")
         self.assertIn(
             "disconnected_content_outside_crop",

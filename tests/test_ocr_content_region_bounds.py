@@ -60,6 +60,29 @@ def _mask_with_disconnected_edge_line() -> np.ndarray:
     return np.asarray(image, dtype=np.uint8) < 128
 
 
+def _mask_with_compact_footer(
+    *,
+    width: int = 12,
+    fragmented: bool = False,
+    angle: float = 0.0,
+) -> np.ndarray:
+    image = Image.fromarray(np.where(_text_mask(), 0, 255).astype(np.uint8), mode="L")
+    draw = ImageDraw.Draw(image)
+    if fragmented:
+        draw.rectangle((400, 1120, 405, 1138), fill=0)
+        draw.rectangle((489, 1120, 494, 1138), fill=0)
+    else:
+        draw.rectangle((440, 1120, 440 + width - 1, 1138), fill=0)
+    if angle:
+        image = image.rotate(
+            angle,
+            resample=Image.Resampling.BICUBIC,
+            expand=False,
+            fillcolor=255,
+        )
+    return np.asarray(image, dtype=np.uint8) < 128
+
+
 class ContentRegionBoundsTests(unittest.TestCase):
     def test_horizontal_text_returns_safe_bounds(self) -> None:
         result = estimate_content_region(
@@ -149,6 +172,43 @@ class ContentRegionBoundsTests(unittest.TestCase):
         result = estimate_content_region(
             _mask_with_disconnected_edge_line(),
             deskew_rotation_degrees=0.0,
+            angle_decision="accepted",
+        )
+
+        self.assertEqual(result.decision, "rotation_only")
+        self.assertIn("disconnected_content_outside_crop", result.rejection_reasons)
+        self.assertIsNone(result.safe_crop_bounds)
+
+    def test_compact_footer_content_fails_safe(self) -> None:
+        for width in (4, 12, 18, 22):
+            with self.subTest(width=width):
+                result = estimate_content_region(
+                    _mask_with_compact_footer(width=width),
+                    deskew_rotation_degrees=0.0,
+                    angle_decision="accepted",
+                )
+                self.assertEqual(result.decision, "rotation_only")
+                self.assertIn(
+                    "disconnected_content_outside_crop",
+                    result.rejection_reasons,
+                )
+                self.assertIsNone(result.safe_crop_bounds)
+
+    def test_fragmented_compact_footer_fails_safe(self) -> None:
+        result = estimate_content_region(
+            _mask_with_compact_footer(fragmented=True),
+            deskew_rotation_degrees=0.0,
+            angle_decision="accepted",
+        )
+
+        self.assertEqual(result.decision, "rotation_only")
+        self.assertIn("disconnected_content_outside_crop", result.rejection_reasons)
+        self.assertIsNone(result.safe_crop_bounds)
+
+    def test_skewed_compact_footer_fails_safe(self) -> None:
+        result = estimate_content_region(
+            _mask_with_compact_footer(width=12, angle=7.0),
+            deskew_rotation_degrees=-7.0,
             angle_decision="accepted",
         )
 
