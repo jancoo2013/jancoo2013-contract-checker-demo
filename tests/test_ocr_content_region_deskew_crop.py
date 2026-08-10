@@ -347,6 +347,19 @@ class ContentRegionDeskewCropTests(unittest.TestCase):
                     bounds=_bounds((10, 10), decision="full_frame_fallback"),
                 )
 
+    def test_lab_mode_fails_closed_before_exif_or_transform_conversion(self) -> None:
+        image = Image.new("LAB", (10, 10))
+        with patch(
+            "research.hebrew_contract_ocr.content_region_deskew_crop.ImageOps.exif_transpose"
+        ) as exif_transpose:
+            with self.assertRaisesRegex(ContentRegionDeskewCropError, "unsupported"):
+                apply_content_region_deskew_crop(
+                    image,
+                    angle=_angle(decision="rejected"),
+                    bounds=_bounds((10, 10), decision="full_frame_fallback"),
+                )
+            exif_transpose.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()
