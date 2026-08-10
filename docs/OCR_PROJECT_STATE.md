@@ -1,169 +1,168 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-10, PR #210, `ocr-document-geometry-freeze-criteria-v1`.
+Последнее обновление: 2026-08-10, PR #211, `android-geometry-preview-contract-v1`.
 
-Активный трек: `serverless-gpu-ocr`.
+Активный трек: `android-geometry-validation`.
 
-Следующий bounded-шаг после merge PR #210: `serverless-gpu-ocr-viability-benchmark-v1`.
+Следующий bounded-шаг после merge PR #211: `android-geometry-angle-estimator-v1`.
 
-Этот документ — каноническая operational-точка восстановления privacy/OCR-проекта. Только он вместе с `docs/OCR_PROJECT_STATE.json` выбирает текущий `next_step_id`; архитектурные документы задают границы и обязательные будущие gates, но не выбирают следующий PR самостоятельно.
+Этот документ вместе с `docs/OCR_PROJECT_STATE.json` является канонической operational-точкой восстановления privacy/OCR-проекта. Архитектурные документы задают обязательные границы, но текущий `next_step_id` выбирается только state-файлами.
 
-## 0. Изменение PR #210 — code-level freeze первого geometry block
+## 0. Изменение PR #211 — первый Android validation layer
 
-PR #210 не меняет geometry-код. Он добавляет binding component contract:
+После code-level freeze document geometry block владелец продукта потребовал сначала проверить выравнивание на реальном Samsung A55 и только затем переходить к serverless OCR benchmark.
+
+Это validation detour, а не отмена frozen Python reference.
+
+PR #211 добавляет только первый Android runtime layer:
+
+```text
+local file/content URI
+→ bounded encoded-size check
+→ bounded source dimensions/pixels
+→ sampled local decode
+→ EXIF orientation normalization
+→ exact grayscale preview, long side <= 1800 px
+→ local cache PNG + dimensions
+```
+
+Границы PR #211:
+
+- local `file://` и `content://` input only;
+- encoded source <= 48 MiB;
+- source long side <= 8192 px;
+- source pixels <= 32,000,000;
+- decode sampling выполняется до preview processing;
+- preview long side <= 1800 px;
+- `content://` source copy удаляется после обработки;
+- failed run очищает собственный geometry-preview cache;
+- нет angle estimation;
+- нет physical deskew;
+- нет crop;
+- нет UI;
+- нет OCR/Tesseract;
+- нет network/backend/upload;
+- нет новых external dependencies;
+- frozen Python geometry implementation не меняется.
+
+Android preview contract намеренно строится отдельным маленьким PR до переноса следующего слоя. Это исправляет ошибочный процесс, при котором полный Android deskew runtime сначала был написан большим куском, а затем пытался быть разрезан постфактум. Экспериментальная ветка `agent/android-document-geometry-validation-v1` не является base или evidence для текущей реализации.
+
+## 1. Frozen Python document geometry block
+
+Binding freeze contract:
 
 `docs/DOCUMENT_GEOMETRY_FREEZE_CRITERIA_V1.md`
-
-Документ фиксирует конечные правила code-level freeze после трёх focused Codex audits и corrective PR #203–#209.
 
 Frozen geometry code baseline:
 
 `7fe4bc88df2427ea90442f7b074c3cfe4e0de33a` — merge PR #209.
 
-Freeze contract определяет:
-
-1. **Minimum meaningful-content boundary.** Geometry не обязана считать каждый foreground pixel юридически значимым содержимым. Blocker возникает для line-like/compact/source-edge evidence, которое удовлетворяет текущим bounded meaningful-content rules. Arbitrarily shrinking synthetic marks ниже этого contract не двигают freeze gate автоматически.
-2. **Producer/consumer trust boundary.** `TextAngleEstimate` и `ContentRegionBounds` сейчас являются internal in-process contracts, а не внешним serialized/untrusted API. Physical transform обязан валидировать structural invariants, которые влияют на mutation/coordinates, но не обязан дублировать producer semantic scoring только ради forged metric combinations, которые штатный producer не создаёт.
-3. **Finite regression set.** Freeze основывается на конечном наборе normal-operation, fail-safe, structural, EXIF/coordinate и resource/mode cases, а не на open-ended поиске всё меньших adversarial thresholds.
-4. **Explicit reopen criteria.** Geometry открывается снова только по конкретному in-contract defect: потеря meaningful content, producer-reachable unsafe accepted state, resource/mode violation, EXIF/coordinate defect, real-photo evidence систематического threshold miss, изменение trust boundary/dependency или изменение frozen implementation.
-5. **Audit stop rule.** Новый finding actionable только если нарушает freeze contract; запрос “продолжать придумывать всё меньшие edge cases” сам по себе не создаёт corrective backlog.
-
-### Freeze decision
-
-По существующим evidence текущий block удовлетворяет этому finite contract:
-
-- после PR #209 focused geometry suite: 65/65 PASS;
-- третий audit отдельно признал phase-aware resource accounting `FIXED`;
-- тот же audit признал admitted PIL mode alignment `FIXED`;
-- corrective PR #203/#206 закрыли wide и meaningful compact/fragmented disconnected-content loss;
-- PR #204/#207 закрыли structural accepted-stage contradictions, которые относятся к mutation contract;
-- PR #205/#208 закрыли resource/mode contract;
-- PR #209 закрыл concrete source-edge deskew clipping defect, признанный product-relevant после третьего audit.
-
-Оставшиеся в третьем audit sub-threshold micro-content examples (`1×8`, `2×8`, `4×4` и аналогичные) и producer-impossible forged semantic metrics **не требуют ещё одного implementation corrective до code-level freeze** по правилам `DOCUMENT_GEOMETRY_FREEZE_CRITERIA_V1.md`.
-
-Итог: **document geometry normalization block code-level frozen at `7fe4bc88df2427ea90442f7b074c3cfe4e0de33a`.**
-
-Это не production/real-photo certification. Real-photo/product validation остаётся отдельным будущим validation layer и может открыть block только через explicit reopen criteria.
-
-## 1. Focused geometry audits — completed history
-
-### Первый focused audit
-
-Endpoint:
-
-`6b30b0a66ccebf8efac49b1b368039ca453519cc` — merge PR #202.
-
-Outcome: `FREEZE AFFECTED AREA`.
-
-Findings:
-
-1. disconnected legitimate content could be cropped away → wide/two-column corrective PR #203;
-2. contradictory manually constructed accepted stage contracts could authorize crop → initial contract validation PR #204;
-3. inherited 150M-pixel limit did not prove practical memory bound → initial resource contract PR #205.
-
-### Второй focused audit
-
-Endpoint:
-
-`2126f510f9f178e74c9b487693a99af4ef7d42f1` — merge PR #205.
-
-Outcome: `FREEZE AFFECTED AREA`.
-
-Findings:
-
-1. compact/fragmented meaningful disconnected content → PR #206;
-2. accepted search-limit and line-evidence structural gaps → PR #207;
-3. preview working-set accounting gap → PR #208;
-4. `LAB` admitted-mode mismatch → PR #208.
-
-### Третий focused audit
-
-Endpoint:
-
-`876e49bceb0136af6ee851a2656aaf689d72e545` — merge PR #208.
-
-Outcome: `FREEZE AFFECTED AREA`.
-
-Reverification:
-
-- resource accounting: `FIXED`;
-- admitted PIL mode alignment: `FIXED`;
-- residual sub-threshold micro-content reported;
-- additional manually forged internal semantic combinations reported;
-- concrete new blocker: source-edge meaningful content could be clipped by `expand=False` deskew before safety evaluation.
-
-Decision after review:
-
-- source-edge clipping accepted as real product-relevant defect → PR #209;
-- sub-threshold micro-content and producer-impossible semantic forgeries moved to explicit freeze-contract decision instead of automatic implementation backlog;
-- PR #210 freezes the stop/reopen criteria and closes the open-ended audit loop.
-
-## 2. Первый block — document geometry normalization
-
-Frozen contract:
+Frozen reference pipeline:
 
 ```text
 source PIL image
-→ validate bounded source dimensions/mode/phase-aware accounted memory
-→ EXIF orientation inside preview/transform contracts
+→ bounded source size/mode/resource validation
+→ EXIF orientation handling
+→ bounded grayscale preview
 → local-contrast text/ink mask
-→ bounded dominant text-angle estimate
-→ bounded content-region decision
-→ detect meaningful source-edge foreground clipped by nonzero deskew
-→ reject meaningful wide/compact/fragmented content outside proposed crop
-→ validate accepted structural search-bound/line-evidence/candidate/safe-box invariants
-→ full-resolution deskew + conservative crop only when fully accepted
-→ otherwise full-frame fail-safe
+→ bounded text-angle estimate
+→ bounded content-region estimate
+→ meaningful disconnected-content and deskew edge-loss guards
+→ accepted-stage structural validation
+→ full-resolution deskew + conservative crop only when fully trusted
+→ otherwise full-frame fallback
 → DocumentGeometryNormalizationResult
 ```
 
-Components:
+Relevant corrective history:
 
-| Component | Status |
-|---|---|
-| Geometry resource budget | Frozen reference; PR #205 + phase-aware/mode corrective PR #208 |
-| Local-contrast text mask | Frozen reference; PR #194 + shared resource/preview contracts |
-| Bounded text-angle estimator | Frozen reference; PR #195 |
-| Content-region bounds/decision | Frozen reference; PR #196 + disconnected correctives #203/#206 + edge-loss guard #209 |
-| Physical deskew/crop application | Frozen reference; PR #200 + accepted-contract correctives #204/#207 + resource contracts #205/#208 |
-| End-to-end geometry normalizer | Frozen integration; PR #202 + regressions through PR #209 |
-| Freeze/stop contract | `docs/DOCUMENT_GEOMETRY_FREEZE_CRITERIA_V1.md`, PR #210 |
+- #203 / #206: wide and compact/fragmented disconnected-content fail-safes;
+- #204 / #207: accepted-stage structural contract validation;
+- #205 / #208: bounded resource accounting and supported-mode alignment;
+- #209: meaningful source-edge deskew clipping fail-safe;
+- #210: finite freeze/reopen contract.
 
-Не входят в frozen block:
+The code-level freeze remains valid while Android validation proceeds. Android/product evidence reopens the frozen Python block only if it satisfies the explicit reopen criteria in `DOCUMENT_GEOMETRY_FREEZE_CRITERIA_V1.md`.
 
-- illumination/shadow normalization;
-- glare/blur/capture-quality gates;
-- perspective correction;
-- Android camera/runtime integration;
-- OCR execution;
-- PII redaction;
-- provider/serverless job implementation;
-- Gemini/LLM integration;
-- report persistence.
+## 2. Android geometry validation sequence
 
-## 3. Следующий шаг — `serverless-gpu-ocr-viability-benchmark-v1`
+The phone validation implementation is intentionally split before coding each layer.
 
-После merge PR #210 первый geometry block закрыт на code level и дальнейшая его доработка не является текущим направлением.
+### Completed/current
 
-Возвращаемся к ранее утверждённому active track: bounded viability benchmark serverless GPU OCR.
+`android-geometry-preview-contract-v1` — PR #211
 
-Benchmark должен:
+- local bounded decode;
+- EXIF normalization;
+- exact <=1800 px grayscale preview;
+- no geometry decision yet.
 
-1. использовать один OCR candidate через model-neutral worker contract;
-2. использовать только synthetic, public или owner-controlled redacted test material;
-3. измерить Hebrew text/layout quality, cold start, warm execution, queue delay, total multi-page latency, GPU/VRAM, OOM behavior, billed seconds и estimated cost;
-4. подтвердить отсутствие raw page content/raw OCR text в logs и retained result metadata;
-5. сохранить scale-to-zero/bounded queue execution;
-6. не делать production Android upload, production encryption/key management, PII production masks, Gemini/legal-analysis calls, permanent storage или real-user-data claims.
+### Next
 
-Target candidate остаётся Surya как первый benchmark candidate, а не production commitment.
+`android-geometry-angle-estimator-v1`
 
-## 4. Активная целевая цепочка продукта
+Must consume only the bounded preview contract from PR #211 and return the deskew-angle evidence/decision required for validation. It must not physically rotate or crop an image and must not add UI/network/OCR.
+
+### Then
+
+`android-geometry-full-frame-deskew-v1`
+
+Apply only a validated accepted angle to a local full-resolution image. No crop in this device validation slice.
+
+### Then
+
+`android-geometry-validation-ui-v1`
+
+Small dev UI only:
+
+- choose one local photo;
+- show source;
+- show full-frame deskew result;
+- show angle/confidence/decision/reasons;
+- no upload, OCR or persistence beyond bounded app cache.
+
+### Manual gate
+
+Run the final validation APK on the Samsung A55 using real locally held photos. At minimum inspect:
+
+- near-zero skew;
+- approximately ±3°;
+- approximately ±7°;
+- approximately ±10°;
+- text close to edges;
+- header/footer/page number;
+- sparse/signature-like page;
+- two-column/asymmetric content where relevant.
+
+Success standard:
+
+- accepted deskew visibly improves alignment without obvious meaningful-content loss;
+- uncertain/rejected cases preserve the full frame;
+- no photo leaves the device during this validation path;
+- concrete product failure is recorded rather than hidden by threshold tuning.
+
+The manual validation result must be recorded before the project returns to serverless OCR work.
+
+## 3. Deferred next product block — `serverless-gpu-ocr-viability-benchmark-v1`
+
+The serverless benchmark remains approved but is temporarily deferred until the Android geometry validation gate above is completed.
+
+When resumed, the benchmark must:
+
+1. use one OCR candidate through a model-neutral worker contract;
+2. use only synthetic, public or owner-controlled redacted repository test material;
+3. measure Hebrew text/layout quality, cold start, warm execution, queue delay, multi-page latency, GPU/VRAM, OOM behavior, billed seconds and estimated cost;
+4. verify absence of raw page content/raw OCR text in logs and retained metadata;
+5. preserve scale-to-zero and bounded queue execution;
+6. not add production Android upload, production encryption/key management, production PII masks, Gemini/legal-analysis calls, permanent storage or real-user-data claims.
+
+Surya remains the first benchmark candidate, not a production commitment.
+
+## 4. Active target pipeline
 
 ```text
 raw phone photos
-→ client-side capture-quality checks and frozen geometry normalization
+→ client-side capture-quality checks and geometry normalization
 → encryption
 → bounded asynchronous serverless job
 → GPU worker decrypts in volatile memory
@@ -181,46 +180,50 @@ Tesseract full-page OCR on Samsung A55 remains NO-GO and cannot return as active
 
 ## 5. Review and merge policy
 
-GitHub Actions остаются best-effort diagnostics и не входят в blocking contour.
+GitHub Actions are best-effort diagnostics and are not the normal merge gate.
 
-Каждый PR требует до Ready/merge recommendation:
+Every PR requires before Ready/merge recommendation:
 
-1. focused validation на exact final branch version, когда применимо;
-2. assistant self-audit scope/diff/state/credentials/raw-data/generated-files;
-3. mandatory final-diff security review по `SECURITY.md` с `Security review: PASS`;
-4. явное решение владельца продукта о merge.
+1. focused validation on the exact final branch version when applicable;
+2. assistant final-diff self-audit for scope/state/raw data/credentials/generated files;
+3. mandatory `SECURITY.md` review with exactly one `Security review: PASS` or blocking verdict;
+4. explicit product-owner merge decision.
 
-Individual Codex review перед каждым PR не требуется. Periodic/targeted Codex audit должен иметь заранее ограниченный contract. Frozen geometry reopens only through `docs/DOCUMENT_GEOMETRY_FREEZE_CRITERIA_V1.md`.
+Individual Codex review is not required per PR. Codex is used for bounded periodic/targeted audits.
 
 ## 6. Privacy and security boundary
 
-Restricted raw/transient material может существовать только в user device, encrypted transport, approved encrypted short-lived job storage when needed, volatile authorized worker memory и bounded transient worker files when unavoidable and automatically deleted.
+Restricted raw/transient material may exist only on the user device, encrypted transport, approved encrypted short-lived job storage when needed, volatile authorized worker memory and bounded transient worker files when unavoidable and automatically deleted.
 
-Original images, raw OCR и PII-bearing payload могут входить только в явно approved infrastructure physically located in Israel. Любой неразрешённый endpoint/region должен fail closed до upload/job creation; automatic fallback/retry/replication outside Israel запрещены.
+Original images, raw OCR and PII-bearing payload may enter only explicitly approved infrastructure physically located in Israel. Any unapproved endpoint or region must fail closed before upload/job creation; automatic fallback outside Israel is prohibited.
 
-Raw images/raw OCR запрещены в Gemini, general OCR/LLM APIs, logs, analytics, crash reports, GitHub, CI, Airtable и unrelated services. Only sanitized derivatives may proceed to legal analysis.
+Raw images/raw OCR are prohibited in Gemini, general OCR/LLM APIs, logs, analytics, crash reports, GitHub, CI, Airtable and unrelated services. Only sanitized derivatives may proceed to legal analysis.
 
-Final reports не являются zero-retention objects. Persistent storage разрешён только для sanitized analysis/evidence без original images, raw OCR, recoverable PII, secrets или reversible hidden layers и только с exact account-scoped authorization, encryption, deletion и defined backup lifecycle.
+The Android geometry validation sequence is stricter: selected real photos remain local to the device. It adds no network destination and must not log/export page contents.
 
-Production остаётся blocked до реализации и проверки consent, authentication, report authorization, key lifecycle, approved Israel-only provider behavior, retention/deletion, log scrubbing, cleanup, backup lifecycle, legal review, abuse controls and incident response.
+Production remains blocked until consent, authentication, authorization, key lifecycle, Israel-only provider behavior, retention/deletion, log scrubbing, cleanup, backup lifecycle, legal review, abuse controls and incident response are implemented and verified.
 
-## 7. Правила восстановления и работы
+## 7. Recovery/work rules
 
-Перед новой privacy/OCR веткой:
+Before a new privacy/OCR branch:
 
-1. прочитать current binding sources с `main`, включая `SECURITY.md`;
-2. проверить отсутствие overlapping open PRs;
-3. опубликовать exact Context Gate v1;
-4. менять только declared paths и approved bounded step/corrective;
-5. обновить оба state-файла фактическим номером PR;
-6. выполнить final validation на exact final head SHA;
-7. провести assistant self-audit и отдельный `Security review: PASS`;
-8. не merge без явного решения владельца продукта.
+1. read current binding sources from `main`, including `SECURITY.md`;
+2. check overlapping open PRs;
+3. publish one exact Context Gate v1 before implementation;
+4. implement only the declared bounded step;
+5. update both state files after the actual PR number exists;
+6. run final validation on the exact final head SHA;
+7. perform final-diff self-audit and mandatory security review;
+8. do not merge without explicit owner decision.
 
-Последний полный repository cold-start audit: PR #177 после merge PR #176.
+Do not use the abandoned experimental Android geometry branch as implementation input. Each Android validation layer starts from merged `main` and the immediately preceding bounded contract only.
 
-Последний focused geometry audit: Codex at `876e49bceb0136af6ee851a2656aaf689d72e545`, outcome `FREEZE AFFECTED AREA`; concrete source-edge blocker corrected by PR #209; stop/freeze decision formalized by PR #210.
+Last full repository cold-start audit: PR #177 after merge PR #176.
 
-Frozen geometry code baseline: `7fe4bc88df2427ea90442f7b074c3cfe4e0de33a`.
+Last focused Python geometry audit: Codex at `876e49bceb0136af6ee851a2656aaf689d72e545`; concrete source-edge blocker corrected by PR #209; finite stop/freeze criteria formalized by PR #210.
 
-Следующий step после merge PR #210: `serverless-gpu-ocr-viability-benchmark-v1`.
+Frozen Python geometry code baseline: `7fe4bc88df2427ea90442f7b074c3cfe4e0de33a`.
+
+Current PR: #211 `android-geometry-preview-contract-v1`.
+
+Next step after merge PR #211: `android-geometry-angle-estimator-v1`.
