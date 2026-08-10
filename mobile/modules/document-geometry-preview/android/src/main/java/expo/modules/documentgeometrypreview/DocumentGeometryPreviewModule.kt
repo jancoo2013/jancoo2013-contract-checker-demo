@@ -475,55 +475,55 @@ class DocumentGeometryPreviewModule : Module() {
     output.delete()
     transientSource.delete()
 
-    var bitmap: Bitmap? = null
     try {
       val source = materializeLocalImage(uriString, root)
       val (sourceWidth, sourceHeight) = readBounds(source)
       val orientation = readExifOrientation(source)
-      bitmap = decodeFullResolution(source)
-      bitmap = orient(bitmap, orientation)
-      val orientedWidth = bitmap.width
-      val orientedHeight = bitmap.height
-      val (outputWidth, outputHeight) = predictedDeskewSize(
-        orientedWidth,
-        orientedHeight,
-        transformAngle.rotationDegrees,
-      )
-      validateDeskewResourceBudget(orientedWidth, orientedHeight, outputWidth, outputHeight)
-      bitmap = rotateFullFrame(
-        bitmap,
-        transformAngle.rotationDegrees,
-        outputWidth,
-        outputHeight,
-      )
-      FileOutputStream(output).use { stream ->
-        if (!bitmap.compress(Bitmap.CompressFormat.JPEG, DESKEW_JPEG_QUALITY, stream)) {
-          throw IllegalStateException("Unable to encode the full-frame deskew output.")
+      var bitmap = decodeFullResolution(source)
+      try {
+        bitmap = orient(bitmap, orientation)
+        val orientedWidth = bitmap.width
+        val orientedHeight = bitmap.height
+        val (outputWidth, outputHeight) = predictedDeskewSize(
+          orientedWidth,
+          orientedHeight,
+          transformAngle.rotationDegrees,
+        )
+        validateDeskewResourceBudget(orientedWidth, orientedHeight, outputWidth, outputHeight)
+        bitmap = rotateFullFrame(
+          bitmap,
+          transformAngle.rotationDegrees,
+          outputWidth,
+          outputHeight,
+        )
+        FileOutputStream(output).use { stream ->
+          if (!bitmap.compress(Bitmap.CompressFormat.JPEG, DESKEW_JPEG_QUALITY, stream)) {
+            throw IllegalStateException("Unable to encode the full-frame deskew output.")
+          }
         }
+        if (!output.isFile || output.length() <= 0L || output.length() > MAX_DESKEW_OUTPUT_BYTES) {
+          throw IllegalStateException("Full-frame deskew output is missing, empty, or too large.")
+        }
+        return mapOf(
+          "outputUri" to Uri.fromFile(output).toString(),
+          "decision" to if (transformAngle.fallbackReasons.isEmpty()) "deskewed_full_frame" else "full_frame_fallback",
+          "sourceWidth" to sourceWidth,
+          "sourceHeight" to sourceHeight,
+          "orientedWidth" to orientedWidth,
+          "orientedHeight" to orientedHeight,
+          "outputWidth" to outputWidth,
+          "outputHeight" to outputHeight,
+          "exifOrientation" to orientation,
+          "rotationAppliedDegrees" to transformAngle.rotationDegrees,
+          "fallbackReasons" to transformAngle.fallbackReasons,
+        )
+      } finally {
+        if (!bitmap.isRecycled) bitmap.recycle()
       }
-      bitmap.recycle()
-      bitmap = null
-      if (!output.isFile || output.length() <= 0L || output.length() > MAX_DESKEW_OUTPUT_BYTES) {
-        throw IllegalStateException("Full-frame deskew output is missing, empty, or too large.")
-      }
-      return mapOf(
-        "outputUri" to Uri.fromFile(output).toString(),
-        "decision" to if (transformAngle.fallbackReasons.isEmpty()) "deskewed_full_frame" else "full_frame_fallback",
-        "sourceWidth" to sourceWidth,
-        "sourceHeight" to sourceHeight,
-        "orientedWidth" to orientedWidth,
-        "orientedHeight" to orientedHeight,
-        "outputWidth" to outputWidth,
-        "outputHeight" to outputHeight,
-        "exifOrientation" to orientation,
-        "rotationAppliedDegrees" to transformAngle.rotationDegrees,
-        "fallbackReasons" to transformAngle.fallbackReasons,
-      )
     } catch (error: Throwable) {
       output.delete()
       throw error
     } finally {
-      bitmap?.recycle()
       transientSource.delete()
     }
   }
