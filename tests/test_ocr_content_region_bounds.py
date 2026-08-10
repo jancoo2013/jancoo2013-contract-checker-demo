@@ -83,6 +83,27 @@ def _mask_with_compact_footer(
     return np.asarray(image, dtype=np.uint8) < 128
 
 
+def _mask_with_source_edge_annotation(
+    *,
+    angle: float,
+    corner: str,
+    size: int = 40,
+) -> np.ndarray:
+    image = Image.fromarray(
+        np.where(_text_mask(angle=angle), 0, 255).astype(np.uint8),
+        mode="L",
+    )
+    draw = ImageDraw.Draw(image)
+    if corner == "top_left":
+        box = (0, 0, size - 1, size - 1)
+    elif corner == "bottom_right":
+        box = (900 - size, 1200 - size, 899, 1199)
+    else:
+        raise ValueError("unsupported corner")
+    draw.rectangle(box, fill=0)
+    return np.asarray(image, dtype=np.uint8) < 128
+
+
 class ContentRegionBoundsTests(unittest.TestCase):
     def test_horizontal_text_returns_safe_bounds(self) -> None:
         result = estimate_content_region(
@@ -110,6 +131,26 @@ class ContentRegionBoundsTests(unittest.TestCase):
         self.assertEqual(result.coordinate_space, "deskewed_preview")
         self.assertEqual(result.decision, "accepted")
         self.assertGreaterEqual(len(result.line_bands), 6)
+
+    def test_source_edge_content_clipped_by_deskew_fails_safe(self) -> None:
+        cases = (
+            (7.0, "top_left"),
+            (-7.0, "bottom_right"),
+        )
+        for angle, corner in cases:
+            with self.subTest(angle=angle, corner=corner):
+                result = estimate_content_region(
+                    _mask_with_source_edge_annotation(angle=angle, corner=corner),
+                    deskew_rotation_degrees=-angle,
+                    angle_decision="accepted",
+                )
+
+                self.assertEqual(result.decision, "rotation_only")
+                self.assertIn(
+                    "source_edge_content_clipped_by_deskew",
+                    result.rejection_reasons,
+                )
+                self.assertIsNone(result.safe_crop_bounds)
 
     def test_rejected_angle_forces_full_frame_fallback(self) -> None:
         result = estimate_content_region(
