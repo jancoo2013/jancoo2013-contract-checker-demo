@@ -277,6 +277,40 @@ class ContentRegionDeskewCropTests(unittest.TestCase):
                         )
                     exif_transpose.assert_not_called()
 
+    def test_accepted_bounds_require_distinct_bounded_line_evidence(self) -> None:
+        image = _pattern((300, 400))
+        crop = (20, 30, 280, 370)
+        valid = _bounds((300, 400), crop=crop)
+
+        duplicate_only = replace(
+            valid,
+            line_bands=(valid.line_bands[0],) * 4,
+            candidate_content_bounds=valid.line_bands[0],
+        )
+        with self.assertRaisesRegex(
+            ContentRegionDeskewCropError,
+            "distinct line evidence",
+        ):
+            apply_content_region_deskew_crop(
+                image,
+                angle=_angle(),
+                bounds=duplicate_only,
+            )
+
+        too_many = replace(
+            valid,
+            line_bands=tuple(valid.line_bands[0] for _ in range(401)),
+        )
+        with self.assertRaisesRegex(
+            ContentRegionDeskewCropError,
+            "too many line bands",
+        ):
+            apply_content_region_deskew_crop(
+                image,
+                angle=_angle(),
+                bounds=too_many,
+            )
+
     def test_candidate_bounds_must_match_line_evidence_union(self) -> None:
         image = _pattern((300, 400))
         crop = (20, 30, 280, 370)
