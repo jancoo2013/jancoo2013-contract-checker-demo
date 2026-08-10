@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-10-64",
+  "state_version": "privacy-ocr-2026-08-10-65",
   "active_track": "serverless-gpu-ocr",
-  "next_step_id": "ocr-document-geometry-freeze-criteria-v1",
-  "next_step_summary": "The third focused document-geometry audit at main SHA 876e49bceb0136af6ee851a2656aaf689d72e545 returned FREEZE AFFECTED AREA. PR #209 addresses the concrete product-relevant blocker reproduced by that audit: meaningful source-edge content can be clipped by expand=False preview deskew before the existing crop-safety checks see it. The corrective compares bounded versus expanded preview rotation and forces the existing full-frame fallback when meaningful foreground is lost. The audit also reported sub-threshold micro-content and manually forged internal stage-contract cases. Those are not authorized implementation follow-ups yet. After merge, do not start another adversarial audit or implementation PR; first define ocr-document-geometry-freeze-criteria-v1: explicit stop/freeze criteria, the minimum meaningful-content contract, and which internal producer-impossible states must be defended at consumer boundaries. Only then decide whether any additional bounded corrective is warranted or the geometry block can be frozen.",
-  "last_recorded_pr": 209,
-  "last_recorded_change": "ocr-deskew-source-edge-content-failsafe-v1",
+  "next_step_id": "serverless-gpu-ocr-viability-benchmark-v1",
+  "next_step_summary": "PR #210 defines the finite binding code-freeze contract for the document geometry normalization block in docs/DOCUMENT_GEOMETRY_FREEZE_CRITERIA_V1.md. Under that contract, the geometry implementation is code-level frozen at PR #209 merge SHA 7fe4bc88df2427ea90442f7b074c3cfe4e0de33a: meaningful-content safety uses the current explicit bounded evidence thresholds, internal producer-impossible semantic metric forgeries do not move the freeze gate when structural mutation invariants remain validated, and only the finite regression/reopen criteria can reopen the block. Real-photo/product validation remains a later validation layer. The next authorized implementation step returns to the approved active track: serverless-gpu-ocr-viability-benchmark-v1. Do not add illumination/shadow, perspective, Android upload, production encryption, PII, Gemini, permanent storage, or other production infrastructure to that benchmark PR.",
+  "last_recorded_pr": 210,
+  "last_recorded_change": "ocr-document-geometry-freeze-criteria-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-08-10"
