@@ -50,6 +50,8 @@ class DocumentGeometryPreviewModule : Module() {
   private val context
     get() = appContext.reactContext ?: throw Exceptions.ReactContextLost()
 
+  private var previewSourceUri: String? = null
+
   override fun definition() = ModuleDefinition {
     Name("DocumentGeometryPreview")
     AsyncFunction("buildPreviewAsync") Coroutine { uriString: String -> buildPreview(uriString) }
@@ -62,6 +64,7 @@ class DocumentGeometryPreviewModule : Module() {
   private fun cacheRoot(): File = File(context.cacheDir, "document-geometry-preview")
 
   private fun prepareCache(): File {
+    previewSourceUri = null
     val root = cacheRoot()
     root.deleteRecursively()
     if (!root.mkdirs() && !root.isDirectory) {
@@ -467,6 +470,9 @@ class DocumentGeometryPreviewModule : Module() {
   }
 
   private fun applyFullFrameDeskew(uriString: String, previewUri: String): Map<String, Any> {
+    if (previewSourceUri != uriString) {
+      throw IllegalArgumentException("Full-frame deskew source does not match the current geometry preview.")
+    }
     val transformAngle = validatedTransformAngle(previewUri)
     val root = cacheRoot().canonicalFile
     if (!root.isDirectory) throw IllegalStateException("Geometry cache is unavailable.")
@@ -566,6 +572,7 @@ class DocumentGeometryPreviewModule : Module() {
         throw IllegalStateException("Geometry preview output is missing.")
       }
 
+      previewSourceUri = uriString
       completed = true
       return mapOf(
         "previewUri" to Uri.fromFile(output).toString(),
