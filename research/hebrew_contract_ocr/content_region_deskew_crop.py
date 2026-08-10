@@ -7,6 +7,7 @@ from PIL import Image, ImageOps
 
 from research.hebrew_contract_ocr.content_region_bounds import (
     MIN_CONFIDENCE as CONTENT_REGION_MIN_CONFIDENCE,
+    MIN_LINE_COUNT as CONTENT_REGION_MIN_LINE_COUNT,
     ContentRegionBounds,
 )
 from research.hebrew_contract_ocr.geometry_resource_budget import (
@@ -14,6 +15,7 @@ from research.hebrew_contract_ocr.geometry_resource_budget import (
     validate_geometry_resource_budget,
 )
 from research.hebrew_contract_ocr.text_angle_estimator import (
+    MAX_ABS_TEXT_ANGLE_DEGREES,
     MIN_CONFIDENCE as TEXT_ANGLE_MIN_CONFIDENCE,
     TextAngleEstimate,
 )
@@ -67,6 +69,10 @@ def _validate_angle(angle: TextAngleEstimate) -> None:
         raise ContentRegionDeskewCropError("deskew rotation exceeds the bounded contract")
 
     if angle.decision == "accepted":
+        if abs(angle.deskew_rotation_degrees) >= MAX_ABS_TEXT_ANGLE_DEGREES:
+            raise ContentRegionDeskewCropError(
+                "accepted deskew rotation must be strictly inside the estimator search limit"
+            )
         _validate_accepted_confidence(
             angle.confidence,
             minimum=TEXT_ANGLE_MIN_CONFIDENCE,
@@ -106,6 +112,52 @@ def _validate_box(
     if not (0 <= left < right <= width and 0 <= top < bottom <= height):
         raise ContentRegionDeskewCropError(f"{label} exceed the preview")
     return box
+
+
+def _validate_accepted_line_evidence(bounds: ContentRegionBounds) -> None:
+    if bounds.decision != "accepted":
+        return
+    if (
+        not isinstance(bounds.preview_size, tuple)
+        or len(bounds.preview_size) != 2
+        or any(
+            not isinstance(value, int) or isinstance(value, bool) or value <= 0
+            for value in bounds.preview_size
+        )
+    ):
+        raise ContentRegionDeskewCropError(
+            "accepted content region preview size must be two positive integers"
+        )
+    if not isinstance(bounds.line_bands, tuple):
+        raise ContentRegionDeskewCropError("accepted line bands must be a tuple")
+    if len(bounds.line_bands) < CONTENT_REGION_MIN_LINE_COUNT:
+        raise ContentRegionDeskewCropError(
+            "accepted content region lacks the minimum line evidence"
+        )
+
+    validated_bands = tuple(
+        _validate_box(
+            box,
+            bounds.preview_size,
+            label=f"line band {index}",
+        )
+        for index, box in enumerate(bounds.line_bands)
+    )
+    candidate_box = _validate_box(
+        bounds.candidate_content_bounds,
+        bounds.preview_size,
+        label="candidate content bounds",
+    )
+    evidence_union = (
+        min(box[0] for box in validated_bands),
+        min(box[1] for box in validated_bands),
+        max(box[2] for box in validated_bands),
+        max(box[3] for box in validated_bands),
+    )
+    if evidence_union != candidate_box:
+        raise ContentRegionDeskewCropError(
+            "candidate content bounds must equal the union of accepted line evidence"
+        )
 
 
 def _validate_bounds(
@@ -250,6 +302,10 @@ def apply_content_region_deskew_crop(
     bounds: ContentRegionBounds,
 ) -> ContentRegionDeskewCropResult:
     _validate_angle(angle)
+    if not isinstance(bounds, ContentRegionBounds):
+        raise ContentRegionDeskewCropError("bounds must be ContentRegionBounds")
+    _validate_accepted_line_evidence(bounds)
+
     source = _oriented_source(image)
     source_size = source.size
     preview_size = _expected_preview_size(source_size)
