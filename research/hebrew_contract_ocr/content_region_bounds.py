@@ -64,17 +64,37 @@ def _validate(mask: np.ndarray, deskew_rotation_degrees: float, angle_decision: 
         raise ContentRegionBoundsError("deskew rotation exceeds the bounded angle contract")
 
 
-def _rotate(mask: np.ndarray, angle: float) -> np.ndarray:
+def _rotate(mask: np.ndarray, angle: float, *, expand: bool = False) -> np.ndarray:
     if abs(angle) < 1e-9:
         return mask
     image = Image.fromarray(np.where(mask, 0, 255).astype(np.uint8), mode="L")
     rotated = image.rotate(
         angle,
         resample=Image.Resampling.NEAREST,
-        expand=False,
+        expand=expand,
         fillcolor=255,
     )
     return np.asarray(rotated, dtype=np.uint8) == 0
+
+
+def _deskew_with_source_edge_guard(
+    mask: np.ndarray,
+    angle: float,
+) -> tuple[np.ndarray, bool]:
+    deskewed = _rotate(mask, angle)
+    if abs(angle) < 1e-9:
+        return deskewed, False
+
+    expanded = _rotate(mask, angle, expand=True)
+    lost_pixels = max(
+        0,
+        int(np.count_nonzero(expanded)) - int(np.count_nonzero(deskewed)),
+    )
+    minimum_meaningful_loss = max(
+        MIN_OUTSIDE_COMPACT_PIXELS,
+        int(round(mask.size * MIN_OUTSIDE_COMPACT_AREA_RATIO)),
+    )
+    return deskewed, lost_pixels >= minimum_meaningful_loss
 
 
 def _runs(active: np.ndarray) -> list[tuple[int, int]]:
@@ -245,9 +265,14 @@ def estimate_content_region(
             rejection_reasons=("angle_not_accepted",),
         )
 
-    deskewed = _rotate(mask, deskew_rotation_degrees)
+    deskewed, source_edge_clipped = _deskew_with_source_edge_guard(
+        mask,
+        deskew_rotation_degrees,
+    )
     bands = _dominant_bands(_line_bands(deskewed), width)
     reasons: set[str] = set()
+    if source_edge_clipped:
+        reasons.add("source_edge_content_clipped_by_deskew")
     if len(bands) < MIN_LINE_COUNT:
         reasons.add("insufficient_line_bands")
     candidate: Box | None = None

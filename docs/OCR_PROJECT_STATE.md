@@ -1,35 +1,42 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-10, PR #208, `ocr-geometry-resource-accounting-mode-alignment-v2`.
+Последнее обновление: 2026-08-10, PR #209, `ocr-deskew-source-edge-content-failsafe-v1`.
 
 Активный трек: `serverless-gpu-ocr`.
 
-Следующий bounded-шаг после merge PR #208: `ocr-document-geometry-block-reaudit-v2`.
+Следующий bounded-шаг после merge PR #209: `ocr-document-geometry-freeze-criteria-v1`.
 
 Этот документ — каноническая operational-точка восстановления privacy/OCR-проекта. Только он вместе с `docs/OCR_PROJECT_STATE.json` выбирает текущий `next_step_id`; архитектурные документы задают границы и обязательные будущие gates, но не выбирают следующий PR самостоятельно.
 
-## 0. Изменение PR #208
+## 0. Изменение PR #209
 
-PR #208 — третий и последний bounded corrective после второго focused Codex re-audit document geometry block.
+Третий focused Codex audit document geometry block выполнен на `main` SHA:
 
-Повторный аудит после PR #205 оставил два resource-contract findings:
+`876e49bceb0136af6ee851a2656aaf689d72e545` — merge PR #208.
 
-1. geometry peak accounting не был консервативным upper bound для preview-analysis phase, потому что не представлял одновременно живущие grayscale/background/NumPy working buffers и temporaries;
-2. `LAB` проходил resource allowlist, хотя audited reference runtime не мог надёжно провести этот mode через текущий physical transform conversion path.
+Outcome: `FREEZE AFFECTED AREA`.
 
-Изменение PR #208:
+Из нового отчёта принят как конкретный product-relevant blocker один дефект: при ненулевом deskew исходный foreground у края страницы может исчезнуть во время preview rotation с `expand=False` ещё до existing crop-safety checks. Аудит воспроизвёл это на source-corner annotation порядка 40×40 px; physical rotation затем повторял потерю.
 
-- сохранены существующие hard limits: `32_000_000` source pixels, `8192` maximum source long side и `384 MiB` accounted-memory ceiling;
-- `PREVIEW_LONG_SIDE = 1800` перенесён в единый geometry resource contract и используется preview/transform consumers из одного источника;
-- accounting разделён на explicit full-resolution transform phase и bounded preview-analysis phase;
-- preview-analysis phase получает консервативный reserve `48 bytes` на preview pixel для одновременно живущих PIL/NumPy preview buffers, masks и scratch/headroom;
-- transform phase дополнительно учитывает `2 bytes` на preview pixel для L preview + bool mask, которые top-level normalizer удерживает во время full-resolution transform;
-- `accounted_peak_bytes` — максимум двух explicit phase estimates, а не только source-pixel formula;
-- `LAB` исключён из admitted source modes и fail closed в initial resource guard до `ImageOps.exif_transpose`/conversion;
-- другие разрешённые mode contracts и geometry heuristics не изменяются;
-- OCR, PII, Android, illumination/shadow, perspective, provider/serverless, Gemini, upload, storage, network и dependencies не входят в PR.
+PR #209 исправляет только этот defect:
 
-Geometry block после merge PR #208 остаётся frozen. Никакой следующий implementation PR не разрешён до targeted re-audit.
+- для ненулевого accepted deskew content-region stage выполняет ту же bounded NEAREST preview rotation с `expand=False` и `expand=True`;
+- сравнивается retained foreground count;
+- если bounded rotation теряет как минимум уже существующий meaningful compact-foreground threshold, добавляется rejection reason `source_edge_content_clipped_by_deskew`;
+- crop acceptance блокируется;
+- existing `rotation_only` contract приводит physical transform к полному исходному кадру без частичного rotation/crop;
+- обычный central skewed document без edge loss остаётся crop-eligible;
+- micro-content thresholds не уменьшаются и не переопределяются;
+- accepted-stage forged-dataclass semantics не расширяются в этом PR.
+
+Аудит также сообщил два класса adversarial cases, которые **не становятся автоматически следующими implementation PR**:
+
+1. sub-threshold micro-content (`1×8`, `2×8`, `4×4` и аналогичные marks) ниже/на границе текущего meaningful-content heuristic;
+2. вручную forged internal stage objects с комбинациями metrics, которые штатные producers не создают.
+
+До отдельного определения stop/freeze contract эти cases считаются предметом product/engineering threshold decision, а не автоматически blocking implementation backlog.
+
+Geometry block остаётся frozen до следующего шага `ocr-document-geometry-freeze-criteria-v1`.
 
 ## 1. Focused geometry audits — current status
 
@@ -69,11 +76,31 @@ Findings и corrective status:
 4. **CORRECTIVE — resource-supported `LAB` mode was not aligned with current physical transform capability.**
    - Addressed by PR #208 by failing `LAB` closed in the initial resource contract.
 
-Ни один finding не считается окончательно закрытым для geometry freeze только на основании self-review. Весь block должен снова пройти targeted Codex re-audit на актуальном `main` после merge PR #208. Только `BATCH AUDIT CLEAR` разрешает снять freeze.
+### Третий focused re-audit
+
+Audit endpoint:
+
+`876e49bceb0136af6ee851a2656aaf689d72e545` — merge PR #208.
+
+Outcome: `FREEZE AFFECTED AREA`.
+
+Reverification:
+
+- resource accounting: audit verdict `FIXED`;
+- admitted PIL mode alignment: audit verdict `FIXED`;
+- existing disconnected-content guard: audit found residual sub-threshold micro-content cases;
+- accepted-stage validation: audit found additional manually forged internal-state combinations;
+- **new concrete blocker:** source-edge content may be clipped by `expand=False` deskew before crop-safety evaluation.
+
+Decision after review of the audit:
+
+- source-edge clipping is accepted as a real product-relevant defect and corrected by PR #209;
+- arbitrarily shrinking micro-content probes and producer-impossible forged stage states will not automatically move the freeze gate after every audit;
+- before another corrective or adversarial audit, the project must define an explicit freeze/stop contract.
 
 ## 2. Первый блок — document geometry normalization
 
-Текущий contract:
+Текущий contract после PR #209:
 
 ```text
 source PIL image
@@ -82,6 +109,7 @@ source PIL image
 → local-contrast text/ink mask
 → bounded dominant text-angle estimate
 → bounded content-region decision
+→ for nonzero deskew, detect meaningful foreground clipped by bounded preview rotation
 → reject wide/compact/fragmented meaningful content outside proposed crop
 → validate accepted search-bound + line-evidence/candidate consistency
 → validate accepted confidence/reasons/sign/safe containment
@@ -97,11 +125,11 @@ source PIL image
 | Geometry resource budget | Offline Python reference, PR #205; phase-aware preview accounting + mode alignment PR #208 |
 | Local-contrast text mask | Offline Python reference, PR #194; shared resource guard PR #205; shared preview contract PR #208 |
 | Bounded text-angle estimator | Offline Python reference, PR #195 |
-| Content-region bounds/decision | Offline Python reference, PR #196; wide disconnected corrective PR #203; compact/fragmented corrective PR #206 |
+| Content-region bounds/decision | Offline Python reference, PR #196; wide disconnected corrective PR #203; compact/fragmented corrective PR #206; source-edge deskew-loss guard PR #209 |
 | Physical deskew/crop application | Offline Python reference, PR #200; accepted-contract corrective PR #204; shared resource guard PR #205; accepted-contract v2 PR #207; shared preview contract PR #208 |
-| End-to-end geometry normalizer | Offline Python integration, PR #202 |
+| End-to-end geometry normalizer | Offline Python integration, PR #202; source-edge full-frame regression coverage PR #209 |
 
-Не входят в этот block и не должны добавляться до его clean re-audit:
+Не входят в этот block и не должны добавляться до его explicit freeze decision:
 
 - illumination/shadow normalization;
 - glare/blur/capture-quality gates;
@@ -113,28 +141,19 @@ source PIL image
 - Gemini/LLM integration;
 - report persistence.
 
-## 3. Следующий шаг — `ocr-document-geometry-block-reaudit-v2`
+## 3. Следующий шаг — `ocr-document-geometry-freeze-criteria-v1`
 
-После merge PR #208 разработка geometry/preprocessing снова останавливается.
+После merge PR #209 **не запускать ещё один open-ended adversarial audit и не начинать новый implementation corrective автоматически**.
 
-Codex должен выполнить cold-start targeted re-audit **только document geometry block** на актуальном `main`, включая исходные implementation PRs #194, #195, #196, #200, #202 и corrective PRs #203–#208.
+Следующий шаг должен зафиксировать bounded code-level freeze contract для geometry block:
 
-Re-audit должен заново проверить весь current block, а не только подтвердить PR #208. В частности:
+1. определить minimum meaningful-content contract: какой foreground считается потенциально значимым документным содержанием, а какой остаётся допустимым шумом/артефактом;
+2. определить producer/consumer trust boundary для внутренних dataclasses: какие structural invariants consumer обязан валидировать, а какие producer-impossible metric combinations не являются отдельным blocking surface;
+3. определить конечный regression set для code-level freeze: two-column, disconnected header/footer, compact meaningful mark, source-edge deskew clipping, EXIF/coordinate mapping, accepted-stage structural contradictions, resource/mode bounds;
+4. запретить moving-goalpost аудит, где размер adversarial mark бесконечно уменьшается после каждого исправления;
+5. после фиксации criteria отдельно решить: нужен ли ещё один bounded corrective или текущий geometry block можно frozen/закрыть.
 
-- сохранение disconnected/compact/fragmented legitimate content;
-- accepted-stage fail-closed contracts;
-- coordinate/EXIF/rotation/crop consistency;
-- phase-aware resource accounting и mode allowlist;
-- отсутствие новых regressions от correctives;
-- достаточность synthetic/adversarial tests для code-level freeze.
-
-Допустимые outcomes:
-
-- `BATCH AUDIT CLEAR` → geometry block можно frozen/закрыть и затем отдельно выбрать следующий product step;
-- `CORRECTIVE PR REQUIRED` → исправлять только конкретные defects этого geometry block;
-- `FREEZE AFFECTED AREA` → block остаётся frozen.
-
-До результата re-audit не начинать illumination/shadow, OCR, PII, Android, provider/serverless или соседние направления.
+Это decision/contract step. Он не разрешает illumination/shadow, OCR, PII, Android, provider/serverless или соседние implementation направления сам по себе.
 
 ## 4. Активная целевая цепочка продукта
 
@@ -156,7 +175,7 @@ raw phone photos
 
 Tesseract full-page OCR on Samsung A55 remains NO-GO and cannot return as active fallback.
 
-Serverless GPU OCR viability benchmark remains a required future gate. It is not part of the frozen geometry corrective/re-audit sequence.
+Serverless GPU OCR viability benchmark remains a required future gate. It is not part of the frozen geometry corrective/freeze-decision sequence.
 
 ## 5. Review and merge policy
 
@@ -169,7 +188,7 @@ GitHub Actions остаются best-effort diagnostics и не входят в 
 3. mandatory final-diff security review по `SECURITY.md` с `Security review: PASS`;
 4. явное решение владельца продукта о merge.
 
-Individual Codex review перед каждым PR не требуется. Codex используется для целевых/batch audits.
+Individual Codex review перед каждым PR не требуется. Codex используется для целевых/batch audits с заранее ограниченным contract.
 
 ## 6. Privacy and security boundary
 
@@ -198,6 +217,6 @@ Production остаётся blocked до реализации и проверк�
 
 Последний полный repository cold-start audit: PR #177 после merge PR #176.
 
-Последний focused geometry audit: Codex at `2126f510f9f178e74c9b487693a99af4ef7d42f1`, outcome `FREEZE AFFECTED AREA`.
+Последний focused geometry audit: Codex at `876e49bceb0136af6ee851a2656aaf689d72e545`, outcome `FREEZE AFFECTED AREA`.
 
-Следующий audit: `ocr-document-geometry-block-reaudit-v2` после merge PR #208.
+Следующий step после merge PR #209: `ocr-document-geometry-freeze-criteria-v1`.
