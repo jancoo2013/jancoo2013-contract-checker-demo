@@ -22,9 +22,27 @@ export type GeometryAngleEstimate = Readonly<{
   peakMargin: number;
 }>;
 
+export type GeometryFullFrameDeskewResult = Readonly<{
+  outputUri: string;
+  decision: "deskewed_full_frame" | "full_frame_fallback";
+  sourceWidth: number;
+  sourceHeight: number;
+  orientedWidth: number;
+  orientedHeight: number;
+  outputWidth: number;
+  outputHeight: number;
+  exifOrientation: number;
+  rotationAppliedDegrees: number;
+  fallbackReasons: readonly string[];
+}>;
+
 type DocumentGeometryPreviewNativeModule = {
   buildPreviewAsync(uri: string): Promise<GeometryPreviewResult>;
   estimateAngleAsync(previewUri: string): Promise<GeometryAngleEstimate>;
+  applyFullFrameDeskewAsync(
+    uri: string,
+    previewUri: string,
+  ): Promise<GeometryFullFrameDeskewResult>;
 };
 
 export default requireNativeModule<DocumentGeometryPreviewNativeModule>(

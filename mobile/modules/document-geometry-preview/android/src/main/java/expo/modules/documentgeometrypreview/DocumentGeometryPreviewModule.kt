@@ -17,10 +17,13 @@ import expo.modules.kotlin.modules.ModuleDefinition
 import java.io.File
 import java.io.FileOutputStream
 import kotlin.math.abs
+import kotlin.math.ceil
+import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.round
 import kotlin.math.roundToInt
+import kotlin.math.sin
 
 private const val PREVIEW_LONG_SIDE = 1800
 private const val MAX_SOURCE_LONG_SIDE = 8192
@@ -33,20 +36,35 @@ private const val MAX_FOREGROUND_RATIO = 0.22
 private const val MIN_CONFIDENCE = 0.45
 private const val MIN_PROJECTION_GAIN = 0.18
 private const val MIN_PEAK_MARGIN = 0.04
+private const val MAX_DESKEW_OUTPUT_LONG_SIDE = 10_000
+private const val MAX_DESKEW_ACCOUNTED_BYTES = 384L * 1024L * 1024L
+private const val MAX_DESKEW_OUTPUT_BYTES = 64L * 1024L * 1024L
+private const val DESKEW_JPEG_QUALITY = 95
+
+private data class TransformAngle(
+  val rotationDegrees: Double,
+  val fallbackReasons: List<String>,
+)
 
 class DocumentGeometryPreviewModule : Module() {
   private val context
     get() = appContext.reactContext ?: throw Exceptions.ReactContextLost()
 
+  private var previewSourceUri: String? = null
+
   override fun definition() = ModuleDefinition {
     Name("DocumentGeometryPreview")
     AsyncFunction("buildPreviewAsync") Coroutine { uriString: String -> buildPreview(uriString) }
     AsyncFunction("estimateAngleAsync") Coroutine { previewUri: String -> estimateAngle(previewUri) }
+    AsyncFunction("applyFullFrameDeskewAsync") Coroutine { uriString: String, previewUri: String ->
+      applyFullFrameDeskew(uriString, previewUri)
+    }
   }
 
   private fun cacheRoot(): File = File(context.cacheDir, "document-geometry-preview")
 
   private fun prepareCache(): File {
+    previewSourceUri = null
     val root = cacheRoot()
     root.deleteRecursively()
     if (!root.mkdirs() && !root.isDirectory) {
@@ -120,6 +138,12 @@ class DocumentGeometryPreviewModule : Module() {
     }
     return BitmapFactory.decodeFile(file.absolutePath, options)
       ?: throw IllegalArgumentException("Unable to decode the selected image.")
+  }
+
+  private fun decodeFullResolution(file: File): Bitmap {
+    val options = BitmapFactory.Options().apply { inPreferredConfig = Bitmap.Config.ARGB_8888 }
+    return BitmapFactory.decodeFile(file.absolutePath, options)
+      ?: throw IllegalArgumentException("Unable to decode the bounded full-resolution image.")
   }
 
   private fun orient(bitmap: Bitmap, orientation: Int): Bitmap {
@@ -224,7 +248,7 @@ class DocumentGeometryPreviewModule : Module() {
     if (count <= 1) return valueAtRank(histogram, 0).toDouble()
     val position = (count - 1) * quantile
     val lowerRank = position.toInt()
-    val upperRank = kotlin.math.ceil(position).toInt()
+    val upperRank = ceil(position).toInt()
     val lower = valueAtRank(histogram, lowerRank).toDouble()
     val upper = valueAtRank(histogram, upperRank).toDouble()
     return lower + (upper - lower) * (position - lowerRank)
@@ -355,6 +379,161 @@ class DocumentGeometryPreviewModule : Module() {
     }
   }
 
+  private fun validatedTransformAngle(previewUri: String): TransformAngle {
+    val estimate = estimateAngle(previewUri)
+    val decision = estimate["decision"] as? String
+      ?: throw IllegalStateException("Angle estimator returned an invalid decision.")
+    val rotation = (estimate["deskewRotationDegrees"] as? Number)?.toDouble()
+      ?: throw IllegalStateException("Angle estimator returned an invalid rotation.")
+    val dominant = (estimate["dominantTextAngleDegrees"] as? Number)?.toDouble()
+      ?: throw IllegalStateException("Angle estimator returned an invalid dominant angle.")
+    val confidence = (estimate["confidence"] as? Number)?.toDouble()
+      ?: throw IllegalStateException("Angle estimator returned an invalid confidence.")
+    val reasons = (estimate["rejectionReasons"] as? List<*>)?.map {
+      it as? String ?: throw IllegalStateException("Angle estimator returned an invalid rejection reason.")
+    } ?: throw IllegalStateException("Angle estimator returned invalid rejection reasons.")
+
+    if (!rotation.isFinite() || abs(rotation) > MAX_ABS_TEXT_ANGLE_DEGREES) {
+      throw IllegalStateException("Angle estimator rotation violates the bounded transform contract.")
+    }
+    if (!dominant.isFinite() || !confidence.isFinite() || confidence !in 0.0..1.0) {
+      throw IllegalStateException("Angle estimator returned non-finite transform evidence.")
+    }
+    if (decision == "accepted") {
+      if (
+        abs(rotation) >= MAX_ABS_TEXT_ANGLE_DEGREES ||
+        confidence < MIN_CONFIDENCE ||
+        reasons.isNotEmpty() ||
+        abs(dominant + rotation) > 1e-6
+      ) {
+        throw IllegalStateException("Accepted angle contract is contradictory.")
+      }
+      return TransformAngle(rotationDegrees = rotation, fallbackReasons = emptyList())
+    }
+    if (decision == "rejected") {
+      return TransformAngle(
+        rotationDegrees = 0.0,
+        fallbackReasons = (listOf("upstream_angle_not_accepted") + reasons).distinct().sorted(),
+      )
+    }
+    throw IllegalStateException("Angle estimator returned an unsupported decision.")
+  }
+
+  private fun predictedDeskewSize(width: Int, height: Int, rotationDegrees: Double): Pair<Int, Int> {
+    if (abs(rotationDegrees) < 1e-9) return width to height
+    val radians = Math.toRadians(rotationDegrees)
+    val cosine = abs(cos(radians))
+    val sine = abs(sin(radians))
+    return max(1, ceil(width * cosine + height * sine).toInt()) to
+      max(1, ceil(width * sine + height * cosine).toInt())
+  }
+
+  private fun validateDeskewResourceBudget(
+    sourceWidth: Int,
+    sourceHeight: Int,
+    outputWidth: Int,
+    outputHeight: Int,
+  ) {
+    if (max(outputWidth, outputHeight) > MAX_DESKEW_OUTPUT_LONG_SIDE) {
+      throw IllegalArgumentException("Full-frame deskew output exceeds the bounded dimension contract.")
+    }
+    val sourcePixels = sourceWidth.toLong() * sourceHeight
+    val outputPixels = outputWidth.toLong() * outputHeight
+    val accountedBytes = 4L * (sourcePixels + outputPixels)
+    if (accountedBytes > MAX_DESKEW_ACCOUNTED_BYTES) {
+      throw IllegalArgumentException("Full-frame deskew exceeds the bounded working-memory contract.")
+    }
+  }
+
+  private fun rotateFullFrame(
+    bitmap: Bitmap,
+    rotationDegrees: Double,
+    outputWidth: Int,
+    outputHeight: Int,
+  ): Bitmap {
+    if (abs(rotationDegrees) < 1e-9) return bitmap
+    val output = Bitmap.createBitmap(outputWidth, outputHeight, Bitmap.Config.ARGB_8888)
+    output.eraseColor(Color.WHITE)
+    val canvas = Canvas(output)
+    canvas.translate(outputWidth / 2f, outputHeight / 2f)
+    // The estimator returns the frozen Python/PIL sign convention; Android Canvas uses the opposite visual sign.
+    canvas.rotate(-rotationDegrees.toFloat())
+    canvas.translate(-bitmap.width / 2f, -bitmap.height / 2f)
+    canvas.drawBitmap(
+      bitmap,
+      0f,
+      0f,
+      Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG),
+    )
+    bitmap.recycle()
+    return output
+  }
+
+  private fun applyFullFrameDeskew(uriString: String, previewUri: String): Map<String, Any> {
+    if (previewSourceUri != uriString) {
+      throw IllegalArgumentException("Full-frame deskew source does not match the current geometry preview.")
+    }
+    val transformAngle = validatedTransformAngle(previewUri)
+    val root = cacheRoot().canonicalFile
+    if (!root.isDirectory) throw IllegalStateException("Geometry cache is unavailable.")
+    val output = File(root, "deskewed.jpg")
+    val transientSource = File(root, "source.img")
+    output.delete()
+    transientSource.delete()
+
+    try {
+      val source = materializeLocalImage(uriString, root)
+      val (sourceWidth, sourceHeight) = readBounds(source)
+      val orientation = readExifOrientation(source)
+      var bitmap = decodeFullResolution(source)
+      try {
+        bitmap = orient(bitmap, orientation)
+        val orientedWidth = bitmap.width
+        val orientedHeight = bitmap.height
+        val (outputWidth, outputHeight) = predictedDeskewSize(
+          orientedWidth,
+          orientedHeight,
+          transformAngle.rotationDegrees,
+        )
+        validateDeskewResourceBudget(orientedWidth, orientedHeight, outputWidth, outputHeight)
+        bitmap = rotateFullFrame(
+          bitmap,
+          transformAngle.rotationDegrees,
+          outputWidth,
+          outputHeight,
+        )
+        FileOutputStream(output).use { stream ->
+          if (!bitmap.compress(Bitmap.CompressFormat.JPEG, DESKEW_JPEG_QUALITY, stream)) {
+            throw IllegalStateException("Unable to encode the full-frame deskew output.")
+          }
+        }
+        if (!output.isFile || output.length() <= 0L || output.length() > MAX_DESKEW_OUTPUT_BYTES) {
+          throw IllegalStateException("Full-frame deskew output is missing, empty, or too large.")
+        }
+        return mapOf(
+          "outputUri" to Uri.fromFile(output).toString(),
+          "decision" to if (transformAngle.fallbackReasons.isEmpty()) "deskewed_full_frame" else "full_frame_fallback",
+          "sourceWidth" to sourceWidth,
+          "sourceHeight" to sourceHeight,
+          "orientedWidth" to orientedWidth,
+          "orientedHeight" to orientedHeight,
+          "outputWidth" to outputWidth,
+          "outputHeight" to outputHeight,
+          "exifOrientation" to orientation,
+          "rotationAppliedDegrees" to transformAngle.rotationDegrees,
+          "fallbackReasons" to transformAngle.fallbackReasons,
+        )
+      } finally {
+        if (!bitmap.isRecycled) bitmap.recycle()
+      }
+    } catch (error: Throwable) {
+      output.delete()
+      throw error
+    } finally {
+      transientSource.delete()
+    }
+  }
+
   private fun buildPreview(uriString: String): Map<String, Any> {
     val root = prepareCache()
     var copiedSource: File? = null
@@ -393,6 +572,7 @@ class DocumentGeometryPreviewModule : Module() {
         throw IllegalStateException("Geometry preview output is missing.")
       }
 
+      previewSourceUri = uriString
       completed = true
       return mapOf(
         "previewUri" to Uri.fromFile(output).toString(),
