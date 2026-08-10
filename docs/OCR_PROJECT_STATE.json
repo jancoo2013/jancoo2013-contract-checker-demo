@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-10-67",
+  "state_version": "privacy-ocr-2026-08-10-68",
   "active_track": "android-geometry-validation",
-  "next_step_id": "android-geometry-full-frame-deskew-v1",
-  "next_step_summary": "PR #212 adds only the second Android geometry validation layer over the bounded preview contract from PR #211: module-owned grayscale preview -> bounded local text/ink evidence -> fixed -12..+12 degree projection search -> value-free angle/confidence/decision result. It does not physically rotate or crop the source image, run OCR, add UI, upload data, call a backend, or modify the frozen Python geometry baseline. Next implement android-geometry-full-frame-deskew-v1: apply only an accepted validated angle to the local full-resolution source while preserving the full frame and adding no crop/UI/network/OCR. Then add the small validation UI before the Samsung A55 manual validation run. serverless-gpu-ocr-viability-benchmark-v1 remains deferred until that device validation sequence is recorded.",
-  "last_recorded_pr": 212,
-  "last_recorded_change": "android-geometry-angle-estimator-v1",
+  "next_step_id": "android-geometry-validation-ui-v1",
+  "next_step_summary": "PR #213 adds only the third Android geometry validation layer after PR #212: local bounded source + module-owned preview -> native angle revalidation -> EXIF-normalized full-resolution full-frame deskew on an expanded white canvas when accepted, otherwise 0-degree full-frame fallback. No crop, OCR, UI, network, provider, dependency, permission or frozen Python geometry change is introduced. Next implement android-geometry-validation-ui-v1: a small development-only UI to choose one local image, show source and full-frame deskew output, and display angle/confidence/decision/reasons. Then build/install the validation APK and run the bounded Samsung A55 manual geometry gate before returning to serverless-gpu-ocr-viability-benchmark-v1.",
+  "last_recorded_pr": 213,
+  "last_recorded_change": "android-geometry-full-frame-deskew-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-08-10"
