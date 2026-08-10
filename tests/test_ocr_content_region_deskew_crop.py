@@ -29,6 +29,22 @@ def _angle(decision: str = "accepted", rotation: float = 0.0) -> TextAngleEstima
     )
 
 
+def _line_bands_for_crop(
+    crop: tuple[int, int, int, int] | None,
+) -> tuple[tuple[int, int, int, int], ...]:
+    if crop is None:
+        return ()
+    left, top, right, bottom = crop
+    span = max(1, bottom - top)
+    rows = (
+        top,
+        min(bottom - 1, top + max(1, span // 3)),
+        min(bottom - 1, top + max(2, (2 * span) // 3)),
+        bottom - 1,
+    )
+    return tuple((left, row, right, row + 1) for row in rows)
+
+
 def _bounds(
     preview_size: tuple[int, int],
     *,
@@ -43,7 +59,7 @@ def _bounds(
         deskew_rotation_degrees=rotation,
         decision=decision,
         confidence=0.9 if decision == "accepted" else 0.2,
-        line_bands=(),
+        line_bands=_line_bands_for_crop(crop) if decision == "accepted" else (),
         candidate_content_bounds=crop,
         safe_crop_bounds=crop if decision == "accepted" else None,
         rejection_reasons=() if decision == "accepted" else ("insufficient_line_bands",),
@@ -120,7 +136,7 @@ class ContentRegionDeskewCropTests(unittest.TestCase):
         self.assertEqual(result.output_size, (260, 340))
         self.assertFalse(np.array_equal(np.asarray(result.image), unrotated))
 
-    def test_exif_orientation_precedes_contract_validation(self) -> None:
+    def test_exif_orientation_precedes_source_contract_validation(self) -> None:
         image = _pattern((40, 20))
         exif = Image.Exif()
         exif[274] = 6
@@ -188,6 +204,29 @@ class ContentRegionDeskewCropTests(unittest.TestCase):
                     ),
                 )
 
+    def test_accepted_search_limit_angles_raise_before_exif_transpose(self) -> None:
+        image = _pattern((300, 400))
+        crop = (20, 30, 280, 370)
+        for rotation in (-12.0, 12.0):
+            with self.subTest(rotation=rotation):
+                with patch(
+                    "research.hebrew_contract_ocr.content_region_deskew_crop.ImageOps.exif_transpose"
+                ) as exif_transpose:
+                    with self.assertRaisesRegex(
+                        ContentRegionDeskewCropError,
+                        "strictly inside",
+                    ):
+                        apply_content_region_deskew_crop(
+                            image,
+                            angle=_angle(rotation=rotation),
+                            bounds=_bounds(
+                                (300, 400),
+                                rotation=rotation,
+                                crop=crop,
+                            ),
+                        )
+                    exif_transpose.assert_not_called()
+
     def test_contradictory_accepted_bounds_contracts_raise(self) -> None:
         image = _pattern((300, 400))
         crop = (20, 30, 280, 370)
@@ -213,6 +252,90 @@ class ContentRegionDeskewCropTests(unittest.TestCase):
                     angle=_angle(),
                     bounds=bounds,
                 )
+
+    def test_accepted_bounds_require_minimum_line_evidence(self) -> None:
+        image = _pattern((300, 400))
+        crop = (20, 30, 280, 370)
+        valid = _bounds((300, 400), crop=crop)
+        cases = {
+            "empty": replace(valid, line_bands=()),
+            "too_few": replace(valid, line_bands=valid.line_bands[:3]),
+        }
+        for name, bounds in cases.items():
+            with self.subTest(name=name):
+                with patch(
+                    "research.hebrew_contract_ocr.content_region_deskew_crop.ImageOps.exif_transpose"
+                ) as exif_transpose:
+                    with self.assertRaisesRegex(
+                        ContentRegionDeskewCropError,
+                        "minimum line evidence",
+                    ):
+                        apply_content_region_deskew_crop(
+                            image,
+                            angle=_angle(),
+                            bounds=bounds,
+                        )
+                    exif_transpose.assert_not_called()
+
+    def test_accepted_bounds_require_distinct_bounded_line_evidence(self) -> None:
+        image = _pattern((300, 400))
+        crop = (20, 30, 280, 370)
+        valid = _bounds((300, 400), crop=crop)
+
+        duplicate_only = replace(
+            valid,
+            line_bands=(valid.line_bands[0],) * 4,
+            candidate_content_bounds=valid.line_bands[0],
+        )
+        with self.assertRaisesRegex(
+            ContentRegionDeskewCropError,
+            "distinct line evidence",
+        ):
+            apply_content_region_deskew_crop(
+                image,
+                angle=_angle(),
+                bounds=duplicate_only,
+            )
+
+        too_many = replace(
+            valid,
+            line_bands=tuple(valid.line_bands[0] for _ in range(401)),
+        )
+        with self.assertRaisesRegex(
+            ContentRegionDeskewCropError,
+            "too many line bands",
+        ):
+            apply_content_region_deskew_crop(
+                image,
+                angle=_angle(),
+                bounds=too_many,
+            )
+
+    def test_candidate_bounds_must_match_line_evidence_union(self) -> None:
+        image = _pattern((300, 400))
+        crop = (20, 30, 280, 370)
+        valid = _bounds((300, 400), crop=crop)
+        unrelated = (
+            (60, 80, 240, 81),
+            (60, 140, 240, 141),
+            (60, 200, 240, 201),
+            (60, 260, 240, 261),
+        )
+        bounds = replace(valid, line_bands=unrelated)
+
+        with patch(
+            "research.hebrew_contract_ocr.content_region_deskew_crop.ImageOps.exif_transpose"
+        ) as exif_transpose:
+            with self.assertRaisesRegex(
+                ContentRegionDeskewCropError,
+                "union of accepted line evidence",
+            ):
+                apply_content_region_deskew_crop(
+                    image,
+                    angle=_angle(),
+                    bounds=bounds,
+                )
+            exif_transpose.assert_not_called()
 
     def test_resource_budget_fails_before_physical_transform(self) -> None:
         image = _pattern((10, 10))
