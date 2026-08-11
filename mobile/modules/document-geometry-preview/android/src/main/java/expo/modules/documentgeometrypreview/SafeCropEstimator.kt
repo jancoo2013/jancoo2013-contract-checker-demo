@@ -64,43 +64,46 @@ internal object SafeCropEstimator {
     }
 
     val fixed = rotateMask(mask, deskewRotationDegrees, expand = false)
-    val expanded = rotateMask(mask, deskewRotationDegrees, expand = true)
     try {
-      if (expanded !== fixed) {
-        val meaningfulLoss = max(
-          MIN_OUTSIDE_COMPACT_PIXELS,
-          round(mask.width.toLong() * mask.height * MIN_OUTSIDE_COMPACT_AREA_RATIO).toInt(),
-        )
-        if (countBlack(expanded) - countBlack(fixed) >= meaningfulLoss) {
-          reasons += "source_edge_content_clipped_by_deskew"
+      val expanded = rotateMask(mask, deskewRotationDegrees, expand = true)
+      try {
+        if (expanded !== fixed) {
+          val meaningfulLoss = max(
+            MIN_OUTSIDE_COMPACT_PIXELS,
+            round(mask.width.toLong() * mask.height * MIN_OUTSIDE_COMPACT_AREA_RATIO).toInt(),
+          )
+          if (countBlack(expanded) - countBlack(fixed) >= meaningfulLoss) {
+            reasons += "source_edge_content_clipped_by_deskew"
+          }
         }
-      }
 
-      val box = parseBox(candidate["candidateContentBounds"], width, height)
-        ?: throw IllegalStateException("Crop-ready candidate is missing content bounds.")
-      val padX = max(12, round(width * 0.04).toInt())
-      val padY = max(12, round(height * 0.04).toInt())
-      val padded = CropBox(
-        max(0, box.left - padX),
-        max(0, box.top - padY),
-        min(width, box.right + padX),
-        min(height, box.bottom + padY),
-      )
-      if (
-        (padded.right - padded.left).toDouble() / width >= 0.985 ||
-        (padded.bottom - padded.top).toDouble() / height >= 0.985
-      ) reasons += "content_region_nearly_full_frame"
-      if (hasDisconnectedContentOutside(fixed, padded)) {
-        reasons += "disconnected_content_outside_crop"
-      }
+        val box = parseBox(candidate["candidateContentBounds"], width, height)
+          ?: throw IllegalStateException("Crop-ready candidate is missing content bounds.")
+        val padX = max(12, round(width * 0.04).toInt())
+        val padY = max(12, round(height * 0.04).toInt())
+        val padded = CropBox(
+          max(0, box.left - padX),
+          max(0, box.top - padY),
+          min(width, box.right + padX),
+          min(height, box.bottom + padY),
+        )
+        if (
+          (padded.right - padded.left).toDouble() / width >= 0.985 ||
+          (padded.bottom - padded.top).toDouble() / height >= 0.985
+        ) reasons += "content_region_nearly_full_frame"
+        if (hasDisconnectedContentOutside(fixed, padded)) {
+          reasons += "disconnected_content_outside_crop"
+        }
 
-      return candidate + mapOf(
-        "decision" to if (reasons.isEmpty()) "accepted" else "rotation_only",
-        "safeCropBounds" to if (reasons.isEmpty()) padded.asList() else null,
-        "rejectionReasons" to reasons.sorted(),
-      )
+        return candidate + mapOf(
+          "decision" to if (reasons.isEmpty()) "accepted" else "rotation_only",
+          "safeCropBounds" to if (reasons.isEmpty()) padded.asList() else null,
+          "rejectionReasons" to reasons.sorted(),
+        )
+      } finally {
+        if (expanded !== mask && expanded !== fixed) expanded.recycle()
+      }
     } finally {
-      if (expanded !== mask && expanded !== fixed) expanded.recycle()
       if (fixed !== mask) fixed.recycle()
     }
   }
