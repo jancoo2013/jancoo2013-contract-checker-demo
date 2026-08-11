@@ -32,6 +32,10 @@ internal object SafeCropEstimator {
   ): Map<String, Any?> {
     val decision = candidate["decision"] as? String
       ?: throw IllegalStateException("Content-region candidate decision is missing.")
+    val coordinateSpace = candidate["coordinateSpace"] as? String
+      ?: throw IllegalStateException("Content-region coordinate space is missing.")
+    val candidateRotation = (candidate["deskewRotationDegrees"] as? Number)?.toDouble()
+      ?: throw IllegalStateException("Content-region rotation is missing.")
     val width = (candidate["previewWidth"] as? Number)?.toInt()
       ?: throw IllegalStateException("Content-region preview width is missing.")
     val height = (candidate["previewHeight"] as? Number)?.toInt()
@@ -40,8 +44,20 @@ internal object SafeCropEstimator {
       it as? String ?: throw IllegalStateException("Content-region rejection reason is invalid.")
     }.toMutableSet()
 
+    if (angleDecision !in setOf("accepted", "rejected") || decision !in setOf("candidate_ready", "rotation_only", "full_frame_fallback")) {
+      throw IllegalStateException("Content-region decision contract is invalid.")
+    }
+    if (!deskewRotationDegrees.isFinite() || !candidateRotation.isFinite() || abs(candidateRotation - deskewRotationDegrees) > 1e-6) {
+      throw IllegalStateException("Content-region rotation disagrees with angle evidence.")
+    }
     if (width != mask.width || height != mask.height) {
       throw IllegalStateException("Content-region candidate dimensions disagree with the mask.")
+    }
+    if (angleDecision == "rejected" && (decision != "full_frame_fallback" || coordinateSpace != "source_preview")) {
+      throw IllegalStateException("Rejected angle requires source-preview full-frame fallback.")
+    }
+    if (angleDecision == "accepted" && (decision == "full_frame_fallback" || coordinateSpace != "deskewed_preview")) {
+      throw IllegalStateException("Accepted angle requires deskewed-preview candidate evidence.")
     }
     if (angleDecision != "accepted" || decision != "candidate_ready") {
       return candidate + mapOf("safeCropBounds" to null)
@@ -153,15 +169,16 @@ internal object SafeCropEstimator {
     if (window % 2 == 0) window++
     val prefix = IntArray(height + 1)
     for (y in 0 until height) prefix[y + 1] = prefix[y] + rows[y]
-    val positive = rows.filter { it > 0 }.sorted()
-    val adaptive = if (positive.isEmpty()) 0.0 else positive[(positive.size * 0.55).toInt().coerceAtMost(positive.lastIndex)] * 0.30
-    val threshold = max(3.0, max(width * 0.008, adaptive))
     val half = window / 2
-    val active = BooleanArray(height) { y ->
+    val smoothed = DoubleArray(height) { y ->
       val top = max(0, y - half)
       val bottom = min(height, y + half + 1)
-      (prefix[bottom] - prefix[top]).toDouble() / window >= threshold
+      (prefix[bottom] - prefix[top]).toDouble() / window
     }
+    val positive = smoothed.filter { it > 0.0 }.sorted()
+    val adaptive = if (positive.isEmpty()) 0.0 else percentile(positive, 0.55) * 0.30
+    val threshold = max(3.0, max(width * 0.008, adaptive))
+    val active = BooleanArray(height) { smoothed[it] >= threshold }
     for ((rawTop, rawBottom) in mergeRuns(runs(active), max(2, round(height * 0.003).toInt()))) {
       val top = max(0, rawTop - half)
       val bottom = min(height, rawBottom + half)
@@ -204,6 +221,14 @@ internal object SafeCropEstimator {
       if (!longVertical) return true
     }
     return false
+  }
+
+  private fun percentile(values: List<Double>, quantile: Double): Double {
+    if (values.size == 1) return values.first()
+    val position = (values.size - 1) * quantile
+    val lower = position.toInt()
+    val upper = ceil(position).toInt()
+    return values[lower] + (values[upper] - values[lower]) * (position - lower)
   }
 
   private fun runs(active: BooleanArray): List<Pair<Int, Int>> {
