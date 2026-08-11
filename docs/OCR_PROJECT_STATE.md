@@ -37,7 +37,7 @@ PR #218 намеренно реализует только первую поло
 - perspective correction, новые angle thresholds/search range и дальнейший deskew tuning не входят в scope;
 - OCR recognition, network/backend/provider, dependencies, permissions, workflows и privacy boundary не меняются.
 
-PR #218 специально разделён до wiring physical transform: final `SafeCropEstimator.kt` занимает 256 implementation additions, а весь runtime/TypeScript diff — 260 additions, поэтому bundling physical crop + grayscale + UI вывел бы PR за target <=300 additions. Следующий bounded PR `android-document-preprocess-physical-crop-grayscale-v1` должен structurally validate accepted in-process crop evidence, conservatively map preview bounds to oriented full resolution, output grayscale cropped image only when fully accepted, otherwise output grayscale full-frame fallback, и показать именно этот final prepared image в development UI.
+PR #218 специально разделён до wiring physical transform: final `SafeCropEstimator.kt` занимает 259 implementation additions, а весь runtime/TypeScript diff — 263 additions, поэтому bundling physical crop + grayscale + UI вывел бы PR за target <=300 additions. Следующий bounded PR `android-document-preprocess-physical-crop-grayscale-v1` должен structurally validate accepted in-process crop evidence, conservatively map preview bounds to oriented full resolution, output grayscale cropped image only when fully accepted, otherwise output grayscale full-frame fallback, и показать именно этот final prepared image в development UI.
 
 После этого manual validation выполняется уже над полезным продуктовым результатом: `исходная фотография -> обрезанный/необрезанный grayscale document`, а не как отдельная длительная deskew-кампания.
 
