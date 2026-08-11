@@ -395,7 +395,8 @@ class DocumentGeometryPreviewModule : Module() {
         ?: throw IllegalStateException("Angle estimator returned an invalid rotation.")
       val mask = buildAnalysisMask(preview, PREVIEW_LONG_SIDE).first
       try {
-        ContentRegionEstimator.estimate(mask, rotation, decision)
+        val candidate = ContentRegionEstimator.estimate(mask, rotation, decision)
+        SafeCropEstimator.authorize(mask, rotation, decision, candidate)
       } finally {
         mask.recycle()
       }
