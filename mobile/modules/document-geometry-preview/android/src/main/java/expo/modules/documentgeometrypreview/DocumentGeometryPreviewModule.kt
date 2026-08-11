@@ -56,6 +56,7 @@ class DocumentGeometryPreviewModule : Module() {
     Name("DocumentGeometryPreview")
     AsyncFunction("buildPreviewAsync") Coroutine { uriString: String -> buildPreview(uriString) }
     AsyncFunction("estimateAngleAsync") Coroutine { previewUri: String -> estimateAngle(previewUri) }
+    AsyncFunction("estimateContentRegionAsync") Coroutine { previewUri: String -> estimateContentRegion(previewUri) }
     AsyncFunction("applyFullFrameDeskewAsync") Coroutine { uriString: String, previewUri: String ->
       applyFullFrameDeskew(uriString, previewUri)
     }
@@ -254,7 +255,8 @@ class DocumentGeometryPreviewModule : Module() {
     return lower + (upper - lower) * (position - lowerRank)
   }
 
-  private fun buildAnalysisMask(preview: Bitmap): Pair<Bitmap, Double> {
+  private fun buildAnalysisMask(preview: Bitmap, longSide: Int = ANALYSIS_LONG_SIDE): Pair<Bitmap, Double> {
+    if (longSide !in 1..PREVIEW_LONG_SIDE) throw IllegalArgumentException("Invalid geometry analysis long side.")
     val width = preview.width
     val height = preview.height
     val pixels = IntArray(width * height)
@@ -287,7 +289,7 @@ class DocumentGeometryPreviewModule : Module() {
     }
     var mask = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
     mask.setPixels(pixels, 0, width, 0, 0, width, height)
-    val scale = minOf(1.0, ANALYSIS_LONG_SIDE.toDouble() / max(width, height))
+    val scale = minOf(1.0, longSide.toDouble() / max(width, height))
     if (scale < 1.0) {
       val scaled = Bitmap.createScaledBitmap(
         mask,
@@ -375,6 +377,25 @@ class DocumentGeometryPreviewModule : Module() {
       )
     } finally {
       work.recycle()
+      mask.recycle()
+    }
+  }
+
+  private fun estimateContentRegion(previewUri: String): Map<String, Any?> {
+    val angle = estimateAngle(previewUri)
+    val decision = angle["decision"] as? String
+      ?: throw IllegalStateException("Angle estimator returned an invalid decision.")
+    val rotation = (angle["deskewRotationDegrees"] as? Number)?.toDouble()
+      ?: throw IllegalStateException("Angle estimator returned an invalid rotation.")
+    val preview = ownedPreview(previewUri)
+    val mask = try {
+      buildAnalysisMask(preview, PREVIEW_LONG_SIDE).first
+    } finally {
+      preview.recycle()
+    }
+    return try {
+      ContentRegionEstimator.estimate(mask, rotation, decision)
+    } finally {
       mask.recycle()
     }
   }
