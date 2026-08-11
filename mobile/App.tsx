@@ -12,6 +12,10 @@ import {
   View,
 } from "react-native";
 
+import DocumentGeometryPreview, {
+  type GeometryAngleEstimate,
+  type GeometryFullFrameDeskewResult,
+} from "./modules/document-geometry-preview";
 import TesseractOcr, {
   HebrewOcrResult,
   PickedImage,
@@ -32,6 +36,7 @@ const SYNTHETIC_FILENAME = "synthetic_page.png";
 type RequestStatus = "idle" | "sending" | "success" | "error";
 type ModelStatus = "checking" | "missing" | "downloading" | "ready" | "error";
 type LocalOcrStatus = "idle" | "running" | "success" | "error";
+type GeometryValidationStatus = "idle" | "running" | "success" | "error";
 
 type BackendErrorEnvelope = {
   error?: {
@@ -70,6 +75,14 @@ type SelectedImage = {
   name?: string;
   width?: number;
   height?: number;
+};
+
+type GeometryValidationState = {
+  status: GeometryValidationStatus;
+  source?: SelectedImage;
+  angle?: GeometryAngleEstimate;
+  transform?: GeometryFullFrameDeskewResult;
+  error?: string;
 };
 
 type LocalOcrState = {
@@ -207,6 +220,7 @@ export default function App() {
   const [result, setResult] = useState<ResultState>({ status: "idle" });
   const [modelStatus, setModelStatus] = useState<ModelStatus>("checking");
   const [modelMessage, setModelMessage] = useState<string>("");
+  const [geometryValidation, setGeometryValidation] = useState<GeometryValidationState>({ status: "idle" });
   const [selectedImage, setSelectedImage] = useState<SelectedImage>();
   const [localOcr, setLocalOcr] = useState<LocalOcrState>({ status: "idle" });
   const [previewSize, setPreviewSize] = useState<PreviewSize>();
@@ -274,6 +288,40 @@ export default function App() {
       return { status: "error", error: errorMessage(error) };
     }
   }, [localOcr, previewSize]);
+
+  async function handleGeometryValidation() {
+    setGeometryValidation({ status: "running" });
+    let source: SelectedImage | undefined;
+
+    try {
+      const picked: PickedImage = await TesseractOcr.pickImageAsync();
+      if (picked.canceled) {
+        setGeometryValidation({ status: "idle" });
+        return;
+      }
+      if (!picked.uri) {
+        throw new Error("Android returned no image URI.");
+      }
+
+      source = {
+        uri: picked.uri,
+        name: picked.name,
+        width: picked.width,
+        height: picked.height,
+      };
+      setGeometryValidation({ status: "running", source });
+
+      const preview = await DocumentGeometryPreview.buildPreviewAsync(source.uri);
+      const angle = await DocumentGeometryPreview.estimateAngleAsync(preview.previewUri);
+      const transform = await DocumentGeometryPreview.applyFullFrameDeskewAsync(
+        source.uri,
+        preview.previewUri,
+      );
+      setGeometryValidation({ status: "success", source, angle, transform });
+    } catch (error: unknown) {
+      setGeometryValidation({ status: "error", source, error: errorMessage(error) });
+    }
+  }
 
   async function handleDownloadModel() {
     setModelStatus("downloading");
@@ -407,9 +455,82 @@ export default function App() {
     <SafeAreaView style={styles.screen}>
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Android-only Tesseract OCR spike</Text>
+        <Text style={styles.title}>Document geometry validation</Text>
         <Text style={styles.notice}>
-          The selected image is copied into the app cache and processed locally on Android. The only network action in this spike is downloading the static Hebrew language model once.
+          Development-only local check. The selected photo is used only by the bounded Android geometry module; this path does not run OCR or upload the photo.
+        </Text>
+        <Button
+          title={geometryValidation.status === "running" ? "Processing geometry..." : "Select photo and run geometry"}
+          onPress={handleGeometryValidation}
+          disabled={geometryValidation.status === "running"}
+        />
+        <View style={styles.section}>
+          <Text style={styles.label}>Geometry state</Text>
+          <Text style={geometryValidation.status === "error" ? styles.errorText : styles.value}>
+            {geometryValidation.status}
+          </Text>
+        </View>
+
+        {geometryValidation.source ? (
+          <View style={styles.geometryBox}>
+            <Text style={styles.resultTitle}>Source</Text>
+            <Text style={styles.caption}>{geometryValidation.source.name ?? "selected local photo"}</Text>
+            <Text style={styles.caption}>
+              Picker size: {geometryValidation.source.width ?? "?"} × {geometryValidation.source.height ?? "?"}
+            </Text>
+            <Image source={{ uri: geometryValidation.source.uri }} style={styles.geometryImage} resizeMode="contain" />
+          </View>
+        ) : null}
+
+        {geometryValidation.status === "success" && geometryValidation.angle && geometryValidation.transform ? (
+          <>
+            <View style={styles.geometryBox}>
+              <Text style={styles.resultTitle}>Full-frame deskew result</Text>
+              <Image
+                source={{ uri: geometryValidation.transform.outputUri }}
+                style={styles.geometryImage}
+                resizeMode="contain"
+              />
+              <Text style={styles.value}>
+                output: {geometryValidation.transform.outputWidth} × {geometryValidation.transform.outputHeight}
+              </Text>
+              <Text style={styles.value}>transform: {geometryValidation.transform.decision}</Text>
+              <Text style={styles.value}>
+                rotation applied: {geometryValidation.transform.rotationAppliedDegrees.toFixed(2)}°
+              </Text>
+              <Text style={styles.caption}>
+                fallback reasons: {geometryValidation.transform.fallbackReasons.length > 0 ? geometryValidation.transform.fallbackReasons.join(", ") : "none"}
+              </Text>
+            </View>
+            <View style={styles.inspectionBox}>
+              <Text style={styles.resultTitle}>Native angle evidence</Text>
+              <Text style={styles.value}>
+                dominant text angle: {geometryValidation.angle.dominantTextAngleDegrees.toFixed(2)}°
+              </Text>
+              <Text style={styles.value}>
+                requested deskew: {geometryValidation.angle.deskewRotationDegrees.toFixed(2)}°
+              </Text>
+              <Text style={styles.value}>confidence: {geometryValidation.angle.confidence.toFixed(4)}</Text>
+              <Text style={styles.value}>decision: {geometryValidation.angle.decision}</Text>
+              <Text style={styles.caption}>
+                reasons: {geometryValidation.angle.rejectionReasons.length > 0 ? geometryValidation.angle.rejectionReasons.join(", ") : "none"}
+              </Text>
+            </View>
+          </>
+        ) : null}
+
+        {geometryValidation.status === "error" ? (
+          <View style={styles.errorBox}>
+            <Text style={styles.resultTitle}>Geometry validation error</Text>
+            <Text style={styles.errorText}>{geometryValidation.error}</Text>
+          </View>
+        ) : null}
+
+        <View style={styles.divider} />
+
+        <Text style={styles.secondaryTitle}>Existing Android-only Tesseract OCR spike</Text>
+        <Text style={styles.notice}>
+          The separate legacy spike below is unchanged. Its locally selected OCR image is not reused by the geometry validation path above.
         </Text>
 
         <View style={styles.section}>
@@ -653,6 +774,22 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     borderWidth: 1,
     height: 260,
+  },
+  geometryBox: {
+    backgroundColor: "#ffffff",
+    borderColor: "#94a3b8",
+    borderRadius: 6,
+    borderWidth: 1,
+    gap: 6,
+    padding: 12,
+  },
+  geometryImage: {
+    alignSelf: "stretch",
+    backgroundColor: "#ffffff",
+    borderColor: "#cbd5e1",
+    borderRadius: 6,
+    borderWidth: 1,
+    height: 320,
   },
   previewFrame: {
     alignSelf: "stretch",
