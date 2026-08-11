@@ -60,6 +60,9 @@ class DocumentGeometryPreviewModule : Module() {
     AsyncFunction("applyFullFrameDeskewAsync") Coroutine { uriString: String, previewUri: String ->
       applyFullFrameDeskew(uriString, previewUri)
     }
+    AsyncFunction("prepareDocumentAsync") Coroutine { uriString: String, previewUri: String ->
+      prepareDocument(uriString, previewUri)
+    }
   }
 
   private fun cacheRoot(): File = File(context.cacheDir, "document-geometry-preview")
@@ -402,6 +405,69 @@ class DocumentGeometryPreviewModule : Module() {
       }
     } finally {
       preview.recycle()
+    }
+  }
+
+  private fun prepareDocument(uriString: String, previewUri: String): Map<String, Any?> {
+    if (previewSourceUri != uriString) {
+      throw IllegalArgumentException("Prepared document source does not match the current geometry preview.")
+    }
+    val region = estimateContentRegion(previewUri)
+    if (previewSourceUri != uriString) {
+      throw IllegalArgumentException("Prepared document preview session changed during analysis.")
+    }
+    val root = cacheRoot().canonicalFile
+    if (!root.isDirectory) throw IllegalStateException("Geometry cache is unavailable.")
+    val output = File(root, "prepared.jpg")
+    val transientSource = File(root, "source.img")
+    output.delete()
+    transientSource.delete()
+
+    try {
+      val source = materializeLocalImage(uriString, root)
+      val (sourceWidth, sourceHeight) = readBounds(source)
+      val orientation = readExifOrientation(source)
+      var bitmap = decodeFullResolution(source)
+      try {
+        bitmap = orient(bitmap, orientation)
+        val orientedWidth = bitmap.width
+        val orientedHeight = bitmap.height
+        val prepared = PreparedDocumentTransform.apply(bitmap, region)
+        try {
+          FileOutputStream(output).use { stream ->
+            if (!prepared.bitmap.compress(Bitmap.CompressFormat.JPEG, DESKEW_JPEG_QUALITY, stream)) {
+              throw IllegalStateException("Unable to encode the prepared grayscale document.")
+            }
+          }
+          if (!output.isFile || output.length() <= 0L || output.length() > MAX_DESKEW_OUTPUT_BYTES) {
+            throw IllegalStateException("Prepared grayscale document is missing, empty, or too large.")
+          }
+          return mapOf(
+            "outputUri" to Uri.fromFile(output).toString(),
+            "decision" to prepared.decision,
+            "colorMode" to "grayscale",
+            "sourceWidth" to sourceWidth,
+            "sourceHeight" to sourceHeight,
+            "orientedWidth" to orientedWidth,
+            "orientedHeight" to orientedHeight,
+            "outputWidth" to prepared.bitmap.width,
+            "outputHeight" to prepared.bitmap.height,
+            "exifOrientation" to orientation,
+            "rotationAppliedDegrees" to prepared.rotationAppliedDegrees,
+            "cropBoxSource" to prepared.cropBoxSource,
+            "fallbackReasons" to prepared.fallbackReasons,
+          )
+        } finally {
+          if (!prepared.bitmap.isRecycled) prepared.bitmap.recycle()
+        }
+      } finally {
+        if (!bitmap.isRecycled) bitmap.recycle()
+      }
+    } catch (error: Throwable) {
+      output.delete()
+      throw error
+    } finally {
+      transientSource.delete()
     }
   }
 

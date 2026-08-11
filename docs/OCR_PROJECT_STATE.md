@@ -1,12 +1,41 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-11, PR #218, `android-geometry-safe-crop-authorization-v1`.
+Последнее обновление: 2026-08-11, PR #219, `android-document-preprocess-physical-crop-grayscale-v1`.
 
 Активный трек: `android-document-preprocessing`.
 
-Следующий bounded-шаг после merge PR #218: `android-document-preprocess-physical-crop-grayscale-v1`.
+Следующий bounded-шаг после merge PR #219: `android-document-preprocess-device-smoke-v1`.
 
 Этот документ вместе с `docs/OCR_PROJECT_STATE.json` является канонической operational-точкой восстановления privacy/OCR-проекта. Архитектурные документы задают обязательные границы, но текущий `next_step_id` выбирается только state-файлами.
+
+## Current change — PR #219 physical crop + grayscale final output
+
+PR #219 завершает полезный локальный preprocessing consumer поверх merged PR #218 safe-crop authorization:
+
+```text
+local photo
+→ bounded EXIF/orientation + grayscale preview
+→ native angle/content-region/safe-crop evidence
+→ accepted: fixed-frame grayscale transform + conservative full-resolution crop
+→ non-accepted: 0° grayscale full-frame fallback
+→ prepared.jpg shown in development UI
+```
+
+Границы PR #219:
+
+- новый `prepareDocumentAsync(uri, previewUri)` не принимает crop coordinates от JavaScript и сам повторно получает producer-generated safe-crop evidence из текущего module-owned preview;
+- source URI должен совпадать с текущей preview session до и после bounded analysis;
+- accepted crop contract проверяет decision, coordinate space, finite/bounded rotation, expected preview dimensions, valid candidate/safe boxes и containment;
+- preview safe bounds отображаются в oriented full-resolution coordinates консервативно: floor для left/top, ceil для right/bottom, с независимым X/Y scale;
+- accepted path рисует grayscale fixed-size frame с тем же Android/Python sign contract, затем физически crop-ит только mapped safe bounds;
+- `rotation_only` и `full_frame_fallback` никогда не crop-ятся и физически не вращаются: итог — grayscale full-frame fallback;
+- максимальная геометрическая память остаётся bounded существующим 384 MiB accounting contract; encoded output ограничен существующим 64 MiB cap;
+- итоговый artifact — локальный module-cache `prepared.jpg`; он не загружается и не логируется;
+- validation UI показывает именно prepared grayscale document, его dimensions, decision, applied rotation, source-space crop box и fallback reasons;
+- perspective correction, новые angle/crop thresholds и дальнейший standalone deskew tuning не добавляются;
+- OCR recognition, upload/backend/provider, dependencies, permissions, workflows и privacy boundary не меняются.
+
+Следующий gate — `android-document-preprocess-device-smoke-v1`: прогнать страницы двух owner-controlled реально снятых договоров и проверить сохранность содержимого, консервативность crop, читаемость grayscale, полный fallback в uncertain cases и отсутствие crash/OOM при повторной обработке. Если concrete in-contract defect не найден, preprocessing-блок не расширять и вернуться к отложенному `serverless-gpu-ocr-viability-benchmark-v1`.
 
 ## 0. Изменение PR #218 — safe crop authorization и product pivot к preprocessing
 
@@ -253,6 +282,16 @@ The code-level freeze remains valid while Android preprocessing is ported. Andro
 - returns no physical crop and creates no new image artifact;
 - establishes the safe producer contract consumed by the next physical preprocessing PR.
 
+`android-document-preprocess-physical-crop-grayscale-v1` — PR #219
+
+- consumes only internally recomputed safe-crop evidence from the current module-owned preview session;
+- validates accepted crop structure before mutation;
+- maps accepted crop to oriented full resolution with conservative independent-axis scaling;
+- accepted path creates `cropped_grayscale`;
+- non-accepted path creates `full_frame_grayscale_fallback` with 0° rotation;
+- development UI shows `prepared.jpg` as the target preprocessing result;
+- no OCR/network/provider/dependency/permission/workflow change.
+
 ### Audit status
 
 Owner-requested bounded audit over Android geometry PR #211–#215:
@@ -265,24 +304,24 @@ Owner-requested bounded audit over Android geometry PR #211–#215:
 
 A separate automatic post-merge Codex review then found the preview snapshot P2; PR #216 is the bounded corrective for that concrete integration issue.
 
-### Current implementation — physical crop + grayscale output
+### Current gate — prepared-document device smoke
 
-`android-document-preprocess-physical-crop-grayscale-v1`
+`android-document-preprocess-device-smoke-v1`
 
-This is the single permitted next implementation step after merge PR #218:
+Use the development preprocessing UI on the available Android device and the two owner-controlled actually photographed/prepared contract sets.
 
-- consume only producer-generated accepted safe crop evidence from the same bounded module-owned preview session;
-- structurally validate decision, finite/bounded rotation, preview dimensions, safe/candidate containment and line evidence before mutation;
-- map preview crop to oriented full resolution conservatively with floor left/top and ceil right/bottom using independent X/Y scaling;
-- when fully accepted, apply only the already bounded small rotation needed by the frozen contract and crop to the mapped safe bounds;
-- convert the final output to grayscale;
-- when any upstream geometry is uncertain/rejected, do not crop: produce a grayscale full-frame fallback;
-- keep dimensions, pixel/resource accounting and encoded output bounded;
-- development UI must show this final prepared grayscale artifact rather than presenting the old color full-frame deskew result as the target product output;
-- no perspective correction or further deskew threshold tuning in this step;
-- no OCR, upload, backend/provider or new dependency/permission.
+For each tested page inspect:
 
-After this step, manual testing returns to the two owner-controlled actually photographed contract sets and evaluates the useful preprocessing result: safe content preservation, crop quality and grayscale readability. Only a concrete in-contract defect should reopen the frozen geometry logic.
+- final artifact is visibly grayscale;
+- `cropped_grayscale` removes only surrounding non-document area and preserves meaningful header/footer/edge/signature content;
+- `full_frame_grayscale_fallback` preserves the complete oriented frame and reports no crop box;
+- output dimensions/crop metadata are internally plausible;
+- repeated `Select another photo` use does not mix pages or stale outputs;
+- no crash/OOM or severe device-memory failure occurs.
+
+Do not turn this into a renewed deskew campaign. A geometry correction is justified only by concrete evidence satisfying the frozen reopen contract.
+
+If this smoke passes without a concrete in-contract preprocessing defect, the next product block returns to `serverless-gpu-ocr-viability-benchmark-v1`.
 
 ## 3. Deferred next product block — `serverless-gpu-ocr-viability-benchmark-v1`
 
@@ -367,6 +406,6 @@ Last targeted Android geometry audit: owner-requested audit over PR #211–#215 
 
 Frozen Python geometry code baseline: `7fe4bc88df2427ea90442f7b074c3cfe4e0de33a`.
 
-Current PR: #218 `android-geometry-safe-crop-authorization-v1`.
+Current PR: #219 `android-document-preprocess-physical-crop-grayscale-v1`.
 
-Next step after merge PR #218: `android-document-preprocess-physical-crop-grayscale-v1`.
+Next step after merge PR #219: `android-document-preprocess-device-smoke-v1`.
