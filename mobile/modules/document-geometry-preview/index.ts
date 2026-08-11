@@ -49,6 +49,22 @@ export type GeometryFullFrameDeskewResult = Readonly<{
   fallbackReasons: readonly string[];
 }>;
 
+export type PreparedDocumentResult = Readonly<{
+  outputUri: string;
+  decision: "cropped_grayscale" | "full_frame_grayscale_fallback";
+  colorMode: "grayscale";
+  sourceWidth: number;
+  sourceHeight: number;
+  orientedWidth: number;
+  orientedHeight: number;
+  outputWidth: number;
+  outputHeight: number;
+  exifOrientation: number;
+  rotationAppliedDegrees: number;
+  cropBoxSource: readonly [number, number, number, number] | null;
+  fallbackReasons: readonly string[];
+}>;
+
 type DocumentGeometryPreviewNativeModule = {
   buildPreviewAsync(uri: string): Promise<GeometryPreviewResult>;
   estimateAngleAsync(previewUri: string): Promise<GeometryAngleEstimate>;
@@ -57,6 +73,10 @@ type DocumentGeometryPreviewNativeModule = {
     uri: string,
     previewUri: string,
   ): Promise<GeometryFullFrameDeskewResult>;
+  prepareDocumentAsync(
+    uri: string,
+    previewUri: string,
+  ): Promise<PreparedDocumentResult>;
 };
 
 export default requireNativeModule<DocumentGeometryPreviewNativeModule>(
