@@ -16,8 +16,8 @@ import {
 
 import DocumentGeometryPreview, {
   type GeometryAngleEstimate,
-  type GeometryFullFrameDeskewResult,
   type GeometryPreviewResult,
+  type PreparedDocumentResult,
 } from "./modules/document-geometry-preview";
 import TesseractOcr, {
   HebrewOcrResult,
@@ -85,7 +85,7 @@ type GeometryValidationState = {
   source?: SelectedImage;
   preview?: GeometryPreviewResult;
   angle?: GeometryAngleEstimate;
-  transform?: GeometryFullFrameDeskewResult;
+  transform?: PreparedDocumentResult;
   error?: string;
 };
 
@@ -319,7 +319,7 @@ export default function App() {
       setGeometryValidation({ status: "running", source, preview });
 
       const angle = await DocumentGeometryPreview.estimateAngleAsync(preview.previewUri);
-      const transform = await DocumentGeometryPreview.applyFullFrameDeskewAsync(
+      const transform = await DocumentGeometryPreview.prepareDocumentAsync(
         source.uri,
         preview.previewUri,
       );
@@ -485,17 +485,17 @@ export default function App() {
         </SafeAreaView>
       </Modal>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Document geometry validation</Text>
+        <Text style={styles.title}>Document preprocessing validation</Text>
         <Text style={styles.notice}>
-          Development-only local check. The selected photo is first validated by the bounded Android geometry module; the UI renders only its bounded source preview and does not run OCR or upload the photo.
+          Development-only local check. The selected photo is processed only on this device into a bounded grayscale prepared document; this path does not run OCR or upload the photo.
         </Text>
         <Button
-          title={geometryValidation.status === "running" ? "Processing geometry..." : "Select photo and run geometry"}
+          title={geometryValidation.status === "running" ? "Preparing document..." : "Select photo and preprocess"}
           onPress={handleGeometryValidation}
           disabled={geometryValidation.status === "running"}
         />
         <View style={styles.section}>
-          <Text style={styles.label}>Geometry state</Text>
+          <Text style={styles.label}>Preprocessing state</Text>
           <Text style={geometryValidation.status === "error" ? styles.errorText : styles.value}>
             {geometryValidation.status}
           </Text>
@@ -522,10 +522,10 @@ export default function App() {
         {geometryValidation.status === "success" && geometryValidation.angle && geometryValidation.transform ? (
           <>
             <View style={styles.geometryBox}>
-              <Text style={styles.resultTitle}>Full-frame deskew result</Text>
+              <Text style={styles.resultTitle}>Prepared grayscale document</Text>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Open full-frame deskew result full screen"
+                accessibilityLabel="Open prepared grayscale document full screen"
                 onPress={() => setFullscreenImageUri(geometryValidation.transform?.outputUri)}
               >
                 <Image
@@ -539,8 +539,12 @@ export default function App() {
                 output: {geometryValidation.transform.outputWidth} × {geometryValidation.transform.outputHeight}
               </Text>
               <Text style={styles.value}>transform: {geometryValidation.transform.decision}</Text>
+              <Text style={styles.value}>color: {geometryValidation.transform.colorMode}</Text>
               <Text style={styles.value}>
                 rotation applied: {geometryValidation.transform.rotationAppliedDegrees.toFixed(2)}°
+              </Text>
+              <Text style={styles.caption}>
+                crop: {geometryValidation.transform.cropBoxSource ? geometryValidation.transform.cropBoxSource.join(", ") : "full frame"}
               </Text>
               <Text style={styles.caption}>
                 fallback reasons: {geometryValidation.transform.fallbackReasons.length > 0 ? geometryValidation.transform.fallbackReasons.join(", ") : "none"}
@@ -565,7 +569,7 @@ export default function App() {
 
         {geometryValidation.status === "error" ? (
           <View style={styles.errorBox}>
-            <Text style={styles.resultTitle}>Geometry validation error</Text>
+            <Text style={styles.resultTitle}>Preprocessing validation error</Text>
             <Text style={styles.errorText}>{geometryValidation.error}</Text>
           </View>
         ) : null}
