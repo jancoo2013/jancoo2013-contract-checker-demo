@@ -27,10 +27,11 @@ export type GeometryContentRegionEstimate = Readonly<{
   previewWidth: number;
   previewHeight: number;
   deskewRotationDegrees: number;
-  decision: "candidate_ready" | "rotation_only" | "full_frame_fallback";
+  decision: "accepted" | "rotation_only" | "full_frame_fallback";
   confidence: number;
   lineBands: readonly (readonly [number, number, number, number])[];
   candidateContentBounds: readonly [number, number, number, number] | null;
+  safeCropBounds: readonly [number, number, number, number] | null;
   rejectionReasons: readonly string[];
 }>;
 
