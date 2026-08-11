@@ -15,9 +15,9 @@
 ```text
 choose one local photo
 → build bounded native preview
-→ show native angle/confidence/decision/reasons
+→ show bounded source preview + native angle/confidence/decision/reasons
 → run bounded native full-frame deskew/fallback
-→ show source and output for visual comparison
+→ show full-frame output for visual comparison
 → no OCR call, upload or external persistence in this geometry path
 ```
 
@@ -27,9 +27,9 @@ choose one local photo
 - geometry-selected photo хранится в отдельном UI state и не передаётся в legacy OCR/backend handlers;
 - выбор файла переиспользует только существующий local Android picker method; geometry handler не вызывает `recognizeAsync`;
 - UI вызывает существующие `buildPreviewAsync`, `estimateAngleAsync` и `applyFullFrameDeskewAsync` без изменения native geometry implementation;
-- source photo показывается локально через его selected URI;
+- исходный selected URI не передаётся напрямую в React Native `<Image>` до geometry validation: UI показывает только уже validated/bounded module-owned grayscale `preview.png` с long side <=1800 px;
 - full-frame result показывается из bounded module-cache `deskewed.jpg`;
-- UI отображает dominant text angle, requested deskew angle, confidence, accepted/rejected decision, rejection reasons, transform decision, applied rotation, output dimensions и fallback reasons;
+- UI отображает source/preview dimensions, dominant text angle, requested deskew angle, confidence, accepted/rejected decision, rejection reasons, transform decision, applied rotation, output dimensions и fallback reasons;
 - ошибки выводятся только как safe module/error message; page contents и URI path не логируются новым кодом;
 - нет новых network requests, analytics, upload или backend вызовов в geometry handler;
 - нет OCR/Tesseract recognition в geometry handler;
@@ -112,7 +112,7 @@ The phone validation implementation is intentionally split before coding each la
 - chooses one local photo through the existing picker;
 - keeps geometry-selected source separate from legacy OCR/backend state;
 - runs only the existing bounded native geometry preview/angle/full-frame transform path;
-- shows source and full-frame result;
+- renders only the validated bounded source preview before showing the full-frame result;
 - shows angle/confidence/decision/reasons and physical-transform metadata;
 - adds no upload, OCR recognition, network destination or persistence beyond bounded app cache.
 
