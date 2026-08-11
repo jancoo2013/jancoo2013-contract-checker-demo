@@ -1,51 +1,44 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-10, PR #213, `android-geometry-full-frame-deskew-v1`.
+Последнее обновление: 2026-08-11, PR #214, `android-geometry-validation-ui-v1`.
 
 Активный трек: `android-geometry-validation`.
 
-Следующий bounded-шаг после merge PR #213: `android-geometry-validation-ui-v1`.
+Следующий bounded-шаг после merge PR #214: `android-geometry-samsung-a55-manual-validation-v1`.
 
 Этот документ вместе с `docs/OCR_PROJECT_STATE.json` является канонической operational-точкой восстановления privacy/OCR-проекта. Архитектурные документы задают обязательные границы, но текущий `next_step_id` выбирается только state-файлами.
 
-## 0. Изменение PR #213 — Android full-frame deskew layer
+## 0. Изменение PR #214 — Android geometry development validation UI
 
-После PR #211 Android validation path имеет локальный bounded grayscale preview, а после PR #212 — native angle/confidence/decision. PR #213 добавляет только физический full-resolution transform:
+После PR #211 Android validation path имеет локальный bounded grayscale preview, после PR #212 — native angle/confidence/decision, а после PR #213 — bounded full-resolution full-frame deskew/fallback. PR #214 добавляет только development UI поверх этих уже существующих native контрактов:
 
 ```text
-local source + module-owned preview
-→ require exact session-local source↔preview binding
-→ rerun and validate native angle contract
-→ rejected/uncertain: 0° full-frame fallback
-→ accepted: EXIF-normalized full-resolution deskew
-→ expanded white canvas preserves the complete source frame
-→ bounded local JPEG output for the next dev UI
+choose one local photo
+→ build bounded native preview
+→ show native angle/confidence/decision/reasons
+→ run bounded native full-frame deskew/fallback
+→ show source and output for visual comparison
+→ no OCR call, upload or external persistence in this geometry path
 ```
 
-Границы PR #213:
+Границы PR #214:
 
-- current `preview.png` session-bound к exact source URI, который его создал; transform с другим source URI fail-closed;
-- source URI binding хранится только в памяти module instance и не пишется на диск/в logs;
-- JavaScript не передаёт угол физического transform; native-код сам повторно получает и проверяет результат angle estimator;
-- accepted angle должен быть finite, строго внутри ±12°, иметь confidence >= 0.45, пустые rejection reasons и согласованный sign contract;
-- rejected/uncertain angle не вращает source: `rotationAppliedDegrees = 0`;
-- source остаётся bounded тем же local file/content contract: <=48 MiB encoded bytes, <=8192 px long side, <=32,000,000 source pixels;
-- full-frame deskew output long side <=10,000 px;
-- conservative bitmap accounting: `4 * (oriented source pixels + output pixels) <= 384 MiB`;
-- encoded deskew cache output <=64 MiB;
-- EXIF orientation нормализуется до deskew;
-- physical deskew использует противоположный Android Canvas sign, чтобы сохранить frozen Python/PIL deskew sign convention;
-- crop отсутствует;
-- corners expanded canvas заполняются white;
-- output хранится только как bounded module-cache `deskewed.jpg` для следующего validation UI;
-- transient copied `source.img` удаляется после success/failure;
-- нет UI;
-- нет OCR/Tesseract;
-- нет network/backend/upload;
+- geometry panel находится сверху существующего mobile development app;
+- geometry-selected photo хранится в отдельном UI state и не передаётся в legacy OCR/backend handlers;
+- выбор файла переиспользует только существующий local Android picker method; geometry handler не вызывает `recognizeAsync`;
+- UI вызывает существующие `buildPreviewAsync`, `estimateAngleAsync` и `applyFullFrameDeskewAsync` без изменения native geometry implementation;
+- source photo показывается локально через его selected URI;
+- full-frame result показывается из bounded module-cache `deskewed.jpg`;
+- UI отображает dominant text angle, requested deskew angle, confidence, accepted/rejected decision, rejection reasons, transform decision, applied rotation, output dimensions и fallback reasons;
+- ошибки выводятся только как safe module/error message; page contents и URI path не логируются новым кодом;
+- нет новых network requests, analytics, upload или backend вызовов в geometry handler;
+- нет OCR/Tesseract recognition в geometry handler;
 - нет новых dependencies/permissions/workflows;
-- frozen Python geometry implementation не меняется.
+- нет изменения native geometry thresholds/algorithms/resource bounds;
+- frozen Python geometry implementation не меняется;
+- persistence не добавляется: остаются только existing bounded app/module cache artifacts, уже определённые PR #211/#213.
 
-CI этого PR подтверждает только compilation/integration после final state update. Фактическая визуальная корректность, sign на устройстве и heap/RSS на Samsung A55 считаются непроверенными до manual validation gate.
+Существующие legacy Tesseract/backend development sections ниже geometry panel не удаляются и не меняют свой прежний data flow; они остаются отдельными тестами. Реальная геометрическая корректность на Samsung A55 по-прежнему не считается доказанной до manual gate.
 
 ## 1. Frozen Python document geometry block
 
@@ -114,21 +107,20 @@ The phone validation implementation is intentionally split before coding each la
 - rejected/uncertain angle uses 0° full-frame fallback;
 - no crop/UI/network/OCR.
 
-### Next
+`android-geometry-validation-ui-v1` — PR #214
 
-`android-geometry-validation-ui-v1`
+- chooses one local photo through the existing picker;
+- keeps geometry-selected source separate from legacy OCR/backend state;
+- runs only the existing bounded native geometry preview/angle/full-frame transform path;
+- shows source and full-frame result;
+- shows angle/confidence/decision/reasons and physical-transform metadata;
+- adds no upload, OCR recognition, network destination or persistence beyond bounded app cache.
 
-Small dev UI only:
+### Next — manual gate
 
-- choose one local photo;
-- show source;
-- show full-frame deskew result;
-- show angle/confidence/decision/reasons;
-- no upload, OCR or persistence beyond bounded app cache.
+`android-geometry-samsung-a55-manual-validation-v1`
 
-### Manual gate
-
-After the UI PR, build/install the validation APK on the Samsung A55 and use real locally held photos. At minimum inspect:
+Build/install the validation APK on the Samsung A55 and use real locally held photos. At minimum inspect:
 
 - near-zero skew;
 - approximately ±3°;
@@ -148,7 +140,7 @@ Success standard:
 - no photo leaves the device during this validation path;
 - concrete product failure is recorded rather than hidden by threshold tuning.
 
-The manual validation result must be recorded before the project returns to serverless OCR work.
+The manual validation result must be recorded before the project returns to serverless OCR work. If the device evidence satisfies a reopen criterion in `docs/DOCUMENT_GEOMETRY_FREEZE_CRITERIA_V1.md`, stop and reopen only the affected frozen geometry area instead of tuning ad hoc in the UI.
 
 ## 3. Deferred next product block — `serverless-gpu-ocr-viability-benchmark-v1`
 
@@ -231,6 +223,6 @@ Last focused Python geometry audit: Codex at `876e49bceb0136af6ee851a2656aaf689d
 
 Frozen Python geometry code baseline: `7fe4bc88df2427ea90442f7b074c3cfe4e0de33a`.
 
-Current PR: #213 `android-geometry-full-frame-deskew-v1`.
+Current PR: #214 `android-geometry-validation-ui-v1`.
 
-Next step after merge PR #213: `android-geometry-validation-ui-v1`.
+Next step after merge PR #214: `android-geometry-samsung-a55-manual-validation-v1`.
