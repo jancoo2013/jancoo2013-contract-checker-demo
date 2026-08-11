@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-11-70",
+  "state_version": "privacy-ocr-2026-08-11-71",
   "active_track": "android-geometry-validation",
-  "next_step_id": "android-geometry-content-region-codex-audit-v1",
-  "next_step_summary": "PR #215 adds only Android content-region candidate estimation over the existing bounded module-owned preview: native angle evidence is recomputed internally; accepted angle -> <=1800 px local-contrast mask -> deskewed line bands -> dominant bands -> candidate bounds/confidence/reasons; rejected angle -> full-frame fallback candidate decision. No crop is authorized or applied. Source-edge loss, disconnected-content checks, conservative padding, safe-crop authorization, full-resolution crop mapping and final UI integration remain deferred. Next run the product-owner requested bounded Codex audit over Android geometry PRs #211-#215, focused on integration/contract/resource defects rather than open-ended threshold mining. If clear, continue with android-geometry-safe-crop-v1, then final geometry UI integration, then representative Android-device manual validation before returning to serverless-gpu-ocr-viability-benchmark-v1.",
-  "last_recorded_pr": 215,
-  "last_recorded_change": "android-geometry-content-region-bounds-v1",
+  "next_step_id": "android-geometry-safe-crop-v1",
+  "next_step_summary": "PR #216 is a bounded corrective for the post-merge Codex P2 finding on PR #215: estimateContentRegionAsync now decodes the module-owned preview once and uses that single in-memory Bitmap for both native angle estimation and the <=1800 content-region mask, preventing angle/bounds evidence from being assembled from different replacements of preview.png. Public API, crop behavior and data flow are unchanged. The owner-requested targeted audit over PRs #211-#215 otherwise returned BATCH AUDIT CLEAR. Next implement android-geometry-safe-crop-v1: source-edge loss guard, conservative padding/nearly-full-frame guard, disconnected meaningful-content outside-crop guard, structural safe-crop authorization, bounded preview-to-full-resolution crop mapping and physical crop only when all guards pass; otherwise preserve full-frame fallback. Final geometry UI integration and representative Android-device validation remain after that.",
+  "last_recorded_pr": 216,
+  "last_recorded_change": "android-geometry-preview-snapshot-integrity-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-08-11"
