@@ -1,14 +1,32 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-11, PR #216, `android-geometry-preview-snapshot-integrity-v1`.
+Последнее обновление: 2026-08-11, PR #217, `android-geometry-validation-ui-controls-v1`.
 
 Активный трек: `android-geometry-validation`.
 
-Следующий bounded-шаг после merge PR #216: `android-geometry-safe-crop-v1`.
+Следующий bounded-шаг после merge PR #217: `android-geometry-current-block-device-smoke-v1`.
 
 Этот документ вместе с `docs/OCR_PROJECT_STATE.json` является канонической operational-точкой восстановления privacy/OCR-проекта. Архитектурные документы задают обязательные границы, но текущий `next_step_id` выбирается только state-файлами.
 
-## 0. Изменение PR #216 — Android preview snapshot integrity corrective
+## 0. Изменение PR #217 — Android geometry validation UI controls
+
+Во время первого реального device smoke уже готового Android geometry path product owner обнаружил две практические проблемы validation harness: встроенные изображения слишком малы для оценки краёв/наклона, а повторная проверка следующей страницы неудобна без явных controls рядом с результатом. Product owner явно решил сначала протестировать уже готовый geometry-блок на имеющихся двух реально снятых тестовых договорах и только после этого продолжать safe-crop implementation.
+
+PR #217 меняет только development validation UI:
+
+- tap по bounded source preview открывает тот же module-owned bounded preview в полноэкранном `Modal`;
+- tap по full-frame deskew result открывает тот же existing local result artifact в полноэкранном `Modal`;
+- `Select another photo` повторно запускает существующий local picker рядом с результатом;
+- `Reset` очищает только React UI state текущей geometry validation;
+- отмена picker больше не стирает уже показанный geometry result;
+- новый dependency/pinch-zoom library не добавляется;
+- native geometry module, angle/content-region algorithms, thresholds, resource bounds, safe-crop authorization и physical crop не меняются;
+- OCR recognition, upload/backend/network destination, analytics, permissions, workflows, provider/serverless path и persistence не меняются;
+- полноэкранный просмотр не создаёт новый файл: он читает те же существующие module-cache preview/result artifacts, которые validation UI уже показывал до PR #217.
+
+После merge PR #217 следующий bounded gate — `android-geometry-current-block-device-smoke-v1`: на доступном Android-устройстве последовательно прогнать страницы двух owner-controlled реально снятых тестовых договоров через уже существующий visible path `bounded preview -> angle decision -> full-frame deskew/fallback`, визуально проверить sign/rotation и сохранность meaningful edge content. Этот smoke не валидирует ещё не подключённый final safe crop. Если базовый visible geometry path не показывает concrete defect, следующим implementation step возвращается `android-geometry-safe-crop-v1`.
+
+## 0.1. Изменение PR #216 — Android preview snapshot integrity corrective
 
 После merge PR #215 owner-requested targeted audit Android geometry PR #211–#215 вернул `BATCH AUDIT CLEAR`: blocking/corrective findings не было, candidate content-region logic, coordinate/sign composition, local-only boundary и bounded resources были признаны согласованными в заявленном finite scope.
 
@@ -35,9 +53,9 @@ module-owned preview.png
 - нет OCR/Tesseract recognition, upload, backend/network destination, analytics, новых dependencies/permissions/workflows, provider/serverless изменений или persistence;
 - frozen Python geometry implementation не меняется.
 
-После merge PR #216 следующий implementation step возвращается к ранее запланированному `android-geometry-safe-crop-v1`.
+После merge PR #216 следующий implementation step возвращался к ранее запланированному `android-geometry-safe-crop-v1`; product owner затем явно вставил текущий device smoke перед safe crop.
 
-## 0.1. Изменение PR #215 — Android content-region candidate bounds
+## 0.2. Изменение PR #215 — Android content-region candidate bounds
 
 PR #215 добавляет только кандидатную оценку области содержимого поверх уже существующего Android geometry path:
 
@@ -68,7 +86,7 @@ module-owned bounded preview
 
 Owner-requested targeted Codex audit по PR #211–#215 вернул `BATCH AUDIT CLEAR`. Последующий отдельный post-merge review finding по snapshot consistency исправляется PR #216 и не меняет остальные выводы audit.
 
-## 0.2. Изменение PR #214 — Android geometry development validation UI
+## 0.3. Изменение PR #214 — Android geometry development validation UI
 
 После PR #211 Android validation path имеет локальный bounded grayscale preview, после PR #212 — native angle/confidence/decision, а после PR #213 — bounded full-resolution full-frame deskew/fallback. PR #214 добавил development UI поверх этих native контрактов:
 
@@ -98,7 +116,7 @@ choose one local photo
 - frozen Python geometry implementation не меняется;
 - persistence не добавляется: остаются только existing bounded app/module cache artifacts, уже определённые PR #211/#213.
 
-Исторически state после PR #214 называл следующий manual gate `android-geometry-samsung-a55-manual-validation-v1`. Product owner затем явно изменил последовательность: сначала перенести оставшуюся safe content-region/crop часть Android geometry, сделать bounded Codex audit и только затем проводить real-device validation. Название старого historical step не является требованием фиксироваться на одной модели телефона.
+Исторически state после PR #214 называл следующий manual gate `android-geometry-samsung-a55-manual-validation-v1`. Product owner затем явно изменил последовательность; название старого historical step не является требованием фиксироваться на одной модели телефона.
 
 ## 1. Frozen Python document geometry block
 
@@ -192,6 +210,13 @@ The Android validation implementation is intentionally split before coding each 
 - prevents angle/mask evidence from being assembled from two different replacements of the same `preview.png` path;
 - no public API or crop behavior change.
 
+`android-geometry-validation-ui-controls-v1` — PR #217
+
+- adds full-screen inspection for the existing bounded source preview and full-frame result;
+- adds repeated-photo and reset controls for manual smoke testing;
+- preserves the current result when the picker is canceled;
+- changes no native geometry behavior.
+
 ### Audit status
 
 Owner-requested bounded audit over Android geometry PR #211–#215:
@@ -204,7 +229,26 @@ Owner-requested bounded audit over Android geometry PR #211–#215:
 
 A separate automatic post-merge Codex review then found the preview snapshot P2 described above; PR #216 is the bounded corrective for that concrete integration issue.
 
-### Next — safe crop
+### Current gate — visible geometry device smoke
+
+`android-geometry-current-block-device-smoke-v1`
+
+Use the existing development validation UI on the available Android device and owner-controlled real test photos. The initial test base is the two actually photographed/prepared rental-contract sets already used by the project; no requirement exists to manufacture ten new photographs.
+
+For each tested page record/inspect:
+
+- bounded preview orientation and visible edge preservation;
+- native dominant text angle, confidence and accepted/rejected decision;
+- requested deskew and actually applied rotation;
+- whether `deskewed_full_frame` is visibly straighter rather than worse;
+- whether `full_frame_fallback` preserves the complete meaningful frame;
+- crash/OOM or repeated-page picker/state failures.
+
+If the real pages do not contain enough known skew to exercise sign/magnitude, a small number of local synthetic rotated copies of an owner-controlled page may be used as a controlled technical supplement. Do not commit or upload real readable contract pages.
+
+This smoke does not validate final safe crop, because safe-crop authorization/physical crop and final crop UI are not yet implemented.
+
+### Next implementation after smoke — safe crop
 
 `android-geometry-safe-crop-v1`
 
@@ -218,7 +262,7 @@ This step will add the remaining safety contract before any crop can be authoriz
 - physical crop only when all guards pass;
 - otherwise full-frame fallback.
 
-A separate final UI integration step will display the actual final geometry result. Only after that should manual validation run on representative Android devices / real local photos. One available device may be used for the first smoke test, but the product contract is not tied to a single phone model.
+A separate final UI integration step will display the actual final geometry result. After that, manual validation must be extended to the complete deskew+crop path on representative Android devices / real local photos. One available device may be used for the first smoke test, but the product contract is not tied to a single phone model.
 
 Success standard for manual validation remains:
 
@@ -312,6 +356,6 @@ Last targeted Android geometry audit: owner-requested audit over PR #211–#215 
 
 Frozen Python geometry code baseline: `7fe4bc88df2427ea90442f7b074c3cfe4e0de33a`.
 
-Current PR: #216 `android-geometry-preview-snapshot-integrity-v1`.
+Current PR: #217 `android-geometry-validation-ui-controls-v1`.
 
-Next step after merge PR #216: `android-geometry-safe-crop-v1`.
+Next step after merge PR #217: `android-geometry-current-block-device-smoke-v1`; if no concrete base-geometry defect is found, resume `android-geometry-safe-crop-v1`.

@@ -5,6 +5,8 @@ import {
   Image,
   ImageSourcePropType,
   LayoutChangeEvent,
+  Modal,
+  Pressable,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -223,6 +225,7 @@ export default function App() {
   const [modelStatus, setModelStatus] = useState<ModelStatus>("checking");
   const [modelMessage, setModelMessage] = useState<string>("");
   const [geometryValidation, setGeometryValidation] = useState<GeometryValidationState>({ status: "idle" });
+  const [fullscreenImageUri, setFullscreenImageUri] = useState<string>();
   const [selectedImage, setSelectedImage] = useState<SelectedImage>();
   const [localOcr, setLocalOcr] = useState<LocalOcrState>({ status: "idle" });
   const [previewSize, setPreviewSize] = useState<PreviewSize>();
@@ -292,20 +295,20 @@ export default function App() {
   }, [localOcr, previewSize]);
 
   async function handleGeometryValidation() {
-    setGeometryValidation({ status: "running" });
+    setFullscreenImageUri(undefined);
     let source: SelectedImage | undefined;
     let preview: GeometryPreviewResult | undefined;
 
     try {
       const picked: PickedImage = await TesseractOcr.pickImageAsync();
       if (picked.canceled) {
-        setGeometryValidation({ status: "idle" });
         return;
       }
       if (!picked.uri) {
         throw new Error("Android returned no image URI.");
       }
 
+      setGeometryValidation({ status: "running" });
       source = {
         uri: picked.uri,
         name: picked.name,
@@ -324,6 +327,11 @@ export default function App() {
     } catch (error: unknown) {
       setGeometryValidation({ status: "error", source, preview, error: errorMessage(error) });
     }
+  }
+
+  function handleResetGeometryValidation() {
+    setFullscreenImageUri(undefined);
+    setGeometryValidation({ status: "idle" });
   }
 
   async function handleDownloadModel() {
@@ -457,6 +465,25 @@ export default function App() {
   return (
     <SafeAreaView style={styles.screen}>
       <StatusBar style="dark" />
+      <Modal
+        visible={Boolean(fullscreenImageUri)}
+        animationType="fade"
+        onRequestClose={() => setFullscreenImageUri(undefined)}
+      >
+        <SafeAreaView style={styles.fullscreenBackdrop}>
+          {fullscreenImageUri ? (
+            <Image source={{ uri: fullscreenImageUri }} style={styles.fullscreenImage} resizeMode="contain" />
+          ) : null}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Close full-screen image"
+            onPress={() => setFullscreenImageUri(undefined)}
+            style={styles.fullscreenCloseButton}
+          >
+            <Text style={styles.fullscreenCloseText}>Close</Text>
+          </Pressable>
+        </SafeAreaView>
+      </Modal>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>Document geometry validation</Text>
         <Text style={styles.notice}>
@@ -481,7 +508,14 @@ export default function App() {
             <Text style={styles.caption}>
               source: {geometryValidation.preview.sourceWidth} × {geometryValidation.preview.sourceHeight}; preview: {geometryValidation.preview.previewWidth} × {geometryValidation.preview.previewHeight}
             </Text>
-            <Image source={{ uri: geometryValidation.preview.previewUri }} style={styles.geometryImage} resizeMode="contain" />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Open bounded source preview full screen"
+              onPress={() => setFullscreenImageUri(geometryValidation.preview?.previewUri)}
+            >
+              <Image source={{ uri: geometryValidation.preview.previewUri }} style={styles.geometryImage} resizeMode="contain" />
+            </Pressable>
+            <Text style={styles.caption}>Tap image to enlarge.</Text>
           </View>
         ) : null}
 
@@ -489,11 +523,18 @@ export default function App() {
           <>
             <View style={styles.geometryBox}>
               <Text style={styles.resultTitle}>Full-frame deskew result</Text>
-              <Image
-                source={{ uri: geometryValidation.transform.outputUri }}
-                style={styles.geometryImage}
-                resizeMode="contain"
-              />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Open full-frame deskew result full screen"
+                onPress={() => setFullscreenImageUri(geometryValidation.transform?.outputUri)}
+              >
+                <Image
+                  source={{ uri: geometryValidation.transform.outputUri }}
+                  style={styles.geometryImage}
+                  resizeMode="contain"
+                />
+              </Pressable>
+              <Text style={styles.caption}>Tap image to enlarge.</Text>
               <Text style={styles.value}>
                 output: {geometryValidation.transform.outputWidth} × {geometryValidation.transform.outputHeight}
               </Text>
@@ -526,6 +567,21 @@ export default function App() {
           <View style={styles.errorBox}>
             <Text style={styles.resultTitle}>Geometry validation error</Text>
             <Text style={styles.errorText}>{geometryValidation.error}</Text>
+          </View>
+        ) : null}
+
+        {geometryValidation.status !== "idle" ? (
+          <View style={styles.geometryActions}>
+            <Button
+              title="Select another photo"
+              onPress={handleGeometryValidation}
+              disabled={geometryValidation.status === "running"}
+            />
+            <Button
+              title="Reset"
+              onPress={handleResetGeometryValidation}
+              disabled={geometryValidation.status === "running"}
+            />
           </View>
         ) : null}
 
@@ -793,6 +849,31 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     borderWidth: 1,
     height: 320,
+  },
+  geometryActions: {
+    gap: 10,
+  },
+  fullscreenBackdrop: {
+    backgroundColor: "#000000",
+    flex: 1,
+    padding: 16,
+  },
+  fullscreenImage: {
+    flex: 1,
+    height: "100%",
+    width: "100%",
+  },
+  fullscreenCloseButton: {
+    alignItems: "center",
+    backgroundColor: "#ffffff",
+    borderRadius: 6,
+    marginTop: 12,
+    padding: 14,
+  },
+  fullscreenCloseText: {
+    color: "#111827",
+    fontSize: 16,
+    fontWeight: "700",
   },
   previewFrame: {
     alignSelf: "stretch",

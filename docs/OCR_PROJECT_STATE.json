@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-11-71",
+  "state_version": "privacy-ocr-2026-08-11-72",
   "active_track": "android-geometry-validation",
-  "next_step_id": "android-geometry-safe-crop-v1",
-  "next_step_summary": "PR #216 is a bounded corrective for the post-merge Codex P2 finding on PR #215: estimateContentRegionAsync now decodes the module-owned preview once and uses that single in-memory Bitmap for both native angle estimation and the <=1800 content-region mask, preventing angle/bounds evidence from being assembled from different replacements of preview.png. Public API, crop behavior and data flow are unchanged. The owner-requested targeted audit over PRs #211-#215 otherwise returned BATCH AUDIT CLEAR. Next implement android-geometry-safe-crop-v1: source-edge loss guard, conservative padding/nearly-full-frame guard, disconnected meaningful-content outside-crop guard, structural safe-crop authorization, bounded preview-to-full-resolution crop mapping and physical crop only when all guards pass; otherwise preserve full-frame fallback. Final geometry UI integration and representative Android-device validation remain after that.",
-  "last_recorded_pr": 216,
-  "last_recorded_change": "android-geometry-preview-snapshot-integrity-v1",
+  "next_step_id": "android-geometry-current-block-device-smoke-v1",
+  "next_step_summary": "PR #217 is an owner-authorized validation-harness corrective after the first real-device smoke exposed two usability blockers: the bounded source/result images were too small for meaningful visual inspection and repeated testing lacked nearby select-next/reset controls. PR #217 adds only full-screen inspection of the existing local bounded preview/full-frame result, Select another photo, Reset, and preserves the current result when the picker is canceled. Native geometry algorithms, thresholds, safe crop, OCR recognition, network/data flow, dependencies, permissions, workflows and persistence are unchanged. Next run android-geometry-current-block-device-smoke-v1 on the two owner-controlled actually photographed test-contract sets, checking angle decision/sign, applied rotation, visible improvement and meaningful-edge preservation. If no concrete base-geometry defect is found, resume android-geometry-safe-crop-v1.",
+  "last_recorded_pr": 217,
+  "last_recorded_change": "android-geometry-validation-ui-controls-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-08-11"
