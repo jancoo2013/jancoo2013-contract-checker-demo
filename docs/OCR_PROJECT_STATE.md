@@ -1,16 +1,47 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-11, PR #214, `android-geometry-validation-ui-v1`.
+Последнее обновление: 2026-08-11, PR #215, `android-geometry-content-region-bounds-v1`.
 
 Активный трек: `android-geometry-validation`.
 
-Следующий bounded-шаг после merge PR #214: `android-geometry-samsung-a55-manual-validation-v1`.
+Следующий bounded-шаг после merge PR #215: `android-geometry-content-region-codex-audit-v1`.
 
 Этот документ вместе с `docs/OCR_PROJECT_STATE.json` является канонической operational-точкой восстановления privacy/OCR-проекта. Архитектурные документы задают обязательные границы, но текущий `next_step_id` выбирается только state-файлами.
 
-## 0. Изменение PR #214 — Android geometry development validation UI
+## 0. Изменение PR #215 — Android content-region candidate bounds
 
-После PR #211 Android validation path имеет локальный bounded grayscale preview, после PR #212 — native angle/confidence/decision, а после PR #213 — bounded full-resolution full-frame deskew/fallback. PR #214 добавляет только development UI поверх этих уже существующих native контрактов:
+PR #215 добавляет только кандидатную оценку области содержимого поверх уже существующего Android geometry path:
+
+```text
+module-owned bounded preview
+→ native angle evidence
+→ local-contrast text/ink mask in <=1800 px preview space
+→ preview deskew for analysis only
+→ line bands
+→ dominant bands
+→ candidate content bounds + confidence/reasons
+→ no crop authorization or physical crop
+```
+
+Границы PR #215:
+
+- добавлен `estimateContentRegionAsync(previewUri)` в существующий local Expo/Kotlin geometry module;
+- JS не передаёт произвольный angle contract: content-region path сам повторно получает native `estimateAngle` evidence;
+- accepted angle используется только для bounded preview-space анализа;
+- rejected angle возвращает candidate-level `full_frame_fallback`;
+- line-band/dominant-band thresholds и confidence formula следуют frozen Python `content_region_bounds.py` для этой candidate-части;
+- source-edge loss guard, disconnected-content outside-crop guard, conservative padding, nearly-full-frame guard, финальная safe-crop authorization и full-resolution crop mapping намеренно **не входят** в PR #215;
+- никакой crop в PR #215 физически не выполняется;
+- Android angle-estimator по-прежнему использует 900 px analysis mask; content-region candidate использует тот же mask builder с bounded long side до 1800 px;
+- implementation additions до state/docs: 291 строк, то есть остаются внутри target <=300;
+- нет OCR/Tesseract recognition, upload, backend/network destination, analytics, новых dependencies/permissions/workflows, provider/serverless изменений или persistence за пределами уже существующего module cache;
+- frozen Python geometry implementation не меняется.
+
+Следующий шаг после merge — короткий targeted Codex audit Android geometry PR #211–#215. Это не open-ended поиск всё более мелких контрпримеров: audit должен проверить integration/contract/resource ошибки в уже заданном finite scope. Если audit чистый, следующий implementation step — `android-geometry-safe-crop-v1`, затем финальная geometry UI integration и только после этого ручная проверка на реальных Android-устройствах.
+
+## 0.1. Изменение PR #214 — Android geometry development validation UI
+
+После PR #211 Android validation path имеет локальный bounded grayscale preview, после PR #212 — native angle/confidence/decision, а после PR #213 — bounded full-resolution full-frame deskew/fallback. PR #214 добавил development UI поверх этих native контрактов:
 
 ```text
 choose one local photo
@@ -38,7 +69,7 @@ choose one local photo
 - frozen Python geometry implementation не меняется;
 - persistence не добавляется: остаются только existing bounded app/module cache artifacts, уже определённые PR #211/#213.
 
-Существующие legacy Tesseract/backend development sections ниже geometry panel не удаляются и не меняют свой прежний data flow; они остаются отдельными тестами. Реальная геометрическая корректность на Samsung A55 по-прежнему не считается доказанной до manual gate.
+Исторически state после PR #214 называл следующий manual gate `android-geometry-samsung-a55-manual-validation-v1`. Product owner затем явно изменил последовательность: сначала перенести оставшуюся safe content-region/crop часть Android geometry, сделать bounded Codex audit и только затем проводить real-device validation. Название старого historical step не является требованием фиксироваться на одной модели телефона.
 
 ## 1. Frozen Python document geometry block
 
@@ -79,7 +110,7 @@ The code-level freeze remains valid while Android validation proceeds. Android/p
 
 ## 2. Android geometry validation sequence
 
-The phone validation implementation is intentionally split before coding each layer.
+The Android validation implementation is intentionally split before coding each layer.
 
 ### Completed
 
@@ -116,31 +147,61 @@ The phone validation implementation is intentionally split before coding each la
 - shows angle/confidence/decision/reasons and physical-transform metadata;
 - adds no upload, OCR recognition, network destination or persistence beyond bounded app cache.
 
-### Next — manual gate
+`android-geometry-content-region-bounds-v1` — PR #215
 
-`android-geometry-samsung-a55-manual-validation-v1`
+- consumes only module-owned bounded preview input;
+- recomputes native angle evidence internally;
+- builds content-region mask in <=1800 px preview space;
+- performs candidate-only preview deskew, line-band extraction, dominant-band filtering, candidate bounds and confidence/reasons;
+- rejected angle fails to candidate-level full-frame fallback;
+- no safe crop authorization and no physical crop.
 
-Build/install the validation APK on the Samsung A55 and use real locally held photos. At minimum inspect:
+### Next — bounded Codex audit
 
-- near-zero skew;
-- approximately ±3°;
-- approximately ±7°;
-- approximately ±10°;
-- text close to edges;
-- header/footer/page number;
-- sparse/signature-like page;
-- two-column/asymmetric content where relevant.
+`android-geometry-content-region-codex-audit-v1`
 
-Success standard:
+Audit scope is the accumulated Android geometry implementation PR #211–#215 only. The audit should verify:
 
-- accepted deskew visibly improves alignment without obvious meaningful-content loss;
+- preview/EXIF/angle/content-region coordinate and sign contracts compose correctly;
+- PR #215 does not accidentally authorize crop;
+- `candidate_ready` means only “candidate estimate has no current candidate-level rejection”, not “safe to crop”;
+- angle rejection remains fail-closed;
+- preview ownership and bounded local-only input remain intact;
+- candidate mask/resource amplification is bounded and no obvious Android heap hazard is introduced by the new <=1800 analysis path;
+- no raw image/PII logging, network/upload, external persistence, dependency/permission/workflow drift;
+- no accidental change to existing full-frame deskew semantics from PR #213;
+- no open-ended threshold mining or progressively smaller adversarial foreground search beyond the finite documented contracts.
+
+Audit outcomes:
+
+- clear -> continue `android-geometry-safe-crop-v1`;
+- bounded defect -> one narrowly scoped corrective PR;
+- serious privacy/security/integrity defect -> freeze only affected Android geometry area.
+
+### Planned after clear audit
+
+`android-geometry-safe-crop-v1`
+
+This step will add the remaining safety contract before any crop can be authorized or applied:
+
+- source-edge loss guard;
+- conservative padding / nearly-full-frame guard;
+- disconnected meaningful-content outside-crop guard;
+- structural validation of accepted candidate evidence;
+- bounded mapping from preview crop to full-resolution deskew output;
+- physical crop only when all guards pass;
+- otherwise full-frame fallback.
+
+A separate final UI integration step will display the actual final geometry result. Only after that should manual validation run on representative Android devices / real local photos. One available device may be used for the first smoke test, but the product contract is not tied to a single phone model.
+
+Success standard for manual validation remains:
+
+- accepted deskew/crop visibly improves alignment without obvious meaningful-content loss;
 - uncertain/rejected cases preserve the full frame;
-- expanded canvas does not clip meaningful source pixels;
-- angle sign is correct on real device images;
-- no photo leaves the device during this validation path;
+- angle sign is correct;
+- crop never removes meaningful edge/header/footer/signature-like content in tested cases;
+- no photo leaves the device during validation;
 - concrete product failure is recorded rather than hidden by threshold tuning.
-
-The manual validation result must be recorded before the project returns to serverless OCR work. If the device evidence satisfies a reopen criterion in `docs/DOCUMENT_GEOMETRY_FREEZE_CRITERIA_V1.md`, stop and reopen only the affected frozen geometry area instead of tuning ad hoc in the UI.
 
 ## 3. Deferred next product block — `serverless-gpu-ocr-viability-benchmark-v1`
 
@@ -175,7 +236,7 @@ raw phone photos
 → optional persistent storage of sanitized final report under exact account authorization
 ```
 
-Tesseract full-page OCR on Samsung A55 remains NO-GO and cannot return as active fallback.
+Tesseract full-page OCR on Samsung A55 remains NO-GO and cannot return as active fallback. That historical measurement does not make the Android geometry implementation device-model-specific.
 
 ## 5. Review and merge policy
 
@@ -188,7 +249,7 @@ Every PR requires before Ready/merge recommendation:
 3. mandatory `SECURITY.md` review with exactly one `Security review: PASS` or blocking verdict;
 4. explicit product-owner merge decision.
 
-Individual Codex review is not required per PR. Codex is used for bounded periodic/targeted audits.
+Individual Codex review is not required per PR. Codex is used for bounded periodic/targeted audits. The product owner explicitly requested a targeted Codex audit after PR #215 before continuing Android crop work.
 
 ## 6. Privacy and security boundary
 
@@ -223,6 +284,6 @@ Last focused Python geometry audit: Codex at `876e49bceb0136af6ee851a2656aaf689d
 
 Frozen Python geometry code baseline: `7fe4bc88df2427ea90442f7b074c3cfe4e0de33a`.
 
-Current PR: #214 `android-geometry-validation-ui-v1`.
+Current PR: #215 `android-geometry-content-region-bounds-v1`.
 
-Next step after merge PR #214: `android-geometry-samsung-a55-manual-validation-v1`.
+Next step after merge PR #215: `android-geometry-content-region-codex-audit-v1`.

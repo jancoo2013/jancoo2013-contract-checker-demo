@@ -22,6 +22,18 @@ export type GeometryAngleEstimate = Readonly<{
   peakMargin: number;
 }>;
 
+export type GeometryContentRegionEstimate = Readonly<{
+  coordinateSpace: "source_preview" | "deskewed_preview";
+  previewWidth: number;
+  previewHeight: number;
+  deskewRotationDegrees: number;
+  decision: "candidate_ready" | "rotation_only" | "full_frame_fallback";
+  confidence: number;
+  lineBands: readonly (readonly [number, number, number, number])[];
+  candidateContentBounds: readonly [number, number, number, number] | null;
+  rejectionReasons: readonly string[];
+}>;
+
 export type GeometryFullFrameDeskewResult = Readonly<{
   outputUri: string;
   decision: "deskewed_full_frame" | "full_frame_fallback";
@@ -39,6 +51,7 @@ export type GeometryFullFrameDeskewResult = Readonly<{
 type DocumentGeometryPreviewNativeModule = {
   buildPreviewAsync(uri: string): Promise<GeometryPreviewResult>;
   estimateAngleAsync(previewUri: string): Promise<GeometryAngleEstimate>;
+  estimateContentRegionAsync(previewUri: string): Promise<GeometryContentRegionEstimate>;
   applyFullFrameDeskewAsync(
     uri: string,
     previewUri: string,
