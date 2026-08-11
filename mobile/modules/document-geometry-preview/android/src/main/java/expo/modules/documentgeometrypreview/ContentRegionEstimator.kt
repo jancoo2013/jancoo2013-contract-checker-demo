@@ -6,11 +6,9 @@ import android.graphics.Color
 import android.graphics.Paint
 import kotlin.math.abs
 import kotlin.math.ceil
-import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.round
-import kotlin.math.sin
 import kotlin.math.sqrt
 
 private const val MAX_MASK_LONG_SIDE = 1800
@@ -22,8 +20,6 @@ private const val MAX_BAND_HEIGHT_RATIO = 0.09
 private const val MIN_CONTENT_WIDTH_RATIO = 0.20
 private const val MIN_CONTENT_HEIGHT_RATIO = 0.12
 private const val MIN_CONTENT_CONFIDENCE = 0.55
-private const val MIN_EDGE_LOSS_PIXELS = 20
-private const val MIN_EDGE_LOSS_AREA_RATIO = 0.00001
 
 private data class ContentBox(
   val left: Int,
@@ -53,11 +49,10 @@ internal object ContentRegionEstimator {
       )
     }
 
-    val (deskewed, sourceEdgeClipped) = deskewWithEdgeGuard(mask, deskewRotationDegrees)
+    val deskewed = rotateMask(mask, deskewRotationDegrees)
     try {
       val bands = dominantBands(lineBands(deskewed), width)
       val reasons = mutableSetOf<String>()
-      if (sourceEdgeClipped) reasons += "source_edge_content_clipped_by_deskew"
       if (bands.size < MIN_LINE_COUNT) reasons += "insufficient_line_bands"
 
       var candidate: ContentBox? = null
@@ -117,34 +112,14 @@ internal object ContentRegionEstimator {
     }
   }
 
-  private fun deskewWithEdgeGuard(mask: Bitmap, rotation: Double): Pair<Bitmap, Boolean> {
-    if (abs(rotation) < 1e-9) return mask to false
-    val fixed = rotateMask(mask, rotation, expand = false)
-    val expanded = rotateMask(mask, rotation, expand = true)
-    val lost = max(0, countInk(expanded) - countInk(fixed))
-    expanded.recycle()
-    val minimumLoss = max(MIN_EDGE_LOSS_PIXELS, round(mask.width * mask.height * MIN_EDGE_LOSS_AREA_RATIO).toInt())
-    return fixed to (lost >= minimumLoss)
-  }
-
-  private fun rotateMask(mask: Bitmap, rotation: Double, expand: Boolean): Bitmap {
-    val radians = Math.toRadians(rotation)
-    val outputWidth = if (expand) max(1, ceil(mask.width * abs(cos(radians)) + mask.height * abs(sin(radians))).toInt()) else mask.width
-    val outputHeight = if (expand) max(1, ceil(mask.width * abs(sin(radians)) + mask.height * abs(cos(radians))).toInt()) else mask.height
-    val output = Bitmap.createBitmap(outputWidth, outputHeight, Bitmap.Config.ARGB_8888)
+  private fun rotateMask(mask: Bitmap, rotation: Double): Bitmap {
+    if (abs(rotation) < 1e-9) return mask
+    val output = Bitmap.createBitmap(mask.width, mask.height, Bitmap.Config.ARGB_8888)
     output.eraseColor(Color.WHITE)
     val canvas = Canvas(output)
-    canvas.translate(outputWidth / 2f, outputHeight / 2f)
-    canvas.rotate(-rotation.toFloat())
-    canvas.translate(-mask.width / 2f, -mask.height / 2f)
+    canvas.rotate(-rotation.toFloat(), mask.width / 2f, mask.height / 2f)
     canvas.drawBitmap(mask, 0f, 0f, Paint().apply { isAntiAlias = false; isFilterBitmap = false })
     return output
-  }
-
-  private fun countInk(bitmap: Bitmap): Int {
-    val pixels = IntArray(bitmap.width * bitmap.height)
-    bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
-    return pixels.count { (it and 0x00ffffff) == 0 }
   }
 
   private fun lineBands(mask: Bitmap): List<ContentBox> {
@@ -170,7 +145,10 @@ internal object ContentRegionEstimator {
     val positive = smoothed.filter { it > 0.0 }.sorted()
     val adaptive = if (positive.isEmpty()) 0.0 else percentile(positive, 0.55) * 0.30
     val threshold = max(3.0, max(width * 0.008, adaptive))
-    val rowRuns = mergeRuns(runs(BooleanArray(height) { smoothed[it] >= threshold }), max(2, round(height * 0.003).toInt()))
+    val rowRuns = mergeRuns(
+      runs(BooleanArray(height) { smoothed[it] >= threshold }),
+      max(2, round(height * 0.003).toInt()),
+    )
     val bands = mutableListOf<ContentBox>()
     for ((rawTop, rawBottom) in rowRuns) {
       val top = max(0, rawTop - half)
@@ -183,9 +161,15 @@ internal object ContentRegionEstimator {
         for (x in 0 until width) if ((pixels[start + x] and 0x00ffffff) == 0) columns[x] += 1
       }
       val columnThreshold = max(1, ceil(bandHeight * 0.15).toInt())
-      val horizontalRuns = mergeRuns(runs(BooleanArray(width) { columns[it] >= columnThreshold }), max(3, round(width * 0.05).toInt()))
+      val horizontalRuns = mergeRuns(
+        runs(BooleanArray(width) { columns[it] >= columnThreshold }),
+        max(3, round(width * 0.05).toInt()),
+      )
       if (horizontalRuns.isEmpty()) continue
-      val best = horizontalRuns.maxWithOrNull(compareBy<Pair<Int, Int>> { it.second - it.first }.thenBy { run -> columns.sliceArray(run.first until run.second).sum() }) ?: continue
+      val best = horizontalRuns.maxWithOrNull(
+        compareBy<Pair<Int, Int>> { it.second - it.first }
+          .thenBy { run -> columns.sliceArray(run.first until run.second).sum() },
+      ) ?: continue
       if (best.second - best.first < width * MIN_BAND_WIDTH_RATIO) continue
       bands += ContentBox(best.first, top, best.second, bottom)
     }
@@ -225,7 +209,8 @@ internal object ContentRegionEstimator {
     val merged = mutableListOf(runs.first())
     for ((start, end) in runs.drop(1)) {
       val previous = merged.last()
-      if (start - previous.second <= maxGap) merged[merged.lastIndex] = previous.first to end else merged += start to end
+      if (start - previous.second <= maxGap) merged[merged.lastIndex] = previous.first to end
+      else merged += start to end
     }
     return merged
   }
@@ -241,7 +226,8 @@ internal object ContentRegionEstimator {
   private fun median(values: List<Int>): Double {
     val sorted = values.sorted()
     val middle = sorted.size / 2
-    return if (sorted.size % 2 == 1) sorted[middle].toDouble() else (sorted[middle - 1] + sorted[middle]) / 2.0
+    return if (sorted.size % 2 == 1) sorted[middle].toDouble()
+    else (sorted[middle - 1] + sorted[middle]) / 2.0
   }
 
   private fun rounded(value: Double): Double = round(value * 10_000.0) / 10_000.0
