@@ -1,14 +1,43 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-11, PR #215, `android-geometry-content-region-bounds-v1`.
+Последнее обновление: 2026-08-11, PR #216, `android-geometry-preview-snapshot-integrity-v1`.
 
 Активный трек: `android-geometry-validation`.
 
-Следующий bounded-шаг после merge PR #215: `android-geometry-content-region-codex-audit-v1`.
+Следующий bounded-шаг после merge PR #216: `android-geometry-safe-crop-v1`.
 
 Этот документ вместе с `docs/OCR_PROJECT_STATE.json` является канонической operational-точкой восстановления privacy/OCR-проекта. Архитектурные документы задают обязательные границы, но текущий `next_step_id` выбирается только state-файлами.
 
-## 0. Изменение PR #215 — Android content-region candidate bounds
+## 0. Изменение PR #216 — Android preview snapshot integrity corrective
+
+После merge PR #215 owner-requested targeted audit Android geometry PR #211–#215 вернул `BATCH AUDIT CLEAR`: blocking/corrective findings не было, candidate content-region logic, coordinate/sign composition, local-only boundary и bounded resources были признаны согласованными в заявленном finite scope.
+
+После merge, отдельный автоматический Codex review PR #215 обнаружил конкретный P2 integration defect: `estimateContentRegionAsync(previewUri)` сначала открывал module-owned `preview.png` для angle estimation, а затем повторно открывал тот же переиспользуемый путь для content-region mask. При замене `preview.png` другим `buildPreviewAsync` между двумя чтениями angle и bounds теоретически могли относиться к разным страницам.
+
+PR #216 исправляет только этот дефект:
+
+```text
+module-owned preview.png
+→ decode once into one bounded in-memory Bitmap
+→ angle estimation from that Bitmap
+→ <=1800 content-region mask from that same Bitmap
+→ candidate region result
+```
+
+Границы PR #216:
+
+- публичный Expo/TypeScript API не меняется;
+- `estimateAngle(previewUri)` сохраняет прежний внешний контракт;
+- добавлен только внутренний `estimateAngle(Bitmap)` для повторного использования уже декодированного snapshot;
+- `estimateContentRegionAsync` больше не выполняет второе чтение `preview.png` между angle и content-region mask;
+- bitmap освобождается после завершения обеих стадий;
+- нет safe-crop authorization или physical crop;
+- нет OCR/Tesseract recognition, upload, backend/network destination, analytics, новых dependencies/permissions/workflows, provider/serverless изменений или persistence;
+- frozen Python geometry implementation не меняется.
+
+После merge PR #216 следующий implementation step возвращается к ранее запланированному `android-geometry-safe-crop-v1`.
+
+## 0.1. Изменение PR #215 — Android content-region candidate bounds
 
 PR #215 добавляет только кандидатную оценку области содержимого поверх уже существующего Android geometry path:
 
@@ -30,16 +59,16 @@ module-owned bounded preview
 - accepted angle используется только для bounded preview-space анализа;
 - rejected angle возвращает candidate-level `full_frame_fallback`;
 - line-band/dominant-band thresholds и confidence formula следуют frozen Python `content_region_bounds.py` для этой candidate-части;
-- source-edge loss guard, disconnected-content outside-crop guard, conservative padding, nearly-full-frame guard, финальная safe-crop authorization и full-resolution crop mapping намеренно **не входят** в PR #215;
+- source-edge loss guard, disconnected-content outside-crop guard, conservative padding, nearly-full-frame guard, финальная safe-crop authorization и full-resolution crop mapping намеренно не входят в PR #215;
 - никакой crop в PR #215 физически не выполняется;
 - Android angle-estimator по-прежнему использует 900 px analysis mask; content-region candidate использует тот же mask builder с bounded long side до 1800 px;
 - implementation additions до state/docs: 291 строк, то есть остаются внутри target <=300;
 - нет OCR/Tesseract recognition, upload, backend/network destination, analytics, новых dependencies/permissions/workflows, provider/serverless изменений или persistence за пределами уже существующего module cache;
 - frozen Python geometry implementation не меняется.
 
-Следующий шаг после merge — короткий targeted Codex audit Android geometry PR #211–#215. Это не open-ended поиск всё более мелких контрпримеров: audit должен проверить integration/contract/resource ошибки в уже заданном finite scope. Если audit чистый, следующий implementation step — `android-geometry-safe-crop-v1`, затем финальная geometry UI integration и только после этого ручная проверка на реальных Android-устройствах.
+Owner-requested targeted Codex audit по PR #211–#215 вернул `BATCH AUDIT CLEAR`. Последующий отдельный post-merge review finding по snapshot consistency исправляется PR #216 и не меняет остальные выводы audit.
 
-## 0.1. Изменение PR #214 — Android geometry development validation UI
+## 0.2. Изменение PR #214 — Android geometry development validation UI
 
 После PR #211 Android validation path имеет локальный bounded grayscale preview, после PR #212 — native angle/confidence/decision, а после PR #213 — bounded full-resolution full-frame deskew/fallback. PR #214 добавил development UI поверх этих native контрактов:
 
@@ -156,29 +185,26 @@ The Android validation implementation is intentionally split before coding each 
 - rejected angle fails to candidate-level full-frame fallback;
 - no safe crop authorization and no physical crop.
 
-### Next — bounded Codex audit
+`android-geometry-preview-snapshot-integrity-v1` — PR #216
 
-`android-geometry-content-region-codex-audit-v1`
+- closes the post-merge P2 snapshot-consistency finding from PR #215;
+- decodes one bounded preview snapshot and uses it for both angle and candidate content-region analysis;
+- prevents angle/mask evidence from being assembled from two different replacements of the same `preview.png` path;
+- no public API or crop behavior change.
 
-Audit scope is the accumulated Android geometry implementation PR #211–#215 only. The audit should verify:
+### Audit status
 
-- preview/EXIF/angle/content-region coordinate and sign contracts compose correctly;
-- PR #215 does not accidentally authorize crop;
-- `candidate_ready` means only “candidate estimate has no current candidate-level rejection”, not “safe to crop”;
-- angle rejection remains fail-closed;
-- preview ownership and bounded local-only input remain intact;
-- candidate mask/resource amplification is bounded and no obvious Android heap hazard is introduced by the new <=1800 analysis path;
-- no raw image/PII logging, network/upload, external persistence, dependency/permission/workflow drift;
-- no accidental change to existing full-frame deskew semantics from PR #213;
-- no open-ended threshold mining or progressively smaller adversarial foreground search beyond the finite documented contracts.
+Owner-requested bounded audit over Android geometry PR #211–#215:
 
-Audit outcomes:
+- outcome: `BATCH AUDIT CLEAR`;
+- blocking findings: none;
+- corrective findings in that audit: none;
+- coordinate/sign composition, candidate semantics, resource bounds and local-only boundary passed the stated finite checks;
+- no real-device validation was performed.
 
-- clear -> continue `android-geometry-safe-crop-v1`;
-- bounded defect -> one narrowly scoped corrective PR;
-- serious privacy/security/integrity defect -> freeze only affected Android geometry area.
+A separate automatic post-merge Codex review then found the preview snapshot P2 described above; PR #216 is the bounded corrective for that concrete integration issue.
 
-### Planned after clear audit
+### Next — safe crop
 
 `android-geometry-safe-crop-v1`
 
@@ -249,7 +275,7 @@ Every PR requires before Ready/merge recommendation:
 3. mandatory `SECURITY.md` review with exactly one `Security review: PASS` or blocking verdict;
 4. explicit product-owner merge decision.
 
-Individual Codex review is not required per PR. Codex is used for bounded periodic/targeted audits. The product owner explicitly requested a targeted Codex audit after PR #215 before continuing Android crop work.
+Individual Codex review is not required per PR. Codex is used for bounded periodic/targeted audits. The owner-requested targeted audit after PR #215 has completed; PR #216 records the subsequent concrete P2 corrective before safe-crop work continues.
 
 ## 6. Privacy and security boundary
 
@@ -282,8 +308,10 @@ Last full repository cold-start audit: PR #177 after merge PR #176.
 
 Last focused Python geometry audit: Codex at `876e49bceb0136af6ee851a2656aaf689d72e545`; concrete source-edge blocker corrected by PR #209; finite stop/freeze criteria formalized by PR #210.
 
+Last targeted Android geometry audit: owner-requested audit over PR #211–#215 at head `b9527f046a0225c0e80f3f511e15b9a8b1eb0ea3`, outcome `BATCH AUDIT CLEAR`; later automatic review P2 snapshot finding corrected by PR #216.
+
 Frozen Python geometry code baseline: `7fe4bc88df2427ea90442f7b074c3cfe4e0de33a`.
 
-Current PR: #215 `android-geometry-content-region-bounds-v1`.
+Current PR: #216 `android-geometry-preview-snapshot-integrity-v1`.
 
-Next step after merge PR #215: `android-geometry-content-region-codex-audit-v1`.
+Next step after merge PR #216: `android-geometry-safe-crop-v1`.
