@@ -15,6 +15,7 @@ import {
 import DocumentGeometryPreview, {
   type GeometryAngleEstimate,
   type GeometryFullFrameDeskewResult,
+  type GeometryPreviewResult,
 } from "./modules/document-geometry-preview";
 import TesseractOcr, {
   HebrewOcrResult,
@@ -80,6 +81,7 @@ type SelectedImage = {
 type GeometryValidationState = {
   status: GeometryValidationStatus;
   source?: SelectedImage;
+  preview?: GeometryPreviewResult;
   angle?: GeometryAngleEstimate;
   transform?: GeometryFullFrameDeskewResult;
   error?: string;
@@ -292,6 +294,7 @@ export default function App() {
   async function handleGeometryValidation() {
     setGeometryValidation({ status: "running" });
     let source: SelectedImage | undefined;
+    let preview: GeometryPreviewResult | undefined;
 
     try {
       const picked: PickedImage = await TesseractOcr.pickImageAsync();
@@ -309,17 +312,17 @@ export default function App() {
         width: picked.width,
         height: picked.height,
       };
-      setGeometryValidation({ status: "running", source });
+      preview = await DocumentGeometryPreview.buildPreviewAsync(source.uri);
+      setGeometryValidation({ status: "running", source, preview });
 
-      const preview = await DocumentGeometryPreview.buildPreviewAsync(source.uri);
       const angle = await DocumentGeometryPreview.estimateAngleAsync(preview.previewUri);
       const transform = await DocumentGeometryPreview.applyFullFrameDeskewAsync(
         source.uri,
         preview.previewUri,
       );
-      setGeometryValidation({ status: "success", source, angle, transform });
+      setGeometryValidation({ status: "success", source, preview, angle, transform });
     } catch (error: unknown) {
-      setGeometryValidation({ status: "error", source, error: errorMessage(error) });
+      setGeometryValidation({ status: "error", source, preview, error: errorMessage(error) });
     }
   }
 
@@ -457,7 +460,7 @@ export default function App() {
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>Document geometry validation</Text>
         <Text style={styles.notice}>
-          Development-only local check. The selected photo is used only by the bounded Android geometry module; this path does not run OCR or upload the photo.
+          Development-only local check. The selected photo is first validated by the bounded Android geometry module; the UI renders only its bounded source preview and does not run OCR or upload the photo.
         </Text>
         <Button
           title={geometryValidation.status === "running" ? "Processing geometry..." : "Select photo and run geometry"}
@@ -471,14 +474,14 @@ export default function App() {
           </Text>
         </View>
 
-        {geometryValidation.source ? (
+        {geometryValidation.source && geometryValidation.preview ? (
           <View style={styles.geometryBox}>
-            <Text style={styles.resultTitle}>Source</Text>
+            <Text style={styles.resultTitle}>Bounded source preview</Text>
             <Text style={styles.caption}>{geometryValidation.source.name ?? "selected local photo"}</Text>
             <Text style={styles.caption}>
-              Picker size: {geometryValidation.source.width ?? "?"} × {geometryValidation.source.height ?? "?"}
+              source: {geometryValidation.preview.sourceWidth} × {geometryValidation.preview.sourceHeight}; preview: {geometryValidation.preview.previewWidth} × {geometryValidation.preview.previewHeight}
             </Text>
-            <Image source={{ uri: geometryValidation.source.uri }} style={styles.geometryImage} resizeMode="contain" />
+            <Image source={{ uri: geometryValidation.preview.previewUri }} style={styles.geometryImage} resizeMode="contain" />
           </View>
         ) : null}
 
