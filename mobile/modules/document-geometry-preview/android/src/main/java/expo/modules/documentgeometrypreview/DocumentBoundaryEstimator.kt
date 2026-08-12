@@ -12,10 +12,10 @@ import kotlin.math.roundToInt
 private const val BOUNDARY_ANALYSIS_LONG_SIDE = 900
 private const val MIN_CENTER_CORNER_CONTRAST = 20
 private const val MIN_SUPPORTING_CORNERS = 2
-private const val MIN_AXIS_OCCUPANCY = 0.30
+private const val MIN_AXIS_OCCUPANCY = 0.20
 private const val MIN_PAGE_AXIS_RATIO = 0.50
 private const val MIN_REMOVABLE_AREA_RATIO = 0.05
-private const val BOUNDARY_PADDING_RATIO = 0.015
+private const val BOUNDARY_PADDING_RATIO = 0.02
 
 internal object DocumentBoundaryEstimator {
   fun estimate(source: Bitmap, rotationDegrees: Double): List<Int>? {
@@ -45,8 +45,8 @@ internal object DocumentBoundaryEstimator {
       val darkerCorners = corners.filter { center - it >= MIN_CENTER_CORNER_CONTRAST }
       val brighterCorners = corners.filter { it - center >= MIN_CENTER_CORNER_CONTRAST }
       val paperBrighter = when {
-        darkerCorners.size >= MIN_SUPPORTING_CORNERS && darkerCorners.size >= brighterCorners.size -> true
-        brighterCorners.size >= MIN_SUPPORTING_CORNERS -> false
+        darkerCorners.size >= MIN_SUPPORTING_CORNERS && darkerCorners.size > brighterCorners.size -> true
+        brighterCorners.size >= MIN_SUPPORTING_CORNERS && brighterCorners.size > darkerCorners.size -> false
         else -> return null
       }
       val supporting = if (paperBrighter) darkerCorners else brighterCorners
