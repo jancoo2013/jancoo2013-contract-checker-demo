@@ -1,14 +1,53 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-12, PR #220, `android-document-preprocess-deskew-crop-decoupling-v1`.
+Последнее обновление: 2026-08-12, PR #221, `android-document-boundary-crop-corrective-v1`.
 
 Активный трек: `android-document-preprocessing`.
 
-Следующий bounded-шаг после merge PR #220: `android-document-preprocess-device-smoke-v1`.
+Следующий bounded-шаг после merge PR #221: `android-document-preprocess-device-smoke-v1`.
 
 Этот документ вместе с `docs/OCR_PROJECT_STATE.json` является канонической operational-точкой восстановления privacy/OCR-проекта. Архитектурные документы задают обязательные границы, но текущий `next_step_id` выбирается только state-файлами.
 
-## Current change — PR #220 deskew/crop decoupling corrective
+## Current change — PR #221 physical document-boundary crop corrective
+
+Post-#220 real-device smoke подтвердил две части preprocessing на конкретной реально сфотографированной странице: grayscale появился, а accepted deskew около 1° реально применился. При этом crop снова не сработал вообще, хотя product owner визуально оценил внешний фон примерно в 15% кадра. Upstream text/content path оставался `rotation_only` из-за `content_touches_frame`, поэтому полезная обрезка физического листа не была разрешена.
+
+PR #221 добавляет отдельное, очень узкое physical document-boundary evidence только для этого concrete state:
+
+```text
+angle accepted
++ upstream decision = rotation_only
++ единственная причина = content_touches_frame
+→ bounded <=900 px physical-page boundary analysis
+→ center-vs-corner luminance contrast
+→ row/column page occupancy around frame center
+→ conservative boundary padding
+→ >=5% removable-area requirement
+→ map boundary through the same fixed-frame deskew matrix
+→ require >=90% dominant line bands contained, with at most one outlier
+→ if all checks pass: fixed-frame deskew + boundary crop + grayscale
+→ otherwise: keep PR #220 expanded full-frame deskew + grayscale
+```
+
+Границы PR #221:
+
+- новый `DocumentBoundaryEstimator` анализирует только уже локальный oriented source bitmap; временный analysis bitmap ограничен long side <=900 и освобождается до full-resolution output allocation;
+- document boundary определяется независимо от text/ink candidate: paper-vs-background evidence строится по яркости центральной области и углов кадра, затем по occupancy строк/столбцов;
+- требуется как минимум два согласованных corner-background samples с luminance contrast >=20;
+- page candidate должен занимать не менее 50% каждой оси, после padding обязан оставлять не менее 5% площади кадра действительно удаляемой;
+- boundary crop переводится через тот же Android deskew matrix; если mapped rectangle выходит за fixed frame, crop не разрешается;
+- финальный consumer дополнительно требует сохранения dominant line bands: не менее 90% bands должны полностью лежать внутри boundary crop, допускается максимум один outlier;
+- новая boundary-авторизация применяется только когда upstream rejection set ровно `content_touches_frame`; любые `low_confidence`, `source_edge_content_clipped_by_deskew`, `disconnected_content_outside_crop` и другие причины сохраняют прежний fail-safe без crop;
+- успешный boundary path использует существующий result decision `cropped_grayscale` и существующий `cropBoxSource`; публичный TypeScript/API контракт не меняется;
+- обычный fully accepted safe-crop path PR #218/#219 не меняется;
+- `ContentRegionEstimator`, `SafeCropEstimator`, angle thresholds/search range/sign convention не меняются;
+- perspective correction не добавляется;
+- OCR recognition, upload/backend/provider, network, dependencies, permissions, workflows и privacy boundary не меняются;
+- реальные contract pages/screenshots не добавляются в repository/CI.
+
+Следующий gate остаётся `android-document-preprocess-device-smoke-v1`. Первым regression test после merge PR #221 нужно снова прогнать ту же страницу: ожидается сохранение grayscale и accepted ~1° deskew плюс `cropped_grayscale` с non-null crop box и заметным удалением внешнего фона без потери содержимого листа. Если boundary evidence не проходит, допустим только прежний `deskewed_full_frame_grayscale` fail-safe; это не следует маскировать принудительным crop.
+
+## Previous change — PR #220 deskew/crop decoupling corrective
 
 Во время real-device smoke после PR #219 конкретная реально сфотографированная страница дала уверенно accepted angle evidence (`dominant +1.00°`, `requested deskew -1.00°`, confidence `0.8608`), но safe crop был отклонён с `content_touches_frame`. Финальный prepared-image consumer трактовал любой non-accepted crop result одинаково и выбрасывал уже accepted deskew, возвращая 0° full-frame grayscale. Это concrete in-contract preprocessing defect, разрешающий bounded corrective внутри текущего smoke gate.
 
@@ -44,8 +83,6 @@ angle rejected = full_frame_fallback
 - perspective correction не добавляется;
 - OCR recognition, upload/backend/provider, network, dependencies, permissions, workflows и privacy boundary не меняются;
 - real photographed page не добавляется в repository/CI.
-
-Следующий gate остаётся `android-document-preprocess-device-smoke-v1`. После merge PR #220 сначала повторить ту же страницу: ожидается accepted deskew около `-1°`, `crop: full frame`, `deskewed_full_frame_grayscale`, сохранение полного листа. Если corrective подтверждён, продолжить две owner-controlled реально снятые contract sets.
 
 ## Previous change — PR #219 physical crop + grayscale final output
 
@@ -337,6 +374,14 @@ The code-level freeze remains valid while Android preprocessing is ported. Andro
 - accepted crop behavior remains unchanged;
 - no estimator/crop-guard tuning, perspective correction or new external data flow.
 
+`android-document-boundary-crop-corrective-v1` — PR #221
+
+- adds a separate bounded physical page-boundary crop recovery only for accepted-angle `rotation_only` caused solely by `content_touches_frame`;
+- boundary evidence is derived from a <=900 px local source analysis, not from the text/ink crop candidate;
+- requires contrast, central page occupancy, conservative padding, >=5% removable area, fixed-frame transform containment and dominant-line preservation;
+- successful recovery returns existing `cropped_grayscale`; uncertainty preserves PR #220 `deskewed_full_frame_grayscale`;
+- does not change normal SafeCropEstimator acceptance or any external data flow.
+
 ### Audit status
 
 Owner-requested bounded audit over Android geometry PR #211–#215:
@@ -355,7 +400,7 @@ A separate automatic post-merge Codex review then found the preview snapshot P2;
 
 Use the development preprocessing UI on the available Android device and the two owner-controlled actually photographed/prepared contract sets.
 
-First regression check after PR #220: rerun the page that produced accepted `+1°` angle evidence but `content_touches_frame`. The prepared result must apply the accepted deskew, keep `cropBoxSource = null`, preserve the complete page on an expanded white canvas, and report `deskewed_full_frame_grayscale` rather than reverting to 0°.
+First regression check after PR #221: rerun the same page that already confirmed grayscale + accepted ~1° deskew but failed crop despite roughly 15% outside-page background. The preferred result is `cropped_grayscale` with `cropBoxSource != null`, visible removal of external background, preserved page edges/content and the accepted rotation still applied. If physical boundary evidence is not strong enough, the only acceptable fallback remains `deskewed_full_frame_grayscale`; do not force a crop.
 
 For each tested page inspect:
 
@@ -429,7 +474,7 @@ Raw images/raw OCR are prohibited in Gemini, general OCR/LLM APIs, logs, analyti
 
 The Android preprocessing validation sequence is stricter: selected real photos remain local to the device. It adds no network destination and must not log/export page contents.
 
-Production remains blocked until consent, authentication, authorization, key lifecycle, Israel-only provider behavior, retention/deletion, log scrubbing, cleanup, backup lifecycle, legal review, abuse controls and incident response are implemented and verified.
+Production remains blocked until consent, authentication, authorization, key lifecycle, Israel-only provider behavior, retention/deletion, log scrubbing, cleanup, backup lifecycle, legal review, abuse controls and incident response are implemented и verified.
 
 ## 7. Recovery/work rules
 
@@ -454,6 +499,6 @@ Last targeted Android geometry audit: owner-requested audit over PR #211–#215 
 
 Frozen Python geometry code baseline: `7fe4bc88df2427ea90442f7b074c3cfe4e0de33a`.
 
-Current PR: #220 `android-document-preprocess-deskew-crop-decoupling-v1`.
+Current PR: #221 `android-document-boundary-crop-corrective-v1`.
 
-Next step after merge PR #220: `android-document-preprocess-device-smoke-v1`.
+Next step after merge PR #221: `android-document-preprocess-device-smoke-v1`.
