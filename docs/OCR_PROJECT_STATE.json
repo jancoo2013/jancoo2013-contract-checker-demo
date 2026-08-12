@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-11-74",
+  "state_version": "privacy-ocr-2026-08-12-75",
   "active_track": "android-document-preprocessing",
   "next_step_id": "android-document-preprocess-device-smoke-v1",
-  "next_step_summary": "PR #219 implements the physical preprocessing consumer over the merged PR #218 safe-crop producer. The native path recomputes crop evidence from the current module-owned bounded preview, validates source/session and crop geometry internally, conservatively maps accepted preview bounds to oriented full resolution, renders a fixed-frame grayscale transform and crops only when fully accepted; any rotation_only/full_frame_fallback evidence produces a 0-degree grayscale full-frame fallback. The development UI now shows the final prepared grayscale artifact with decision, dimensions, applied rotation, source-space crop box and fallback reasons. No perspective correction, OCR recognition, upload, backend/provider, dependency, permission or workflow change is introduced. Next run android-document-preprocess-device-smoke-v1 on the two owner-controlled photographed contract sets, checking that useful page content is preserved, crop is conservative, grayscale remains readable, fallback cases keep the full frame, and repeated-page use does not crash or exhaust memory. A concrete in-contract defect may reopen only the affected preprocessing area; otherwise return to the deferred serverless-gpu-ocr-viability-benchmark-v1.",
-  "last_recorded_pr": 219,
-  "last_recorded_change": "android-document-preprocess-physical-crop-grayscale-v1",
+  "next_step_summary": "PR #220 is a bounded corrective found during the PR #219 device smoke: accepted angle evidence must remain effective even when safe crop is rejected. The prepared-image consumer now treats rotation_only as an accepted deskew without crop, producing an expanded white-canvas grayscale full frame with the accepted rotation; full_frame_fallback remains 0-degree grayscale, while fully accepted safe-crop behavior remains unchanged. No angle thresholds, crop guards, perspective correction, OCR/network/provider/dependency/permission/workflow behavior or privacy boundary changes. Continue android-document-preprocess-device-smoke-v1, first rerunning the concrete photographed page that produced +1 degree accepted angle with content_touches_frame, then continue the two owner-controlled contract sets if the corrected full-frame deskew preserves all content.",
+  "last_recorded_pr": 220,
+  "last_recorded_change": "android-document-preprocess-deskew-crop-decoupling-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
-  "updated_on": "2026-08-11"
+  "updated_on": "2026-08-12"
 }
