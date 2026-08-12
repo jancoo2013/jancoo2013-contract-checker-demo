@@ -51,7 +51,7 @@ export type GeometryFullFrameDeskewResult = Readonly<{
 
 export type PreparedDocumentResult = Readonly<{
   outputUri: string;
-  decision: "cropped_grayscale" | "full_frame_grayscale_fallback";
+  decision: "cropped_grayscale" | "deskewed_full_frame_grayscale" | "full_frame_grayscale_fallback";
   colorMode: "grayscale";
   sourceWidth: number;
   sourceHeight: number;
