@@ -19,6 +19,7 @@ private const val PREPARED_PREVIEW_LONG_SIDE = 1800
 private const val PREPARED_MAX_ABS_ROTATION = 12.0
 private const val PREPARED_MAX_OUTPUT_LONG_SIDE = 10_000
 private const val PREPARED_MAX_ACCOUNTED_BYTES = 384L * 1024L * 1024L
+private const val PREPARED_BOUNDARY_ANALYSIS_RESERVE_BYTES = 8L * 1024L * 1024L
 
 internal data class PreparedDocumentPixels(
   val bitmap: Bitmap,
@@ -82,7 +83,7 @@ internal object PreparedDocumentTransform {
           boundaryCrop(source, region, rotation, previewWidth, previewHeight)
         } else null
         if (boundaryCrop != null) {
-          validateCropBudget(source, boundaryCrop)
+          validateCropBudget(source, boundaryCrop, PREPARED_BOUNDARY_ANALYSIS_RESERVE_BYTES)
           val transformed = renderGrayscaleFixedFrame(source, rotation)
           try {
             val cropped = Bitmap.createBitmap(
@@ -221,10 +222,10 @@ internal object PreparedDocumentTransform {
     return mapped
   }
 
-  private fun validateCropBudget(source: Bitmap, crop: PreparedCropBox) {
+  private fun validateCropBudget(source: Bitmap, crop: PreparedCropBox, extraBytes: Long = 0L) {
     val sourcePixels = source.width.toLong() * source.height
     val cropPixels = crop.width.toLong() * crop.height
-    val accounted = 4L * (sourcePixels + sourcePixels + cropPixels)
+    val accounted = 4L * (sourcePixels + sourcePixels + cropPixels) + extraBytes
     if (accounted > PREPARED_MAX_ACCOUNTED_BYTES) {
       throw IllegalArgumentException("Prepared crop exceeds the bounded working-memory contract.")
     }
