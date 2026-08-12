@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-12-75",
+  "state_version": "privacy-ocr-2026-08-12-76",
   "active_track": "android-document-preprocessing",
   "next_step_id": "android-document-preprocess-device-smoke-v1",
-  "next_step_summary": "PR #220 is a bounded corrective found during the PR #219 device smoke: accepted angle evidence must remain effective even when safe crop is rejected. The prepared-image consumer now treats rotation_only as an accepted deskew without crop, producing an expanded white-canvas grayscale full frame with the accepted rotation; full_frame_fallback remains 0-degree grayscale, while fully accepted safe-crop behavior remains unchanged. No angle thresholds, crop guards, perspective correction, OCR/network/provider/dependency/permission/workflow behavior or privacy boundary changes. Continue android-document-preprocess-device-smoke-v1, first rerunning the concrete photographed page that produced +1 degree accepted angle with content_touches_frame, then continue the two owner-controlled contract sets if the corrected full-frame deskew preserves all content.",
-  "last_recorded_pr": 220,
-  "last_recorded_change": "android-document-preprocess-deskew-crop-decoupling-v1",
+  "next_step_summary": "PR #221 is a bounded corrective found during the post-#220 device smoke: grayscale and accepted 1-degree deskew worked, but crop still failed on a page with roughly 15% obvious outside-page background because the text-content path returned rotation_only with content_touches_frame. The prepared-image consumer now attempts a separate physical document-boundary crop only for that exact narrow state. Boundary evidence is derived from a <=900-long-side local analysis bitmap using center-versus-corner luminance contrast, row/column paper occupancy, conservative padding, minimum removable area, the existing deskew matrix, and dominant-line containment; any uncertainty preserves the PR #220 deskewed full-frame fallback. Existing accepted safe-crop behavior, angle thresholds, ContentRegionEstimator, SafeCropEstimator, perspective behavior, OCR/network/provider/dependency/permission/workflow behavior and privacy boundary are unchanged. Continue android-document-preprocess-device-smoke-v1 by rerunning the same photographed regression page and verifying that useful outside background is removed without losing page content; then continue the two owner-controlled contract sets if the result is correct.",
+  "last_recorded_pr": 221,
+  "last_recorded_change": "android-document-boundary-crop-corrective-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-08-12"
