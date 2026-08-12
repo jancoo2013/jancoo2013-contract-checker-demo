@@ -8,13 +8,16 @@ import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
 import kotlin.math.abs
 import kotlin.math.ceil
+import kotlin.math.cos
 import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
+import kotlin.math.sin
 
 private const val PREPARED_PREVIEW_LONG_SIDE = 1800
 private const val PREPARED_MAX_ABS_ROTATION = 12.0
+private const val PREPARED_MAX_OUTPUT_LONG_SIDE = 10_000
 private const val PREPARED_MAX_ACCOUNTED_BYTES = 384L * 1024L * 1024L
 
 internal data class PreparedDocumentPixels(
@@ -73,10 +76,20 @@ internal object PreparedDocumentTransform {
       ) {
         throw IllegalStateException("Content-region fallback coordinate space is contradictory.")
       }
-      val accounted = 8L * source.width * source.height
-      if (accounted > PREPARED_MAX_ACCOUNTED_BYTES) {
-        throw IllegalArgumentException("Prepared full-frame grayscale exceeds the memory contract.")
+
+      if (decision == "rotation_only") {
+        val (outputWidth, outputHeight) = predictedExpandedSize(source.width, source.height, rotation)
+        validateFullFrameBudget(source.width, source.height, outputWidth, outputHeight)
+        return PreparedDocumentPixels(
+          bitmap = renderGrayscaleExpandedFrame(source, rotation, outputWidth, outputHeight),
+          decision = "deskewed_full_frame_grayscale",
+          rotationAppliedDegrees = rotation,
+          cropBoxSource = null,
+          fallbackReasons = (listOf("upstream_crop_not_accepted") + reasons).distinct().sorted(),
+        )
       }
+
+      validateFullFrameBudget(source.width, source.height, source.width, source.height)
       return PreparedDocumentPixels(
         bitmap = renderGrayscaleFixedFrame(source, 0.0),
         decision = "full_frame_grayscale_fallback",
@@ -163,17 +176,61 @@ internal object PreparedDocumentTransform {
     return mapped
   }
 
+  private fun predictedExpandedSize(width: Int, height: Int, rotationDegrees: Double): Pair<Int, Int> {
+    if (abs(rotationDegrees) < 1e-9) return width to height
+    val radians = Math.toRadians(rotationDegrees)
+    val cosine = abs(cos(radians))
+    val sine = abs(sin(radians))
+    return max(1, ceil(width * cosine + height * sine).toInt()) to
+      max(1, ceil(width * sine + height * cosine).toInt())
+  }
+
+  private fun validateFullFrameBudget(
+    sourceWidth: Int,
+    sourceHeight: Int,
+    outputWidth: Int,
+    outputHeight: Int,
+  ) {
+    if (max(outputWidth, outputHeight) > PREPARED_MAX_OUTPUT_LONG_SIDE) {
+      throw IllegalArgumentException("Prepared full-frame output exceeds the bounded dimension contract.")
+    }
+    val sourcePixels = sourceWidth.toLong() * sourceHeight
+    val outputPixels = outputWidth.toLong() * outputHeight
+    val accounted = 4L * (sourcePixels + outputPixels)
+    if (accounted > PREPARED_MAX_ACCOUNTED_BYTES) {
+      throw IllegalArgumentException("Prepared full-frame grayscale exceeds the memory contract.")
+    }
+  }
+
+  private fun grayscalePaint(): Paint =
+    Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply {
+      colorFilter = ColorMatrixColorFilter(ColorMatrix().apply { setSaturation(0f) })
+    }
+
   private fun renderGrayscaleFixedFrame(source: Bitmap, rotationDegrees: Double): Bitmap {
     val output = Bitmap.createBitmap(source.width, source.height, Bitmap.Config.ARGB_8888)
     output.eraseColor(Color.WHITE)
-    val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply {
-      colorFilter = ColorMatrixColorFilter(ColorMatrix().apply { setSaturation(0f) })
-    }
     val canvas = Canvas(output)
     val save = canvas.save()
     canvas.rotate(-rotationDegrees.toFloat(), source.width / 2f, source.height / 2f)
-    canvas.drawBitmap(source, 0f, 0f, paint)
+    canvas.drawBitmap(source, 0f, 0f, grayscalePaint())
     canvas.restoreToCount(save)
+    return output
+  }
+
+  private fun renderGrayscaleExpandedFrame(
+    source: Bitmap,
+    rotationDegrees: Double,
+    outputWidth: Int,
+    outputHeight: Int,
+  ): Bitmap {
+    val output = Bitmap.createBitmap(outputWidth, outputHeight, Bitmap.Config.ARGB_8888)
+    output.eraseColor(Color.WHITE)
+    val canvas = Canvas(output)
+    canvas.translate(outputWidth / 2f, outputHeight / 2f)
+    canvas.rotate(-rotationDegrees.toFloat())
+    canvas.translate(-source.width / 2f, -source.height / 2f)
+    canvas.drawBitmap(source, 0f, 0f, grayscalePaint())
     return output
   }
 }
