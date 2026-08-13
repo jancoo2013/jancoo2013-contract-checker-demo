@@ -1,14 +1,51 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-13, PR #225, `serverless-ocr-worker-contract-corrective-v1`.
+Последнее обновление: 2026-08-13, PR #226, `surya-raw-fullframe-benchmark-worker-v1`.
 
 Активный трек: `serverless-gpu-ocr-benchmark`.
 
-Следующий bounded-шаг после merge PR #225: `surya-raw-fullframe-benchmark-worker-v1`.
+Следующий bounded-шаг после merge PR #226: `surya-raw-fullframe-gpu-execution-v1`.
 
 Этот документ вместе с `docs/OCR_PROJECT_STATE.json` является канонической operational-точкой восстановления privacy/OCR-проекта. Архитектурные документы задают обязательные границы, но текущий `next_step_id` выбирается только state-файлами.
 
-## Current change — PR #225 worker contract corrective after Codex batch audit
+## Current change — PR #226 Surya raw-fullframe benchmark worker
+
+PR #226 реализует первый bounded Surya 2 worker поверх уточнённого PR #225 model-neutral contract, но пока не выполняет реальный GPU/provider benchmark.
+
+Текущий worker:
+
+```text
+ordered local benchmark pages
+→ encoded-size/page-count bounds
+→ image header/dimension bounds
+→ EXIF orientation normalization only
+→ complete full-frame raster
+→ Surya 2 full-page OCR in memory
+→ validate image_bbox / reading order / bbox / confidence / output sizes
+→ model-neutral transient page results
+→ persist only non-sensitive aggregate metrics
+```
+
+Границы PR #226:
+
+- отдельный benchmark dependency pin: `surya-ocr==0.22.1`; это не application dependency;
+- максимум 10 страниц, 48 MiB encoded per page, 256 MiB encoded per job, long side <=8192, <=32M decoded pixels per page и <=160M pixels per job;
+- максимум 4096 blocks/page, 200000 normalized chars/block и 2000000 chars/page;
+- порядок страниц задаётся самим ordered input и превращается в opaque `p0000...` + contiguous `page_index`;
+- до OCR выполняется только EXIF orientation normalization; deskew, crop, perspective correction и grayscale не являются prerequisite;
+- worker использует current Surya 2 Python API (`SuryaInferenceManager` + `RecognitionPredictor`) и full-page OCR;
+- Surya startup/request timeout фиксируется в 600 s, keep-alive выключен, retries в worker отсутствуют;
+- raw OCR/layout остаётся только transient in-memory result; CLI выдаёт только aggregate counts/status/timing и не пишет raw OCR/geometry;
+- exact per-page coverage сохраняется и при `partial_failure`; malformed geometry/confidence/order/output fails closed;
+- backend exception text не выходит в result/error payload;
+- focused tests используют synthetic injected engine, поэтому реальный Surya package/model/backend в repository validation не запускался;
+- PR не добавляет Android upload/handoff, remote endpoint/provider configuration, production encryption/key management, PII implementation, Gemini/legal-analysis integration или persistent raw storage.
+
+Следующий bounded step `surya-raw-fullframe-gpu-execution-v1` должен уже выполнить worker на explicitly approved GPU infrastructure и approved non-identifying full-frame test pages. Нужно измерить Hebrew OCR/layout quality, cold/warm latency, queue delay, GPU/VRAM/OOM, billed seconds/cost, log hygiene, backend cleanup и фактические region/retention свойства среды. Только после этого evidence решаем, нужен ли вообще deskew/crop/grayscale в OCR path.
+
+Android audit findings #2 (session/cache atomicity) и #3 (stale TypeScript crop-result contract) остаются deferred и должны быть закрыты до повторного использования Android preprocessing path как OCR input/production handoff.
+
+## Previous change — PR #225 worker contract corrective after Codex batch audit
 
 После merge PR #224 product owner запустил cold-start Codex batch audit merged range after `b9527f046a0225c0e80f3f511e15b9a8b1eb0ea3` through `eee02d32a85cf867ac84b2141e29d8f57a0fabe4`, covering merged PRs #216, #217, #218, #219, #220, #221, #223 и #224; unmerged PR #222 был явно исключён.
 
@@ -506,24 +543,22 @@ Grayscale remains in the current runtime path but is not an active optimization 
 
 ## 3. Current product block — serverless GPU OCR benchmark
 
-The approved serverless benchmark is active.
+The approved serverless benchmark is active. PR #226 now provides the first bounded raw-fullframe Surya worker; it does not yet establish OCR quality, GPU fit, latency, cost, or provider/privacy behavior.
 
-PR #224 defined `docs/SERVERLESS_OCR_WORKER_CONTRACT_V1.md`; PR #225 closes the first post-#224 Codex contract finding before implementation. Neither PR performs OCR or adds a network destination.
+After merge PR #226, `surya-raw-fullframe-gpu-execution-v1` must:
 
-After merge PR #225, `surya-raw-fullframe-benchmark-worker-v1` must:
-
-1. implement one Surya adapter/worker against the clarified model-neutral contract;
+1. run the PR #226 worker on explicitly approved GPU infrastructure;
 2. start with ordinary full-frame approved benchmark photographs/pages after EXIF orientation normalization only;
-3. not require deskew, crop, perspective correction or grayscale preprocessing for the first benchmark;
-4. use only synthetic, public, or owner-controlled redacted repository test material;
-5. define finite input/output/resource/time/concurrency/retry limits before execution;
-6. validate identifier/order correlation, exact result coverage, error/status semantics, bbox coordinate mapping, malformed output, timeout/OOM/retry termination, log hygiene and transient raw-result cleanup;
-7. measure Hebrew text/layout quality, cold start, warm execution, queue delay, one-page and multi-page latency, GPU/VRAM, OOM behavior, billed seconds and estimated cost;
-8. verify absence of raw page content/raw OCR text in logs and retained metadata;
-9. preserve scale-to-zero and bounded queue execution;
-10. not add production Android upload, production encryption/key management, production PII masks, Gemini/legal-analysis calls, permanent storage or real-user-data claims.
+3. not require deskew, crop, perspective correction or grayscale preprocessing;
+4. use approved non-identifying material for repository/automation evidence and obey the binding restricted-data region gate for any sensitive material;
+5. record Surya/package/model/backend revision and concrete execution limits;
+6. measure Hebrew text/layout quality, cold start, warm execution, queue delay, one-page and multi-page latency, GPU/VRAM, OOM behavior, billed seconds and estimated cost;
+7. inspect log/output hygiene and backend cleanup after success/failure/timeout;
+8. verify actual regional and retention properties before making any sensitive-data claim;
+9. compare OCR evidence against the source and decide whether any additional preprocessing has demonstrated value;
+10. still add no production Android upload, production PII masks, Gemini/legal-analysis call or permanent raw-document storage.
 
-Surya remains the first benchmark candidate, not a production commitment. If raw-fullframe quality is materially usable, do not make deskew/crop/grayscale mandatory in the OCR path without concrete contrary evidence; existing geometry work may instead support future capture-quality/advice behavior.
+Surya remains a benchmark candidate, not a production commitment. If raw-fullframe quality is materially usable, deskew/crop/grayscale must not become mandatory in the OCR path without concrete contrary evidence; existing geometry work can instead support later capture-quality/advice behavior.
 
 ## 4. Active target pipeline
 
@@ -595,6 +630,6 @@ Last periodic Codex batch audit: after `b9527f046a0225c0e80f3f511e15b9a8b1eb0ea3
 
 Frozen Python geometry code baseline: `7fe4bc88df2427ea90442f7b074c3cfe4e0de33a`.
 
-Current PR: #225 `serverless-ocr-worker-contract-corrective-v1`.
+Current PR: #226 `surya-raw-fullframe-benchmark-worker-v1`.
 
-Next step after merge PR #225: `surya-raw-fullframe-benchmark-worker-v1`.
+Next step after merge PR #226: `surya-raw-fullframe-gpu-execution-v1`.
