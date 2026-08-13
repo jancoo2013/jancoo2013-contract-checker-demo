@@ -1,14 +1,45 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-12, PR #221, `android-document-boundary-crop-corrective-v1`.
+Последнее обновление: 2026-08-13, PR #222, `android-document-boundary-crop-safety-corrective-v1`.
 
 Активный трек: `android-document-preprocessing`.
 
-Следующий bounded-шаг после merge PR #221: `android-document-preprocess-device-smoke-v1`.
+Следующий bounded-шаг после merge PR #222: `android-document-preprocess-device-smoke-v1`.
 
 Этот документ вместе с `docs/OCR_PROJECT_STATE.json` является канонической operational-точкой восстановления privacy/OCR-проекта. Архитектурные документы задают обязательные границы, но текущий `next_step_id` выбирается только state-файлами.
 
-## Current change — PR #221 physical document-boundary crop corrective
+## Current change — PR #222 boundary crop safety corrective
+
+Targeted audit PR #221 доказал два concrete boundary-recovery defect. Shadowed или locally darkened edge физического листа мог классифицироваться как background, а projection occupancy мог исключить trapezoid corner; dominant-line containment при этом не защищал compact signature/stamp. Отдельно source-axis boundary AABB после accepted deskew около 1° повторно расширялся до mapped AABB, из-за чего clear page с примерно 15% внешнего фона недостижимо возвращалась в full-frame fallback.
+
+PR #222 исправляет только эти два дефекта внутри существующего narrow recovery path:
+
+```text
+oriented local source
+→ bounded <=900 px analysis
+→ center/corner paper polarity
+→ inverse-sample paper evidence directly into fixed-frame deskew coordinates
+→ derive padded axis boundary in that output coordinate space
+→ reject if meaningful paper-classified pixels remain outside the crop
+→ reject if a substantial intermediate-luminance edge band remains outside the crop
+→ keep existing dominant-line containment
+→ trusted boundary: cropped_grayscale with accepted deskew
+→ any uncertainty: PR #220 deskewed_full_frame_grayscale
+```
+
+Focused synthetic regression на production Kotlin classes подтверждает:
+
+- shadow-bottom physical sheet + compact signature: crop rejected, full sheet preserved by `deskewed_full_frame_grayscale`;
+- trapezoid edge + compact signature: crop rejected, physical corner preserved by `deskewed_full_frame_grayscale`;
+- accepted 1° deskew + sole `content_touches_frame` + 14.95% external background + clear physical boundary: `cropped_grayscale`, rotation retained, useful background removed, page bounds retained;
+- normal polarity, inverted polarity and 3:1 corner support remain accepted;
+- ambiguous 2:2 corner evidence remains fail-closed.
+
+PR #222 не меняет `PreparedDocumentTransform`, normal accepted `SafeCropEstimator` path, angle estimator, perspective behavior, OCR, upload/backend/provider, dependencies, permissions, workflows, external data flow или privacy boundary. Additional bounded analysis state is one BooleanArray at <=900 long side and remains covered by the existing 8 MiB boundary-analysis reserve. Реальные страницы/PII не добавляются.
+
+Следующий gate остаётся `android-document-preprocess-device-smoke-v1`: повторить owner-controlled photographed regression page и contract sets. Synthetic evidence не является real-device PASS.
+
+## Previous change — PR #221 physical document-boundary crop corrective
 
 Post-#220 real-device smoke подтвердил две части preprocessing на конкретной реально сфотографированной странице: grayscale появился, а accepted deskew около 1° реально применился. При этом crop снова не сработал вообще, хотя product owner визуально оценил внешний фон примерно в 15% кадра. Upstream text/content path оставался `rotation_only` из-за `content_touches_frame`, поэтому полезная обрезка физического листа не была разрешена.
 
@@ -499,6 +530,6 @@ Last targeted Android geometry audit: owner-requested audit over PR #211–#215 
 
 Frozen Python geometry code baseline: `7fe4bc88df2427ea90442f7b074c3cfe4e0de33a`.
 
-Current PR: #221 `android-document-boundary-crop-corrective-v1`.
+Current PR: #222 `android-document-boundary-crop-safety-corrective-v1`.
 
-Next step after merge PR #221: `android-document-preprocess-device-smoke-v1`.
+Next step after merge PR #222: `android-document-preprocess-device-smoke-v1`.
