@@ -2,7 +2,6 @@ package expo.modules.documentgeometrypreview
 
 import android.graphics.Bitmap
 import android.graphics.Color
-import android.graphics.Matrix
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.max
@@ -16,6 +15,8 @@ private const val MIN_AXIS_OCCUPANCY = 0.20
 private const val MIN_PAGE_AXIS_RATIO = 0.50
 private const val MIN_REMOVABLE_AREA_RATIO = 0.05
 private const val BOUNDARY_PADDING_RATIO = 0.02
+private const val MAX_OUTSIDE_PAPER_RATIO = 0.0001
+private const val MAX_OUTSIDE_SHADOW_RATIO = 0.005
 
 internal object DocumentBoundaryEstimator {
   fun estimate(source: Bitmap, rotationDegrees: Double): List<Int>? {
@@ -52,15 +53,28 @@ internal object DocumentBoundaryEstimator {
       val supporting = if (paperBrighter) darkerCorners else brighterCorners
       val background = median(supporting)
       val threshold = (center + background) / 2
+      val ignoredCorners = BooleanArray(corners.size) { index ->
+        if (paperBrighter) center - corners[index] < MIN_CENTER_CORNER_CONTRAST
+        else corners[index] - center < MIN_CENTER_CORNER_CONTRAST
+      }
 
       val rowCounts = IntArray(height)
       val columnCounts = IntArray(width)
+      val onPaper = BooleanArray(width * height)
+      val radians = Math.toRadians(rotationDegrees)
+      val cosine = kotlin.math.cos(radians)
+      val sine = kotlin.math.sin(radians)
+      val pivotX = width / 2.0
+      val pivotY = height / 2.0
       for (y in 0 until height) {
         val row = y * width
         for (x in 0 until width) {
-          val value = luma(pixels[row + x])
-          val onPaper = if (paperBrighter) value >= threshold else value <= threshold
-          if (onPaper) {
+          val sourceIndex = mappedSourceIndex(x, y, width, height, pivotX, pivotY, cosine, sine)
+          if (sourceIndex < 0) continue
+          val value = luma(pixels[sourceIndex])
+          val classified = if (paperBrighter) value >= threshold else value <= threshold
+          onPaper[row + x] = classified
+          if (classified) {
             rowCounts[y] += 1
             columnCounts[x] += 1
           }
@@ -86,6 +100,30 @@ internal object DocumentBoundaryEstimator {
       right = min(width, right + padX)
       bottom = min(height, bottom + padY)
 
+      if (
+        hasUnsafeOutsideEvidence(
+          pixels = pixels,
+          onPaper = onPaper,
+          width = width,
+          height = height,
+          left = left,
+          top = top,
+          right = right,
+          bottom = bottom,
+          paperBrighter = paperBrighter,
+          center = center,
+          background = background,
+          threshold = threshold,
+          ignoredCorners = ignoredCorners,
+          cornerWidth = min(width, cornerWidth + padX),
+          cornerHeight = min(height, cornerHeight + padY),
+          pivotX = pivotX,
+          pivotY = pivotY,
+          cosine = cosine,
+          sine = sine,
+        )
+      ) return null
+
       val analysisArea = width.toLong() * height
       val pageArea = (right - left).toLong() * (bottom - top)
       if (1.0 - pageArea.toDouble() / analysisArea < MIN_REMOVABLE_AREA_RATIO) return null
@@ -97,30 +135,11 @@ internal object DocumentBoundaryEstimator {
       val sourceRight = ceil(right * scaleX).toInt()
       val sourceBottom = ceil(bottom * scaleY).toInt()
 
-      val points = floatArrayOf(
-        sourceLeft.toFloat(), sourceTop.toFloat(),
-        sourceRight.toFloat(), sourceTop.toFloat(),
-        sourceRight.toFloat(), sourceBottom.toFloat(),
-        sourceLeft.toFloat(), sourceBottom.toFloat(),
-      )
-      Matrix().apply {
-        setRotate(-rotationDegrees.toFloat(), source.width / 2f, source.height / 2f)
-        mapPoints(points)
-      }
-      val mappedLeft = floor(minOf(points[0], points[2], points[4], points[6]).toDouble()).toInt()
-      val mappedTop = floor(minOf(points[1], points[3], points[5], points[7]).toDouble()).toInt()
-      val mappedRight = ceil(maxOf(points[0], points[2], points[4], points[6]).toDouble()).toInt()
-      val mappedBottom = ceil(maxOf(points[1], points[3], points[5], points[7]).toDouble()).toInt()
-      if (
-        mappedLeft < 0 || mappedTop < 0 || mappedRight > source.width || mappedBottom > source.height ||
-        mappedLeft >= mappedRight || mappedTop >= mappedBottom
-      ) return null
-
-      val mappedArea = (mappedRight - mappedLeft).toLong() * (mappedBottom - mappedTop)
-      if (1.0 - mappedArea.toDouble() / (source.width.toLong() * source.height) < MIN_REMOVABLE_AREA_RATIO) {
+      val sourceArea = (sourceRight - sourceLeft).toLong() * (sourceBottom - sourceTop)
+      if (1.0 - sourceArea.toDouble() / (source.width.toLong() * source.height) < MIN_REMOVABLE_AREA_RATIO) {
         return null
       }
-      return listOf(mappedLeft, mappedTop, mappedRight, mappedBottom)
+      return listOf(sourceLeft, sourceTop, sourceRight, sourceBottom)
     } finally {
       if (analysis !== source && !analysis.isRecycled) analysis.recycle()
     }
@@ -148,6 +167,89 @@ internal object DocumentBoundaryEstimator {
     while (right < active.size && active[right]) right += 1
     return left to right
   }
+
+  private fun hasUnsafeOutsideEvidence(
+    pixels: IntArray,
+    onPaper: BooleanArray,
+    width: Int,
+    height: Int,
+    left: Int,
+    top: Int,
+    right: Int,
+    bottom: Int,
+    paperBrighter: Boolean,
+    center: Int,
+    background: Int,
+    threshold: Int,
+    ignoredCorners: BooleanArray,
+    cornerWidth: Int,
+    cornerHeight: Int,
+    pivotX: Double,
+    pivotY: Double,
+    cosine: Double,
+    sine: Double,
+  ): Boolean {
+    val area = width.toLong() * height
+    val maxOutsidePaper = max(16, (area * MAX_OUTSIDE_PAPER_RATIO).roundToInt())
+    val maxOutsideShadow = max(64, (area * MAX_OUTSIDE_SHADOW_RATIO).roundToInt())
+    val backgroundTolerance = max(8, kotlin.math.abs(center - background) / 6)
+    val thresholdDistance = kotlin.math.abs(threshold - background)
+    var outsidePaper = 0
+    var outsideShadow = 0
+
+    for (y in 0 until height) {
+      val row = y * width
+      for (x in 0 until width) {
+        if (x in left until right && y in top until bottom) continue
+        if (isIgnoredCorner(x, y, width, height, ignoredCorners, cornerWidth, cornerHeight)) continue
+        val sourceIndex = mappedSourceIndex(x, y, width, height, pivotX, pivotY, cosine, sine)
+        if (sourceIndex < 0) continue
+        if (onPaper[row + x]) {
+          outsidePaper += 1
+          if (outsidePaper > maxOutsidePaper) return true
+          continue
+        }
+        val value = luma(pixels[sourceIndex])
+        val towardPaper = if (paperBrighter) value - background else background - value
+        if (towardPaper > backgroundTolerance && towardPaper < thresholdDistance) {
+          outsideShadow += 1
+          if (outsideShadow > maxOutsideShadow) return true
+        }
+      }
+    }
+    return false
+  }
+
+  private fun mappedSourceIndex(
+    x: Int,
+    y: Int,
+    width: Int,
+    height: Int,
+    pivotX: Double,
+    pivotY: Double,
+    cosine: Double,
+    sine: Double,
+  ): Int {
+    val dx = x - pivotX
+    val dy = y - pivotY
+    val sourceX = (pivotX + dx * cosine - dy * sine).roundToInt()
+    val sourceY = (pivotY + dx * sine + dy * cosine).roundToInt()
+    return if (sourceX in 0 until width && sourceY in 0 until height) sourceY * width + sourceX else -1
+  }
+
+  private fun isIgnoredCorner(
+    x: Int,
+    y: Int,
+    width: Int,
+    height: Int,
+    ignoredCorners: BooleanArray,
+    cornerWidth: Int,
+    cornerHeight: Int,
+  ): Boolean =
+    (ignoredCorners[0] && x < cornerWidth && y < cornerHeight) ||
+      (ignoredCorners[1] && x >= width - cornerWidth && y < cornerHeight) ||
+      (ignoredCorners[2] && x < cornerWidth && y >= height - cornerHeight) ||
+      (ignoredCorners[3] && x >= width - cornerWidth && y >= height - cornerHeight)
 
   private fun medianLuma(
     pixels: IntArray,
