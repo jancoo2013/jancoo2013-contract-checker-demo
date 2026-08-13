@@ -1,0 +1,2 @@
+# Separate benchmark environment only; not an application dependency.
+surya-ocr==0.22.1
