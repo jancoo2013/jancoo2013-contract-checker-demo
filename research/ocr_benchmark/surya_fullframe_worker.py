@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import time
 import uuid
 from dataclasses import dataclass
+from io import BytesIO
 from pathlib import Path
 from typing import Any, Protocol, Sequence
 
@@ -58,6 +60,7 @@ class PageInput:
     page_index: int
     path: Path
     byte_length: int
+    digest: str
     width_px: int
     height_px: int
 
@@ -90,6 +93,18 @@ def _oriented_dimensions(source: Image.Image) -> tuple[int, int]:
     return (height, width) if orientation in {5, 6, 7, 8} else (width, height)
 
 
+def _read_bounded(path: Path, expected_length: int | None = None) -> bytes:
+    try:
+        payload = path.read_bytes()
+    except OSError as exc:
+        raise WorkerError("internal_error", "INPUT_CHANGED", "benchmark input became unavailable") from exc
+    if len(payload) <= 0 or len(payload) > MAX_PAGE_BYTES:
+        raise WorkerError("resource_limit", "RESOURCE_LIMIT", "benchmark page exceeds encoded-size limit")
+    if expected_length is not None and len(payload) != expected_length:
+        raise WorkerError("internal_error", "INPUT_CHANGED", "benchmark image changed after input validation")
+    return payload
+
+
 def _request_pages(paths: Sequence[Path]) -> list[PageInput]:
     if not 1 <= len(paths) <= MAX_PAGES:
         raise WorkerError("rejected_input", "RESOURCE_LIMIT", "benchmark page count is outside the allowed range")
@@ -98,15 +113,17 @@ def _request_pages(paths: Sequence[Path]) -> list[PageInput]:
     for index, path in enumerate(paths):
         if not path.is_file() or path.suffix.lower() not in SUPPORTED_SUFFIXES:
             raise WorkerError("rejected_input", "UNSUPPORTED_INPUT", "unsupported or missing benchmark image")
-        size = path.stat().st_size
-        total_bytes += size
-        if size <= 0 or size > MAX_PAGE_BYTES or total_bytes > MAX_JOB_BYTES:
-            raise WorkerError("rejected_input", "RESOURCE_LIMIT", "benchmark input exceeds encoded-size limit")
         try:
-            with Image.open(path) as source:
+            payload = _read_bounded(path)
+            total_bytes += len(payload)
+            if total_bytes > MAX_JOB_BYTES:
+                raise WorkerError("rejected_input", "RESOURCE_LIMIT", "benchmark job exceeds encoded-size limit")
+            with Image.open(BytesIO(payload)) as source:
                 width, height = _oriented_dimensions(source)
                 source.verify()
-        except WorkerError:
+        except WorkerError as exc:
+            if exc.status == "internal_error":
+                raise WorkerError("rejected_input", exc.code, exc.message) from exc
             raise
         except Exception as exc:
             raise WorkerError("rejected_input", "INVALID_IMAGE", "benchmark image could not be validated safely") from exc
@@ -115,7 +132,7 @@ def _request_pages(paths: Sequence[Path]) -> list[PageInput]:
         total_pixels += width * height
         if total_pixels > MAX_JOB_PIXELS:
             raise WorkerError("rejected_input", "RESOURCE_LIMIT", "decoded benchmark job exceeds pixel limit")
-        pages.append(PageInput(f"p{index:04d}", index, path, size, width, height))
+        pages.append(PageInput(f"p{index:04d}", index, path, len(payload), hashlib.sha256(payload).hexdigest(), width, height))
     return pages
 
 
@@ -205,7 +222,10 @@ def run_surya_fullframe_job(paths: Sequence[Path], *, engine: OCREngine | None =
     results, ocr_ms = [], 0
     for page in request_pages:
         try:
-            with Image.open(page.path) as source:
+            payload = _read_bounded(page.path, page.byte_length)
+            if hashlib.sha256(payload).hexdigest() != page.digest:
+                raise WorkerError("internal_error", "INPUT_CHANGED", "benchmark image changed after input validation")
+            with Image.open(BytesIO(payload)) as source:
                 oriented = ImageOps.exif_transpose(source)
                 try:
                     if oriented.size != (page.width_px, page.height_px):
