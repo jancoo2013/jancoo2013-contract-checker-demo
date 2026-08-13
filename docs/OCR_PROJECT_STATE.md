@@ -173,9 +173,9 @@ PR #218 специально разделён до wiring physical transform: fi
 
 После этого manual validation выполняется уже над полезным продуктовым результатом: `исходная фотография -> обрезанный/необрезанный grayscale document`, а не как отдельная длительная deskew-кампания.
 
-## 0.1. Изменение PR #217 — Android geometry validation UI controls
+## 0.1. Изменение PR #217 — Android geometry development validation UI controls
 
-Во время первого реального device smoke уже готового Android geometry path product owner обнаружил две практические проблемы validation harness: встроенные изображения слишком малы для оценки крабв/наклона, а повторная проверка следующей страницы неудобна без явных controls рядом с результатом.
+Во время первого реального device smoke уже готового Android geometry path product owner обнаружил две практические проблемы validation harness: встроенные изображения слишком малы для оценки краёв/наклона, а повторная проверка следующей страницы неудобна без явных controls рядом с результатом.
 
 PR #217 меняет только development validation UI:
 
