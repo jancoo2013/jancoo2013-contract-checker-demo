@@ -9,7 +9,6 @@ import android.graphics.Paint
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.cos
-import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -19,7 +18,6 @@ private const val PREPARED_PREVIEW_LONG_SIDE = 1800
 private const val PREPARED_MAX_ABS_ROTATION = 12.0
 private const val PREPARED_MAX_OUTPUT_LONG_SIDE = 10_000
 private const val PREPARED_MAX_ACCOUNTED_BYTES = 384L * 1024L * 1024L
-private const val PREPARED_BOUNDARY_ANALYSIS_RESERVE_BYTES = 8L * 1024L * 1024L
 
 internal data class PreparedDocumentPixels(
   val bitmap: Bitmap,
@@ -34,11 +32,7 @@ private data class PreparedCropBox(
   val top: Int,
   val right: Int,
   val bottom: Int,
-) {
-  val width: Int get() = right - left
-  val height: Int get() = bottom - top
-  fun asList(): List<Int> = listOf(left, top, right, bottom)
-}
+)
 
 internal object PreparedDocumentTransform {
   fun apply(source: Bitmap, region: Map<String, Any?>): PreparedDocumentPixels {
@@ -67,55 +61,13 @@ internal object PreparedDocumentTransform {
       throw IllegalStateException("Content-region preview dimensions disagree with the oriented source.")
     }
 
-    if (decision != "accepted") {
+    if (decision == "full_frame_fallback") {
       if (region["safeCropBounds"] != null) {
         throw IllegalStateException("Non-accepted content region cannot authorize a crop.")
       }
-      if (
-        (decision == "full_frame_fallback" && coordinateSpace != "source_preview") ||
-        (decision == "rotation_only" && coordinateSpace != "deskewed_preview")
-      ) {
+      if (coordinateSpace != "source_preview") {
         throw IllegalStateException("Content-region fallback coordinate space is contradictory.")
       }
-
-      if (decision == "rotation_only") {
-        val boundaryCrop = if (reasons.toSet() == setOf("content_touches_frame")) {
-          boundaryCrop(source, region, rotation, previewWidth, previewHeight)
-        } else null
-        if (boundaryCrop != null) {
-          validateCropBudget(source, boundaryCrop, PREPARED_BOUNDARY_ANALYSIS_RESERVE_BYTES)
-          val transformed = renderGrayscaleFixedFrame(source, rotation)
-          try {
-            val cropped = Bitmap.createBitmap(
-              transformed,
-              boundaryCrop.left,
-              boundaryCrop.top,
-              boundaryCrop.width,
-              boundaryCrop.height,
-            )
-            return PreparedDocumentPixels(
-              bitmap = cropped,
-              decision = "cropped_grayscale",
-              rotationAppliedDegrees = rotation,
-              cropBoxSource = boundaryCrop.asList(),
-              fallbackReasons = emptyList(),
-            )
-          } finally {
-            if (!transformed.isRecycled) transformed.recycle()
-          }
-        }
-
-        val (outputWidth, outputHeight) = predictedExpandedSize(source.width, source.height, rotation)
-        validateFullFrameBudget(source.width, source.height, outputWidth, outputHeight)
-        return PreparedDocumentPixels(
-          bitmap = renderGrayscaleExpandedFrame(source, rotation, outputWidth, outputHeight),
-          decision = "deskewed_full_frame_grayscale",
-          rotationAppliedDegrees = rotation,
-          cropBoxSource = null,
-          fallbackReasons = (listOf("upstream_crop_not_accepted") + reasons).distinct().sorted(),
-        )
-      }
-
       validateFullFrameBudget(source.width, source.height, source.width, source.height)
       return PreparedDocumentPixels(
         bitmap = renderGrayscaleFixedFrame(source, 0.0),
@@ -126,60 +78,42 @@ internal object PreparedDocumentTransform {
       )
     }
 
-    if (coordinateSpace != "deskewed_preview" || reasons.isNotEmpty()) {
-      throw IllegalStateException("Accepted content-region contract is contradictory.")
-    }
-    val safePreview = parseBox(region["safeCropBounds"], previewWidth, previewHeight)
-      ?: throw IllegalStateException("Accepted content region is missing safe crop bounds.")
-    val candidate = parseBox(region["candidateContentBounds"], previewWidth, previewHeight)
-      ?: throw IllegalStateException("Accepted content region is missing candidate bounds.")
-    if (
-      safePreview.left > candidate.left || safePreview.top > candidate.top ||
-      safePreview.right < candidate.right || safePreview.bottom < candidate.bottom
-    ) {
-      throw IllegalStateException("Safe crop bounds do not contain candidate content bounds.")
+    if (decision == "rotation_only") {
+      if (region["safeCropBounds"] != null) {
+        throw IllegalStateException("Non-accepted content region cannot authorize a crop.")
+      }
+      if (coordinateSpace != "deskewed_preview") {
+        throw IllegalStateException("Content-region fallback coordinate space is contradictory.")
+      }
+    } else {
+      if (coordinateSpace != "deskewed_preview" || reasons.isNotEmpty()) {
+        throw IllegalStateException("Accepted content-region contract is contradictory.")
+      }
+      val safePreview = parseBox(region["safeCropBounds"], previewWidth, previewHeight)
+        ?: throw IllegalStateException("Accepted content region is missing safe crop bounds.")
+      val candidate = parseBox(region["candidateContentBounds"], previewWidth, previewHeight)
+        ?: throw IllegalStateException("Accepted content region is missing candidate bounds.")
+      if (
+        safePreview.left > candidate.left || safePreview.top > candidate.top ||
+        safePreview.right < candidate.right || safePreview.bottom < candidate.bottom
+      ) {
+        throw IllegalStateException("Safe crop bounds do not contain candidate content bounds.")
+      }
     }
 
-    val crop = mapToSource(safePreview, previewWidth, previewHeight, source.width, source.height)
-    validateCropBudget(source, crop)
-
-    val transformed = renderGrayscaleFixedFrame(source, rotation)
-    try {
-      val cropped = Bitmap.createBitmap(transformed, crop.left, crop.top, crop.width, crop.height)
-      return PreparedDocumentPixels(
-        bitmap = cropped,
-        decision = "cropped_grayscale",
-        rotationAppliedDegrees = rotation,
-        cropBoxSource = crop.asList(),
-        fallbackReasons = emptyList(),
-      )
-    } finally {
-      if (!transformed.isRecycled) transformed.recycle()
-    }
-  }
-
-  private fun boundaryCrop(
-    source: Bitmap,
-    region: Map<String, Any?>,
-    rotation: Double,
-    previewWidth: Int,
-    previewHeight: Int,
-  ): PreparedCropBox? {
-    val values = DocumentBoundaryEstimator.estimate(source, rotation) ?: return null
-    if (values.size != 4) return null
-    val crop = PreparedCropBox(values[0], values[1], values[2], values[3])
-    val bands = region["lineBands"] as? List<*> ?: return null
-    if (bands.size < 4) return null
-    var outside = 0
-    for (value in bands) {
-      val bandPreview = parseBox(value, previewWidth, previewHeight) ?: return null
-      val band = mapToSource(bandPreview, previewWidth, previewHeight, source.width, source.height)
-      val contained =
-        crop.left <= band.left && crop.top <= band.top && crop.right >= band.right && crop.bottom >= band.bottom
-      if (!contained) outside += 1
-    }
-    val containedRatio = (bands.size - outside).toDouble() / bands.size
-    return if (outside <= 1 && containedRatio >= 0.90) crop else null
+    val (outputWidth, outputHeight) = predictedExpandedSize(source.width, source.height, rotation)
+    validateFullFrameBudget(source.width, source.height, outputWidth, outputHeight)
+    return PreparedDocumentPixels(
+      bitmap = renderGrayscaleExpandedFrame(source, rotation, outputWidth, outputHeight),
+      decision = "deskewed_full_frame_grayscale",
+      rotationAppliedDegrees = rotation,
+      cropBoxSource = null,
+      fallbackReasons = if (decision == "rotation_only") {
+        (listOf("upstream_crop_not_accepted") + reasons).distinct().sorted()
+      } else {
+        emptyList()
+      },
+    )
   }
 
   private fun expectedPreviewSize(width: Int, height: Int): Pair<Int, Int> {
@@ -199,36 +133,6 @@ internal object PreparedDocumentTransform {
       throw IllegalStateException("Crop bounds exceed the preview.")
     }
     return PreparedCropBox(left, top, right, bottom)
-  }
-
-  private fun mapToSource(
-    box: PreparedCropBox,
-    previewWidth: Int,
-    previewHeight: Int,
-    sourceWidth: Int,
-    sourceHeight: Int,
-  ): PreparedCropBox {
-    val scaleX = sourceWidth.toDouble() / previewWidth
-    val scaleY = sourceHeight.toDouble() / previewHeight
-    val mapped = PreparedCropBox(
-      max(0, floor(box.left * scaleX).toInt()),
-      max(0, floor(box.top * scaleY).toInt()),
-      min(sourceWidth, ceil(box.right * scaleX).toInt()),
-      min(sourceHeight, ceil(box.bottom * scaleY).toInt()),
-    )
-    if (mapped.width <= 0 || mapped.height <= 0) {
-      throw IllegalStateException("Mapped safe crop bounds are empty.")
-    }
-    return mapped
-  }
-
-  private fun validateCropBudget(source: Bitmap, crop: PreparedCropBox, extraBytes: Long = 0L) {
-    val sourcePixels = source.width.toLong() * source.height
-    val cropPixels = crop.width.toLong() * crop.height
-    val accounted = 4L * (sourcePixels + sourcePixels + cropPixels) + extraBytes
-    if (accounted > PREPARED_MAX_ACCOUNTED_BYTES) {
-      throw IllegalArgumentException("Prepared crop exceeds the bounded working-memory contract.")
-    }
   }
 
   private fun predictedExpandedSize(width: Int, height: Int, rotationDegrees: Double): Pair<Int, Int> {
