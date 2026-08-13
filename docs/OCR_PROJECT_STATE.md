@@ -1,14 +1,43 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-13, PR #224, `serverless-gpu-ocr-worker-contract-v1`.
+Последнее обновление: 2026-08-13, PR #225, `serverless-ocr-worker-contract-corrective-v1`.
 
 Активный трек: `serverless-gpu-ocr-benchmark`.
 
-Следующий bounded-шаг после merge PR #224: `surya-serverless-benchmark-worker-v1`.
+Следующий bounded-шаг после merge PR #225: `surya-raw-fullframe-benchmark-worker-v1`.
 
 Этот документ вместе с `docs/OCR_PROJECT_STATE.json` является канонической operational-точкой восстановления privacy/OCR-проекта. Архитектурные документы задают обязательные границы, но текущий `next_step_id` выбирается только state-файлами.
 
-## Current change — PR #224 model-neutral serverless OCR worker contract
+## Current change — PR #225 worker contract corrective after Codex batch audit
+
+После merge PR #224 product owner запустил cold-start Codex batch audit merged range after `b9527f046a0225c0e80f3f511e15b9a8b1eb0ea3` through `eee02d32a85cf867ac84b2141e29d8f57a0fabe4`, covering merged PRs #216, #217, #218, #219, #220, #221, #223 и #224; unmerged PR #222 был явно исключён.
+
+Audit outcome: `CORRECTIVE PR REQUIRED`, blocking findings: none.
+
+Codex вернул три corrective findings:
+
+1. model-neutral worker contract требовал важных implementation guesses по page order/correlation, exact result coverage, error envelopes, EXIF coordinate semantics и transient raw-OCR evaluation boundary;
+2. Android prepared-document session/cache lifecycle не атомарен при overlapping selection/prepare operations;
+3. TypeScript `PreparedDocumentResult` всё ещё рекламирует исторический `cropped_grayscale` / non-null `cropBoxSource`, хотя текущий native prepared runtime больше этого не возвращает.
+
+Product-owner решение: PR #225 закрывает только finding #1 перед Surya benchmark. Findings #2–#3 остаются deferred, потому что raw-fullframe Surya benchmark не использует Android preprocessing path; их нужно закрыть до того, как этот Android path станет источником OCR job или production handoff.
+
+PR #225 уточняет только `docs/SERVERLESS_OCR_WORKER_CONTRACT_V1.md`:
+
+- добавляет отдельный `page_index` как authoritative document-page order и оставляет array position неавторитетным;
+- требует unique `job_id`, unique `page_id`, unique contiguous `page_index = 0..N-1` и exact `(page_id, page_index)` correlation;
+- требует exact result-set coverage для всех accepted jobs: без duplicate/extra/missing/remapped pages;
+- определяет единый bounded non-sensitive error envelope и точные job/page status semantics, включая `not_run` и deterministic no-success precedence;
+- фиксирует stable bbox space как полный raster после EXIF orientation normalization, до model-specific resize; любой inference resize должен map geometry обратно;
+- `width_px` / `height_px` относятся к post-EXIF-normalization full frame; malformed/unsupported orientation fails closed;
+- contract v1 не требует crop, deskew, perspective correction или grayscale для первого raw-fullframe benchmark;
+- определяет permitted transient evaluation: automated quality evaluator внутри того же trusted process либо owner-controlled local ephemeral display на approved non-identifying fixtures; remote/provider result не может сохранять raw OCR text/layout;
+- сохраняет Israel-only production invariant и запрет automatic cross-region fallback;
+- не добавляет Android code, OCR engine, provider SDK/endpoint, network destination, dependency, permission, workflow, production upload, PII implementation, Gemini/legal-analysis call или persistent raw storage.
+
+После merge PR #225 следующий bounded implementation — `surya-raw-fullframe-benchmark-worker-v1`: начать с ordinary full-frame approved benchmark photographs/pages после EXIF orientation normalization only, без обязательного deskew/crop/perspective/grayscale preprocessing, и только при concrete OCR evidence решать, требуется ли какое-либо дополнительное image preprocessing.
+
+## Previous change — PR #224 model-neutral serverless OCR worker contract
 
 После merge PR #223 product owner отдельно пересмотрел ценность ещё одного Android preprocessing device smoke. Отдельный smoke сейчас сознательно пропускается: destructive crop удалён; применение grayscale уже наблюдалось на устройстве; малый deskew порядка единиц градусов практически не оценивается по текущему уменьшенному preview; а доступная реальная выборка фотографий договоров в целом снята достаточно ровно и не даёт полезного набора плохих кадров для дополнительного тюнинга.
 
@@ -37,7 +66,7 @@ bounded OCR job
 - не добавляет Android upload, OCR engine implementation, network destination, provider SDK, queue/storage implementation, production auth/encryption/key management, PII pipeline, Gemini/legal analysis, dependencies, permissions или workflows;
 - future production processing по-прежнему подчиняется `SECURITY.md`: restricted material только в явно approved infrastructure physically located in Israel, без automatic cross-region fallback.
 
-Следующий bounded implementation после merge PR #224 — `surya-serverless-benchmark-worker-v1`: реализовать один Surya adapter/worker поверх этого контракта, задать конкретные benchmark resource limits, использовать только approved non-user fixtures и измерить Hebrew OCR/layout quality, cold/warm latency, multi-page behavior, GPU/VRAM, OOM, billed seconds и estimated cost. Это всё ещё benchmark, не production upload path.
+Первоначально после PR #224 был записан `surya-serverless-benchmark-worker-v1`; PR #225 уточняет этот next step до raw-fullframe-first benchmark после Codex corrective.
 
 ## Previous change — PR #223 disable physical document crop
 
@@ -463,6 +492,8 @@ Owner-requested bounded audit over Android geometry PR #211–#215:
 
 A separate automatic post-merge Codex review then found the preview snapshot P2; PR #216 is the bounded corrective for that concrete integration issue.
 
+Post-#224 Codex batch audit over merged PRs #216–#224 returned `CORRECTIVE PR REQUIRED` with no blocking findings. PR #225 closes worker-contract finding #1. Android session/cache atomicity and stale TypeScript crop-result contract findings remain deferred and must be resolved before Android preprocessing is reused as an OCR input path.
+
 ### Current preprocessing status — explicit product-owner prioritization
 
 `android-document-preprocess-device-smoke-v1` is not the active next step after PR #223.
@@ -475,27 +506,30 @@ Grayscale remains in the current runtime path but is not an active optimization 
 
 ## 3. Current product block — serverless GPU OCR benchmark
 
-The approved serverless benchmark is now active.
+The approved serverless benchmark is active.
 
-PR #224 first defines `docs/SERVERLESS_OCR_WORKER_CONTRACT_V1.md`, a model-neutral benchmark contract separating the stable job/result shape from Surya and from any provider SDK. This PR itself performs no OCR and adds no network destination.
+PR #224 defined `docs/SERVERLESS_OCR_WORKER_CONTRACT_V1.md`; PR #225 closes the first post-#224 Codex contract finding before implementation. Neither PR performs OCR or adds a network destination.
 
-After merge PR #224, `surya-serverless-benchmark-worker-v1` must:
+After merge PR #225, `surya-raw-fullframe-benchmark-worker-v1` must:
 
-1. implement one Surya adapter/worker against the model-neutral contract;
-2. use only synthetic, public, or owner-controlled redacted repository test material;
-3. define finite input/output/resource/time/concurrency/retry limits before execution;
-4. measure Hebrew text/layout quality, cold start, warm execution, queue delay, one-page and multi-page latency, GPU/VRAM, OOM behavior, billed seconds and estimated cost;
-5. verify absence of raw page content/raw OCR text in logs and retained metadata;
-6. preserve scale-to-zero and bounded queue execution;
-7. not add production Android upload, production encryption/key management, production PII masks, Gemini/legal-analysis calls, permanent storage or real-user-data claims.
+1. implement one Surya adapter/worker against the clarified model-neutral contract;
+2. start with ordinary full-frame approved benchmark photographs/pages after EXIF orientation normalization only;
+3. not require deskew, crop, perspective correction or grayscale preprocessing for the first benchmark;
+4. use only synthetic, public, or owner-controlled redacted repository test material;
+5. define finite input/output/resource/time/concurrency/retry limits before execution;
+6. validate identifier/order correlation, exact result coverage, error/status semantics, bbox coordinate mapping, malformed output, timeout/OOM/retry termination, log hygiene and transient raw-result cleanup;
+7. measure Hebrew text/layout quality, cold start, warm execution, queue delay, one-page and multi-page latency, GPU/VRAM, OOM behavior, billed seconds and estimated cost;
+8. verify absence of raw page content/raw OCR text in logs and retained metadata;
+9. preserve scale-to-zero and bounded queue execution;
+10. not add production Android upload, production encryption/key management, production PII masks, Gemini/legal-analysis calls, permanent storage or real-user-data claims.
 
-Surya remains the first benchmark candidate, not a production commitment.
+Surya remains the first benchmark candidate, not a production commitment. If raw-fullframe quality is materially usable, do not make deskew/crop/grayscale mandatory in the OCR path without concrete contrary evidence; existing geometry work may instead support future capture-quality/advice behavior.
 
 ## 4. Active target pipeline
 
 ```text
 raw phone photos
-→ client-side capture-quality checks and preprocessing (orientation / conservative deskew / full-frame preservation / current grayscale output)
+→ minimal client-side input handling (EXIF/orientation; no mandatory deskew/crop/grayscale before first OCR benchmark)
 → encryption
 → bounded asynchronous serverless job
 → GPU worker decrypts in volatile memory
@@ -557,8 +591,10 @@ Last focused Python geometry audit: Codex at `876e49bceb0136af6ee851a2656aaf689d
 
 Last targeted Android geometry audit: owner-requested audit over PR #211–#215 at head `b9527f046a0225c0e80f3f511e15b9a8b1eb0ea3`, outcome `BATCH AUDIT CLEAR`; later automatic review P2 snapshot finding corrected by PR #216.
 
+Last periodic Codex batch audit: after `b9527f046a0225c0e80f3f511e15b9a8b1eb0ea3` through `eee02d32a85cf867ac84b2141e29d8f57a0fabe4`, merged PRs #216, #217, #218, #219, #220, #221, #223, #224; outcome `CORRECTIVE PR REQUIRED`, blocking findings none. PR #225 addresses finding #1; Android findings #2–#3 remain deferred as recorded above.
+
 Frozen Python geometry code baseline: `7fe4bc88df2427ea90442f7b074c3cfe4e0de33a`.
 
-Current PR: #224 `serverless-gpu-ocr-worker-contract-v1`.
+Current PR: #225 `serverless-ocr-worker-contract-corrective-v1`.
 
-Next step after merge PR #224: `surya-serverless-benchmark-worker-v1`.
+Next step after merge PR #225: `surya-raw-fullframe-benchmark-worker-v1`.
