@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from PIL import Image
 
@@ -82,9 +83,30 @@ class SuryaFullframeWorkerTests(unittest.TestCase):
             path = self._image(Path(temp_dir), "wide.png", (8200, 1))
             engine = FakeEngine()
             result = run_surya_fullframe_job([path], engine=engine)
-        self.assertEqual(result["status"], "resource_limit")
+        self.assertEqual(result["status"], "rejected_input")
+        self.assertEqual(result["error"]["code"], "RESOURCE_LIMIT")
+        self.assertEqual(result["pages"], [])
         self.assertEqual(engine.calls, 0)
-        self.assertEqual(result["pages"][0]["error"]["code"], "RESOURCE_LIMIT")
+
+    def test_total_job_pixels_are_rejected_before_any_ocr(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            paths = [self._image(root, "a.jpg", (80, 60)), self._image(root, "b.jpg", (80, 60))]
+            engine = FakeEngine()
+            with patch("research.ocr_benchmark.surya_fullframe_worker.MAX_JOB_PIXELS", 9000):
+                result = run_surya_fullframe_job(paths, engine=engine)
+        self.assertEqual(result["status"], "rejected_input")
+        self.assertEqual(result["error"]["code"], "RESOURCE_LIMIT")
+        self.assertEqual(result["pages"], [])
+        self.assertEqual(engine.calls, 0)
+
+    def test_unsupported_exif_orientation_is_rejected_before_ocr(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            engine = FakeEngine()
+            result = run_surya_fullframe_job([self._image(Path(temp_dir), "bad.jpg", orientation=9)], engine=engine)
+        self.assertEqual(result["status"], "rejected_input")
+        self.assertEqual(result["error"]["code"], "INVALID_IMAGE")
+        self.assertEqual(engine.calls, 0)
 
 
 if __name__ == "__main__":
