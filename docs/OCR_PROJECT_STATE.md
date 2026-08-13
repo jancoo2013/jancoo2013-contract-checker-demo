@@ -29,6 +29,7 @@ bounded OCR job
 
 - добавляет `docs/SERVERLESS_OCR_WORKER_CONTRACT_V1.md` как benchmark-only contract;
 - определяет versioned job/page identifiers, bounded page metadata, text/block/line result shape, pixel-space bbox, confidence semantics, terminal statuses и non-sensitive benchmark metrics;
+- raw OCR text/layout определён как transient internal result: job/page statuses включают явный `partial_failure`, а raw result нельзя трактовать как сохраняемый provider/client result;
 - требует finite limits для encoded bytes, dimensions/pixels, page count, execution time, memory/VRAM where observable, output size, concurrency и retries;
 - raw image bytes и raw OCR text остаются restricted transient material и не могут попадать в logs/CI/artifacts;
 - repository benchmark fixtures могут быть только synthetic, public или owner-controlled redacted;
@@ -196,7 +197,7 @@ PR #218 намеренно реализует только первую поло
 - только полностью чистый candidate становится `accepted` и получает `safeCropBounds`;
 - uncertain cases остаются `rotation_only` / `full_frame_fallback`;
 - physical crop, new output artifact и grayscale final output в PR #218 ещё не выполняются;
-- perspective correction, новые angle thresholds/search range и дальнейший standalone deskew tuning не входят в scope;
+- perspective correction, новые angle thresholds/search range и дальнейший deskew tuning не входят в scope;
 - OCR recognition, network/backend/provider, dependencies, permissions, workflows и privacy boundary не меняются.
 
 PR #218 специально разделён до wiring physical transform: final `SafeCropEstimator.kt` занимает 259 implementation additions, а весь runtime/TypeScript diff — 263 additions, поэтому bundling physical crop + grayscale + UI вывел бы PR за target <=300 additions. Следующий bounded PR `android-document-preprocess-physical-crop-grayscale-v1` должен structurally validate accepted in-process crop evidence, conservatively map preview bounds to oriented full resolution, output grayscale cropped image only when fully accepted, otherwise output grayscale full-frame fallback, и показать именно этот final prepared image в development UI.
