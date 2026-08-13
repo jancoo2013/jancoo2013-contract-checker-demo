@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-13-78",
+  "state_version": "privacy-ocr-2026-08-13-79",
   "active_track": "serverless-gpu-ocr-benchmark",
-  "next_step_id": "surya-serverless-benchmark-worker-v1",
-  "next_step_summary": "PR #224 defines the model-neutral bounded OCR worker contract before any Surya or provider implementation. The product owner explicitly skips a separate Android preprocessing device-smoke at this point: destructive crop is removed, grayscale application was already observed, small deskew is not meaningfully judgeable in the current reduced preview, and the available real contract-photo sample is generally well captured. This is a prioritization decision, not a claim of exhaustive device validation; concrete preprocessing defects can reopen that track. Grayscale remains a current implementation detail and is not an active optimization question. The worker contract treats raw OCR text/layout as a transient internal result, defines explicit job/page failure semantics including partial failure, and forbids treating raw OCR as a retained provider/client result. After merge, implement surya-serverless-benchmark-worker-v1 against the contract using only synthetic, public, or owner-controlled redacted benchmark material, with bounded resources and no Android upload, production provider authorization, PII pipeline, Gemini integration, or production data-flow claim.",
-  "last_recorded_pr": 224,
-  "last_recorded_change": "serverless-gpu-ocr-worker-contract-v1",
+  "next_step_id": "surya-raw-fullframe-benchmark-worker-v1",
+  "next_step_summary": "Post-PR #224 Codex batch audit over merged work after b9527f046a0225c0e80f3f511e15b9a8b1eb0ea3 through eee02d32a85cf867ac84b2141e29d8f57a0fabe4 returned CORRECTIVE PR REQUIRED with no blocking findings. PR #225 closes only audit finding #1 by making the model-neutral worker contract implementation-complete for page ordering/correlation, exact result coverage, error envelopes, EXIF-normalized coordinate semantics, and transient raw-OCR benchmark evaluation. Audit findings #2 (Android session/cache atomicity) and #3 (stale cropped_grayscale TypeScript result contract) remain deferred because the raw-fullframe Surya benchmark does not use the Android preprocessing path; resolve them before that path is reused as an OCR input. After merge, implement surya-raw-fullframe-benchmark-worker-v1 using ordinary full-frame approved benchmark images after EXIF orientation normalization only, with no required deskew, crop, perspective correction, or grayscale preprocessing, and with no production Android upload, production provider authorization, PII pipeline, Gemini integration, or production data-flow claim.",
+  "last_recorded_pr": 225,
+  "last_recorded_change": "serverless-ocr-worker-contract-corrective-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-08-13"
