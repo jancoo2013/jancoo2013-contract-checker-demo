@@ -27,8 +27,11 @@ oriented local source
 → any uncertainty: PR #220 deskewed_full_frame_grayscale
 ```
 
+Дополнительный targeted counter-regression перед Ready доказал continuation P1: top-left paper corner, использованный как 3:1 polarity outlier, мог целиком исключаться из outside-evidence check. На трапециевидном листе с left edge `0→200`, compact mark внутри tip и accepted 1° это разрешало unsafe boundary `[25,2,778,868]`. PR #222 теперь игнорирует polarity-outlier corner только когда основной horizontal и vertical active run локализуют его за внутренней половиной обеих corner samples; если page evidence подходит к frame хотя бы по одной оси, весь corner снова участвует в P1 safety check.
+
 Focused synthetic regression на production Kotlin classes подтверждает:
 
+- top-left 3:1 trapezoid tip + compact mark + accepted 1° + sole `content_touches_frame`: boundary rejected, `deskewed_full_frame_grayscale`, mark preserved;
 - shadow-bottom physical sheet + compact signature: crop rejected, full sheet preserved by `deskewed_full_frame_grayscale`;
 - trapezoid edge + compact signature: crop rejected, physical corner preserved by `deskewed_full_frame_grayscale`;
 - accepted 1° deskew + sole `content_touches_frame` + 14.95% external background + clear physical boundary: `cropped_grayscale`, rotation retained, useful background removed, page bounds retained;

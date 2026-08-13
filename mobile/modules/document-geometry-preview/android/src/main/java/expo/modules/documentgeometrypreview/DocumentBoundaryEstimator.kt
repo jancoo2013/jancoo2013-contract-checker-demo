@@ -53,11 +53,6 @@ internal object DocumentBoundaryEstimator {
       val supporting = if (paperBrighter) darkerCorners else brighterCorners
       val background = median(supporting)
       val threshold = (center + background) / 2
-      val ignoredCorners = BooleanArray(corners.size) { index ->
-        if (paperBrighter) center - corners[index] < MIN_CENTER_CORNER_CONTRAST
-        else corners[index] - center < MIN_CENTER_CORNER_CONTRAST
-      }
-
       val rowCounts = IntArray(height)
       val columnCounts = IntArray(width)
       val onPaper = BooleanArray(width * height)
@@ -83,6 +78,18 @@ internal object DocumentBoundaryEstimator {
 
       val horizontal = activeRun(columnCounts, height, width / 2) ?: return null
       val vertical = activeRun(rowCounts, width, height / 2) ?: return null
+      val ignoredCorners = BooleanArray(corners.size) { index ->
+        val polarityOutlier = if (paperBrighter) center - corners[index] < MIN_CENTER_CORNER_CONTRAST
+        else corners[index] - center < MIN_CENTER_CORNER_CONTRAST
+        val localizedOutsideMainRuns = when (index) {
+          0 -> horizontal.first >= cornerWidth / 2 && vertical.first >= cornerHeight / 2
+          1 -> horizontal.second <= width - cornerWidth / 2 && vertical.first >= cornerHeight / 2
+          2 -> horizontal.first >= cornerWidth / 2 && vertical.second <= height - cornerHeight / 2
+          else -> horizontal.second <= width - cornerWidth / 2 &&
+            vertical.second <= height - cornerHeight / 2
+        }
+        polarityOutlier && localizedOutsideMainRuns
+      }
       var left = horizontal.first
       var right = horizontal.second
       var top = vertical.first
