@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-13-79",
+  "state_version": "privacy-ocr-2026-08-13-80",
   "active_track": "serverless-gpu-ocr-benchmark",
-  "next_step_id": "surya-raw-fullframe-benchmark-worker-v1",
-  "next_step_summary": "Post-PR #224 Codex batch audit over merged work after b9527f046a0225c0e80f3f511e15b9a8b1eb0ea3 through eee02d32a85cf867ac84b2141e29d8f57a0fabe4 returned CORRECTIVE PR REQUIRED with no blocking findings. PR #225 closes only audit finding #1 by making the model-neutral worker contract implementation-complete for page ordering/correlation, exact result coverage, error envelopes, EXIF-normalized coordinate semantics, and transient raw-OCR benchmark evaluation. Audit findings #2 (Android session/cache atomicity) and #3 (stale cropped_grayscale TypeScript result contract) remain deferred because the raw-fullframe Surya benchmark does not use the Android preprocessing path; resolve them before that path is reused as an OCR input. After merge, implement surya-raw-fullframe-benchmark-worker-v1 using ordinary full-frame approved benchmark images after EXIF orientation normalization only, with no required deskew, crop, perspective correction, or grayscale preprocessing, and with no production Android upload, production provider authorization, PII pipeline, Gemini integration, or production data-flow claim.",
-  "last_recorded_pr": 225,
-  "last_recorded_change": "serverless-ocr-worker-contract-corrective-v1",
+  "next_step_id": "surya-raw-fullframe-gpu-execution-v1",
+  "next_step_summary": "PR #226 adds a bounded Surya 2 raw-fullframe benchmark worker against the clarified v1 contract. It pins surya-ocr 0.22.1 in a separate benchmark environment, accepts at most ten local image pages in explicit page order, validates encoded bytes, dimensions and pixels before OCR, applies only EXIF orientation normalization, runs full-page OCR in memory, validates full-frame geometry, confidence, ordering and output bounds, supports exact partial-failure page coverage, and persists only non-sensitive aggregate metrics. No deskew, crop, perspective correction, grayscale requirement, Android preprocessing handoff or production data flow is added. Repository validation uses an injected synthetic engine because Surya and its inference backend are not installed in the current environment. After merge, run surya-raw-fullframe-gpu-execution-v1 on approved GPU infrastructure with approved non-identifying full-frame benchmark pages and record Hebrew quality and layout, cold and warm latency, queue delay, GPU and VRAM behavior, OOM, billed seconds and cost, log hygiene, cleanup, regional and retention evidence, and whether image preprocessing is actually needed. Android audit findings #2 and #3 remain deferred until that Android path is reused as OCR input.",
+  "last_recorded_pr": 226,
+  "last_recorded_change": "surya-raw-fullframe-benchmark-worker-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-08-13"
