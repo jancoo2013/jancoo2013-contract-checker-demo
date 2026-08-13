@@ -1,14 +1,44 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-13, PR #223, `android-document-disable-physical-crop-v1`.
+Последнее обновление: 2026-08-13, PR #224, `serverless-gpu-ocr-worker-contract-v1`.
 
-Активный трек: `android-document-preprocessing`.
+Активный трек: `serverless-gpu-ocr-benchmark`.
 
-Следующий bounded-шаг после merge PR #223: `android-document-preprocess-device-smoke-v1`.
+Следующий bounded-шаг после merge PR #224: `surya-serverless-benchmark-worker-v1`.
 
 Этот документ вместе с `docs/OCR_PROJECT_STATE.json` является канонической operational-точкой восстановления privacy/OCR-проекта. Архитектурные документы задают обязательные границы, но текущий `next_step_id` выбирается только state-файлами.
 
-## Current change — PR #223 disable physical document crop
+## Current change — PR #224 model-neutral serverless OCR worker contract
+
+После merge PR #223 product owner отдельно пересмотрел ценность ещё одного Android preprocessing device smoke. Отдельный smoke сейчас сознательно пропускается: destructive crop удалён; применение grayscale уже наблюдалось на устройстве; малый deskew порядка единиц градусов практически не оценивается по текущему уменьшенному preview; а доступная реальная выборка фотографий договоров в целом снята достаточно ровно и не даёт полезного набора плохих кадров для дополнительного тюнинга.
+
+Это решение означает приоритизацию, а не утверждение о полной device-validation preprocessing. Трек может быть reopened при конкретном наблюдаемом дефекте, crash/OOM, потере содержимого, либо если OCR benchmark даст evidence, что входное preprocessing систематически ухудшает распознавание. Grayscale пока остаётся текущей implementation detail и не является отдельным вопросом оптимизации или A/B/C-исследования.
+
+PR #224 фиксирует model-neutral boundary перед первой GPU OCR реализацией:
+
+```text
+bounded OCR job
+→ candidate-specific worker adapter
+→ OCR engine
+→ validate candidate output
+→ normalize text/layout evidence
+→ bounded worker result
+```
+
+Границы PR #224:
+
+- добавляет `docs/SERVERLESS_OCR_WORKER_CONTRACT_V1.md` как benchmark-only contract;
+- определяет versioned job/page identifiers, bounded page metadata, text/block/line result shape, pixel-space bbox, confidence semantics, terminal statuses и non-sensitive benchmark metrics;
+- требует finite limits для encoded bytes, dimensions/pixels, page count, execution time, memory/VRAM where observable, output size, concurrency и retries;
+- raw image bytes и raw OCR text остаются restricted transient material и не могут попадать в logs/CI/artifacts;
+- repository benchmark fixtures могут быть только synthetic, public или owner-controlled redacted;
+- Surya остаётся первым benchmark candidate, но stable contract не содержит Surya/provider SDK types;
+- не добавляет Android upload, OCR engine implementation, network destination, provider SDK, queue/storage implementation, production auth/encryption/key management, PII pipeline, Gemini/legal analysis, dependencies, permissions или workflows;
+- future production processing по-прежнему подчиняется `SECURITY.md`: restricted material только в явно approved infrastructure physically located in Israel, без automatic cross-region fallback.
+
+Следующий bounded implementation после merge PR #224 — `surya-serverless-benchmark-worker-v1`: реализовать один Surya adapter/worker поверх этого контракта, задать конкретные benchmark resource limits, использовать только approved non-user fixtures и измерить Hebrew OCR/layout quality, cold/warm latency, multi-page behavior, GPU/VRAM, OOM, billed seconds и estimated cost. Это всё ещё benchmark, не production upload path.
+
+## Previous change — PR #223 disable physical document crop
 
 После нескольких concrete crop-дефектов product direction изменён: destructive crop больше не является частью production preprocessing. Ошибка boundary/crop detector не должна необратимо удалять край страницы, подпись, примечание или другое содержимое до OCR.
 
@@ -33,7 +63,7 @@ Runtime semantics после PR #223:
 - full-frame dimension/memory bounds сохраняются;
 - OCR recognition, upload/backend/provider, network, dependencies, permissions, workflows и privacy boundary не меняются.
 
-Следующий gate — `android-document-preprocess-device-smoke-v1`: на двух owner-controlled photographed contract sets проверить полное сохранение листа, accepted/rejected deskew behavior, grayscale, повторный выбор страниц без stale mixing и отсутствие crash/OOM. После успешного smoke сравнить Surya OCR на A) full frame as captured, B) full frame + deskew, C) full frame + deskew + grayscale; только после фактического результата решать вопрос grayscale и проектировать live capture-quality gate.
+После merge PR #223 отдельный `android-document-preprocess-device-smoke-v1` был сознательно снят с active next step решением product owner; rationale и reopen conditions записаны в PR #224 выше.
 
 Ниже crop-ориентированные записи PR #218–#222 сохраняются как историческое описание прежней реализации и не являются текущим production contract.
 
@@ -166,7 +196,7 @@ PR #218 намеренно реализует только первую поло
 - только полностью чистый candidate становится `accepted` и получает `safeCropBounds`;
 - uncertain cases остаются `rotation_only` / `full_frame_fallback`;
 - physical crop, new output artifact и grayscale final output в PR #218 ещё не выполняются;
-- perspective correction, новые angle thresholds/search range и дальнейший deskew tuning не входят в scope;
+- perspective correction, новые angle thresholds/search range и дальнейший standalone deskew tuning не входят в scope;
 - OCR recognition, network/backend/provider, dependencies, permissions, workflows и privacy boundary не меняются.
 
 PR #218 специально разделён до wiring physical transform: final `SafeCropEstimator.kt` занимает 259 implementation additions, а весь runtime/TypeScript diff — 263 additions, поэтому bundling physical crop + grayscale + UI вывел бы PR за target <=300 additions. Следующий bounded PR `android-document-preprocess-physical-crop-grayscale-v1` должен structurally validate accepted in-process crop evidence, conservatively map preview bounds to oriented full resolution, output grayscale cropped image only when fully accepted, otherwise output grayscale full-frame fallback, и показать именно этот final prepared image в development UI.
@@ -432,48 +462,31 @@ Owner-requested bounded audit over Android geometry PR #211–#215:
 
 A separate automatic post-merge Codex review then found the preview snapshot P2; PR #216 is the bounded corrective for that concrete integration issue.
 
-### Current gate — prepared-document device smoke
+### Current preprocessing status — explicit product-owner prioritization
 
-`android-document-preprocess-device-smoke-v1`
+`android-document-preprocess-device-smoke-v1` is not the active next step after PR #223.
 
-Use the development preprocessing UI on the available Android device and the two owner-controlled actually photographed/prepared contract sets.
+Product owner explicitly chose not to spend another iteration on a low-information manual phone smoke at this point. Existing device evidence already established that grayscale is applied and that small accepted deskew can execute; destructive crop has now been removed entirely. The available contract-photo sample is generally well captured, so searching for artificial bad cases is not an MVP priority.
 
-PR #223 changes the regression target: crop quality is no longer under test because runtime physical crop is disabled. The smoke must verify that no source edge, signature, note, header/footer or other page content disappears.
+This does not certify all Android devices or all capture conditions. Reopen preprocessing only on concrete evidence such as content loss, wrong orientation/deskew, crash/OOM, stale-page mixing, or OCR benchmark evidence pointing to a systematic preprocessing defect.
 
-For each tested page inspect:
+Grayscale remains in the current runtime path but is not an active optimization topic. No separate grayscale size/quality A/B test is required before the OCR benchmark.
 
-- final artifact is visibly grayscale;
-- `accepted`/`rotation_only` results use `deskewed_full_frame_grayscale`, apply the accepted deskew, preserve the complete oriented source frame on the expanded canvas and report `cropBoxSource = null`;
-- `full_frame_grayscale_fallback` preserves the complete oriented frame at 0° and reports `cropBoxSource = null`;
-- no prepared result returns `cropped_grayscale`;
-- output dimensions/rotation metadata are internally plausible;
-- repeated `Select another photo` use does not mix pages or stale outputs;
-- no crash/OOM or severe device-memory failure occurs.
+## 3. Current product block — serverless GPU OCR benchmark
 
-Do not turn this into a renewed deskew or crop-tuning campaign. A geometry correction is justified only by concrete evidence satisfying the frozen reopen contract.
+The approved serverless benchmark is now active.
 
-If this smoke passes, run the bounded Surya preprocessing comparison on the approved owner-controlled inputs:
+PR #224 first defines `docs/SERVERLESS_OCR_WORKER_CONTRACT_V1.md`, a model-neutral benchmark contract separating the stable job/result shape from Surya and from any provider SDK. This PR itself performs no OCR and adds no network destination.
 
-```text
-A. full frame as captured
-B. full frame + deskew
-C. full frame + deskew + grayscale
-```
+After merge PR #224, `surya-serverless-benchmark-worker-v1` must:
 
-Use that result to decide whether grayscale remains useful and only then design the live capture-quality advisory layer. The separate serverless GPU OCR viability work remains approved; this A/B/C comparison is the immediate evidence step after the device smoke.
-
-## 3. Deferred next product block — `serverless-gpu-ocr-viability-benchmark-v1`
-
-The serverless benchmark remains approved but is temporarily deferred until the Android preprocessing gate above is completed.
-
-When resumed, the benchmark must:
-
-1. use one OCR candidate through a model-neutral worker contract;
-2. use only synthetic, public or owner-controlled redacted repository test material;
-3. measure Hebrew text/layout quality, cold start, warm execution, queue delay, multi-page latency, GPU/VRAM, OOM behavior, billed seconds and estimated cost;
-4. verify absence of raw page content/raw OCR text in logs and retained metadata;
-5. preserve scale-to-zero and bounded queue execution;
-6. not add production Android upload, production encryption/key management, production PII masks, Gemini/legal-analysis calls, permanent storage or real-user-data claims.
+1. implement one Surya adapter/worker against the model-neutral contract;
+2. use only synthetic, public, or owner-controlled redacted repository test material;
+3. define finite input/output/resource/time/concurrency/retry limits before execution;
+4. measure Hebrew text/layout quality, cold start, warm execution, queue delay, one-page and multi-page latency, GPU/VRAM, OOM behavior, billed seconds and estimated cost;
+5. verify absence of raw page content/raw OCR text in logs and retained metadata;
+6. preserve scale-to-zero and bounded queue execution;
+7. not add production Android upload, production encryption/key management, production PII masks, Gemini/legal-analysis calls, permanent storage or real-user-data claims.
 
 Surya remains the first benchmark candidate, not a production commitment.
 
@@ -481,7 +494,7 @@ Surya remains the first benchmark candidate, not a production commitment.
 
 ```text
 raw phone photos
-→ client-side capture-quality checks and preprocessing (orientation / conservative deskew / full-frame preservation / grayscale pending OCR evidence)
+→ client-side capture-quality checks and preprocessing (orientation / conservative deskew / full-frame preservation / current grayscale output)
 → encryption
 → bounded asynchronous serverless job
 → GPU worker decrypts in volatile memory
@@ -518,7 +531,7 @@ Original images, raw OCR and PII-bearing payload may enter only explicitly appro
 
 Raw images/raw OCR are prohibited in Gemini, general OCR/LLM APIs, logs, analytics, crash reports, GitHub, CI, Airtable and unrelated services. Only sanitized derivatives may proceed to legal analysis.
 
-The Android preprocessing validation sequence is stricter: selected real photos remain local to the device. It adds no network destination and must not log/export page contents.
+Any future Android preprocessing validation using real selected photos remains local to the device and must not log/export page contents. A separate phone smoke is not currently required by the canonical next step.
 
 Production remains blocked until consent, authentication, authorization, key lifecycle, Israel-only provider behavior, retention/deletion, log scrubbing, cleanup, backup lifecycle, legal review, abuse controls and incident response are implemented и verified.
 
@@ -545,6 +558,6 @@ Last targeted Android geometry audit: owner-requested audit over PR #211–#215 
 
 Frozen Python geometry code baseline: `7fe4bc88df2427ea90442f7b074c3cfe4e0de33a`.
 
-Current PR: #223 `android-document-disable-physical-crop-v1`.
+Current PR: #224 `serverless-gpu-ocr-worker-contract-v1`.
 
-Next step after merge PR #223: `android-document-preprocess-device-smoke-v1`.
+Next step after merge PR #224: `surya-serverless-benchmark-worker-v1`.
