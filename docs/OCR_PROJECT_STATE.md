@@ -1,14 +1,43 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-12, PR #221, `android-document-boundary-crop-corrective-v1`.
+Последнее обновление: 2026-08-13, PR #223, `android-document-disable-physical-crop-v1`.
 
 Активный трек: `android-document-preprocessing`.
 
-Следующий bounded-шаг после merge PR #221: `android-document-preprocess-device-smoke-v1`.
+Следующий bounded-шаг после merge PR #223: `android-document-preprocess-device-smoke-v1`.
 
 Этот документ вместе с `docs/OCR_PROJECT_STATE.json` является канонической operational-точкой восстановления privacy/OCR-проекта. Архитектурные документы задают обязательные границы, но текущий `next_step_id` выбирается только state-файлами.
 
-## Current change — PR #221 physical document-boundary crop corrective
+## Current change — PR #223 disable physical document crop
+
+После нескольких concrete crop-дефектов product direction изменён: destructive crop больше не является частью production preprocessing. Ошибка boundary/crop detector не должна необратимо удалять край страницы, подпись, примечание или другое содержимое до OCR.
+
+PR #223 меняет только финальный Android prepared-document consumer и binding architecture wording:
+
+```text
+local photo
+→ bounded orientation / geometry evidence
+→ accepted deskew when sufficiently trusted
+→ full-frame preservation
+→ grayscale (пока сохраняется)
+→ OCR handoff later
+```
+
+Runtime semantics после PR #223:
+
+- `accepted` и `rotation_only` больше не выполняют physical crop и возвращают `deskewed_full_frame_grayscale`;
+- accepted deskew рендерится на expanded white canvas, чтобы сохранить полный oriented source frame;
+- `full_frame_fallback` остаётся 0° и возвращает `full_frame_grayscale_fallback`;
+- `cropBoxSource` во всех prepared results равен `null`;
+- producer-generated `safeCropBounds`, content-region и document-boundary evidence могут сохраняться для диагностики/advisory capture-quality, но не имеют права удалять source pixels;
+- full-frame dimension/memory bounds сохраняются;
+- OCR recognition, upload/backend/provider, network, dependencies, permissions, workflows и privacy boundary не меняются.
+
+Следующий gate — `android-document-preprocess-device-smoke-v1`: на двух owner-controlled photographed contract sets проверить полное сохранение листа, accepted/rejected deskew behavior, grayscale, повторный выбор страниц без stale mixing и отсутствие crash/OOM. После успешного smoke сравнить Surya OCR на A) full frame as captured, B) full frame + deskew, C) full frame + deskew + grayscale; только после фактического результата решать вопрос grayscale и проектировать live capture-quality gate.
+
+Ниже crop-ориентированные записи PR #218–#222 сохраняются как историческое описание прежней реализации и не являются текущим production contract.
+
+## Previous change — PR #221 physical document-boundary crop corrective
 
 Post-#220 real-device smoke подтвердил две части preprocessing на конкретной реально сфотографированной странице: grayscale появился, а accepted deskew около 1° реально применился. При этом crop снова не сработал вообще, хотя product owner визуально оценил внешний фон примерно в 15% кадра. Upstream text/content path оставался `rotation_only` из-за `content_touches_frame`, поэтому полезная обрезка физического листа не была разрешена.
 
@@ -146,7 +175,7 @@ PR #218 специально разделён до wiring physical transform: fi
 
 ## 0.1. Изменение PR #217 — Android geometry validation UI controls
 
-Во время первого реального device smoke уже готового Android geometry path product owner обнаружил две практические проблемы validation harness: встроенные изображения слишком малы для оценки краёв/наклона, а повторная проверка следующей страницы неудобна без явных controls рядом с результатом.
+Во время первого реального device smoke уже готового Android geometry path product owner обнаружил две практические проблемы validation harness: встроенные изображения слишком малы для оценки крабв/наклона, а повторная проверка следующей страницы неудобна без явных controls рядом с результатом.
 
 PR #217 меняет только development validation UI:
 
@@ -382,6 +411,15 @@ The code-level freeze remains valid while Android preprocessing is ported. Andro
 - successful recovery returns existing `cropped_grayscale`; uncertainty preserves PR #220 `deskewed_full_frame_grayscale`;
 - does not change normal SafeCropEstimator acceptance or any external data flow.
 
+`android-document-disable-physical-crop-v1` — PR #223
+
+- removes both the PR #221 boundary-recovery crop consumer and the older fully accepted SafeCrop physical crop consumer from `PreparedDocumentTransform`;
+- keeps structural validation of upstream geometry evidence but does not use crop coordinates to mutate the image;
+- routes `accepted` and `rotation_only` to expanded full-frame grayscale deskew with `cropBoxSource = null`;
+- keeps rejected/uncertain deskew at 0° full-frame grayscale with `cropBoxSource = null`;
+- leaves crop/boundary estimators available only as non-destructive advisory evidence;
+- changes no OCR/network/provider/dependency/permission/workflow behavior.
+
 ### Audit status
 
 Owner-requested bounded audit over Android geometry PR #211–#215:
@@ -400,21 +438,29 @@ A separate automatic post-merge Codex review then found the preview snapshot P2;
 
 Use the development preprocessing UI on the available Android device and the two owner-controlled actually photographed/prepared contract sets.
 
-First regression check after PR #221: rerun the same page that already confirmed grayscale + accepted ~1° deskew but failed crop despite roughly 15% outside-page background. The preferred result is `cropped_grayscale` with `cropBoxSource != null`, visible removal of external background, preserved page edges/content and the accepted rotation still applied. If physical boundary evidence is not strong enough, the only acceptable fallback remains `deskewed_full_frame_grayscale`; do not force a crop.
+PR #223 changes the regression target: crop quality is no longer under test because runtime physical crop is disabled. The smoke must verify that no source edge, signature, note, header/footer or other page content disappears.
 
 For each tested page inspect:
 
 - final artifact is visibly grayscale;
-- `cropped_grayscale` removes only surrounding non-document area and preserves meaningful header/footer/edge/signature content;
-- `deskewed_full_frame_grayscale` applies accepted deskew without crop and preserves the complete source frame;
-- `full_frame_grayscale_fallback` preserves the complete oriented frame at 0° and reports no crop box;
-- output dimensions/crop metadata are internally plausible;
+- `accepted`/`rotation_only` results use `deskewed_full_frame_grayscale`, apply the accepted deskew, preserve the complete oriented source frame on the expanded canvas and report `cropBoxSource = null`;
+- `full_frame_grayscale_fallback` preserves the complete oriented frame at 0° and reports `cropBoxSource = null`;
+- no prepared result returns `cropped_grayscale`;
+- output dimensions/rotation metadata are internally plausible;
 - repeated `Select another photo` use does not mix pages or stale outputs;
 - no crash/OOM or severe device-memory failure occurs.
 
-Do not turn this into a renewed deskew campaign. A geometry correction is justified only by concrete evidence satisfying the frozen reopen contract.
+Do not turn this into a renewed deskew or crop-tuning campaign. A geometry correction is justified only by concrete evidence satisfying the frozen reopen contract.
 
-If this smoke passes without another concrete in-contract preprocessing defect, the next product block returns to `serverless-gpu-ocr-viability-benchmark-v1`.
+If this smoke passes, run the bounded Surya preprocessing comparison on the approved owner-controlled inputs:
+
+```text
+A. full frame as captured
+B. full frame + deskew
+C. full frame + deskew + grayscale
+```
+
+Use that result to decide whether grayscale remains useful and only then design the live capture-quality advisory layer. The separate serverless GPU OCR viability work remains approved; this A/B/C comparison is the immediate evidence step after the device smoke.
 
 ## 3. Deferred next product block — `serverless-gpu-ocr-viability-benchmark-v1`
 
@@ -435,7 +481,7 @@ Surya remains the first benchmark candidate, not a production commitment.
 
 ```text
 raw phone photos
-→ client-side capture-quality checks and preprocessing (orientation / conservative crop / grayscale)
+→ client-side capture-quality checks and preprocessing (orientation / conservative deskew / full-frame preservation / grayscale pending OCR evidence)
 → encryption
 → bounded asynchronous serverless job
 → GPU worker decrypts in volatile memory
@@ -499,6 +545,6 @@ Last targeted Android geometry audit: owner-requested audit over PR #211–#215 
 
 Frozen Python geometry code baseline: `7fe4bc88df2427ea90442f7b074c3cfe4e0de33a`.
 
-Current PR: #221 `android-document-boundary-crop-corrective-v1`.
+Current PR: #223 `android-document-disable-physical-crop-v1`.
 
-Next step after merge PR #221: `android-document-preprocess-device-smoke-v1`.
+Next step after merge PR #223: `android-document-preprocess-device-smoke-v1`.
