@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-13-77",
-  "active_track": "android-document-preprocessing",
-  "next_step_id": "android-document-preprocess-device-smoke-v1",
-  "next_step_summary": "PR #223 records the approved full-frame preprocessing change. The prepared-document runtime preserves the complete source frame and no longer removes edge pixels. After merge, run android-document-preprocess-device-smoke-v1 to verify full-frame preservation, accepted and rejected deskew behavior, grayscale output, repeated-page isolation, and crash/OOM behavior. If smoke passes, compare the three approved full-frame preprocessing variants before designing the live capture-quality gate.",
-  "last_recorded_pr": 223,
-  "last_recorded_change": "android-document-disable-physical-crop-v1",
+  "state_version": "privacy-ocr-2026-08-13-78",
+  "active_track": "serverless-gpu-ocr-benchmark",
+  "next_step_id": "surya-serverless-benchmark-worker-v1",
+  "next_step_summary": "PR #224 defines the model-neutral bounded OCR worker contract before any Surya or provider implementation. The product owner explicitly skips a separate Android preprocessing device-smoke at this point: destructive crop is removed, grayscale application was already observed, small deskew is not meaningfully judgeable in the current reduced preview, and the available real contract-photo sample is generally well captured. This is a prioritization decision, not a claim of exhaustive device validation; concrete preprocessing defects can reopen that track. Grayscale remains a current implementation detail and is not an active optimization question. The worker contract treats raw OCR text/layout as a transient internal result, defines explicit job/page failure semantics including partial failure, and forbids treating raw OCR as a retained provider/client result. After merge, implement surya-serverless-benchmark-worker-v1 against the contract using only synthetic, public, or owner-controlled redacted benchmark material, with bounded resources and no Android upload, production provider authorization, PII pipeline, Gemini integration, or production data-flow claim.",
+  "last_recorded_pr": 224,
+  "last_recorded_change": "serverless-gpu-ocr-worker-contract-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-08-13"
