@@ -574,7 +574,7 @@ The canonical current privacy/OCR step is selected only by `docs/OCR_PROJECT_STA
 
 For the active image track, the current planned order is:
 
-1. Complete bounded client-side document geometry normalization (orientation, text-geometry analysis, fail-safe deskew/crop) and audit that block as a unit.
+1. Complete bounded client-side document geometry normalization (orientation, text-geometry analysis, conservative deskew with full-frame preservation; no destructive runtime crop) and audit that block as a unit.
 2. Run the serverless GPU OCR viability benchmark using only synthetic/redacted pages.
 3. Make the candidate quality, geometry, latency, VRAM, and cost decision.
 4. Define the bounded encrypted job-envelope and cleanup contract.
@@ -582,6 +582,8 @@ For the active image track, the current planned order is:
 6. Produce sanitized evidence blocks.
 7. Integrate LLM risk analysis and report generation.
 8. Add production consent, legal, provider, Israel-region, authorization, retention, and incident controls.
+
+Document-boundary and crop estimators may remain as advisory capture-quality evidence, but production preprocessing must not physically remove source pixels before OCR unless a later explicitly approved architecture change reintroduces destructive crop.
 
 The serverless benchmark must not be treated as production deployment, and completing the client-side geometry block does not authorize upload, OCR, PII processing, or provider integration.
 
