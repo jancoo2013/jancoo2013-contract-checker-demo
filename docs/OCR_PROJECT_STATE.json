@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-12-76",
+  "state_version": "privacy-ocr-2026-08-13-77",
   "active_track": "android-document-preprocessing",
   "next_step_id": "android-document-preprocess-device-smoke-v1",
-  "next_step_summary": "PR #221 is a bounded corrective found during the post-#220 device smoke: grayscale and accepted 1-degree deskew worked, but crop still failed on a page with roughly 15% obvious outside-page background because the text-content path returned rotation_only with content_touches_frame. The prepared-image consumer now attempts a separate physical document-boundary crop only for that exact narrow state. Boundary evidence is derived from a <=900-long-side local analysis bitmap using center-versus-corner luminance contrast, row/column paper occupancy, conservative padding, minimum removable area, the existing deskew matrix, and dominant-line containment; any uncertainty preserves the PR #220 deskewed full-frame fallback. Existing accepted safe-crop behavior, angle thresholds, ContentRegionEstimator, SafeCropEstimator, perspective behavior, OCR/network/provider/dependency/permission/workflow behavior and privacy boundary are unchanged. Continue android-document-preprocess-device-smoke-v1 by rerunning the same photographed regression page and verifying that useful outside background is removed without losing page content; then continue the two owner-controlled contract sets if the result is correct.",
-  "last_recorded_pr": 221,
-  "last_recorded_change": "android-document-boundary-crop-corrective-v1",
+  "next_step_summary": "PR #223 records the approved full-frame preprocessing change. The prepared-document runtime preserves the complete source frame and no longer removes edge pixels. After merge, run android-document-preprocess-device-smoke-v1 to verify full-frame preservation, accepted and rejected deskew behavior, grayscale output, repeated-page isolation, and crash/OOM behavior. If smoke passes, compare the three approved full-frame preprocessing variants before designing the live capture-quality gate.",
+  "last_recorded_pr": 223,
+  "last_recorded_change": "android-document-disable-physical-crop-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
-  "updated_on": "2026-08-12"
+  "updated_on": "2026-08-13"
 }
