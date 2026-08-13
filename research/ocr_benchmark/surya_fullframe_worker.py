@@ -26,6 +26,7 @@ MAX_PAGE_TEXT_CHARS = 2_000_000
 MAX_BLOCK_TEXT_CHARS = 200_000
 INFERENCE_TIMEOUT_SECONDS = 600.0
 STARTUP_TIMEOUT_SECONDS = 600.0
+_EXIF_ORIENTATION_TAG = 274
 
 
 class OCREngine(Protocol):
@@ -57,6 +58,8 @@ class PageInput:
     page_index: int
     path: Path
     byte_length: int
+    width_px: int
+    height_px: int
 
 
 class WorkerError(RuntimeError):
@@ -77,10 +80,21 @@ def _dimensions_ok(width: int, height: int) -> bool:
     return width > 0 and height > 0 and max(width, height) <= MAX_LONG_SIDE and width * height <= MAX_PAGE_PIXELS
 
 
+def _oriented_dimensions(source: Image.Image) -> tuple[int, int]:
+    width, height = source.size
+    if not _dimensions_ok(width, height):
+        raise WorkerError("rejected_input", "RESOURCE_LIMIT", "decoded benchmark page exceeds dimension limit")
+    orientation = source.getexif().get(_EXIF_ORIENTATION_TAG, 1)
+    if isinstance(orientation, bool) or not isinstance(orientation, int) or orientation not in range(1, 9):
+        raise WorkerError("rejected_input", "INVALID_IMAGE", "benchmark image has unsupported EXIF orientation")
+    return (height, width) if orientation in {5, 6, 7, 8} else (width, height)
+
+
 def _request_pages(paths: Sequence[Path]) -> list[PageInput]:
     if not 1 <= len(paths) <= MAX_PAGES:
         raise WorkerError("rejected_input", "RESOURCE_LIMIT", "benchmark page count is outside the allowed range")
-    pages, total_bytes = [], 0
+    pages: list[PageInput] = []
+    total_bytes = total_pixels = 0
     for index, path in enumerate(paths):
         if not path.is_file() or path.suffix.lower() not in SUPPORTED_SUFFIXES:
             raise WorkerError("rejected_input", "UNSUPPORTED_INPUT", "unsupported or missing benchmark image")
@@ -88,7 +102,20 @@ def _request_pages(paths: Sequence[Path]) -> list[PageInput]:
         total_bytes += size
         if size <= 0 or size > MAX_PAGE_BYTES or total_bytes > MAX_JOB_BYTES:
             raise WorkerError("rejected_input", "RESOURCE_LIMIT", "benchmark input exceeds encoded-size limit")
-        pages.append(PageInput(f"p{index:04d}", index, path, size))
+        try:
+            with Image.open(path) as source:
+                width, height = _oriented_dimensions(source)
+                source.verify()
+        except WorkerError:
+            raise
+        except Exception as exc:
+            raise WorkerError("rejected_input", "INVALID_IMAGE", "benchmark image could not be validated safely") from exc
+        if not _dimensions_ok(width, height):
+            raise WorkerError("rejected_input", "RESOURCE_LIMIT", "oriented benchmark page exceeds dimension limit")
+        total_pixels += width * height
+        if total_pixels > MAX_JOB_PIXELS:
+            raise WorkerError("rejected_input", "RESOURCE_LIMIT", "decoded benchmark job exceeds pixel limit")
+        pages.append(PageInput(f"p{index:04d}", index, path, size, width, height))
     return pages
 
 
@@ -111,7 +138,8 @@ def _confidence(value: Any) -> float | None:
     return float(value)
 
 
-def _normalize_prediction(page: PageInput, prediction: Any, width: int, height: int) -> dict[str, Any]:
+def _normalize_prediction(page: PageInput, prediction: Any) -> dict[str, Any]:
+    width, height = page.width_px, page.height_px
     if list(_get(prediction, "image_bbox", [])) != [0, 0, width, height]:
         raise WorkerError("internal_error", "MALFORMED_ENGINE_OUTPUT", "OCR engine coordinate space does not match full frame")
     raw_blocks = _get(prediction, "blocks")
@@ -141,11 +169,10 @@ def _normalize_prediction(page: PageInput, prediction: Any, width: int, height: 
     }
 
 
-def _failed_page(page: PageInput, status: str, code: str, message: str, dimensions: tuple[int, int] | None) -> dict[str, Any]:
+def _failed_page(page: PageInput, status: str, code: str, message: str) -> dict[str, Any]:
     return {
         "page_id": page.page_id, "page_index": page.page_index, "status": status, "error": _error(code, message),
-        "width_px": dimensions[0] if dimensions else None, "height_px": dimensions[1] if dimensions else None,
-        "text": None, "blocks": [],
+        "width_px": page.width_px, "height_px": page.height_px, "text": None, "blocks": [],
     }
 
 
@@ -172,37 +199,29 @@ def run_surya_fullframe_job(paths: Sequence[Path], *, engine: OCREngine | None =
         try:
             engine = SuryaEngine()
         except Exception:
-            pages = [_failed_page(p, "internal_error", "ENGINE_UNAVAILABLE", "OCR engine could not be initialized", None) for p in request_pages]
+            pages = [_failed_page(p, "internal_error", "ENGINE_UNAVAILABLE", "OCR engine could not be initialized") for p in request_pages]
             return {"contract_version": 1, "job_id": job_id, "status": "internal_error", "error": _error("ENGINE_UNAVAILABLE", "OCR engine could not be initialized"), "pages": pages, "metrics": {"worker_ms": round((time.perf_counter() - started) * 1000), "ocr_ms": 0, "peak_vram_mb": None}}
 
-    results, total_pixels, ocr_ms = [], 0, 0
+    results, ocr_ms = [], 0
     for page in request_pages:
-        dimensions = None
         try:
             with Image.open(page.path) as source:
-                if not _dimensions_ok(*source.size):
-                    raise WorkerError("resource_limit", "RESOURCE_LIMIT", "decoded benchmark page exceeds dimension limit")
                 oriented = ImageOps.exif_transpose(source)
                 try:
-                    width, height = oriented.size
-                    dimensions = (width, height)
-                    if not _dimensions_ok(width, height):
-                        raise WorkerError("resource_limit", "RESOURCE_LIMIT", "oriented benchmark page exceeds dimension limit")
-                    total_pixels += width * height
-                    if total_pixels > MAX_JOB_PIXELS:
-                        raise WorkerError("resource_limit", "RESOURCE_LIMIT", "decoded benchmark job exceeds pixel limit")
+                    if oriented.size != (page.width_px, page.height_px):
+                        raise WorkerError("internal_error", "INPUT_CHANGED", "benchmark image changed after input validation")
                     oriented.load()
                     ocr_started = time.perf_counter()
                     prediction = engine.predict(oriented)
                     ocr_ms += round((time.perf_counter() - ocr_started) * 1000)
-                    results.append(_normalize_prediction(page, prediction, width, height))
+                    results.append(_normalize_prediction(page, prediction))
                 finally:
                     if oriented is not source:
                         oriented.close()
         except WorkerError as exc:
-            results.append(_failed_page(page, exc.status, exc.code, exc.message, dimensions))
+            results.append(_failed_page(page, exc.status, exc.code, exc.message))
         except Exception:
-            results.append(_failed_page(page, "ocr_failed", "OCR_FAILED", "OCR engine failed for this page", dimensions))
+            results.append(_failed_page(page, "ocr_failed", "OCR_FAILED", "OCR engine failed for this page"))
     status, job_error = _job_status(results)
     return {
         "contract_version": 1, "job_id": job_id, "status": status, "error": job_error, "pages": results,
