@@ -51,26 +51,30 @@ The product owner explicitly selected encrypted on-demand serverless GPU OCR as 
 
 ```text
 raw phone photos
-→ client-side normalization and encryption
+→ minimal client-side normalization and encryption
 → bounded asynchronous serverless job
 → GPU worker decrypts in volatile memory
-→ full-page Hebrew OCR and layout extraction
-→ server-side PII detection and irreversible image/text redaction
+→ full-page Hebrew OCR/layout as transient localization evidence
+→ server-side PII detection + party/field role association
+→ irreversible pixel removal + stable semantic placeholder rendering
 → privacy validation
-→ anonymized derivative and numbered evidence blocks
-→ structured LLM risk extraction
-→ Python validation
-→ completeness audit
+→ sanitized full-page image derivative
+→ approved multimodal LLM risk extraction from the sanitized images
+→ Python validation / completeness audit
 → three user-facing report cards
 → detailed “Разбор по пунктам”
 → deletion of raw and transient job material
 ```
 
+The PII/OCR block is not a product goal of its own and is not required to produce a perfect full-contract transcript. Its primary purpose is to identify every sensitive region needed for privacy, determine a stable party/field role where safely possible, irreversibly remove the original sensitive pixels, and preserve enough semantic structure for downstream analysis.
+
+The privacy-validated sanitized page images are the primary downstream representation of the contract. Raw OCR JSON/text remains restricted transient worker state and is not the canonical payload for the legal-analysis model. Sanitized structured text or evidence blocks may still be derived after the privacy pass for deterministic checks, citations, or report support.
+
 The former absolute rule that raw photos must never leave the device is superseded for this consent-based serverless processing mode.
 
 This does not authorize raw contract material to be sent to Gemini, Google Vision, general LLM APIs, analytics, logs, GitHub, CI, Airtable, or unrelated services. The approved serverless worker is the only remote component allowed to process raw page images and raw OCR text.
 
-The paused on-device visual PII detector remains a possible future auxiliary or fallback layer, not the active next step.
+The paused on-device visual PII detector remains a possible future auxiliary or fallback layer, not the active next step. Surya remains on the serverless-GPU track; this architecture does not move Surya onto the phone.
 
 The existing project-owned recognizer, CTC, synthetic-data, Gold, and CER work remains paused research. Tesseract must not be restored as an active fallback.
 
@@ -125,11 +129,12 @@ Production target pipeline:
 raw image/document
 → client-side encryption
 → serverless GPU OCR/layout
-→ PII detection and irreversible image/text redaction
+→ PII detection + role association
+→ irreversible sensitive-pixel replacement + semantic placeholders
 → privacy validation
-→ anonymized derivative
-→ numbered evidence blocks
-→ approved LLM audit
+→ sanitized full-page image derivative
+→ approved multimodal LLM audit
+→ optional sanitized structured evidence for deterministic validation/citations
 → Russian report
 → cleanup of raw job material
 ```
@@ -147,7 +152,7 @@ Before public release, the product must define and verify:
 - cleanup after success, failure, timeout, and cancellation;
 - incident response.
 
-Only sanitized image/text derivatives may proceed to Gemini or another legal-analysis model.
+Only sanitized image/text derivatives may proceed to Gemini or another legal-analysis model. The sanitized image pages are the primary downstream artifact; raw OCR text/layout never leaves the trusted processing boundary.
 
 PII includes at least:
 
@@ -174,9 +179,28 @@ Do not require a mask on every page. The privacy layer should preserve legally r
 
 The anonymized derivative must not preserve recoverable pixels in alpha channels, hidden layers, reversible overlays, metadata, caches, or debug artifacts.
 
+### Semantic PII replacement
+
+The exported sanitized page should preserve known participant/field roles instead of replacing every sensitive value with an unlabeled blank rectangle.
+
+Examples:
+
+```text
+real landlord name  → [АРЕНДОДАТЕЛЬ]
+first tenant name   → [АРЕНДАТОР 1]
+second tenant name  → [АРЕНДАТОР 2]
+guarantor name      → [ПОРУЧИТЕЛЬ 1]
+tenant ID value     → [ID АРЕНДАТОРА 1]
+tenant phone        → [ТЕЛЕФОН АРЕНДАТОРА 1]
+```
+
+The original pixels must be removed irreversibly before placeholder text is rendered. The same person must keep the same semantic marker across all pages of one contract. A marker must never encode a recoverable part of the original value. If the region is clearly sensitive but the role cannot be established safely, use a generic safe placeholder or block downstream handoff when complete coverage itself is uncertain.
+
+Development inspection may use semi-transparent overlays to check coverage. Any image that can leave the trusted worker must contain opaque irreversible replacement underneath the semantic marker.
+
 ## 6. Active MVP OCR and PII Sanitization
 
-The active OCR worker must return usable Hebrew text plus line/block geometry. OCR output alone is not a privacy pass.
+The active OCR worker must return usable Hebrew/layout evidence sufficient for PII localization and document structure. OCR output alone is not a privacy pass, and exact transcription of every legal word or punctuation mark is not the primary objective of this block.
 
 The server-side sanitization layer should identify at least:
 
@@ -221,6 +245,8 @@ Risk-relevant content includes, for example:
 
 Do not blindly redact a full page because one PII-like label appears. Prefer row/field/region-level masking with conservative expansion around sensitive values.
 
+Exact handwriting recognition is not required when the system can safely identify the sensitive handwritten/signature region and remove it completely. For privacy, complete PII-region coverage has higher priority than perfect transcription of the sensitive value.
+
 ### Evidence rule for automatic sanitization
 
 Page position, page number, alignment, short-line geometry, handwriting appearance, or digit presence are weak context only. None may independently authorize a production mask.
@@ -234,41 +260,42 @@ Primary privacy metrics remain:
 - PII-region recall;
 - complete mask coverage;
 - missed-sensitive-area rate;
+- correct/stable semantic role replacement where the role is known;
 - page/contract-level privacy pass rate;
 - over-redaction of legally relevant content.
 
+A spelling or punctuation error in non-PII OCR is not a privacy failure by itself. A missed sensitive region is.
+
 ## 7. Evidence and Citation Architecture
+
+The downstream multimodal model reads the privacy-validated sanitized page images directly. It must never receive the raw pages or raw OCR output.
 
 Do not rely on the LLM to copy exact Hebrew quotes.
 
 Reason: LLMs may paraphrase, normalize spelling, alter spaces, omit particles, or slightly rewrite text. Strict string matching would reject valid answers, while loose quote matching can accept wrong evidence.
 
-Canonical decision:
+Canonical decisions:
 
 ```text
-The model must not generate contract quotes.
+The model must not generate contract quotes as evidence.
+The primary LLM input is the privacy-validated sanitized page image set.
+Raw OCR JSON/text is not an external handoff artifact.
 ```
 
-Instead:
+When deterministic source citation is required, a post-privacy evidence layer may create stable numbered references tied to sanitized page/image regions and/or sanitized text derived from those regions. Example IDs may remain:
 
-1. The OCR layer splits sanitized contract text into numbered evidence blocks.
-2. Each block receives a stable ID, for example:
-   - `P1-B03`
-   - `P2-B07`
-3. Gemini receives numbered sanitized blocks.
-4. Gemini returns structured JSON with `evidence_block_ids`.
-5. Python validates that the IDs exist.
-6. Python retrieves the exact sanitized Hebrew source text if needed.
-7. The user sees a Russian explanation by default.
-8. The Hebrew original is available only behind an optional expander such as `Показать оригинал на иврите`.
+- `P1-B03`
+- `P2-B07`
+
+The exact evidence representation is a later bounded contract. It must preserve the ability for Python to validate that cited evidence exists and for the UI to show the corresponding sanitized source without reconstructing raw PII.
 
 Core rule:
 
 ```text
-Model does not quote.
-Code stores the source.
+Model analyzes sanitized images.
+Code validates structured findings and evidence references.
 User sees the explanation.
-Original Hebrew is available on demand.
+Any Hebrew source shown to the user comes from the sanitized source artifact, not a model-generated quote.
 ```
 
 Fuzzy matching can be used only as fallback/debugging, not as the main verification method.
@@ -277,7 +304,7 @@ Embeddings are not part of MVP evidence validation. Semantic similarity is not l
 
 ## 8. LLM/Python Responsibility Split
 
-The LLM should extract structured findings from sanitized evidence blocks.
+The multimodal LLM should extract structured findings from privacy-validated sanitized page images and, when available, sanitized deterministic evidence references.
 
 Python should validate and decide what is shown.
 
@@ -289,19 +316,18 @@ The LLM should return fields such as:
 - questions to ask;
 - suggested Hebrew message if useful;
 - confidence;
-- evidence block IDs.
+- evidence references when the bounded evidence layer is available.
 
 Python should validate:
 
 - JSON schema;
-- evidence IDs exist;
+- evidence references exist when required;
 - risk has required evidence;
-- source blocks are not empty;
 - completeness rules;
 - marker checks where applicable;
 - aggregation into report cards.
 
-The model is not the source of truth. The sanitized uploaded contract text/images and deterministic evidence mapping are the source of truth.
+The model is not the source of truth. The privacy-validated sanitized contract images and deterministic evidence mapping are the source of truth.
 
 ## 9. Completeness Audit
 
@@ -440,9 +466,9 @@ It should show:
 - practical consequence;
 - questions to ask;
 - suggested Hebrew message if useful;
-- evidence block IDs;
+- evidence references when available;
 - confidence;
-- optional Hebrew original in an expander.
+- optional sanitized Hebrew original/source region in an expander.
 
 There must not be two separate analyses. The system should run one backend analysis and present it in two ways:
 
@@ -503,8 +529,8 @@ Do not send many reference contracts plus the user contract into one LLM call an
 If template comparison is added later, use this safer flow:
 
 ```text
-OCR/text
-→ evidence blocks
+privacy-validated sanitized images/text
+→ deterministic evidence extraction
 → classify template candidate
 → confidence threshold
 → load exactly one matching baseline
@@ -543,6 +569,9 @@ The assistant must not say who will win a legal dispute.
 Rejected for the active MVP:
 
 - Tesseract full-page Hebrew OCR on the target phone;
+- treating Surya as an on-device production dependency;
+- treating perfect full-contract OCR transcription as the primary purpose of the PII block;
+- making raw OCR JSON/text the canonical LLM handoff instead of privacy-validated sanitized page images;
 - pretending that encrypted server processing is local or zero-access;
 - sending raw images or raw OCR text from the trusted worker to Gemini or unrelated OCR/LLM APIs;
 - permanent unencrypted storage of user contracts;
@@ -576,15 +605,15 @@ For the active image track, the current planned order is:
 
 1. Complete bounded client-side document geometry normalization (orientation, text-geometry analysis, conservative deskew with full-frame preservation; no destructive runtime crop) and audit that block as a unit.
 2. Run the serverless GPU OCR viability benchmark using only synthetic/redacted pages.
-3. Make the candidate quality, geometry, latency, VRAM, and cost decision.
+3. Make the candidate quality, PII-localization geometry, latency, VRAM, and cost decision.
 4. Define the bounded encrypted job-envelope and cleanup contract.
-5. Implement server-side PII sanitization and privacy evaluation.
-6. Produce sanitized evidence blocks.
-7. Integrate LLM risk analysis and report generation.
+5. Implement server-side PII detection, stable role association, irreversible semantic image sanitization, and privacy evaluation.
+6. Produce privacy-validated sanitized full-page images as the primary multimodal LLM input; add sanitized structured evidence only where deterministic validation/citation needs it.
+7. Integrate multimodal LLM risk analysis and report generation.
 8. Add production consent, legal, provider, Israel-region, authorization, retention, and incident controls.
 
 Document-boundary and crop estimators may remain as advisory capture-quality evidence, but production preprocessing must not physically remove source pixels before OCR unless a later explicitly approved architecture change reintroduces destructive crop.
 
 The serverless benchmark must not be treated as production deployment, and completing the client-side geometry block does not authorize upload, OCR, PII processing, or provider integration.
 
-The source of truth is the sanitized contract evidence produced by the approved processing pipeline, not the LLM.
+The source of truth is the privacy-validated sanitized contract image set plus any deterministic sanitized evidence derived from it, not the LLM and not raw OCR JSON.
