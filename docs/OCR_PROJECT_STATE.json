@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-13-80",
+  "state_version": "privacy-ocr-2026-08-17-81",
   "active_track": "serverless-gpu-ocr-benchmark",
   "next_step_id": "surya-raw-fullframe-gpu-execution-v1",
-  "next_step_summary": "PR #226 adds a bounded Surya 2 raw-fullframe benchmark worker against the clarified v1 contract. It pins surya-ocr 0.22.1 in a separate benchmark environment, accepts at most ten local image pages in explicit page order, performs complete encoded-byte, EXIF, dimension and total-pixel preflight for the whole job before Surya initialization/OCR, binds each accepted page to a SHA-256 digest of its bounded encoded bytes, then applies only EXIF orientation normalization and runs full-page OCR in memory. It validates full-frame geometry, confidence, ordering and output bounds, supports exact partial-failure page coverage, and persists only non-sensitive aggregate metrics. No deskew, crop, perspective correction, grayscale requirement, Android preprocessing handoff or production data flow is added. Exact worker-focused validation uses an injected synthetic engine because Surya and its inference backend are not installed in the current environment; 8 focused tests pass. After merge, run surya-raw-fullframe-gpu-execution-v1 on approved GPU infrastructure with approved non-identifying full-frame benchmark pages and record Hebrew quality and layout, cold and warm latency, queue delay, GPU and VRAM behavior, OOM, billed seconds and cost, log hygiene, cleanup, regional and retention evidence, and whether image preprocessing is actually needed. Android audit findings #2 and #3 remain deferred until that Android path is reused as OCR input.",
-  "last_recorded_pr": 226,
-  "last_recorded_change": "surya-raw-fullframe-benchmark-worker-v1",
+  "next_step_summary": "PR #227 is a documentation-only product-direction exception that clarifies the PII block purpose without changing the active serverless GPU benchmark. Surya remains a serverless-GPU OCR/layout candidate inside the trusted processing boundary. The PII block is not optimized for perfect full-contract transcription: its primary purpose is complete PII-region localization, safe party/field role association, irreversible removal of original sensitive pixels, stable semantic replacement such as [АРЕНДОДАТЕЛЬ], [АРЕНДАТОР 1], [АРЕНДАТОР 2], and privacy validation. Privacy-validated sanitized full-page images are the primary downstream artifact for an approved multimodal legal-analysis model; raw OCR JSON/text remains restricted transient worker state and is not the canonical LLM handoff. Sanitized structured evidence may be derived after privacy validation when required for deterministic checks or citations. The next bounded implementation remains surya-raw-fullframe-gpu-execution-v1: execute the existing PR #226 worker on explicitly approved GPU infrastructure using approved non-identifying full-frame pages, measure quality/layout/PII-localization usefulness, cold/warm latency, queue delay, GPU/VRAM/OOM, billed seconds/cost, log hygiene, cleanup, region and retention behavior, and do not build production masking or LLM handoff in that benchmark step.",
+  "last_recorded_pr": 227,
+  "last_recorded_change": "pii-block-purpose-contract-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
-  "updated_on": "2026-08-13"
+  "updated_on": "2026-08-17"
 }
