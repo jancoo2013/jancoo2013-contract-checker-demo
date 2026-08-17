@@ -80,6 +80,33 @@ The existing project-owned recognizer, CTC, synthetic-data, Gold, and CER work r
 
 Do not connect runtime Airtable API before the local JSON/YAML risk configuration is stable. Airtable is a project knowledge base and control table, not the runtime MVP backend.
 
+### Serverless GPU platform decision
+
+**Status:** Active for the current Surya/serverless OCR benchmark.
+
+**Target:** AWS Israel (Tel Aviv), `il-central-1`.
+
+Google Cloud `me-west1` with an NVIDIA T4 was evaluated and rejected as the preferred target for the intended Surya workload because the T4's 16 GB VRAM and performance margin are too tight for the target server-side OCR path.
+
+The preferred AWS GPU class is G5 / NVIDIA A10G 24 GB, subject to actual `il-central-1` availability, account quota, and measured benchmark cost.
+
+Reopen the Google option only if:
+
+- a larger economical GPU becomes available for the required workload in Google Cloud `me-west1`;
+- measured Surya resource usage shows that a T4 is comfortably sufficient with acceptable latency and safety margin;
+- AWS `il-central-1` becomes unavailable for the required GPU class or quota cannot reasonably be obtained;
+- AWS becomes materially more expensive for the measured production workload.
+
+Until one of those conditions is met, infrastructure work should proceed from the assumption:
+
+```text
+Serverless GPU OCR benchmark target = AWS il-central-1.
+Preferred GPU class = G5 / NVIDIA A10G 24 GB, subject to availability/quota.
+Google T4 is not the default candidate.
+```
+
+Do not restart the Google-vs-AWS comparison from zero without new measurements or provider changes that satisfy a reopen condition. The detailed closed-decision record is maintained in `docs/INFRASTRUCTURE_DECISIONS.md`.
+
 ## 4. Airtable Role
 
 Airtable is used as a project knowledge base and admin/control table for:
