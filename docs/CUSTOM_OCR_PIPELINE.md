@@ -11,11 +11,12 @@ This file records the current MVP image-processing direction so that later work 
 3. A raw contract may leave the device only after explicit user consent and only for the approved bounded serverless job.
 4. Raw images and raw OCR text must not be sent onward to Gemini, Google Vision, general LLM APIs, analytics, logs, GitHub, CI, Airtable, or unrelated services.
 5. Encryption protects transport and temporary storage, but the authorized worker necessarily decrypts the document in memory to process it. Product disclosure must state this plainly.
-6. The serverless worker must produce sanitized image/text derivatives before legal-analysis handoff.
-7. Raw job inputs, transient plaintext, job keys, and raw OCR output must be deleted after completion or terminal failure according to verified provider/runtime behavior.
-8. Model throughput claims do not establish single-contract latency, cold-start time, GPU fit, cost, Hebrew quality, or privacy behavior. Those must be measured.
-9. The first serverless OCR implementation step is a benchmark, not a production upload flow.
-10. The paused local visual detector work remains available as research or a future auxiliary layer, but it is not the active next step.
+6. The primary purpose of the OCR/PII block is not perfect full-contract transcription. It is to locate sensitive regions, associate them with a party/field role where possible, irreversibly remove the original sensitive pixels, render stable semantic placeholders, and produce privacy-validated sanitized page images for downstream multimodal legal analysis.
+7. Raw OCR text/layout is restricted transient worker state. It may support PII localization, role association, privacy validation, or later evidence extraction, but it is not the canonical downstream LLM handoff.
+8. Raw job inputs, transient plaintext, job keys, and raw OCR output must be deleted after completion or terminal failure according to verified provider/runtime behavior.
+9. Model throughput claims do not establish single-contract latency, cold-start time, GPU fit, cost, Hebrew quality, PII localization quality, or privacy behavior. Those must be measured.
+10. The first serverless OCR implementation step is a benchmark, not a production upload flow.
+11. The paused local visual detector work remains available as research or a future auxiliary layer, but it is not the active next step.
 
 ## Active target pipeline
 
@@ -24,16 +25,20 @@ raw phone photos
 → client-side normalization and encryption
 → bounded asynchronous serverless job
 → GPU worker decrypts in volatile memory
-→ Hebrew OCR and layout extraction
-→ PII detection and irreversible image/text redaction
+→ Hebrew OCR/layout as transient localization evidence
+→ PII detection + party/field role association
+→ irreversible pixel removal + stable semantic placeholder rendering
 → privacy validation
-→ anonymized derivative and evidence blocks
-→ approved LLM legal-risk analysis
+→ sanitized full-page image derivative
+→ approved multimodal LLM legal-risk analysis
+→ Python validation / completeness checks / report generation
 → Russian report
 → deletion of raw and transient job material
 ```
 
 The serverless worker is part of the trusted processing boundary. It is not equivalent to zero-knowledge processing and must not be described as if the provider can never access plaintext during execution.
+
+The sanitized image derivative, not raw OCR JSON/text, is the primary downstream representation of the contract. Sanitized structured text/evidence may be generated later when useful for deterministic validation or citations, but it must be derived only after the privacy pass and must not be treated as a reason to expose raw OCR outside the trusted boundary.
 
 ## Initial serverless topology
 
@@ -101,13 +106,38 @@ Monetary amounts, dates, clause numbers, notice periods, deposit amounts, rent a
 
 Blur is not an approved irreversible mask. Sanitized image output must replace sensitive pixels opaquely and must not retain recoverable data in alpha channels, hidden layers, metadata, caches, or overlays.
 
+### Semantic replacement contract
+
+When a sensitive value can be associated with a known party/field role, the exported sanitized image should preserve that role with a stable safe placeholder instead of leaving an unlabeled blank rectangle.
+
+Examples:
+
+```text
+real landlord name  → [АРЕНДОДАТЕЛЬ]
+first tenant name   → [АРЕНДАТОР 1]
+second tenant name  → [АРЕНДАТОР 2]
+guarantor name      → [ПОРУЧИТЕЛЬ 1]
+tenant ID value     → [ID АРЕНДАТОРА 1]
+tenant phone        → [ТЕЛЕФОН АРЕНДАТОРА 1]
+```
+
+Rules:
+
+- the original sensitive pixels are removed first; placeholder text is drawn only onto the already-sanitized raster;
+- the same party must keep the same placeholder across every page of one contract;
+- role/field labels must not encode any recoverable original value;
+- if the value is clearly sensitive but its role cannot be established safely, use a generic safe marker such as `[ЛИЧНЫЕ ДАННЫЕ]` or block handoff when coverage itself is uncertain;
+- development visualization may use semi-transparent overlays for human coverage inspection, but any artifact eligible for downstream transfer must contain irreversible opaque pixel replacement underneath the semantic marker;
+- no hidden original text, alpha recovery, reversible overlay, metadata copy, or alternate frame may survive in the exported sanitized artifact.
+
 ## Evaluation model
 
-The serverless OCR benchmark must measure:
+The serverless OCR benchmark must measure enough OCR/layout quality to establish that the candidate can support reliable PII localization and document understanding, including:
 
-- Hebrew transcription quality on held-out contract-like pages;
-- RTL order and mixed Hebrew/digit behavior;
+- printed Hebrew usability on held-out contract-like pages;
+- RTL order and mixed Hebrew/digit behavior where it affects PII localization or role association;
 - text-block or line geometry correctness;
+- names, IDs, phones, emails, addresses, signatures, handwriting and other PII-region behavior;
 - cold-start delay;
 - warm execution time;
 - total ten-page contract latency;
@@ -116,11 +146,14 @@ The serverless OCR benchmark must measure:
 - billed worker seconds and estimated cost;
 - log and result-retention behavior.
 
-Later privacy evaluation must still use:
+Perfect punctuation, exact legal transcription of every word, and full-contract OCR CER are not the primary success criteria for the PII block. The downstream multimodal model is expected to read the privacy-validated sanitized page images directly.
+
+Privacy evaluation must prioritize:
 
 - PII-region recall;
 - complete mask coverage;
 - missed-sensitive-area rate;
+- correct/stable semantic role replacement where the role is known;
 - over-redaction of legally relevant content;
 - page/contract-level privacy pass rate.
 
@@ -132,9 +165,10 @@ Surya is the first benchmark candidate, not a committed production dependency.
 
 Before production selection, verify:
 
-- Hebrew quality on our own photographs;
+- Hebrew/layout quality on our own photographs to the extent needed for PII localization and document structure;
 - coordinates and reading order;
-- handwriting/signature behavior;
+- names, addresses, IDs, phones, emails and mixed printed/handwritten field behavior;
+- handwriting/signature/stamp localization behavior even when exact handwriting transcription is unreliable;
 - single-job performance rather than only high-concurrency throughput;
 - fit on the selected economical GPU class;
 - current source-code and model-weight licences;
@@ -159,6 +193,8 @@ When the canonical state reaches `serverless-gpu-ocr-viability-benchmark-v1`, th
 ## Detours to avoid
 
 - Do not restore Tesseract as an active fallback.
+- Do not optimize the PII block for perfect OCR of every punctuation mark or legal sentence when that does not improve PII localization/coverage.
+- Do not make raw OCR JSON/text the default downstream LLM payload when privacy-validated sanitized page images are available.
 - Do not claim that a ten-page contract runs in fractions of a second without measuring single-job latency.
 - Do not infer cost from model execution alone while ignoring cold start and idle timeout.
 - Do not build an always-on GPU server for sporadic MVP traffic.
