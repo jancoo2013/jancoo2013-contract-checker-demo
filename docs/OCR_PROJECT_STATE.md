@@ -1,14 +1,49 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-13, PR #226, `surya-raw-fullframe-benchmark-worker-v1`.
+Последнее обновление: 2026-08-17, PR #227, `pii-block-purpose-contract-v1`.
 
 Активный трек: `serverless-gpu-ocr-benchmark`.
 
-Следующий bounded-шаг после merge PR #226: `surya-raw-fullframe-gpu-execution-v1`.
+Следующий bounded-шаг после merge PR #227: `surya-raw-fullframe-gpu-execution-v1`.
 
 Этот документ вместе с `docs/OCR_PROJECT_STATE.json` является канонической operational-точкой восстановления privacy/OCR-проекта. Архитектурные документы задают обязательные границы, но текущий `next_step_id` выбирается только state-файлами.
 
-## Current change — PR #226 Surya raw-fullframe benchmark worker
+## Current change — PR #227 PII block purpose and sanitized-image handoff
+
+PR #227 — документационное product-direction исключение, явно разрешённое product owner. Оно не меняет активный serverless-GPU трек и не реализует новый runtime.
+
+Зафиксированная цель PII-блока:
+
+```text
+raw full-page contract image
+→ Surya/OCR/layout as transient trusted-boundary evidence
+→ locate all sensitive regions
+→ associate party/field role where safely possible
+→ irreversibly remove original sensitive pixels
+→ render stable semantic placeholders
+→ privacy validation
+→ sanitized full-page images
+→ approved multimodal legal-analysis model
+```
+
+Ключевые решения:
+
+- Surya остаётся serverless-GPU OCR/layout candidate внутри trusted processing boundary; перенос Surya на смартфон не является текущим направлением;
+- цель PII-блока — не идеальная полная транскрипция договора до каждой буквы и знака препинания, а полный privacy coverage чувствительных областей;
+- ошибки OCR в не-PII юридическом слове сами по себе не являются privacy failure; пропуск чувствительной области является;
+- при известной роли чувствительное значение должно заменяться стабильным semantic marker, например `[АРЕНДОДАТЕЛЬ]`, `[АРЕНДАТОР 1]`, `[АРЕНДАТОР 2]`, `[ID АРЕНДАТОРА 1]`, а не оставляться как немаркированный белый прямоугольник;
+- исходные PII pixels сначала удаляются необратимо, и только после этого поверх очищенного raster рисуется semantic placeholder;
+- одна и та же сторона договора должна иметь один и тот же marker на всех страницах одного contract job;
+- если область явно sensitive, но роль не удаётся определить безопасно, допустим generic safe placeholder; если неясно, полностью ли закрыто PII, downstream handoff блокируется;
+- development overlay может оставаться полупрозрачным для визуальной проверки покрытия, но любой artifact, который может покинуть trusted worker, должен содержать opaque irreversible pixel replacement;
+- privacy-validated sanitized full-page images являются primary downstream representation для approved multimodal legal-analysis model;
+- raw OCR JSON/text остаётся restricted transient worker state и не является canonical LLM payload;
+- sanitized structured text/evidence разрешается производить после privacy validation, если это понадобится deterministic validation/citation layer;
+- PR #227 не добавляет runtime mask renderer, PII detector, provider, endpoint, dependency, upload path, LLM call или production privacy claim.
+
+`active_track` и `next_step_id` намеренно не меняются. Следующий bounded implementation остаётся `surya-raw-fullframe-gpu-execution-v1`: выполнить существующий PR #226 worker на explicitly approved GPU infrastructure с approved non-identifying full-frame pages и собрать реальные quality/layout/PII-localization, latency, GPU/VRAM/OOM, cost, log hygiene, cleanup, region и retention evidence. Этот benchmark всё ещё не должен строить production masking или downstream LLM integration.
+
+## Previous change — PR #226 Surya raw-fullframe benchmark worker
 
 PR #226 реализует первый bounded Surya 2 worker поверх уточнённого PR #225 model-neutral contract, но пока не выполняет реальный GPU/provider benchmark.
 
@@ -278,7 +313,7 @@ PR #217 меняет только development validation UI:
 
 - tap по bounded source preview открывает тот же module-owned bounded preview в полноэкранном `Modal`;
 - tap по full-frame deskew result открывает тот же existing local result artifact в полноэкранном `Modal`;
-- `Select another photo` повторно запускает существующий local picker рядом с результатом;
+- `Select another photo` повторно запускает существующий local Android picker рядом с результатом;
 - `Reset` очищает только React UI state текущей geometry validation;
 - отмена picker больше не стирает уже показанный geometry result;
 - новый dependency/pinch-zoom library не добавляется;
@@ -543,22 +578,23 @@ Grayscale remains in the current runtime path but is not an active optimization 
 
 ## 3. Current product block — serverless GPU OCR benchmark
 
-The approved serverless benchmark is active. PR #226 now provides the first bounded raw-fullframe Surya worker; it does not yet establish OCR quality, GPU fit, latency, cost, or provider/privacy behavior.
+The approved serverless benchmark is active. PR #226 provides the first bounded raw-fullframe Surya worker; PR #227 only clarifies what that OCR evidence is ultimately for. Neither establishes production OCR/PII safety, GPU fit, latency, cost, or provider/privacy behavior.
 
-After merge PR #226, `surya-raw-fullframe-gpu-execution-v1` must:
+After merge PR #227, `surya-raw-fullframe-gpu-execution-v1` must:
 
 1. run the PR #226 worker on explicitly approved GPU infrastructure;
 2. start with ordinary full-frame approved benchmark photographs/pages after EXIF orientation normalization only;
 3. not require deskew, crop, perspective correction or grayscale preprocessing;
 4. use approved non-identifying material for repository/automation evidence and obey the binding restricted-data region gate for any sensitive material;
 5. record Surya/package/model/backend revision and concrete execution limits;
-6. measure Hebrew text/layout quality, cold start, warm execution, queue delay, one-page and multi-page latency, GPU/VRAM, OOM behavior, billed seconds and estimated cost;
-7. inspect log/output hygiene and backend cleanup after success/failure/timeout;
-8. verify actual regional and retention properties before making any sensitive-data claim;
-9. compare OCR evidence against the source and decide whether any additional preprocessing has demonstrated value;
-10. still add no production Android upload, production PII masks, Gemini/legal-analysis call or permanent raw-document storage.
+6. measure printed Hebrew/layout quality to the extent needed for PII localization/document structure, plus names/IDs/phones/emails/addresses/signature/handwriting behavior on approved fixtures where applicable;
+7. measure cold start, warm execution, queue delay, one-page and multi-page latency, GPU/VRAM, OOM behavior, billed seconds and estimated cost;
+8. inspect log/output hygiene and backend cleanup after success/failure/timeout;
+9. verify actual regional and retention properties before making any sensitive-data claim;
+10. compare OCR/layout evidence against the source and decide whether any additional preprocessing has demonstrated value;
+11. still add no production Android upload, production PII masks, multimodal legal-analysis call or permanent raw-document storage.
 
-Surya remains a benchmark candidate, not a production commitment. If raw-fullframe quality is materially usable, deskew/crop/grayscale must not become mandatory in the OCR path without concrete contrary evidence; existing geometry work can instead support later capture-quality/advice behavior.
+Surya remains a benchmark candidate, not a production commitment. If raw-fullframe quality is materially usable for PII localization/document structure, deskew/crop/grayscale must not become mandatory in the OCR path without concrete contrary evidence; existing geometry work can instead support later capture-quality/advice behavior.
 
 ## 4. Active target pipeline
 
@@ -568,11 +604,13 @@ raw phone photos
 → encryption
 → bounded asynchronous serverless job
 → GPU worker decrypts in volatile memory
-→ full-page Hebrew OCR and layout extraction
-→ server-side PII detection and irreversible image/text redaction
+→ full-page Hebrew OCR/layout as transient localization evidence
+→ server-side PII detection + party/field role association
+→ irreversible pixel replacement + stable semantic placeholders
 → privacy validation
-→ anonymized derivative and evidence blocks
-→ approved LLM legal-risk analysis
+→ sanitized full-page images
+→ approved multimodal LLM legal-risk analysis
+→ optional post-privacy deterministic evidence extraction / Python validation
 → Russian report
 → deletion of raw and transient job material
 → optional persistent storage of sanitized final report under exact account authorization
@@ -599,7 +637,9 @@ Restricted raw/transient material may exist only on the user device, encrypted t
 
 Original images, raw OCR and PII-bearing payload may enter only explicitly approved infrastructure physically located in Israel. Any unapproved endpoint or region must fail closed before upload/job creation; automatic fallback outside Israel is prohibited.
 
-Raw images/raw OCR are prohibited in Gemini, general OCR/LLM APIs, logs, analytics, crash reports, GitHub, CI, Airtable and unrelated services. Only sanitized derivatives may proceed to legal analysis.
+Raw images/raw OCR are prohibited in Gemini, general OCR/LLM APIs, logs, analytics, crash reports, GitHub, CI, Airtable and unrelated services. Only privacy-validated sanitized derivatives may proceed to legal analysis.
+
+Semantic placeholders do not weaken the redaction rule: original sensitive pixels must be irreversibly removed before marker rendering, and no recoverable original value may survive in alpha, metadata, overlays, caches, alternate frames, hidden text or debug payloads.
 
 Any future Android preprocessing validation using real selected photos remains local to the device and must not log/export page contents. A separate phone smoke is not currently required by the canonical next step.
 
@@ -630,6 +670,6 @@ Last periodic Codex batch audit: after `b9527f046a0225c0e80f3f511e15b9a8b1eb0ea3
 
 Frozen Python geometry code baseline: `7fe4bc88df2427ea90442f7b074c3cfe4e0de33a`.
 
-Current PR: #226 `surya-raw-fullframe-benchmark-worker-v1`.
+Current PR: #227 `pii-block-purpose-contract-v1`.
 
-Next step after merge PR #226: `surya-raw-fullframe-gpu-execution-v1`.
+Next step after merge PR #227: `surya-raw-fullframe-gpu-execution-v1`.

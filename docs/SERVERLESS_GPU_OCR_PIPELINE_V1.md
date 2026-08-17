@@ -18,15 +18,20 @@ raw phone photos
 → bounded asynchronous job submission
 → serverless GPU worker starts on demand
 → decrypt only inside worker memory
-→ full-page Hebrew OCR and layout extraction
-→ server-side PII detection and irreversible image/text redaction
+→ full-page Hebrew OCR/layout as transient localization evidence
+→ server-side PII detection + party/field role association
+→ irreversible pixel removal + stable semantic placeholder rendering
 → privacy validation
-→ anonymized image/text derivative
-→ numbered evidence blocks
-→ approved LLM legal-risk analysis
+→ sanitized full-page image derivative
+→ approved multimodal LLM legal-risk analysis
+→ Python validation / completeness checks / report generation
 → Russian report
 → deletion of raw job material and transient plaintext
 ```
+
+The PII block is not required to produce a perfect transcript of every contract word or punctuation mark. Its primary job is to find every sensitive region needed for privacy, determine the role/field where safely possible, remove the original sensitive pixels irreversibly, and preserve document meaning with stable safe markers such as `[АРЕНДОДАТЕЛЬ]`, `[АРЕНДАТОР 1]`, and `[АРЕНДАТОР 2]`.
+
+The privacy-validated sanitized page images are the primary downstream document representation for the multimodal legal-analysis model. Raw OCR JSON/text remains restricted transient worker state and must not become the canonical downstream LLM payload. Sanitized text/evidence may still be derived after privacy validation when needed for deterministic checks or citations.
 
 A separate always-on GPU server is not required for the MVP. The worker may scale to zero when idle.
 
@@ -49,6 +54,8 @@ Raw material must not appear in:
 - debug exports or retained workflow results.
 
 The worker must delete encrypted input objects, transient files, raw OCR output, and job keys after completion or terminal failure. Exact deletion guarantees and provider retention behavior must be verified before production.
+
+The exported sanitized image must contain no recoverable original PII through alpha channels, hidden layers, metadata, alternate frames, caches, or reversible overlays. Semantic placeholder text may be rendered only after the underlying sensitive pixels have been irreversibly replaced.
 
 ## 4. Consent and product disclosure
 
@@ -100,14 +107,18 @@ The benchmark must report separately:
 
 ## 7. OCR candidate policy
 
-Surya is the first benchmark candidate because it supports Hebrew, returns geometry, and exposes a GPU inference path. It is not selected for production until local held-out tests verify:
+Surya is the first benchmark candidate because it supports Hebrew, returns geometry, and exposes a GPU inference path. It is not selected for production until held-out tests verify:
 
-- printed Hebrew quality on real contract photographs;
+- printed Hebrew/layout usability on real contract photographs to the extent needed for robust PII localization and document structure;
 - RTL ordering and bounding-box correctness;
-- names, addresses, numbers, signatures, and mixed handwriting behavior;
+- names, addresses, numbers, phones, emails and mixed printed/handwritten field behavior;
+- signature/stamp/handwriting localization even when exact handwriting transcription is unreliable;
+- stable enough geometry for complete irreversible PII-region coverage;
 - single-contract latency rather than high-concurrency throughput only;
 - GPU-memory requirements on the selected serverless class;
 - current code and model-weight licensing for the intended commercial use.
+
+Perfect full-contract transcription is not by itself a production acceptance criterion for the PII block. Missing a sensitive region is substantially more important than a non-PII OCR spelling or punctuation error.
 
 The architecture must remain replaceable: the worker interface is model-neutral.
 
@@ -120,17 +131,19 @@ When the canonical state reaches `serverless-gpu-ocr-viability-benchmark-v1`, th
 1. build one local/serverless-compatible benchmark worker around one OCR candidate;
 2. use only synthetic, public, or owner-controlled redacted test pages in repository automation;
 3. process a fixed multi-page Hebrew contract-like packet;
-4. emit text, reading order, line/block geometry, latency, VRAM, and estimated billed cost;
+4. emit transient text/layout evidence sufficient to evaluate candidate quality and geometry, while persistent output remains non-sensitive;
 5. compare cold and warm execution;
 6. verify that raw page content and OCR text are absent from logs and retained result metadata;
-7. make no Android integration, production upload path, Gemini call, production mask, or real-user-data claim.
+7. evaluate whether the candidate exposes enough geometry/anchors for later PII localization and semantic replacement;
+8. make no Android integration, production upload path, Gemini call, production mask, or real-user-data claim.
 
 ## 9. Provisional go/no-go gate
 
 The candidate proceeds only if all are demonstrated on the same final benchmark revision:
 
-- Hebrew output is materially usable on held-out contract-like pages;
+- printed Hebrew/layout is materially usable on held-out contract-like pages for PII localization and document structure;
 - stable line/block geometry is returned;
+- candidate behavior around names/IDs/phones/emails/addresses/signatures/handwriting is characterized enough to design the PII detector and coverage rules;
 - one ten-page job completes without OOM on an economically acceptable GPU class;
 - warm compute cost is below `$0.10` per ten-page contract;
 - cold and warm latency are measured rather than inferred;
