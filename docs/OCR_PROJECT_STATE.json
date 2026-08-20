@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-17-81",
+  "state_version": "privacy-ocr-2026-08-20-82",
   "active_track": "serverless-gpu-ocr-benchmark",
   "next_step_id": "surya-raw-fullframe-gpu-execution-v1",
-  "next_step_summary": "PR #227 is a documentation-only product-direction exception that clarifies the PII block purpose without changing the active serverless GPU benchmark. Surya remains a serverless-GPU OCR/layout candidate inside the trusted processing boundary. The PII block is not optimized for perfect full-contract transcription: its primary purpose is complete PII-region localization, safe party/field role association, irreversible removal of original sensitive pixels, stable semantic replacement such as [АРЕНДОДАТЕЛЬ], [АРЕНДАТОР 1], [АРЕНДАТОР 2], and privacy validation. Privacy-validated sanitized full-page images are the primary downstream artifact for an approved multimodal legal-analysis model; raw OCR JSON/text remains restricted transient worker state and is not the canonical LLM handoff. Sanitized structured evidence may be derived after privacy validation when required for deterministic checks or citations. The next bounded implementation remains surya-raw-fullframe-gpu-execution-v1: execute the existing PR #226 worker on explicitly approved GPU infrastructure using approved non-identifying full-frame pages, measure quality/layout/PII-localization usefulness, cold/warm latency, queue delay, GPU/VRAM/OOM, billed seconds/cost, log hygiene, cleanup, region and retention behavior, and do not build production masking or LLM handoff in that benchmark step.",
-  "last_recorded_pr": 227,
-  "last_recorded_change": "pii-block-purpose-contract-v1",
+  "next_step_summary": "PR #229 is the active bounded Surya raw-fullframe GPU execution step. It packages the existing PR #226 worker for a Google Cloud Batch benchmark in Israel (me-west1) on exactly one NVIDIA T4, with one task, zero retries, a 30-minute task cap, a custom service-account placeholder, Israel-only zones me-west1-b/me-west1-c, request/access logging disabled for vLLM, bounded numeric GPU telemetry, and sequential cold/warm worker runs against the same loaded backend. Only approved non-identifying benchmark pages are authorized; raw OCR/layout remains transient and only aggregate metrics may persist. The PR remains Draft and the next_step_id intentionally stays unchanged until the worker image is built/pushed and an actual Google Batch T4 run verifies provider runtime behavior, region, log/output hygiene, latency, VRAM/OOM, cost, cleanup and retention evidence. No production masking, Android upload or downstream LLM handoff is authorized by this step.",
+  "last_recorded_pr": 229,
+  "last_recorded_change": "surya-raw-fullframe-gpu-execution-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
-  "updated_on": "2026-08-17"
+  "updated_on": "2026-08-20"
 }
