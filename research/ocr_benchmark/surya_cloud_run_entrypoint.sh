@@ -12,12 +12,21 @@ fi
 export CONTAINER_STARTED_AT_MS=$(( $(date +%s) * 1000 ))
 llama_pid=""
 http_pid=""
+stop_pid() {
+    child_pid="$1"
+    [ -z "$child_pid" ] && return
+    kill -TERM "$child_pid" 2>/dev/null || true
+    for _attempt in 1 2 3 4 5; do
+        kill -0 "$child_pid" 2>/dev/null || break
+        sleep 1
+    done
+    kill -KILL "$child_pid" 2>/dev/null || true
+    wait "$child_pid" 2>/dev/null || true
+}
 cleanup() {
     trap - EXIT INT TERM HUP
-    [ -z "$http_pid" ] || kill -TERM "$http_pid" 2>/dev/null || true
-    [ -z "$llama_pid" ] || kill -TERM "$llama_pid" 2>/dev/null || true
-    [ -z "$http_pid" ] || wait "$http_pid" 2>/dev/null || true
-    [ -z "$llama_pid" ] || wait "$llama_pid" 2>/dev/null || true
+    stop_pid "$http_pid"
+    stop_pid "$llama_pid"
 }
 trap cleanup EXIT INT TERM HUP
 llama-server \

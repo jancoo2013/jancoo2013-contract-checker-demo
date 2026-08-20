@@ -80,10 +80,13 @@ class SuryaCloudRunCPUContractTests(unittest.TestCase):
         self.assertIn("def log_message", self.server)
         self.assertRegex(self.server, r"finally:\n\s+if temp_path is not None:")
         self.assertIn("os.unlink(temp_path)", self.server)
+        self.assertIn('"TEMP_CLEANUP_FAILED"', self.server)
 
     def test_startup_is_bounded_and_engine_is_reused(self):
         self.assertIn('startup_seconds="${SURYA_BACKEND_STARTUP_SECONDS:-220}"', self.entrypoint)
         self.assertIn('time.monotonic() + timeout', self.entrypoint)
+        self.assertIn("kill -KILL", self.entrypoint)
+        self.assertIn("for _attempt in 1 2 3 4 5", self.entrypoint)
         self.assertEqual(self.server.count("_ENGINE = SuryaEngine()"), 1)
         self.assertIn("engine=_ENGINE", self.server)
         self.assertIn('"model_startup_ms"', self.server)

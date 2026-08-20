@@ -99,33 +99,42 @@ class BenchmarkHandler(BaseHTTPRequestHandler):
             self._send_json(413, _error_response("INPUT_SIZE"))
             return
 
-        temp_path: str | None = None
         try:
             self.connection.settimeout(REQUEST_READ_TIMEOUT_SECONDS)
             body = self.rfile.read(length)
-            if len(body) != length or not body.startswith(PNG_SIGNATURE):
-                self._send_json(400, _error_response("INPUT_IMAGE"))
-                return
+        except (OSError, TimeoutError):
+            self._send_json(400, _error_response("INPUT_READ", round((time.perf_counter() - started) * 1000)))
+            return
+        if len(body) != length or not body.startswith(PNG_SIGNATURE):
+            self._send_json(400, _error_response("INPUT_IMAGE"))
+            return
+
+        temp_path: str | None = None
+        response_status = 500
+        response_payload = _error_response("BACKEND_FAILURE")
+        cleanup_ok = True
+        try:
             with tempfile.NamedTemporaryFile(prefix="benchmark-", suffix=".png", delete=False) as temporary:
                 temp_path = temporary.name
                 temporary.write(body)
             del body
             result = run_surya_fullframe_job([Path(temp_path)], engine=_ENGINE)
             request_ms = round((time.perf_counter() - started) * 1000)
-            status = 200 if result.get("status") == "succeeded" else 422
-            self._send_json(status, _response_from_result(result, request_ms))
-        except (OSError, TimeoutError):
-            request_ms = round((time.perf_counter() - started) * 1000)
-            self._send_json(400, _error_response("INPUT_READ", request_ms))
+            response_status = 200 if result.get("status") == "succeeded" else 422
+            response_payload = _response_from_result(result, request_ms)
         except Exception:
             request_ms = round((time.perf_counter() - started) * 1000)
-            self._send_json(500, _error_response("BACKEND_FAILURE", request_ms))
+            response_payload = _error_response("BACKEND_FAILURE", request_ms)
         finally:
             if temp_path is not None:
                 try:
                     os.unlink(temp_path)
                 except OSError:
-                    pass
+                    cleanup_ok = False
+        if not cleanup_ok:
+            response_status = 500
+            response_payload = _error_response("TEMP_CLEANUP_FAILED", round((time.perf_counter() - started) * 1000))
+        self._send_json(response_status, response_payload)
 
 
 class BenchmarkServer(HTTPServer):
