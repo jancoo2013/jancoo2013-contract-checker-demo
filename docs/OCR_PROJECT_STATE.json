@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-17-81",
+  "state_version": "privacy-ocr-2026-08-20-82",
   "active_track": "serverless-gpu-ocr-benchmark",
   "next_step_id": "surya-raw-fullframe-gpu-execution-v1",
-  "next_step_summary": "PR #227 is a documentation-only product-direction exception that clarifies the PII block purpose without changing the active serverless GPU benchmark. Surya remains a serverless-GPU OCR/layout candidate inside the trusted processing boundary. The PII block is not optimized for perfect full-contract transcription: its primary purpose is complete PII-region localization, safe party/field role association, irreversible removal of original sensitive pixels, stable semantic replacement such as [АРЕНДОДАТЕЛЬ], [АРЕНДАТОР 1], [АРЕНДАТОР 2], and privacy validation. Privacy-validated sanitized full-page images are the primary downstream artifact for an approved multimodal legal-analysis model; raw OCR JSON/text remains restricted transient worker state and is not the canonical LLM handoff. Sanitized structured evidence may be derived after privacy validation when required for deterministic checks or citations. The next bounded implementation remains surya-raw-fullframe-gpu-execution-v1: execute the existing PR #226 worker on explicitly approved GPU infrastructure using approved non-identifying full-frame pages, measure quality/layout/PII-localization usefulness, cold/warm latency, queue delay, GPU/VRAM/OOM, billed seconds/cost, log hygiene, cleanup, region and retention behavior, and do not build production masking or LLM handoff in that benchmark step.",
-  "last_recorded_pr": 227,
-  "last_recorded_change": "pii-block-purpose-contract-v1",
+  "next_step_summary": "Draft PR #230 is an explicitly product-owner-authorized Cloud Run CPU latency experiment and does not replace the canonical serverless-GPU architecture or next production step. It packages Surya 2 GGUF plus its multimodal projector inside a CPU-only image, starts a pinned llama.cpp server on loopback, reuses one Surya engine, exposes a bounded aggregate-only benchmark wrapper, and provides a me-west1-only Cloud Run template for 8 vCPU, 16 GiB, min 0, max 1, concurrency 1, and startup CPU boost. Only approved non-identifying benchmark pages are authorized. The PR must remain Draft until a real Cloud Run deployment measures scale-to-zero cold request latency, warm latency, OCR time, startup behavior, counts, CPU/RAM/OOM behavior, provider log hygiene, cleanup, retention, and actual regional behavior. The canonical next_step_id intentionally remains surya-raw-fullframe-gpu-execution-v1, with no production upload, authentication, encryption/key management, PII masking, Gemini/legal-analysis call, storage, billing, multi-region fallback, or final CPU architecture decision authorized by PR #230.",
+  "last_recorded_pr": 230,
+  "last_recorded_change": "surya-cloud-run-cpu-benchmark-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
-  "updated_on": "2026-08-17"
+  "updated_on": "2026-08-20"
 }
