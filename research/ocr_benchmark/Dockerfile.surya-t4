@@ -1,0 +1,20 @@
+FROM python:3.12.11-slim-bookworm
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    HF_HUB_DISABLE_TELEMETRY=1
+
+WORKDIR /app
+
+COPY research/ocr_benchmark/requirements-surya.txt /tmp/requirements-surya.txt
+RUN python -m pip install --no-cache-dir -r /tmp/requirements-surya.txt
+
+RUN mkdir -p /app/research/ocr_benchmark
+COPY research/ocr_benchmark/__init__.py /app/research/ocr_benchmark/__init__.py
+COPY research/ocr_benchmark/benchmark.py /app/research/ocr_benchmark/benchmark.py
+COPY research/ocr_benchmark/surya_fullframe_worker.py /app/research/ocr_benchmark/surya_fullframe_worker.py
+COPY research/ocr_benchmark/surya_t4_entrypoint.sh /usr/local/bin/surya-t4-entrypoint
+RUN chmod 0555 /usr/local/bin/surya-t4-entrypoint
+
+ENTRYPOINT ["/usr/local/bin/surya-t4-entrypoint"]
