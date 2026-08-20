@@ -8,6 +8,19 @@
         "maxRunDuration": "1800s",
         "runnables": [
           {
+            "displayName": "gpu-metrics",
+            "background": true,
+            "container": {
+              "imageUri": "vllm/vllm-openai:v0.20.1",
+              "entrypoint": "/bin/sh",
+              "commands": [
+                "-c",
+                "while true; do nvidia-smi --query-gpu=memory.used,memory.total,utilization.gpu --format=csv,noheader,nounits; sleep 5; done"
+              ],
+              "options": "--gpus all"
+            }
+          },
+          {
             "displayName": "surya-vllm-t4",
             "background": true,
             "environment": {
@@ -47,7 +60,7 @@
             }
           },
           {
-            "displayName": "surya-fullframe-worker",
+            "displayName": "surya-fullframe-cold",
             "environment": {
               "variables": {
                 "SURYA_INFERENCE_BACKEND": "vllm",
@@ -55,7 +68,25 @@
                 "SURYA_INFERENCE_PARALLEL": "1",
                 "SURYA_BACKEND_WAIT_SECONDS": "600",
                 "BENCHMARK_INPUT_DIR": "/mnt/disks/benchmark/input",
-                "BENCHMARK_METRICS_OUTPUT": "/mnt/disks/benchmark/output/metrics.json",
+                "BENCHMARK_METRICS_OUTPUT": "/mnt/disks/benchmark/output/cold.json",
+                "HF_HUB_DISABLE_TELEMETRY": "1"
+              }
+            },
+            "container": {
+              "imageUri": "__WORKER_IMAGE_URI__",
+              "options": "--network host"
+            }
+          },
+          {
+            "displayName": "surya-fullframe-warm",
+            "environment": {
+              "variables": {
+                "SURYA_INFERENCE_BACKEND": "vllm",
+                "SURYA_INFERENCE_URL": "http://127.0.0.1:8000/v1",
+                "SURYA_INFERENCE_PARALLEL": "1",
+                "SURYA_BACKEND_WAIT_SECONDS": "60",
+                "BENCHMARK_INPUT_DIR": "/mnt/disks/benchmark/input",
+                "BENCHMARK_METRICS_OUTPUT": "/mnt/disks/benchmark/output/warm.json",
                 "HF_HUB_DISABLE_TELEMETRY": "1"
               }
             },
@@ -77,6 +108,9 @@
     }
   ],
   "allocationPolicy": {
+    "serviceAccount": {
+      "email": "__BATCH_SERVICE_ACCOUNT__"
+    },
     "instances": [
       {
         "installGpuDrivers": true,
