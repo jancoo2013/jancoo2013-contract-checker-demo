@@ -1,0 +1,41 @@
+# Deploy only in Israel; the region is a deployment parameter as well as a location label:
+# gcloud run services replace research/ocr_benchmark/cloud_run_cpu_service.template.yaml --region=me-west1
+# Replace the image placeholder with an immutable me-west1 Artifact Registry digest URI.
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: surya-cloud-run-cpu-benchmark
+  labels:
+    cloud.googleapis.com/location: me-west1
+  annotations:
+    run.googleapis.com/description: "Benchmark-only Surya CPU latency experiment in me-west1; no cross-region fallback"
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "0"
+        autoscaling.knative.dev/maxScale: "1"
+        run.googleapis.com/startup-cpu-boost: "true"
+        run.googleapis.com/cpu-throttling: "true"
+    spec:
+      containerConcurrency: 1
+      timeoutSeconds: 900
+      containers:
+        - name: surya-cpu-benchmark
+          image: __IMMUTABLE_ME_WEST1_WORKER_IMAGE_URI__
+          ports:
+            - name: http1
+              containerPort: 8080
+          env:
+            - name: SURYA_BACKEND_STARTUP_SECONDS
+              value: "220"
+          resources:
+            limits:
+              cpu: "8"
+              memory: 16Gi
+          startupProbe:
+            tcpSocket:
+              port: 8080
+            timeoutSeconds: 1
+            periodSeconds: 10
+            failureThreshold: 24
