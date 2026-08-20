@@ -1,14 +1,50 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-17, PR #227, `pii-block-purpose-contract-v1`.
+Последнее обновление: 2026-08-20, PR #229, `surya-raw-fullframe-gpu-execution-v1`.
 
 Активный трек: `serverless-gpu-ocr-benchmark`.
 
-Следующий bounded-шаг после merge PR #227: `surya-raw-fullframe-gpu-execution-v1`.
+Текущий bounded-шаг: `surya-raw-fullframe-gpu-execution-v1` (PR #229 Draft; provider runtime evidence ещё не завершён).
 
 Этот документ вместе с `docs/OCR_PROJECT_STATE.json` является канонической operational-точкой восстановления privacy/OCR-проекта. Архитектурные документы задают обязательные границы, но текущий `next_step_id` выбирается только state-файлами.
 
-## Current change — PR #227 PII block purpose and sanitized-image handoff
+## Current change — PR #229 Google Batch T4 Surya execution
+
+PR #229 реализует текущий bounded-шаг `surya-raw-fullframe-gpu-execution-v1` поверх существующего PR #226 worker. На state-sync стадии PR остаётся Draft: runtime Google Batch/T4 ещё не выполнен, поэтому никакие provider latency/cost/cleanup/retention или production-safety claims пока не считаются доказанными.
+
+Текущая execution-схема:
+
+```text
+approved non-identifying full-frame benchmark pages in one explicit bucket
+→ Google Cloud Batch job in me-west1
+→ one N1 VM + one NVIDIA T4
+→ background bounded numeric nvidia-smi telemetry
+→ background vLLM Surya backend
+→ first fullframe worker pass -> safe aggregate cold.json
+→ second worker pass against the same loaded backend -> safe aggregate warm.json
+→ Batch task completes; background runnables terminate with the task
+```
+
+Зафиксированные границы PR #229:
+
+- Google Cloud Batch job location — `me-west1` (Tel Aviv); Compute Engine resources allowlisted only to `me-west1-b` and `me-west1-c`;
+- exactly one `nvidia-tesla-t4`, one task, `parallelism = 1`, `maxRetryCount = 0`, `maxRunDuration = 1800s`;
+- provisioning model — on-demand `STANDARD`; reservation usage explicitly disabled with `NO_RESERVATION`;
+- VM class template — `n1-standard-8`; GPU drivers устанавливаются Batch для benchmark runtime;
+- vLLM запускается отдельным background runnable на той же VM, чтобы PR #226 worker подключался к локальному backend без nested Docker;
+- vLLM request logging, stats logging и uvicorn access log отключены; Hugging Face telemetry отключена;
+- отдельный bounded background telemetry runnable выводит только numeric `memory.used`, `memory.total`, `utilization.gpu` каждые 5 секунд; task-level 1800s cap ограничивает объём telemetry;
+- worker image собирается только из явно перечисленных benchmark source files; local dataset/artifacts не копируются Dockerfile-ом;
+- Batch template требует explicit custom service account placeholder вместо неявного default Compute Engine service account;
+- benchmark input/output mount использует placeholder одного explicit Cloud Storage bucket; в этот benchmark разрешены только synthetic/public/owner-controlled redacted или иным образом non-identifying страницы;
+- raw OCR/layout остаётся transient внутри existing PR #226 worker; persistent worker output — только existing `safe_metrics` в `cold.json` и `warm.json`;
+- template не содержит project credentials, tokens, bucket names, service-account addresses или built image URI; они подставляются только в локальную runtime-copy;
+- PR не добавляет Android upload, production encryption/key management, production PII masking, Gemini/legal-analysis call, persistent raw result или multi-region fallback;
+- open Draft PR #228 содержит старое AWS platform decision и не является текущим implementation input для PR #229; PR #229 его не merge-ит и не изменяет.
+
+Перед Draft выполнена только статическая/reconstructed validation конфигурации. До Ready обязательны фактические provider evidence: build/push worker image, exact image digest, Google Batch job в `me-west1`, queue/cold/warm timings, T4/VRAM/OOM evidence, billed time/cost estimate, log/output hygiene, success/failure cleanup и фактические provider region/retention observations. До этой runtime-проверки `active_track` и `next_step_id` намеренно не меняются.
+
+## Previous change — PR #227 PII block purpose and sanitized-image handoff
 
 PR #227 — документационное product-direction исключение, явно разрешённое product owner. Оно не меняет активный serverless-GPU трек и не реализует новый runtime.
 
@@ -578,9 +614,9 @@ Grayscale remains in the current runtime path but is not an active optimization 
 
 ## 3. Current product block — serverless GPU OCR benchmark
 
-The approved serverless benchmark is active. PR #226 provides the first bounded raw-fullframe Surya worker; PR #227 only clarifies what that OCR evidence is ultimately for. Neither establishes production OCR/PII safety, GPU fit, latency, cost, or provider/privacy behavior.
+The approved serverless benchmark is active. PR #226 provides the first bounded raw-fullframe Surya worker; PR #227 only clarifies what that OCR evidence is ultimately for. PR #229 is the active provider-execution PR and remains Draft until its Google Batch T4 runtime evidence is complete. None of these changes by itself establishes production OCR/PII safety.
 
-After merge PR #227, `surya-raw-fullframe-gpu-execution-v1` must:
+Before PR #229 can become Ready, `surya-raw-fullframe-gpu-execution-v1` must:
 
 1. run the PR #226 worker on explicitly approved GPU infrastructure;
 2. start with ordinary full-frame approved benchmark photographs/pages after EXIF orientation normalization only;
@@ -670,6 +706,6 @@ Last periodic Codex batch audit: after `b9527f046a0225c0e80f3f511e15b9a8b1eb0ea3
 
 Frozen Python geometry code baseline: `7fe4bc88df2427ea90442f7b074c3cfe4e0de33a`.
 
-Current PR: #227 `pii-block-purpose-contract-v1`.
+Current PR: #229 `surya-raw-fullframe-gpu-execution-v1` (Draft; provider execution pending).
 
-Next step after merge PR #227: `surya-raw-fullframe-gpu-execution-v1`.
+Next step remains `surya-raw-fullframe-gpu-execution-v1` until PR #229 records complete Google Batch T4 runtime evidence and the owner decides what follows.
