@@ -183,7 +183,244 @@ Runtime semantics после PR #223:
 - accepted deskew рендерится на expanded white canvas, чтобы сохранить полный oriented source frame;
 - `full_frame_fallback` остаётся 0° и возвращает `full_frame_grayscale_fallback`;
 - `cropBoxSource` во всех prepared results равен `null`;
-- producer-generated `safeCropBounds`, content-r…5641 tokens truncated…р файла переиспользует только существующий local Android picker method; geometry handler не вызывает `recognizeAsync`;
+- producer-generated `safeCropBounds`, content-region и document-boundary evidence могут сохраняться для диагностики/advisory capture-quality, но не имеют права удалять source pixels;
+- full-frame dimension/memory bounds сохраняются;
+- OCR recognition, upload/backend/provider, network, dependencies, permissions, workflows и privacy boundary не меняются.
+
+После merge PR #223 отдельный `android-document-preprocess-device-smoke-v1` был сознательно снят с active next step решением product owner; rationale и reopen conditions записаны в PR #224 выше.
+
+Ниже crop-ориентированные записи PR #218–#222 сохраняются как историческое описание прежней реализации и не являются текущим production contract.
+
+## Previous change — PR #221 physical document-boundary crop corrective
+
+Post-#220 real-device smoke подтвердил две части preprocessing на конкретной реально сфотографированной странице: grayscale появился, а accepted deskew около 1° реально применился. При этом crop снова не сработал вообще, хотя product owner визуально оценил внешний фон примерно в 15% кадра. Upstream text/content path оставался `rotation_only` из-за `content_touches_frame`, поэтому полезная обрезка физического листа не была разрешена.
+
+PR #221 добавляет отдельное, очень узкое physical document-boundary evidence только для этого concrete state:
+
+```text
+angle accepted
++ upstream decision = rotation_only
++ единственная причина = content_touches_frame
+→ bounded <=900 px physical-page boundary analysis
+→ center-vs-corner luminance contrast
+→ row/column page occupancy around frame center
+→ conservative boundary padding
+→ >=5% removable-area requirement
+→ map boundary through the same fixed-frame deskew matrix
+→ require >=90% dominant line bands contained, with at most one outlier
+→ if all checks pass: fixed-frame deskew + boundary crop + grayscale
+→ otherwise: keep PR #220 expanded full-frame deskew + grayscale
+```
+
+Границы PR #221:
+
+- новый `DocumentBoundaryEstimator` анализирует только уже локальный oriented source bitmap; временный analysis bitmap ограничен long side <=900 и освобождается до full-resolution output allocation;
+- document boundary определяется независимо от text/ink candidate: paper-vs-background evidence строится по яркости центральной области и углов кадра, затем по occupancy строк/столбцов;
+- требуется как минимум два согласованных corner-background samples с luminance contrast >=20;
+- page candidate должен занимать не менее 50% каждой оси, после padding обязан оставлять не менее 5% площади кадра действительно удаляемой;
+- boundary crop переводится через тот же Android deskew matrix; если mapped rectangle выходит за fixed frame, crop не разрешается;
+- финальный consumer дополнительно требует сохранения dominant line bands: не менее 90% bands должны полностью лежать внутри boundary crop, допускается максимум один outlier;
+- новая boundary-авторизация применяется только когда upstream rejection set ровно `content_touches_frame`; любые `low_confidence`, `source_edge_content_clipped_by_deskew`, `disconnected_content_outside_crop` и другие причины сохраняют прежний fail-safe без crop;
+- успешный boundary path использует существующий result decision `cropped_grayscale` и существующий `cropBoxSource`; публичный TypeScript/API контракт не меняется;
+- обычный fully accepted safe-crop path PR #218/#219 не меняется;
+- `ContentRegionEstimator`, `SafeCropEstimator`, angle thresholds/search range/sign convention не меняются;
+- perspective correction не добавляется;
+- OCR recognition, upload/backend/provider, network, dependencies, permissions, workflows и privacy boundary не меняются;
+- реальные contract pages/screenshots не добавляются в repository/CI.
+
+Следующий gate остаётся `android-document-preprocess-device-smoke-v1`. Первым regression test после merge PR #221 нужно снова прогнать ту же страницу: ожидается сохранение grayscale и accepted ~1° deskew плюс `cropped_grayscale` с non-null crop box и заметным удалением внешнего фона без потери содержимого листа. Если boundary evidence не проходит, допустим только прежний `deskewed_full_frame_grayscale` fail-safe; это не следует маскировать принудительным crop.
+
+## Previous change — PR #220 deskew/crop decoupling corrective
+
+Во время real-device smoke после PR #219 конкретная реально сфотографированная страница дала уверенно accepted angle evidence (`dominant +1.00°`, `requested deskew -1.00°`, confidence `0.8608`), но safe crop был отклонён с `content_touches_frame`. Финальный prepared-image consumer трактовал любой non-accepted crop result одинаково и выбрасывал уже accepted deskew, возвращая 0° full-frame grayscale. Это concrete in-contract preprocessing defect, разрешающий bounded corrective внутри текущего smoke gate.
+
+PR #220 исправляет только композицию финального consumer:
+
+```text
+angle/crop result = accepted
+→ fixed-frame grayscale deskew
+→ authorized conservative crop
+→ cropped_grayscale
+
+angle accepted, crop rejected = rotation_only
+→ accepted deskew сохраняется
+→ expanded white-canvas full frame
+→ grayscale
+→ no crop
+→ deskewed_full_frame_grayscale
+
+angle rejected = full_frame_fallback
+→ 0° grayscale full frame
+→ no crop
+```
+
+Границы PR #220:
+
+- `rotation_only` больше не отменяет accepted deskew только из-за отказа crop;
+- full-frame deskew использует расширенный белый canvas, чтобы поворот не обрезал исходные углы/края;
+- expanded output сохраняет существующие bounded limits: long side <= 10000 и accounted source+output memory <= 384 MiB;
+- `full_frame_fallback` остаётся 0° и не получает crop;
+- fully accepted safe-crop path PR #219 не меняется;
+- новый prepared result decision `deskewed_full_frame_grayscale` добавлен только в TypeScript contract;
+- angle estimator, confidence thresholds, search range, sign convention, `SafeCropEstimator`, `content_touches_frame` и другие crop guards не меняются;
+- perspective correction не добавляется;
+- OCR recognition, upload/backend/provider, network, dependencies, permissions, workflows и privacy boundary не меняются;
+- real photographed page не добавляется в repository/CI.
+
+## Previous change — PR #219 physical crop + grayscale final output
+
+PR #219 завершает полезный локальный preprocessing consumer поверх merged PR #218 safe-crop authorization:
+
+```text
+local photo
+→ bounded EXIF/orientation + grayscale preview
+→ native angle/content-region/safe-crop evidence
+→ accepted: fixed-frame grayscale transform + conservative full-resolution crop
+→ non-accepted: 0° grayscale full-frame fallback
+→ prepared.jpg shown in development UI
+```
+
+Границы PR #219:
+
+- новый `prepareDocumentAsync(uri, previewUri)` не принимает crop coordinates от JavaScript и сам повторно получает producer-generated safe-crop evidence из текущего module-owned preview;
+- source URI должен совпадать с текущей preview session до и после bounded analysis;
+- accepted crop contract проверяет decision, coordinate space, finite/bounded rotation, expected preview dimensions, valid candidate/safe boxes и containment;
+- preview safe bounds отображаются в oriented full-resolution coordinates консервативно: floor для left/top, ceil для right/bottom, с независимым X/Y scale;
+- accepted path рисует grayscale fixed-size frame с тем же Android/Python sign contract, затем физически crop-ит только mapped safe bounds;
+- `rotation_only` и `full_frame_fallback` в PR #219 оба давали 0° grayscale full-frame fallback; device smoke показал, что это смешивало accepted deskew и crop authorization, поэтому `rotation_only` semantics исправляются PR #220;
+- максимальная геометрическая память остаётся bounded существующим 384 MiB accounting contract; encoded output ограничен существующим 64 MiB cap;
+- итоговый artifact — локальный module-cache `prepared.jpg`; он не загружается и не логируется;
+- validation UI показывает именно prepared grayscale document, его dimensions, decision, applied rotation, source-space crop box и fallback reasons;
+- perspective correction, новые angle/crop thresholds и дальнейший standalone deskew tuning не добавляются;
+- OCR recognition, upload/backend/provider, dependencies, permissions, workflows и privacy boundary не меняются.
+
+## 0. Изменение PR #218 — safe crop authorization и product pivot к preprocessing
+
+Во время первого real-device smoke после PR #217 product owner остановил дальнейшее развитие deskew как самостоятельной продуктовой цели. Практическое решение: пользователь получает подсказки при съёмке и не должен рассматриваться как источник произвольно сильно перекошенных кадров; уже реализованный bounded deskew остаётся небольшим страховочным механизмом, но дальнейшая разработка должна быть направлена на реальный preprocessing результата.
+
+Целевой локальный preprocessing после этого решения:
+
+```text
+photo
+→ bounded quality/orientation handling
+→ content-region evidence
+→ conservative safe crop when fully trusted
+→ otherwise full-frame fallback
+→ grayscale final prepared image
+→ later OCR handoff
+```
+
+PR #218 намеренно реализует только первую половину этого перехода — safe-crop authorization поверх уже merged candidate estimator:
+
+- `ContentRegionEstimator` по-прежнему строит candidate bounds из bounded grayscale mask;
+- новый `SafeCropEstimator` добавляет frozen source-edge-loss guard;
+- candidate получает conservative 4% padding with minimum 12 preview pixels;
+- nearly-full-frame crop блокируется при >= 0.985 по любой оси;
+- line-like и compact meaningful foreground outside proposed crop блокируют acceptance по frozen finite evidence contract;
+- только полностью чистый candidate становится `accepted` и получает `safeCropBounds`;
+- uncertain cases остаются `rotation_only` / `full_frame_fallback`;
+- physical crop, new output artifact и grayscale final output в PR #218 ещё не выполняются;
+- perspective correction, новые angle thresholds/search range и дальнейший deskew tuning не входят в scope;
+- OCR recognition, network/backend/provider, dependencies, permissions, workflows и privacy boundary не меняются.
+
+PR #218 специально разделён до wiring physical transform: final `SafeCropEstimator.kt` занимает 259 implementation additions, а весь runtime/TypeScript diff — 263 additions, поэтому bundling physical crop + grayscale + UI вывел бы PR за target <=300 additions. Следующий bounded PR `android-document-preprocess-physical-crop-grayscale-v1` должен structurally validate accepted in-process crop evidence, conservatively map preview bounds to oriented full resolution, output grayscale cropped image only when fully accepted, otherwise output grayscale full-frame fallback, и показать именно этот final prepared image в development UI.
+
+После этого manual validation выполняется уже над полезным продуктовым результатом: `исходная фотография -> обрезанный/необрезанный grayscale document`, а не как отдельная длительная deskew-кампания.
+
+## 0.1. Изменение PR #217 — Android geometry development validation UI controls
+
+Во время первого реального device smoke уже готового Android geometry path product owner обнаружил две практические проблемы validation harness: встроенные изображения слишком малы для оценки краёв/наклона, а повторная проверка следующей страницы неудобна без явных controls рядом с результатом.
+
+PR #217 меняет только development validation UI:
+
+- tap по bounded source preview открывает тот же module-owned bounded preview в полноэкранном `Modal`;
+- tap по full-frame deskew result открывает тот же existing local result artifact в полноэкранном `Modal`;
+- `Select another photo` повторно запускает существующий local Android picker рядом с результатом;
+- `Reset` очищает только React UI state текущей geometry validation;
+- отмена picker больше не стирает уже показанный geometry result;
+- новый dependency/pinch-zoom library не добавляется;
+- native geometry module, angle/content-region algorithms, thresholds, resource bounds, safe-crop authorization и physical crop не меняются;
+- OCR recognition, upload/backend/network destination, analytics, permissions, workflows, provider/serverless path и persistence не меняются;
+- полноэкранный просмотр не создаёт новый файл: он читает те же существующие module-cache preview/result artifacts, которые validation UI уже показывал до PR #217.
+
+Первоначально после PR #217 планировался продолжительный visible deskew smoke. Product owner затем явно остановил эту отдельную deskew-кампанию и перевёл следующий implementation focus на safe crop + grayscale preprocessing, что записано PR #218.
+
+## 0.2. Изменение PR #216 — Android preview snapshot integrity corrective
+
+После merge PR #215 owner-requested targeted audit Android geometry PR #211–#215 вернул `BATCH AUDIT CLEAR`: blocking/corrective findings не было, candidate content-region logic, coordinate/sign composition, local-only boundary и bounded resources были признаны согласованными в заявленном finite scope.
+
+После merge, отдельный автоматический Codex review PR #215 обнаружил конкретный P2 integration defect: `estimateContentRegionAsync(previewUri)` сначала открывал module-owned `preview.png` для angle estimation, а затем повторно открывал тот же переиспользуемый путь для content-region mask. При замене `preview.png` другим `buildPreviewAsync` между двумя чтениями angle и bounds теоретически могли относиться к разным страницам.
+
+PR #216 исправляет только этот дефект:
+
+```text
+module-owned preview.png
+→ decode once into one bounded in-memory Bitmap
+→ angle estimation from that Bitmap
+→ <=1800 content-region mask from that same Bitmap
+→ candidate region result
+```
+
+Границы PR #216:
+
+- публичный Expo/TypeScript API не меняется;
+- `estimateAngle(previewUri)` сохраняет прежний внешний контракт;
+- добавлен только внутренний `estimateAngle(Bitmap)` для повторного использования уже декодированного snapshot;
+- `estimateContentRegionAsync` больше не выполняет второе чтение `preview.png` между angle и content-region mask;
+- bitmap освобождается после завершения обеих стадий;
+- нет safe-crop authorization или physical crop;
+- нет OCR/Tesseract recognition, upload, backend/network destination, analytics, новых dependencies/permissions/workflows, provider/serverless изменений или persistence;
+- frozen Python geometry implementation не меняется.
+
+## 0.3. Изменение PR #215 — Android content-region candidate bounds
+
+PR #215 добавляет только кандидатную оценку области содержимого поверх уже существующего Android geometry path:
+
+```text
+module-owned bounded preview
+→ native angle evidence
+→ local-contrast text/ink mask in <=1800 px preview space
+→ preview deskew for analysis only
+→ line bands
+→ dominant bands
+→ candidate content bounds + confidence/reasons
+→ no crop authorization or physical crop
+```
+
+Границы PR #215:
+
+- добавлен `estimateContentRegionAsync(previewUri)` в существующий local Expo/Kotlin geometry module;
+- JS не передаёт произвольный angle contract: content-region path сам повторно получает native `estimateAngle` evidence;
+- accepted angle используется только для bounded preview-space анализа;
+- rejected angle возвращает candidate-level `full_frame_fallback`;
+- line-band/dominant-band thresholds и confidence formula следуют frozen Python `content_region_bounds.py` для этой candidate-части;
+- source-edge loss guard, disconnected-content outside-crop guard, conservative padding, nearly-full-frame guard, финальная safe-crop authorization и full-resolution crop mapping намеренно не входят в PR #215;
+- никакой crop в PR #215 физически не выполняется;
+- Android angle-estimator по-прежнему использует 900 px analysis mask; content-region candidate использует тот же mask builder с bounded long side до 1800 px;
+- implementation additions до state/docs: 291 строк, то есть остаются внутри target <=300;
+- нет OCR/Tesseract recognition, upload, backend/network destination, analytics, новых dependencies/permissions/workflows, provider/serverless изменений или persistence за пределами уже существующего module cache;
+- frozen Python geometry implementation не меняется.
+
+Owner-requested targeted Codex audit по PR #211–#215 вернул `BATCH AUDIT CLEAR`. Последующий отдельный post-merge review finding по snapshot consistency исправлен PR #216 и не меняет остальные выводы audit.
+
+## 0.4. Изменение PR #214 — Android geometry development validation UI
+
+После PR #211 Android validation path имеет локальный bounded grayscale preview, после PR #212 — native angle/confidence/decision, а после PR #213 — bounded full-resolution full-frame deskew/fallback. PR #214 добавил development UI поверх этих native контрактов:
+
+```text
+choose one local photo
+→ build bounded native preview
+→ show bounded source preview + native angle/confidence/decision/reasons
+→ run bounded native full-frame deskew/fallback
+→ show full-frame output for visual comparison
+→ no OCR call, upload or external persistence in this geometry path
+```
+
+Границы PR #214:
+
+- geometry panel находится сверху существующего mobile development app;
+- geometry-selected photo хранится в отдельном UI state и не передаётся в legacy OCR/backend handlers;
+- выбор файла переиспользует только существующий local Android picker method; geometry handler не вызывает `recognizeAsync`;
 - UI вызывает существующие `buildPreviewAsync`, `estimateAngleAsync` и `applyFullFrameDeskewAsync` без изменения native geometry implementation;
 - исходный selected URI не передаётся напрямую в React Native `<Image>` до geometry validation: UI показывает только уже validated/bounded module-owned grayscale `preview.png` с long side <=1800 px;
 - full-frame result показывается из bounded module-cache `deskewed.jpg`;
