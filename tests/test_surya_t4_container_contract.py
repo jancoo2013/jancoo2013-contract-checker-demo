@@ -48,6 +48,7 @@ class SuryaT4ContainerContractTests(unittest.TestCase):
         self.assertEqual(group["parallelism"], 1)
         self.assertEqual(task["maxRetryCount"], 0)
         self.assertEqual(task["maxRunDuration"], "1800s")
+        self.assertEqual(policy["serviceAccount"]["email"], "__BATCH_SERVICE_ACCOUNT__")
         self.assertTrue(instance["installGpuDrivers"])
         self.assertEqual(instance["policy"]["machineType"], "n1-standard-8")
         self.assertEqual(instance["policy"]["provisioningModel"], "STANDARD")
@@ -55,17 +56,34 @@ class SuryaT4ContainerContractTests(unittest.TestCase):
         self.assertEqual(accelerator, {"type": "nvidia-tesla-t4", "count": 1})
         self.assertEqual(set(policy["location"]["allowedLocations"]), {"zones/me-west1-b", "zones/me-west1-c"})
 
+    def test_google_batch_template_measures_cold_warm_and_bounded_gpu_metrics(self):
+        payload = json.loads(JOB_TEMPLATE.read_text(encoding="utf-8"))
+        runnables = payload["taskGroups"][0]["taskSpec"]["runnables"]
+        self.assertEqual([item["displayName"] for item in runnables], [
+            "gpu-metrics",
+            "surya-vllm-t4",
+            "surya-fullframe-cold",
+            "surya-fullframe-warm",
+        ])
+
+        gpu_metrics, vllm, cold, warm = runnables
+        self.assertTrue(gpu_metrics["background"])
+        self.assertIn("memory.used,memory.total,utilization.gpu", gpu_metrics["container"]["commands"][1])
+        self.assertIn("sleep 5", gpu_metrics["container"]["commands"][1])
+        self.assertTrue(vllm["background"])
+        self.assertEqual(cold["environment"]["variables"]["BENCHMARK_METRICS_OUTPUT"], "/mnt/disks/benchmark/output/cold.json")
+        self.assertEqual(warm["environment"]["variables"]["BENCHMARK_METRICS_OUTPUT"], "/mnt/disks/benchmark/output/warm.json")
+        self.assertEqual(cold["container"]["imageUri"], "__WORKER_IMAGE_URI__")
+        self.assertEqual(warm["container"]["imageUri"], "__WORKER_IMAGE_URI__")
+
     def test_google_batch_template_keeps_raw_result_out_of_cloud_logging(self):
         payload = json.loads(JOB_TEMPLATE.read_text(encoding="utf-8"))
         runnables = payload["taskGroups"][0]["taskSpec"]["runnables"]
-        vllm = runnables[0]
-        worker = runnables[1]
+        vllm = runnables[1]
 
-        self.assertTrue(vllm["background"])
         self.assertIn("--disable-log-requests", vllm["container"]["commands"])
+        self.assertIn("--disable-log-stats", vllm["container"]["commands"])
         self.assertIn("--disable-uvicorn-access-log", vllm["container"]["commands"])
-        self.assertEqual(worker["container"]["imageUri"], "__WORKER_IMAGE_URI__")
-        self.assertEqual(worker["environment"]["variables"]["BENCHMARK_METRICS_OUTPUT"], "/mnt/disks/benchmark/output/metrics.json")
         self.assertEqual(payload["taskGroups"][0]["taskSpec"]["volumes"][0]["gcs"]["remotePath"], "__BENCHMARK_BUCKET__")
         self.assertEqual(payload["logsPolicy"]["destination"], "CLOUD_LOGGING")
 
