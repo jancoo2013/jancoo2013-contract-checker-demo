@@ -1,0 +1,110 @@
+{
+  "taskGroups": [
+    {
+      "taskCount": 1,
+      "parallelism": 1,
+      "taskSpec": {
+        "maxRetryCount": 0,
+        "maxRunDuration": "1800s",
+        "runnables": [
+          {
+            "displayName": "surya-vllm-t4",
+            "background": true,
+            "environment": {
+              "variables": {
+                "HF_HUB_DISABLE_TELEMETRY": "1",
+                "VLLM_LOGGING_LEVEL": "WARNING"
+              }
+            },
+            "container": {
+              "imageUri": "vllm/vllm-openai:v0.20.1",
+              "entrypoint": "python3",
+              "commands": [
+                "-m",
+                "vllm.entrypoints.openai.api_server",
+                "--model",
+                "datalab-to/surya-ocr-2",
+                "--served-model-name",
+                "datalab-to/surya-ocr-2",
+                "--dtype",
+                "float16",
+                "--max-model-len",
+                "18000",
+                "--max-num-batched-tokens",
+                "4096",
+                "--max-num-seqs",
+                "16",
+                "--gpu-memory-utilization",
+                "0.85",
+                "--enable-prefix-caching",
+                "--mm-processor-kwargs",
+                "{\"min_pixels\":3136,\"max_pixels\":6291456}",
+                "--disable-log-requests",
+                "--disable-log-stats",
+                "--disable-uvicorn-access-log"
+              ],
+              "options": "--network host --gpus all --ipc=host"
+            }
+          },
+          {
+            "displayName": "surya-fullframe-worker",
+            "environment": {
+              "variables": {
+                "SURYA_INFERENCE_BACKEND": "vllm",
+                "SURYA_INFERENCE_URL": "http://127.0.0.1:8000/v1",
+                "SURYA_INFERENCE_PARALLEL": "1",
+                "SURYA_BACKEND_WAIT_SECONDS": "600",
+                "BENCHMARK_INPUT_DIR": "/mnt/disks/benchmark/input",
+                "BENCHMARK_METRICS_OUTPUT": "/mnt/disks/benchmark/output/metrics.json",
+                "HF_HUB_DISABLE_TELEMETRY": "1"
+              }
+            },
+            "container": {
+              "imageUri": "__WORKER_IMAGE_URI__",
+              "options": "--network host"
+            }
+          }
+        ],
+        "volumes": [
+          {
+            "gcs": {
+              "remotePath": "__BENCHMARK_BUCKET__"
+            },
+            "mountPath": "/mnt/disks/benchmark"
+          }
+        ]
+      }
+    }
+  ],
+  "allocationPolicy": {
+    "instances": [
+      {
+        "installGpuDrivers": true,
+        "policy": {
+          "machineType": "n1-standard-8",
+          "provisioningModel": "STANDARD",
+          "reservation": "NO_RESERVATION",
+          "accelerators": [
+            {
+              "type": "nvidia-tesla-t4",
+              "count": 1
+            }
+          ]
+        }
+      }
+    ],
+    "location": {
+      "allowedLocations": [
+        "zones/me-west1-b",
+        "zones/me-west1-c"
+      ]
+    }
+  },
+  "logsPolicy": {
+    "destination": "CLOUD_LOGGING"
+  },
+  "labels": {
+    "purpose": "surya-benchmark",
+    "data-class": "non-identifying"
+  }
+}
