@@ -1,14 +1,43 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-17, PR #227, `pii-block-purpose-contract-v1`.
+Последнее обновление: 2026-08-23, PR #231, `surya-image-verify-order-fix-v1`.
 
 Активный трек: `serverless-gpu-ocr-benchmark`.
 
-Следующий bounded-шаг после merge PR #227: `surya-raw-fullframe-gpu-execution-v1`.
+Канонический следующий bounded-шаг не меняется: `surya-raw-fullframe-gpu-execution-v1`.
 
 Этот документ вместе с `docs/OCR_PROJECT_STATE.json` является канонической operational-точкой восстановления privacy/OCR-проекта. Архитектурные документы задают обязательные границы, но текущий `next_step_id` выбирается только state-файлами.
 
-## Current change — PR #227 PII block purpose and sanitized-image handoff
+## Current change — PR #231 Surya PNG verification-order corrective
+
+PR #231 — явно разрешённый product-owner bounded corrective существующего PR #226 raw-fullframe worker. Во время Draft PR #230 Cloud Run CPU benchmark approved non-identifying PNG дошёл до worker, но был отклонён как `INVALID_IMAGE` до OCR. Локальная reproduction теми же Pillow semantics подтвердила, что PNG исправен: `verify()` проходит, если вызывается сразу после `Image.open()`, но current worker сначала читал EXIF через `getexif()`, а затем вызывал `verify()` на том же image object; current Pillow для PNG отвечает `RuntimeError: verify must be called directly after open`.
+
+Исправление намеренно минимальное:
+
+```text
+bounded encoded bytes
+→ fresh Image.open
+→ verify() immediately
+→ close
+→ fresh Image.open of the same bytes
+→ EXIF/oriented-dimension inspection
+→ existing bounds/digest/OCR path unchanged
+```
+
+Границы corrective:
+
+- добавлен synthetic PNG regression test, который должен успешно пройти preflight и вызвать injected fake OCR engine ровно один раз;
+- malformed images по-прежнему fail closed как `INVALID_IMAGE`;
+- encoded-size, page-count, dimension, pixel, digest, EXIF-orientation, OCR-output и geometry bounds не ослабляются;
+- raw OCR/layout persistence, safe aggregate metrics и error-envelope semantics не меняются;
+- provider, endpoint, network destination, model, dependency, Android code, production upload, encryption/key management, PII masking, Gemini/legal-analysis integration и storage не меняются;
+- real user documents/PII не добавляются в repository or tests.
+
+Pre-state-sync focused validation на exact worker/test branch content: Python compilation PASS; `tests.test_surya_fullframe_worker` — 9/9 PASS. После финального state sync требуется повторная exact-head validation и security review перед Ready.
+
+`active_track` и `next_step_id` намеренно не меняются. Draft PR #230 должен после merge этого corrective обновиться на исправленный worker, пересобрать immutable image и повторить Cloud Run cold/warm OCR benchmark; его прежний `INVALID_IMAGE` ответ не является OCR-performance evidence.
+
+## Previous change — PR #227 PII block purpose and sanitized-image handoff
 
 PR #227 — документационное product-direction исключение, явно разрешённое product owner. Оно не меняет активный serverless-GPU трек и не реализует новый runtime.
 
@@ -130,7 +159,7 @@ bounded OCR job
 
 - добавляет `docs/SERVERLESS_OCR_WORKER_CONTRACT_V1.md` как benchmark-only contract;
 - определяет versioned job/page identifiers, bounded page metadata, text/block/line result shape, pixel-space bbox, confidence semantics, terminal statuses и non-sensitive benchmark metrics;
-- raw OCR text/layout определён как transient internal result: job/page statuses включают явный `partial_failure`, а raw result нельзя трактовать как сохраняемый provider/client result;
+- raw OCR text/layout определён как transient internal result: job/page statuses включают явный `partial_failure`, а raw result нельзя трактовать как сохраняемый provider job result;
 - требует finite limits для encoded bytes, dimensions/pixels, page count, execution time, memory/VRAM where observable, output size, concurrency и retries;
 - raw image bytes и raw OCR text остаются restricted transient material и не могут попадать в logs/CI/artifacts;
 - repository benchmark fixtures могут быть только synthetic, public или owner-controlled redacted;
@@ -402,7 +431,7 @@ choose one local photo
 - UI вызывает существующие `buildPreviewAsync`, `estimateAngleAsync` и `applyFullFrameDeskewAsync` без изменения native geometry implementation;
 - исходный selected URI не передаётся напрямую в React Native `<Image>` до geometry validation: UI показывает только уже validated/bounded module-owned grayscale `preview.png` с long side <=1800 px;
 - full-frame result показывается из bounded module-cache `deskewed.jpg`;
-- UI отображает source/preview dimensions, dominant text angle, requested deskew angle, confidence, accepted/rejected decision, rejection reasons, transform decision, applied rotation, output dimensions и fallback reasons;
+- UI отображает source/preview dimensions, dominant text angle, requested deskew angle, confidence, accepted/rejected decision/reasons, transform decision, applied rotation, output dimensions и fallback reasons;
 - ошибки выводятся только как safe module/error message; page contents и URI path не логируются новым кодом;
 - нет новых network requests, analytics, upload или backend вызовов в geometry handler;
 - нет OCR/Tesseract recognition в geometry handler;
@@ -670,6 +699,6 @@ Last periodic Codex batch audit: after `b9527f046a0225c0e80f3f511e15b9a8b1eb0ea3
 
 Frozen Python geometry code baseline: `7fe4bc88df2427ea90442f7b074c3cfe4e0de33a`.
 
-Current PR: #227 `pii-block-purpose-contract-v1`.
+Current PR: #231 `surya-image-verify-order-fix-v1`.
 
-Next step after merge PR #227: `surya-raw-fullframe-gpu-execution-v1`.
+Canonical next step after merge PR #231 remains: `surya-raw-fullframe-gpu-execution-v1`.
