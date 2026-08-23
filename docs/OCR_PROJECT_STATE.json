@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-17-81",
+  "state_version": "privacy-ocr-2026-08-23-82",
   "active_track": "serverless-gpu-ocr-benchmark",
   "next_step_id": "surya-raw-fullframe-gpu-execution-v1",
-  "next_step_summary": "PR #227 is a documentation-only product-direction exception that clarifies the PII block purpose without changing the active serverless GPU benchmark. Surya remains a serverless-GPU OCR/layout candidate inside the trusted processing boundary. The PII block is not optimized for perfect full-contract transcription: its primary purpose is complete PII-region localization, safe party/field role association, irreversible removal of original sensitive pixels, stable semantic replacement such as [АРЕНДОДАТЕЛЬ], [АРЕНДАТОР 1], [АРЕНДАТОР 2], and privacy validation. Privacy-validated sanitized full-page images are the primary downstream artifact for an approved multimodal legal-analysis model; raw OCR JSON/text remains restricted transient worker state and is not the canonical LLM handoff. Sanitized structured evidence may be derived after privacy validation when required for deterministic checks or citations. The next bounded implementation remains surya-raw-fullframe-gpu-execution-v1: execute the existing PR #226 worker on explicitly approved GPU infrastructure using approved non-identifying full-frame pages, measure quality/layout/PII-localization usefulness, cold/warm latency, queue delay, GPU/VRAM/OOM, billed seconds/cost, log hygiene, cleanup, region and retention behavior, and do not build production masking or LLM handoff in that benchmark step.",
-  "last_recorded_pr": 227,
-  "last_recorded_change": "pii-block-purpose-contract-v1",
+  "next_step_summary": "PR #231 is an explicitly product-owner-authorized bounded corrective for the existing PR #226 Surya raw-fullframe worker. A valid benchmark PNG reached the worker during the Draft PR #230 Cloud Run CPU experiment but was rejected before OCR because the worker read EXIF metadata and then called Pillow verify() on the same image object; current Pillow requires verify() directly after Image.open() for PNG. PR #231 verifies the bounded encoded bytes on a fresh open, then reopens the same bytes for EXIF/oriented-dimension inspection, and adds a synthetic PNG regression test. It changes no provider, model, network destination, privacy boundary, production upload, PII masking, Gemini/legal-analysis path, storage, or active architecture. The canonical next_step_id remains surya-raw-fullframe-gpu-execution-v1; after this corrective is merged, Draft PR #230 must rebuild/redeploy its image before any Cloud Run cold/warm OCR result is treated as evidence.",
+  "last_recorded_pr": 231,
+  "last_recorded_change": "surya-image-verify-order-fix-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
-  "updated_on": "2026-08-17"
+  "updated_on": "2026-08-23"
 }
