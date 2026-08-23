@@ -54,6 +54,14 @@ class SuryaFullframeWorkerTests(unittest.TestCase):
         self.assertEqual((result["pages"][0]["width_px"], result["pages"][0]["height_px"]), (70, 40))
         self.assertEqual(safe_metrics(result)["preprocessing"], "exif_orientation_only_full_frame")
 
+    def test_png_input_is_verified_before_metadata_is_read(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            engine = FakeEngine()
+            result = run_surya_fullframe_job([self._image(Path(temp_dir), "page.png")], engine=engine)
+        self.assertEqual(result["status"], "succeeded")
+        self.assertEqual(result["pages"][0]["status"], "succeeded")
+        self.assertEqual(engine.calls, 1)
+
     def test_partial_failure_keeps_exact_page_coverage(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

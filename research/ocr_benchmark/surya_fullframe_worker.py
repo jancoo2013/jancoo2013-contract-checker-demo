@@ -119,8 +119,9 @@ def _request_pages(paths: Sequence[Path]) -> list[PageInput]:
             if total_bytes > MAX_JOB_BYTES:
                 raise WorkerError("rejected_input", "RESOURCE_LIMIT", "benchmark job exceeds encoded-size limit")
             with Image.open(BytesIO(payload)) as source:
-                width, height = _oriented_dimensions(source)
                 source.verify()
+            with Image.open(BytesIO(payload)) as source:
+                width, height = _oriented_dimensions(source)
         except WorkerError as exc:
             if exc.status == "internal_error":
                 raise WorkerError("rejected_input", exc.code, exc.message) from exc
