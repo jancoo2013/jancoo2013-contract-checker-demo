@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-24-84",
-  "active_track": "serverless-gpu-ocr-benchmark",
-  "next_step_id": "surya-raw-fullframe-gpu-execution-v1",
-  "next_step_summary": "PR #233 is an explicitly product-owner-authorized bounded research exception following merged PR #232. It wires the targeted-region Surya benchmark into a reproducible CPU-only Cloud Run container fixed to me-west1, with one loopback llama.cpp backend configured for four slots, 49152 total context tokens, eight CPU threads, and no GPU; one reused Surya predictor; per-request client parallelism restricted to 1, 2, or 4; bounded PNG/header input; aggregate-only output; and fail-closed temporary-file cleanup. The service template remains benchmark-only at 8 vCPU, 16 GiB, minScale 0, maxScale 1, and containerConcurrency 1. Candidate detection, Tesseract integration, production PII masking/privacy validation, Android upload, Gemini/legal analysis, storage, authentication, encryption/key management, billing, and production provider authorization remain out of scope. Static validation is complete; actual Cloud Run build/deployment, targeted-region latency/quality, RAM/OOM, provider logs, cleanup/retention, cost, and actual regional behavior remain runtime evidence. active_track and next_step_id stay unchanged until measured targeted-region CPU evidence supports a separate product-direction change.",
+  "state_version": "privacy-ocr-2026-08-24-85",
+  "active_track": "question-engine-development",
+  "next_step_id": "question-engine-golden-contract-corpus-v1",
+  "next_step_summary": "Product-owner direction after merged PR #233: freeze the Surya/cloud OCR infrastructure track and move implementation focus to the Question Engine. The attempted targeted-region CPU runtime did not execute: Cloud Build source upload/API enablement completed, but build creation stopped at PERMISSION_DENIED before container build/deploy/OCR, so this is not evidence that Surya CPU performance failed. The freeze is a prioritization decision: scalable cloud OCR is not currently required for single-user product development, while Question Engine behavior is the higher-value product unknown. Reopen cloud/Surya infrastructure only when automatic OCR becomes a concrete blocker or real product usage justifies renewed infrastructure work. Tesseract full-page OCR remains NO-GO. Question Engine must remain OCR-provider-independent and start from a sanitized golden corpus derived from owner-controlled real rental contracts; persistent repository fixtures must contain no recoverable PII. Handwriting must not be semantically inferred or reconstructed; if meaning depends on handwriting, the system must surface that dependency rather than guess. Stable party-role placeholders must preserve contract directionality after de-identification. No runtime, provider, upload, masking, Gemini call, storage or production privacy claim is added by this state-only pivot.",
   "last_recorded_pr": 233,
-  "last_recorded_change": "surya-targeted-region-cloud-run-cpu-v1",
+  "last_recorded_change": "question-engine-track-pivot-v1-pending-pr-number",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-08-24"
