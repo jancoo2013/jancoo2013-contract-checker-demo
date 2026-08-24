@@ -1,0 +1,38 @@
+#!/bin/sh
+set -eu
+backend_port=8081
+startup_seconds="${SURYA_BACKEND_STARTUP_SECONDS:-220}"
+case "${PORT:-}" in ''|*[!0-9]*) echo "Invalid benchmark port" >&2; exit 2;; esac
+case "$startup_seconds" in ''|*[!0-9]*) echo "Invalid startup bound" >&2; exit 2;; esac
+[ "$PORT" != "$backend_port" ] && [ "$startup_seconds" -le 220 ] || { echo "Unsafe benchmark startup configuration" >&2; exit 2; }
+export CONTAINER_STARTED_AT_MS=$(( $(date +%s) * 1000 ))
+llama_pid=""; http_pid=""
+stop_pid() {
+  [ -z "$1" ] && return
+  kill -TERM "$1" 2>/dev/null || true
+  for _attempt in 1 2 3 4 5; do kill -0 "$1" 2>/dev/null || break; sleep 1; done
+  kill -KILL "$1" 2>/dev/null || true; wait "$1" 2>/dev/null || true
+}
+cleanup() { trap - EXIT INT TERM HUP; stop_pid "$http_pid"; stop_pid "$llama_pid"; }
+trap cleanup EXIT INT TERM HUP
+llama-server --model /opt/surya/surya-2.gguf --mmproj /opt/surya/surya-2-mmproj.gguf \
+  --alias datalab-to/surya-ocr-2 --host 127.0.0.1 --port "$backend_port" \
+  --parallel 4 --ctx-size 49152 --threads 8 --threads-batch 8 --n-gpu-layers 0 --jinja >/dev/null 2>&1 &
+llama_pid=$!
+python - "$backend_port" "$startup_seconds" <<'PY'
+import json, sys, time, urllib.request
+port, timeout = int(sys.argv[1]), int(sys.argv[2]); deadline = time.monotonic() + timeout
+while time.monotonic() < deadline:
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=2) as r:
+            if r.status == 200:
+                with urllib.request.urlopen(f"http://127.0.0.1:{port}/v1/models", timeout=2) as m: data = json.load(m)
+                if (data.get("data") or [{}])[0].get("id") == "datalab-to/surya-ocr-2": raise SystemExit(0)
+    except (OSError, ValueError, KeyError, IndexError): pass
+    time.sleep(1)
+raise SystemExit("Surya backend did not become ready within the bounded startup window")
+PY
+export MODEL_STARTUP_MS=$(( $(date +%s) * 1000 - CONTAINER_STARTED_AT_MS ))
+python -m research.ocr_benchmark.surya_targeted_cloud_run_server &
+http_pid=$!
+wait "$http_pid"
