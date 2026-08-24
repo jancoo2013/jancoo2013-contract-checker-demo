@@ -1,6 +1,6 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-23, PR #231, `surya-image-verify-order-fix-v1`.
+Последнее обновление: 2026-08-24, PR #232, `surya-targeted-region-cpu-benchmark-v1`.
 
 Активный трек: `serverless-gpu-ocr-benchmark`.
 
@@ -8,7 +8,40 @@
 
 Этот документ вместе с `docs/OCR_PROJECT_STATE.json` является канонической operational-точкой восстановления privacy/OCR-проекта. Архитектурные документы задают обязательные границы, но текущий `next_step_id` выбирается только state-файлами.
 
-## Current change — PR #231 Surya PNG verification-order corrective
+## Current change — PR #232 targeted-region parallel Surya CPU benchmark
+
+PR #232 — явно разрешённое product-owner bounded research exception после практического наблюдения, что Google Batch T4 provisioning остаётся непригодно долгим для интерактивного пользовательского пути, а существующий Cloud Run CPU full-page benchmark тратит основное время на полную повторную транскрипцию страницы.
+
+Эксперимент намеренно проверяет более узкую модель вычислений:
+
+```text
+full page
+→ bounded caller-supplied candidate regions
+→ crop only those regions in stable post-EXIF page coordinates
+→ one Surya batched recognition call for all crops
+→ bounded parallelism = 1 / 2 / 4
+→ aggregate-only timing/count metrics
+```
+
+Границы PR #232:
+
+- новый benchmark не выполняет full-page OCR; Surya получает только переданные bounded crops;
+- `SURYA_INFERENCE_PARALLEL` ограничен значениями 1, 2 или 4 и применяется до создания `SuryaInferenceManager`;
+- до OCR проверяются encoded page bytes, decoded dimensions/pixels, count/bounds/area of candidate regions и total candidate pixels;
+- OCR output дополнительно bounded по blocks и text length;
+- raw crop pixels и raw OCR text остаются transient process state и не попадают в persistent result/CLI output;
+- persistent result содержит только status/error code, region/block/character counts, selected parallelism и timing;
+- injected-engine tests подтверждают one-batch coverage, invalid-region fail-closed, invalid parallelism rejection и malformed engine coverage safe failure;
+- candidate-region detector пока не реализуется: этот PR не добавляет Tesseract integration, marker rules или production PII decision logic;
+- Cloud Run deployment/runtime configuration не меняется; реальная CPU parallelism/latency ещё не измерена;
+- Android upload, production auth/encryption/key management, production masking/privacy validation, Gemini/legal-analysis integration, storage и provider authorization не добавляются;
+- real user documents/PII не добавляются в repository or tests.
+
+Pre-state-sync focused validation на reconstructed new module/tests: Python compilation PASS; `tests.test_surya_targeted_region_benchmark` — 4/4 PASS. После финального state sync требуется exact-head validation, changed-path audit и mandatory security review.
+
+`active_track` и `next_step_id` намеренно пока не меняются: PR #232 проверяет вычислительную гипотезу до отдельного product-direction commit. Если targeted-region CPU runtime materially сокращает latency без потери PII-localization utility, следующий owner decision может заменить full-page/GPU benchmark path отдельным canonical targeted-region CPU track. Draft PR #229/#230 остаются отдельными незавершёнными experiments и не являются dependency этого PR.
+
+## Previous change — PR #231 Surya PNG verification-order corrective
 
 PR #231 — явно разрешённый product-owner bounded corrective существующего PR #226 raw-fullframe worker. Во время Draft PR #230 Cloud Run CPU benchmark approved non-identifying PNG дошёл до worker, но был отклонён как `INVALID_IMAGE` до OCR. Локальная reproduction теми же Pillow semantics подтвердила, что PNG исправен: `verify()` проходит, если вызывается сразу после `Image.open()`, но current worker сначала читал EXIF через `getexif()`, а затем вызывал `verify()` на том же image object; current Pillow для PNG отвечает `RuntimeError: verify must be called directly after open`.
 
@@ -699,6 +732,6 @@ Last periodic Codex batch audit: after `b9527f046a0225c0e80f3f511e15b9a8b1eb0ea3
 
 Frozen Python geometry code baseline: `7fe4bc88df2427ea90442f7b074c3cfe4e0de33a`.
 
-Current PR: #231 `surya-image-verify-order-fix-v1`.
+Current PR: #232 `surya-targeted-region-cpu-benchmark-v1`.
 
-Canonical next step after merge PR #231 remains: `surya-raw-fullframe-gpu-execution-v1`.
+Canonical next step after merge PR #232 remains: `surya-raw-fullframe-gpu-execution-v1`.
