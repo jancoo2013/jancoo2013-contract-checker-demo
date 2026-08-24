@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-23-82",
+  "state_version": "privacy-ocr-2026-08-24-83",
   "active_track": "serverless-gpu-ocr-benchmark",
   "next_step_id": "surya-raw-fullframe-gpu-execution-v1",
-  "next_step_summary": "PR #231 is an explicitly product-owner-authorized bounded corrective for the existing PR #226 Surya raw-fullframe worker. A valid benchmark PNG reached the worker during the Draft PR #230 Cloud Run CPU experiment but was rejected before OCR because the worker read EXIF metadata and then called Pillow verify() on the same image object; current Pillow requires verify() directly after Image.open() for PNG. PR #231 verifies the bounded encoded bytes on a fresh open, then reopens the same bytes for EXIF/oriented-dimension inspection, and adds a synthetic PNG regression test. It changes no provider, model, network destination, privacy boundary, production upload, PII masking, Gemini/legal-analysis path, storage, or active architecture. The canonical next_step_id remains surya-raw-fullframe-gpu-execution-v1; after this corrective is merged, Draft PR #230 must rebuild/redeploy its image before any Cloud Run cold/warm OCR result is treated as evidence.",
-  "last_recorded_pr": 231,
-  "last_recorded_change": "surya-image-verify-order-fix-v1",
+  "next_step_summary": "PR #232 is an explicitly product-owner-authorized bounded research exception prompted by impractically long Google Batch T4 provisioning and the high CPU cost of full-page Surya transcription. It adds a targeted-region benchmark that accepts bounded caller-supplied regions in stable post-EXIF page coordinates, crops only those regions, batches them through one Surya RecognitionPredictor call, and restricts SURYA_INFERENCE_PARALLEL to 1, 2, or 4. Persistent output is aggregate-only; raw crop pixels and raw OCR text remain transient. The PR does not yet implement candidate-region detection, Tesseract integration, production PII decisions/masks, Cloud Run runtime changes, Android upload, Gemini/legal analysis, storage, or provider authorization. active_track and next_step_id remain unchanged until runtime evidence justifies a separate product-direction change.",
+  "last_recorded_pr": 232,
+  "last_recorded_change": "surya-targeted-region-cpu-benchmark-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
-  "updated_on": "2026-08-23"
+  "updated_on": "2026-08-24"
 }
