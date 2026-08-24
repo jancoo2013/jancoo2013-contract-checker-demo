@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-24-83",
+  "state_version": "privacy-ocr-2026-08-24-84",
   "active_track": "serverless-gpu-ocr-benchmark",
   "next_step_id": "surya-raw-fullframe-gpu-execution-v1",
-  "next_step_summary": "PR #232 is an explicitly product-owner-authorized bounded research exception prompted by impractically long Google Batch T4 provisioning and the high CPU cost of full-page Surya transcription. It adds a targeted-region benchmark that accepts bounded caller-supplied regions in stable post-EXIF page coordinates, crops only those regions, batches them through one Surya RecognitionPredictor call, and restricts SURYA_INFERENCE_PARALLEL to 1, 2, or 4. Persistent output is aggregate-only; raw crop pixels and raw OCR text remain transient. The PR does not yet implement candidate-region detection, Tesseract integration, production PII decisions/masks, Cloud Run runtime changes, Android upload, Gemini/legal analysis, storage, or provider authorization. active_track and next_step_id remain unchanged until runtime evidence justifies a separate product-direction change.",
-  "last_recorded_pr": 232,
-  "last_recorded_change": "surya-targeted-region-cpu-benchmark-v1",
+  "next_step_summary": "PR #233 is an explicitly product-owner-authorized bounded research exception following merged PR #232. It wires the targeted-region Surya benchmark into a reproducible CPU-only Cloud Run container fixed to me-west1, with one loopback llama.cpp backend configured for four slots, 49152 total context tokens, eight CPU threads, and no GPU; one reused Surya predictor; per-request client parallelism restricted to 1, 2, or 4; bounded PNG/header input; aggregate-only output; and fail-closed temporary-file cleanup. The service template remains benchmark-only at 8 vCPU, 16 GiB, minScale 0, maxScale 1, and containerConcurrency 1. Candidate detection, Tesseract integration, production PII masking/privacy validation, Android upload, Gemini/legal analysis, storage, authentication, encryption/key management, billing, and production provider authorization remain out of scope. Static validation is complete; actual Cloud Run build/deployment, targeted-region latency/quality, RAM/OOM, provider logs, cleanup/retention, cost, and actual regional behavior remain runtime evidence. active_track and next_step_id stay unchanged until measured targeted-region CPU evidence supports a separate product-direction change.",
+  "last_recorded_pr": 233,
+  "last_recorded_change": "surya-targeted-region-cloud-run-cpu-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-08-24"

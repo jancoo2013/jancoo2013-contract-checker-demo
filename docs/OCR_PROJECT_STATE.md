@@ -1,6 +1,6 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-24, PR #232, `surya-targeted-region-cpu-benchmark-v1`.
+Последнее обновление: 2026-08-24, PR #233, `surya-targeted-region-cloud-run-cpu-v1`.
 
 Активный трек: `serverless-gpu-ocr-benchmark`.
 
@@ -8,7 +8,43 @@
 
 Этот документ вместе с `docs/OCR_PROJECT_STATE.json` является канонической operational-точкой восстановления privacy/OCR-проекта. Архитектурные документы задают обязательные границы, но текущий `next_step_id` выбирается только state-файлами.
 
-## Current change — PR #232 targeted-region parallel Surya CPU benchmark
+## Current change — PR #233 targeted-region Cloud Run CPU benchmark
+
+PR #233 — явно разрешённое product-owner bounded research exception поверх merged PR #232. Оно переносит targeted-region benchmark в воспроизводимый CPU-only Cloud Run container для `me-west1`, чтобы измерить реальные 1/2/4 client concurrency и 1/4/8-region batches без full-page Surya transcription.
+
+Экспериментальная runtime-схема:
+
+```text
+bounded PNG page + bounded candidate rectangles
+→ Cloud Run CPU service in me-west1
+→ one loopback llama.cpp backend
+→ one reused Surya predictor
+→ per-request client parallelism 1 / 2 / 4
+→ OCR only on targeted crops
+→ aggregate-only metrics
+```
+
+Границы PR #233:
+
+- llama.cpp запускается CPU-only на `127.0.0.1` с `--parallel 4`, `--ctx-size 49152`, `--threads 8`, `--threads-batch 8` и `--n-gpu-layers 0`;
+- four-slot context выбран так, чтобы не уменьшать рекомендуемый per-slot context при сравнении 1/2/4 client parallelism;
+- процесс держит один `SuryaInferenceManager` и один `RecognitionPredictor`; Cloud Run `containerConcurrency = 1`, поэтому разрешённое per-request изменение `SURYA_INFERENCE_PARALLEL` не пересекается с другим benchmark request внутри того же instance;
+- HTTP wrapper принимает только один bounded PNG body, bounded ASCII `X-Surya-Regions` и `X-Surya-Parallel` из `{1,2,4}`;
+- геометрические/region/output bounds остаются в merged PR #232 benchmark; persistent HTTP output содержит только status/error code, region/block/character counts и timing;
+- raw page/crop pixels и OCR text не возвращаются и не логируются новым wrapper;
+- временный PNG удаляется до ответа; cleanup failure возвращает bounded `TEMP_CLEANUP_FAILED`;
+- image build pin-ит llama.cpp revision, Surya GGUF revision/checksums и `surya-ocr==0.22.1`; runtime model resolution работает offline;
+- Cloud Run template фиксирует `me-west1`, 8 vCPU, 16 GiB, minScale 0, maxScale 1, concurrency 1, startup CPU boost и отсутствие GPU/cross-region fallback;
+- candidate detector, Tesseract integration, production PII decision/masking/privacy validation, Android upload, Gemini/legal-analysis integration, storage, auth, encryption/key management, billing и production provider authorization не добавляются;
+- real user documents/PII не добавляются в repository or tests.
+
+Final exact-head static validation после state sync: Python compilation PASS; `tests.test_surya_targeted_cloud_run_cpu_contract` — 4/4 PASS; entrypoint shell syntax PASS; JSON state parse PASS; exact local Git-blob hashes for the reconstructed final code/test/config files matched the GitHub branch blobs.
+
+Фактические Cloud Run build/deploy, targeted-region latency/quality, RAM/OOM, billed cost, provider logs, cleanup/retention и actual regional behavior ещё не измерены и не заявляются как доказанные этим PR. После merge именно эти runtime measurements должны решить, оправдан ли отдельный canonical pivot на targeted-region CPU track.
+
+`active_track` и `next_step_id` намеренно не меняются в PR #233: это bounded exception, а binding architecture/state pivot будет отдельным product-direction решением только после runtime evidence. Product owner закрыл PR #228, #229 и #230 без merge; они не являются dependencies этого PR. Закрытый #230 использован только как reference для уже проверенных bounded CPU-container patterns.
+
+## Previous change — PR #232 targeted-region parallel Surya CPU benchmark
 
 PR #232 — явно разрешённое product-owner bounded research exception после практического наблюдения, что Google Batch T4 provisioning остаётся непригодно долгим для интерактивного пользовательского пути, а существующий Cloud Run CPU full-page benchmark тратит основное время на полную повторную транскрипцию страницы.
 
@@ -732,6 +768,6 @@ Last periodic Codex batch audit: after `b9527f046a0225c0e80f3f511e15b9a8b1eb0ea3
 
 Frozen Python geometry code baseline: `7fe4bc88df2427ea90442f7b074c3cfe4e0de33a`.
 
-Current PR: #232 `surya-targeted-region-cpu-benchmark-v1`.
+Current PR: #233 `surya-targeted-region-cloud-run-cpu-v1`.
 
-Canonical next step after merge PR #232 remains: `surya-raw-fullframe-gpu-execution-v1`.
+Canonical next step after merge PR #233 remains: `surya-raw-fullframe-gpu-execution-v1` pending separate product-direction decision after targeted-region CPU runtime evidence.
