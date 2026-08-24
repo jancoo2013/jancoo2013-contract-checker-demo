@@ -141,9 +141,9 @@ def run_targeted_region_benchmark(
         if engine is None:
             engine = SuryaBatchRegionEngine(parallelism)
         ocr_started = time.perf_counter()
-        predictions = list(engine.predict(crops))
+        predictions = engine.predict(crops)
         ocr_ms = round((time.perf_counter() - ocr_started) * 1000)
-        if len(predictions) != len(crops):
+        if not isinstance(predictions, (list, tuple)) or len(predictions) != len(crops):
             raise BenchmarkError("MALFORMED_ENGINE_OUTPUT", "OCR engine returned invalid region coverage")
         block_count = recognized_characters = 0
         for prediction, crop in zip(predictions, crops):
