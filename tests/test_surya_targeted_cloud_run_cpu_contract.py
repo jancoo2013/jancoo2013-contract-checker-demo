@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 import shutil, subprocess, unittest
 from pathlib import Path
 
@@ -7,11 +6,9 @@ B = Path(__file__).resolve().parents[1] / "research" / "ocr_benchmark"
 DOCKER, ENTRY = B / "Dockerfile.surya-targeted-cloud-run-cpu", B / "surya_targeted_cloud_run_entrypoint.sh"
 SERVER, SERVICE = B / "surya_targeted_cloud_run_server.py", B / "cloud_run_targeted_cpu_service.template.yaml"
 
-
 def _shell() -> str | None:
     git = shutil.which("git"); candidate = Path(git).parent.parent / "bin" / "sh.exe" if git else None
     return shutil.which("sh") or (str(candidate) if candidate and candidate.is_file() else None)
-
 
 class TargetedCloudRunCPUContractTests(unittest.TestCase):
     @classmethod
@@ -43,6 +40,5 @@ class TargetedCloudRunCPUContractTests(unittest.TestCase):
     def test_entrypoint_shell_syntax(self):
         result = subprocess.run([_shell(), "-n", str(ENTRY)], capture_output=True, text=True, check=False)
         self.assertEqual(0, result.returncode, result.stderr)
-
 
 if __name__ == "__main__": unittest.main()
