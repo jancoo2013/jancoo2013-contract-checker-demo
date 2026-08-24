@@ -1,14 +1,33 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-24, PR #233, `surya-targeted-region-cloud-run-cpu-v1`.
+Последнее обновление: 2026-08-24, PR #234, `question-engine-track-pivot-v1`.
 
-Активный трек: `serverless-gpu-ocr-benchmark`.
+Активный трек: `question-engine-development`.
 
-Канонический следующий bounded-шаг не меняется: `surya-raw-fullframe-gpu-execution-v1`.
+Канонический следующий bounded-шаг: `question-engine-golden-contract-corpus-v1`.
 
 Этот документ вместе с `docs/OCR_PROJECT_STATE.json` является канонической operational-точкой восстановления privacy/OCR-проекта. Архитектурные документы задают обязательные границы, но текущий `next_step_id` выбирается только state-файлами.
 
-## Current change — PR #233 targeted-region Cloud Run CPU benchmark
+## Current change — PR #234 Question Engine track pivot
+
+PR #234 фиксирует явное product-owner решение заморозить Surya/cloud OCR infrastructure track и перенести основной implementation focus на Question Engine.
+
+Причина — приоритизация продукта, а не доказанный провал Surya. После merge PR #233 targeted-region CPU runtime был начат локально: source archive загрузился, Cloud Build API был включён, но создание build остановилось на `PERMISSION_DENIED` до container build, deploy и OCR execution. Поэтому никакого вывода о реальной CPU latency/quality Surya из этой попытки делать нельзя.
+
+Текущее решение:
+
+- дальнейшие IAM/Cloud Build/Cloud Run/GPU/CPU infrastructure iterations для Surya сейчас не выполняются;
+- существующие PR #226, #232 и #233 сохраняются как frozen research assets и могут быть переиспользованы позже;
+- cloud/Surya track reopen-ится только если automatic OCR станет concrete blocker для product testing либо появится реальная multi-user нагрузка/экономический смысл вернуться к production OCR infrastructure;
+- Tesseract full-page OCR остаётся `NO-GO`; исторический провал на уменьшенном изображении не является основанием снова делать его production fallback;
+- Question Engine должен быть OCR-provider-independent: он получает нормализованное представление договора и не должен зависеть от того, кто когда-либо сделал OCR;
+- следующий bounded-шаг — `question-engine-golden-contract-corpus-v1`: начать с нескольких owner-controlled реальных договоров аренды и получить эталонную печатную часть текста для разработки Question Engine;
+- persistent repository fixtures должны быть полностью обезличены и не содержать recoverable PII; raw real contracts не добавляются в repository/CI;
+- рукописный текст не должен семантически распознаваться, реконструироваться или угадываться. Если смысл ответа зависит от рукописной вставки, система должна вернуть explicit unresolved handwriting dependency, а не выводить содержание по контексту;
+- de-identification не должна уничтожать роли сторон: вместо безымянного `[REDACTED]` должны сохраняться стабильные semantic placeholders вроде `LANDLORD_1`, `TENANT_1`, `TENANT_2`, `GUARANTOR_1`, чтобы направление обязательств и платежей оставалось проверяемым;
+- этот PR не добавляет runtime, provider, upload, masking, Gemini call, storage, production auth или production privacy claim и не ослабляет существующий `SECURITY.md` boundary.
+
+## Previous change — PR #233 targeted-region Cloud Run CPU benchmark
 
 PR #233 — явно разрешённое product-owner bounded research exception поверх merged PR #232. Оно переносит targeted-region benchmark в воспроизводимый CPU-only Cloud Run container для `me-west1`, чтобы измерить реальные 1/2/4 client concurrency и 1/4/8-region batches без full-page Surya transcription.
 
@@ -674,47 +693,50 @@ This does not certify all Android devices or all capture conditions. Reopen prep
 
 Grayscale remains in the current runtime path but is not an active optimization topic. No separate grayscale size/quality A/B test is required before the OCR benchmark.
 
-## 3. Current product block — serverless GPU OCR benchmark
+## 3. Frozen product block — Surya/cloud OCR infrastructure
 
-The approved serverless benchmark is active. PR #226 provides the first bounded raw-fullframe Surya worker; PR #227 only clarifies what that OCR evidence is ultimately for. Neither establishes production OCR/PII safety, GPU fit, latency, cost, or provider/privacy behavior.
+Surya/cloud OCR infrastructure is no longer the active development track after PR #234.
 
-After merge PR #227, `surya-raw-fullframe-gpu-execution-v1` must:
+The repository keeps the merged benchmark contracts and implementations from PR #224–#233 as frozen research assets. They are not deleted and are not interpreted as production approval.
 
-1. run the PR #226 worker on explicitly approved GPU infrastructure;
-2. start with ordinary full-frame approved benchmark photographs/pages after EXIF orientation normalization only;
-3. not require deskew, crop, perspective correction or grayscale preprocessing;
-4. use approved non-identifying material for repository/automation evidence and obey the binding restricted-data region gate for any sensitive material;
-5. record Surya/package/model/backend revision and concrete execution limits;
-6. measure printed Hebrew/layout quality to the extent needed for PII localization/document structure, plus names/IDs/phones/emails/addresses/signature/handwriting behavior on approved fixtures where applicable;
-7. measure cold start, warm execution, queue delay, one-page and multi-page latency, GPU/VRAM, OOM behavior, billed seconds and estimated cost;
-8. inspect log/output hygiene and backend cleanup after success/failure/timeout;
-9. verify actual regional and retention properties before making any sensitive-data claim;
-10. compare OCR/layout evidence against the source and decide whether any additional preprocessing has demonstrated value;
-11. still add no production Android upload, production PII masks, multimodal legal-analysis call or permanent raw-document storage.
+The attempted targeted-region CPU runtime after PR #233 did not reach container build or OCR execution: local `gcloud builds submit` uploaded the source archive and enabled the Cloud Build API, then build creation failed with `PERMISSION_DENIED`. Therefore:
 
-Surya remains a benchmark candidate, not a production commitment. If raw-fullframe quality is materially usable for PII localization/document structure, deskew/crop/grayscale must not become mandatory in the OCR path without concrete contrary evidence; existing geometry work can instead support later capture-quality/advice behavior.
+- no measured CPU latency/quality result exists;
+- no conclusion is recorded that targeted-region Surya CPU is too slow or unusable;
+- no further IAM, Cloud Build, Cloud Run, GPU queue/provisioning or cost tuning is scheduled now;
+- the infrastructure track can reopen when automatic OCR becomes a concrete blocker for product validation or real multi-user demand justifies renewed infrastructure work;
+- any reopened production OCR path must still satisfy the existing Israel-only, restricted-data, retention/deletion and log-hygiene requirements in `SECURITY.md`;
+- Tesseract full-page OCR remains NO-GO and is not promoted as fallback by this freeze.
 
-## 4. Active target pipeline
+Question Engine development must not depend on a particular OCR provider. The current task is to validate the semantic/product layer first.
+
+## 4. Active target pipeline — Question Engine development
+
+Current development pipeline:
 
 ```text
-raw phone photos
-→ minimal client-side input handling (EXIF/orientation; no mandatory deskew/crop/grayscale before first OCR benchmark)
-→ encryption
-→ bounded asynchronous serverless job
-→ GPU worker decrypts in volatile memory
-→ full-page Hebrew OCR/layout as transient localization evidence
-→ server-side PII detection + party/field role association
-→ irreversible pixel replacement + stable semantic placeholders
-→ privacy validation
-→ sanitized full-page images
-→ approved multimodal LLM legal-risk analysis
-→ optional post-privacy deterministic evidence extraction / Python validation
-→ Russian report
-→ deletion of raw and transient job material
-→ optional persistent storage of sanitized final report under exact account authorization
+owner-controlled real rental contracts
+→ obtain reliable printed-text ground truth outside the production OCR dependency
+→ exclude handwriting from semantic transcription
+→ de-identify PII while preserving stable party-role placeholders
+→ sanitized golden contract corpus
+→ recurring-question inventory + conditional branches
+→ Question Engine
+→ structured answers with evidence references
+→ deterministic / Python verification
+→ Russian user-facing report
 ```
 
-Tesseract full-page OCR remains NO-GO and cannot return as active fallback. Historical device testing does not make the Android implementation device-model-specific.
+This is a development/testing pipeline, not a new production data path.
+
+Binding constraints:
+
+- raw real contracts and recoverable PII must not be committed to repository/CI;
+- persisted golden fixtures must be sanitized before repository storage;
+- handwriting is never guessed or reconstructed for semantic analysis; an answer that depends on handwriting must remain explicitly unresolved;
+- role-preserving placeholders must retain who owes, pays, returns, guarantees or may demand something from whom;
+- Question Engine input/output contracts should remain independent of OCR implementation so future Surya/other OCR infrastructure can be reattached without redesigning semantic logic;
+- production photo/OCR/privacy infrastructure remains deferred, not waived.
 
 ## 5. Review and merge policy
 
@@ -768,6 +790,8 @@ Last periodic Codex batch audit: after `b9527f046a0225c0e80f3f511e15b9a8b1eb0ea3
 
 Frozen Python geometry code baseline: `7fe4bc88df2427ea90442f7b074c3cfe4e0de33a`.
 
-Current PR: #233 `surya-targeted-region-cloud-run-cpu-v1`.
+Current PR: #234 `question-engine-track-pivot-v1`.
 
-Canonical next step after merge PR #233 remains: `surya-raw-fullframe-gpu-execution-v1` pending separate product-direction decision after targeted-region CPU runtime evidence.
+Canonical next step after merge PR #234: `question-engine-golden-contract-corpus-v1`.
+
+Surya/cloud OCR infrastructure is frozen by product-owner decision; the aborted Cloud Build attempt is not recorded as OCR-performance evidence.
