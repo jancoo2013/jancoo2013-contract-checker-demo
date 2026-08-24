@@ -188,7 +188,7 @@ Codex вернул три corrective findings:
 
 1. model-neutral worker contract требовал важных implementation guesses по page order/correlation, exact result coverage, error envelopes, EXIF coordinate semantics и transient raw-OCR evaluation boundary;
 2. Android prepared-document session/cache lifecycle не атомарен при overlapping selection/prepare operations;
-3. TypeScript `PreparedDocumentResult` всё ещё рекламирует исторический `cropped_grayscale` / non-null `cropBoxSource`, хотя current native prepared runtime больше этого не возвращает.
+3. TypeScript `PreparedDocumentResult` всё ещё рекламирует исторический `cropped_grayscale` / non-null `cropBoxSource`, хотя текущий native prepared runtime больше этого не возвращает.
 
 Product-owner решение: PR #225 закрывает только finding #1 перед Surya benchmark. Findings #2–#3 остаются deferred, потому что raw-fullframe Surya benchmark не использует Android preprocessing path; их нужно закрыть до того, как этот Android path станет источником OCR job или production handoff.
 
@@ -333,7 +333,7 @@ angle rejected = full_frame_fallback
 Границы PR #220:
 
 - `rotation_only` больше не отменяет accepted deskew только из-за отказа crop;
-- full-frame deskew использует расширенный white canvas, чтобы поворот не обрезал исходные углы/края;
+- full-frame deskew использует расширенный белый canvas, чтобы поворот не обрезал исходные углы/края;
 - expanded output сохраняет существующие bounded limits: long side <= 10000 и accounted source+output memory <= 384 MiB;
 - `full_frame_fallback` остаётся 0° и не получает crop;
 - fully accepted safe-crop path PR #219 не меняется;
@@ -401,7 +401,7 @@ PR #218 намеренно реализует только первую поло
 
 PR #218 специально разделён до wiring physical transform: final `SafeCropEstimator.kt` занимает 259 implementation additions, а весь runtime/TypeScript diff — 263 additions, поэтому bundling physical crop + grayscale + UI вывел бы PR за target <=300 additions. Следующий bounded PR `android-document-preprocess-physical-crop-grayscale-v1` должен structurally validate accepted in-process crop evidence, conservatively map preview bounds to oriented full resolution, output grayscale cropped image only when fully accepted, otherwise output grayscale full-frame fallback, и показать именно этот final prepared image в development UI.
 
-После этого manual validation выполняется уже над полезным product result: `исходная фотография -> обрезанный/необрезанный grayscale document`, а не как отдельная длительная deskew-кампания.
+После этого manual validation выполняется уже над полезным продуктовым результатом: `исходная фотография -> обрезанный/необрезанный grayscale document`, а не как отдельная длительная deskew-кампания.
 
 ## 0.1. Изменение PR #217 — Android geometry development validation UI controls
 
@@ -425,7 +425,7 @@ PR #217 меняет только development validation UI:
 
 После merge PR #215 owner-requested targeted audit Android geometry PR #211–#215 вернул `BATCH AUDIT CLEAR`: blocking/corrective findings не было, candidate content-region logic, coordinate/sign composition, local-only boundary и bounded resources были признаны согласованными в заявленном finite scope.
 
-После merge, отдельный automatic Codex review PR #215 обнаружил concrete P2 integration defect: `estimateContentRegionAsync(previewUri)` сначала открывал module-owned `preview.png` для angle estimation, а затем повторно открывал тот же переиспользуемый путь для content-region mask. При замене `preview.png` другим `buildPreviewAsync` между двумя чтениями angle и bounds теоретически могли относиться к разным страницам.
+После merge, отдельный автоматический Codex review PR #215 обнаружил конкретный P2 integration defect: `estimateContentRegionAsync(previewUri)` сначала открывал module-owned `preview.png` для angle estimation, а затем повторно открывал тот же переиспользуемый путь для content-region mask. При замене `preview.png` другим `buildPreviewAsync` между двумя чтениями angle и bounds теоретически могли относиться к разным страницам.
 
 PR #216 исправляет только этот дефект:
 
@@ -637,7 +637,7 @@ The code-level freeze remains valid while Android preprocessing is ported. Andro
 
 - adds a separate bounded physical page-boundary crop recovery only for accepted-angle `rotation_only` caused solely by `content_touches_frame`;
 - boundary evidence is derived from a <=900 px local source analysis, not from the text/ink crop candidate;
-- requires contrast, central page occupancy, conservative padding, >=5% removable area, fixed-frame transform containment и dominant-line preservation;
+- requires contrast, central page occupancy, conservative padding, >=5% removable area, fixed-frame transform containment and dominant-line preservation;
 - successful recovery returns existing `cropped_grayscale`; uncertainty preserves PR #220 `deskewed_full_frame_grayscale`;
 - does not change normal SafeCropEstimator acceptance or any external data flow.
 
@@ -692,7 +692,7 @@ After merge PR #227, `surya-raw-fullframe-gpu-execution-v1` must:
 10. compare OCR/layout evidence against the source and decide whether any additional preprocessing has demonstrated value;
 11. still add no production Android upload, production PII masks, multimodal legal-analysis call or permanent raw-document storage.
 
-Surya remains a benchmark candidate, not a production commitment. Если raw-fullframe quality materially usable для PII localization/document structure, deskew/crop/grayscale не должны становиться обязательными в OCR path без concrete contrary evidence; existing geometry work может вместо этого поддерживать later capture-quality/advice behavior.
+Surya remains a benchmark candidate, not a production commitment. If raw-fullframe quality is materially usable for PII localization/document structure, deskew/crop/grayscale must not become mandatory in the OCR path without concrete contrary evidence; existing geometry work can instead support later capture-quality/advice behavior.
 
 ## 4. Active target pipeline
 
