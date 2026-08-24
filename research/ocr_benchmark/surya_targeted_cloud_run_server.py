@@ -61,7 +61,7 @@ def _parse_regions(value: str | None) -> list[Region]:
 
 
 def _error(code: str, request_ms: int = 0) -> dict[str, Any]:
-    return {"status": "rejected_input", "error_code": code, "region_count": 0, "block_count": 0,
+    return {"status": "rejected_input" if code.startswith("INPUT_") else "internal_error", "error_code": code, "region_count": 0, "block_count": 0,
             "recognized_characters": 0, "parallelism": None,
             "metrics": {"ocr_ms": 0, "worker_ms": 0, "request_ms": request_ms, "model_startup_ms": MODEL_STARTUP_MS}}
 
