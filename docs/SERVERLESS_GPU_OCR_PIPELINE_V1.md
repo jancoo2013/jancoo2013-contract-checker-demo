@@ -1,10 +1,12 @@
 # Serverless GPU OCR Pipeline v1
 
-Status: approved MVP architecture direction. Read together with `docs/ARCHITECTURE.md`, `docs/CUSTOM_OCR_PIPELINE.md`, and `docs/OCR_PROJECT_STATE.md`.
+Status: frozen/deferred OCR infrastructure reference while the canonical state is on `question-engine-development`. Read together with `docs/ARCHITECTURE.md`, `docs/CUSTOM_OCR_PIPELINE.md`, and `docs/OCR_PROJECT_STATE.md`.
+
+Merged PR #234 froze Surya/cloud OCR infrastructure as a prioritization decision and moved the active implementation track to the Question Engine. Statements below that describe serverless GPU OCR as the active MVP direction are preserved as the deferred production candidate architecture and privacy boundary for any future reopen; they do not select the current next PR. The canonical `active_track` and `next_step_id` come only from the state files. Existing privacy, Israel-only, deletion, no-raw-Gemini, and restricted-data constraints remain binding.
 
 ## 1. Product decision
 
-The active MVP may send an encrypted raw contract image to an approved serverless GPU worker after explicit user consent.
+A future production MVP may send an encrypted raw contract image to an approved serverless GPU worker after explicit user consent if the frozen OCR infrastructure track is explicitly reopened.
 
 This replaces the former absolute rule that raw images must never leave the device. It does not permit uncontrolled storage, logging, model-provider reuse, or forwarding raw inputs to unrelated OCR/LLM APIs.
 
@@ -29,7 +31,7 @@ raw phone photos
 → deletion of raw job material and transient plaintext
 ```
 
-The PII block is not required to produce a perfect transcript of every contract word or punctuation mark. Its primary job is to find every sensitive region needed for privacy, determine the role/field where safely possible, remove the original sensitive pixels irreversibly, and preserve document meaning with stable safe markers such as `[АРЕНДОДАТЕЛЬ]`, `[АРЕНДАТОР 1]`, and `[АРЕНДАТОР 2]`.
+The PII block is not required to produce a perfect transcript of every contract word or punctuation mark. Its primary job is to find every sensitive region needed for privacy, determine the role/field where safely possible, remove the original sensitive pixels irreversibly, and preserve document meaning with stable safe role markers. Preserve the role granularity actually defined by the contract: if several named people are collectively defined and used later only as `השוכר`, sanitization should preserve the single contract role `השוכר` rather than inventing `TENANT_1`, `TENANT_2`, etc. Individual numbering is needed only when the contract itself distinguishes those individuals in later obligations or rights.
 
 The privacy-validated sanitized page images are the primary downstream document representation for the multimodal legal-analysis model. Raw OCR JSON/text remains restricted transient worker state and must not become the canonical downstream LLM payload. Sanitized text/evidence may still be derived after privacy validation when needed for deterministic checks or citations.
 
@@ -72,7 +74,7 @@ Consent, privacy policy, processor terms, data-region selection, incident handli
 
 ## 5. Serverless design
 
-For the first MVP experiment:
+For the first MVP experiment after an explicit future reopen:
 
 - use a queue-based serverless endpoint with minimum workers `0`;
 - cap maximum workers and execution time to bound spend;
@@ -107,7 +109,7 @@ The benchmark must report separately:
 
 ## 7. OCR candidate policy
 
-Surya is the first benchmark candidate because it supports Hebrew, returns geometry, and exposes a GPU inference path. It is not selected for production until held-out tests verify:
+Surya was the first benchmark candidate because it supports Hebrew, returns geometry, and exposes a GPU inference path. It is not selected for production until held-out tests verify:
 
 - printed Hebrew/layout usability on real contract photographs to the extent needed for robust PII localization and document structure;
 - RTL ordering and bounding-box correctness;
@@ -126,7 +128,7 @@ The architecture must remain replaceable: the worker interface is model-neutral.
 
 The canonical current privacy/OCR step is defined by `docs/OCR_PROJECT_STATE.md` and its JSON mirror. This serverless architecture document does not independently select the next PR.
 
-When the canonical state reaches `serverless-gpu-ocr-viability-benchmark-v1`, the benchmark must:
+If the canonical state later reopens a serverless OCR viability benchmark, that benchmark must:
 
 1. build one local/serverless-compatible benchmark worker around one OCR candidate;
 2. use only synthetic, public, or owner-controlled redacted test pages in repository automation;
@@ -166,4 +168,4 @@ Do not build yet:
 - automated billing;
 - legal-analysis integration.
 
-Each becomes a separate decision only after the benchmark establishes quality, resource use, latency, and cost.
+Each becomes a separate decision only after a reopened benchmark establishes quality, resource use, latency, and cost.

@@ -8,7 +8,7 @@ Before creating a branch or modifying any file, read the current versions from t
 2. `SECURITY.md` — binding security invariants and mandatory final-diff security review gate.
 3. `docs/ARCHITECTURE.md` — product architecture source of truth.
 4. `docs/CUSTOM_OCR_PIPELINE.md` — binding privacy/OCR product contract.
-5. `docs/SERVERLESS_GPU_OCR_PIPELINE_V1.md` — active remote-processing boundary and benchmark contract.
+5. `docs/SERVERLESS_GPU_OCR_PIPELINE_V1.md` — frozen/deferred remote-processing architecture and benchmark contract unless the canonical state explicitly reopens that track.
 6. `docs/OCR_PROJECT_STATE.md` — canonical operational state, blockers, completed changes, and the single permitted next privacy/OCR step.
 7. `docs/OCR_PROJECT_STATE.json` — machine-readable identifier mirror for the canonical state document.
 
@@ -58,33 +58,40 @@ If the requested task conflicts with the binding documents, do not mark the PR r
 
 ## 3. Current Product Direction
 
-The active image-processing direction is encrypted on-demand serverless GPU OCR followed by server-side PII redaction and privacy validation before any legal-analysis handoff.
+The canonical operational direction is selected by `docs/OCR_PROJECT_STATE.md` and its JSON mirror. As of the product-owner pivot recorded by merged PR #234, the active track is Question Engine development and Surya/cloud OCR infrastructure is frozen research, not the active next step.
 
-Target path:
+Current development path:
 
 ```text
-raw phone photos
-→ client-side normalization and encryption
-→ bounded asynchronous serverless job
-→ GPU worker decrypts in volatile memory
-→ full-page Hebrew OCR and layout extraction
-→ server-side PII detection and irreversible image/text redaction
-→ privacy validation
-→ anonymized derivative and evidence blocks
-→ approved LLM legal-risk analysis
+owner-controlled real rental contracts
+→ reliable printed-text ground truth outside the production OCR dependency
+→ exclude handwriting from semantic transcription
+→ de-identify recoverable PII while preserving the role granularity actually used by the contract
+→ sanitized golden contract corpus
+→ recurring-question inventory + conditional branches
+→ Question Engine
+→ structured answers with deterministic evidence references
+→ Python validation / completeness checks
 → Russian report
-→ deletion of raw and transient job material
 ```
 
-The product owner explicitly authorized this architecture change. The former absolute rule that raw images never leave the device is superseded for this consent-based serverless mode.
+Question Engine must remain OCR-provider-independent. A future OCR implementation may feed the same normalized contract representation without redesigning the semantic layer.
 
-Tesseract full-page OCR on the target phone remains a proven NO-GO. The paused on-device visual PII detector remains research and must not be presented as the active next step.
+For golden-corpus and Question Engine work:
 
-The first implementation step is a synthetic/redacted viability benchmark. Do not build production upload, permanent storage, legal-analysis integration, or user-facing consent UI before the benchmark passes.
+- raw real contract photos, raw OCR, and recoverable PII must not enter GitHub or CI;
+- persisted fixtures must be sanitized before commit;
+- handwriting must not be semantically reconstructed, transcribed, or guessed; if a result depends on handwriting, surface an explicit unresolved handwriting dependency;
+- preserve the party-role granularity defined by the contract itself. If several named people are collectively defined and subsequently referenced only as `השוכר`, keep the single role `השוכר`/`АРЕНДАТОР`; do not invent `TENANT_1`, `TENANT_2`, etc. unless the operative text actually distinguishes those individuals;
+- monetary amounts, dates, clause numbers, notice periods, and legally relevant wording are not PII by default and should be retained when safely separable.
+
+The frozen serverless GPU architecture remains available as a future production OCR candidate if automatic OCR becomes a concrete product blocker or real usage justifies renewed infrastructure work. Reopening it requires an explicit state/product decision. Its privacy constraints remain binding: raw material may reach only explicitly approved Israel-located infrastructure, must not be sent raw to Gemini or unrelated services, and must satisfy bounded retention/deletion and logging rules.
+
+Tesseract full-page OCR on the target phone remains a proven NO-GO and must not be restored as an active fallback merely because the cloud track is frozen.
 
 ## 4. Privacy and Data Handling
 
-- Raw contract photos and raw OCR text may leave the device only through the approved encrypted serverless job and only after explicit user consent.
+- Raw contract photos and raw OCR text may leave the device only through an explicitly approved encrypted serverless job after that frozen path is formally reopened and only after explicit user consent.
 - Encryption does not make the worker zero-access: the authorized worker decrypts the document in memory to process it. Do not describe the design otherwise.
 - Raw images, plaintext OCR, job keys, signatures, bank details, and other PII must not enter GitHub, CI, Airtable, logs, analytics, crash reports, or downstream LLM prompts.
 - Raw job inputs, transient plaintext, job keys, temporary files, and raw OCR outputs must be deleted after completion or terminal failure according to verified runtime/provider behavior.
@@ -94,7 +101,7 @@ The first implementation step is a synthetic/redacted viability benchmark. Do no
 - Do not store PII or raw contract material in Airtable.
 - Monetary amounts, dates, clause numbers, notice periods, and legally relevant wording are not PII by default.
 - Do not require a mask on every page. Preserve legally relevant content whenever it can be separated safely from PII.
-- For repository benchmarks, use only synthetic, public, owner-controlled redacted, or otherwise non-identifying test pages.
+- For repository benchmarks and golden fixtures, use only synthetic, public, owner-controlled redacted/sanitized, or otherwise non-identifying material.
 - Final reports may be persisted only under the sanitized-report contract in `SECURITY.md`; report persistence does not permit retention of original pages, raw OCR, recoverable PII, or processing secrets.
 
 ## 5. Development Scope

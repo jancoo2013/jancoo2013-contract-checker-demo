@@ -1,5 +1,7 @@
 # Architecture Notes
 
+Current operational status: merged PR #234 moved the active implementation track to `question-engine-development` and froze Surya/cloud OCR infrastructure. Sections below that describe serverless GPU OCR as the active/target MVP path are retained as the deferred production OCR/privacy candidate for a future explicit reopen. They do not select the current next PR; `docs/OCR_PROJECT_STATE.md` and its JSON mirror do. Existing privacy, Israel-only, restricted-data, deletion, redaction, and no-raw-Gemini constraints remain binding.
+
 ## 1. Product Purpose
 
 This project helps Russian-speaking tenants in Israel understand and check Hebrew residential rental contracts before signing.
@@ -45,9 +47,11 @@ The current image redaction flow is a closed technical test, not a complete prod
 
 Tesseract full-page Hebrew OCR on the target Samsung A55 has been tested and rejected for the active MVP path.
 
-## 3. Target MVP Pipeline
+The active implementation track is now Question Engine development on sanitized, owner-controlled golden contract text. That semantic layer must remain OCR-provider-independent.
 
-The product owner explicitly selected encrypted on-demand serverless GPU OCR as the active architecture to benchmark.
+## 3. Deferred Production OCR / Target MVP Candidate Pipeline
+
+Encrypted on-demand serverless GPU OCR remains the deferred production OCR architecture candidate, not the active implementation track. It may be reopened only by an explicit product/state decision when automatic OCR becomes a concrete blocker or real usage justifies renewed infrastructure work.
 
 ```text
 raw phone photos
@@ -68,13 +72,13 @@ raw phone photos
 
 The PII/OCR block is not a product goal of its own and is not required to produce a perfect full-contract transcript. Its primary purpose is to identify every sensitive region needed for privacy, determine a stable party/field role where safely possible, irreversibly remove the original sensitive pixels, and preserve enough semantic structure for downstream analysis.
 
-The privacy-validated sanitized page images are the primary downstream representation of the contract. Raw OCR JSON/text remains restricted transient worker state and is not the canonical payload for the legal-analysis model. Sanitized structured text or evidence blocks may still be derived after the privacy pass for deterministic checks, citations, or report support.
+The privacy-validated sanitized page images are the primary downstream representation of the contract in that future production image path. Raw OCR JSON/text remains restricted transient worker state and is not the canonical payload for the legal-analysis model. Sanitized structured text or evidence blocks may still be derived after the privacy pass for deterministic checks, citations, or report support.
 
-The former absolute rule that raw photos must never leave the device is superseded for this consent-based serverless processing mode.
+The former absolute rule that raw photos must never leave the device is superseded only for an explicitly approved consent-based serverless processing mode after that path is reopened.
 
-This does not authorize raw contract material to be sent to Gemini, Google Vision, general LLM APIs, analytics, logs, GitHub, CI, Airtable, or unrelated services. The approved serverless worker is the only remote component allowed to process raw page images and raw OCR text.
+This does not authorize raw contract material to be sent to Gemini, Google Vision, general LLM APIs, analytics, logs, GitHub, CI, Airtable, or unrelated services. An explicitly approved serverless worker would be the only remote component allowed to process raw page images and raw OCR text.
 
-The paused on-device visual PII detector remains a possible future auxiliary or fallback layer, not the active next step. Surya remains on the serverless-GPU track; this architecture does not move Surya onto the phone.
+The paused on-device visual PII detector remains a possible future auxiliary or fallback layer, not the active next step. Surya remains frozen serverless research; this architecture does not move Surya onto the phone.
 
 The existing project-owned recognizer, CTC, synthetic-data, Gold, and CER work remains paused research. Tesseract must not be restored as an active fallback.
 
@@ -111,7 +115,7 @@ For MVP code, prefer repo-local JSON/YAML configuration exported or copied from 
 
 ## 5. Privacy Model
 
-The serverless GPU worker is part of the trusted processing boundary.
+If the deferred serverless OCR path is reopened, its worker is part of the trusted processing boundary.
 
 Raw material may exist only in:
 
@@ -123,7 +127,7 @@ Raw material may exist only in:
 
 The worker necessarily decrypts the contract during processing. Encryption therefore protects transport and storage, not computation. The product must not describe this as local processing, zero-access processing, or a guarantee that the provider can never access plaintext.
 
-Production target pipeline:
+Deferred production target pipeline:
 
 ```text
 raw image/document
@@ -152,7 +156,7 @@ Before public release, the product must define and verify:
 - cleanup after success, failure, timeout, and cancellation;
 - incident response.
 
-Only sanitized image/text derivatives may proceed to Gemini or another legal-analysis model. The sanitized image pages are the primary downstream artifact; raw OCR text/layout never leaves the trusted processing boundary.
+Only sanitized image/text derivatives may proceed to Gemini or another legal-analysis model. The sanitized image pages are the primary downstream artifact in the future production image path; raw OCR text/layout never leaves the trusted processing boundary.
 
 PII includes at least:
 
@@ -181,26 +185,30 @@ The anonymized derivative must not preserve recoverable pixels in alpha channels
 
 ### Semantic PII replacement
 
-The exported sanitized page should preserve known participant/field roles instead of replacing every sensitive value with an unlabeled blank rectangle.
+The exported sanitized page or sanitized golden text should preserve the contract-defined participant/field roles needed to keep obligations directional instead of replacing every sensitive value with an unlabeled blank.
 
-Examples:
+Preserve the role granularity actually used by the contract:
 
 ```text
-real landlord name  → [АРЕНДОДАТЕЛЬ]
-first tenant name   → [АРЕНДАТОР 1]
-second tenant name  → [АРЕНДАТОР 2]
-guarantor name      → [ПОРУЧИТЕЛЬ 1]
-tenant ID value     → [ID АРЕНДАТОРА 1]
-tenant phone        → [ТЕЛЕФОН АРЕНДАТОРА 1]
+real landlord name, later referenced only as המשכיר → [АРЕНДОДАТЕЛЬ]
+multiple named tenants collectively defined as השוכר → [АРЕНДАТОР]
+individually distinguished tenant, only when later operative text distinguishes them → [АРЕНДАТОР 1]
+guarantor explicitly distinguished from another guarantor → [ПОРУЧИТЕЛЬ 1]
+tenant ID value → [ID АРЕНДАТОРА]
+tenant phone → [ТЕЛЕФОН АРЕНДАТОРА]
 ```
 
-The original pixels must be removed irreversibly before placeholder text is rendered. The same person must keep the same semantic marker across all pages of one contract. A marker must never encode a recoverable part of the original value. If the region is clearly sensitive but the role cannot be established safely, use a generic safe placeholder or block downstream handoff when complete coverage itself is uncertain.
+Do not invent `TENANT_1`, `TENANT_2`, etc. merely because several names appear in the header. Individual numbering is justified only when the contract itself distinguishes those people in later rights, obligations, payments, guarantees, or other legally relevant text.
+
+For image sanitization, the original pixels must be removed irreversibly before placeholder text is rendered. A marker must never encode a recoverable part of the original value. If the region is clearly sensitive but the role cannot be established safely, use a generic safe placeholder or block downstream handoff when complete coverage itself is uncertain.
 
 Development inspection may use semi-transparent overlays to check coverage. Any image that can leave the trusted worker must contain opaque irreversible replacement underneath the semantic marker.
 
-## 6. Active MVP OCR and PII Sanitization
+For Question Engine golden fixtures, handwriting is not transcribed, reconstructed, or inferred. If a future answer depends on handwriting, the system must represent that dependency explicitly as unresolved rather than guess from context.
 
-The active OCR worker must return usable Hebrew/layout evidence sufficient for PII localization and document structure. OCR output alone is not a privacy pass, and exact transcription of every legal word or punctuation mark is not the primary objective of this block.
+## 6. Frozen OCR and PII Sanitization Design
+
+If the OCR track is later reopened, the OCR worker must return usable Hebrew/layout evidence sufficient for PII localization and document structure. OCR output alone is not a privacy pass, and exact transcription of every legal word or punctuation mark is not the primary objective of this block.
 
 The server-side sanitization layer should identify at least:
 
@@ -268,7 +276,9 @@ A spelling or punctuation error in non-PII OCR is not a privacy failure by itsel
 
 ## 7. Evidence and Citation Architecture
 
-The downstream multimodal model reads the privacy-validated sanitized page images directly. It must never receive the raw pages or raw OCR output.
+For the active Question Engine development track, sanitized golden text is a development source of truth for semantic and deterministic testing. It must contain no recoverable PII and no guessed handwriting.
+
+For a future production multimodal path, the downstream model reads the privacy-validated sanitized page images directly. It must never receive the raw pages or raw OCR output.
 
 Do not rely on the LLM to copy exact Hebrew quotes.
 
@@ -278,7 +288,8 @@ Canonical decisions:
 
 ```text
 The model must not generate contract quotes as evidence.
-The primary LLM input is the privacy-validated sanitized page image set.
+Production image analysis uses privacy-validated sanitized page images.
+Question Engine development may use sanitized golden text fixtures.
 Raw OCR JSON/text is not an external handoff artifact.
 ```
 
@@ -292,7 +303,7 @@ The exact evidence representation is a later bounded contract. It must preserve 
 Core rule:
 
 ```text
-Model analyzes sanitized images.
+Model analyzes only sanitized material.
 Code validates structured findings and evidence references.
 User sees the explanation.
 Any Hebrew source shown to the user comes from the sanitized source artifact, not a model-generated quote.
@@ -304,7 +315,7 @@ Embeddings are not part of MVP evidence validation. Semantic similarity is not l
 
 ## 8. LLM/Python Responsibility Split
 
-The multimodal LLM should extract structured findings from privacy-validated sanitized page images and, when available, sanitized deterministic evidence references.
+The LLM should extract structured findings only from sanitized contract material and, when available, sanitized deterministic evidence references.
 
 Python should validate and decide what is shown.
 
@@ -327,7 +338,7 @@ Python should validate:
 - marker checks where applicable;
 - aggregation into report cards.
 
-The model is not the source of truth. The privacy-validated sanitized contract images and deterministic evidence mapping are the source of truth.
+The model is not the source of truth. Sanitized contract evidence and deterministic evidence mapping are the source of truth.
 
 ## 9. Completeness Audit
 
@@ -575,17 +586,15 @@ Rejected for the active MVP:
 - pretending that encrypted server processing is local or zero-access;
 - sending raw images or raw OCR text from the trusted worker to Gemini or unrelated OCR/LLM APIs;
 - permanent unencrypted storage of user contracts;
-- building an always-on GPU server for sporadic MVP traffic;
-- adding a VPS, Redis, RabbitMQ, MinIO, or PostgreSQL before the platform-queue benchmark proves a need;
-- relying on high-concurrency throughput numbers as proof of single-contract latency;
 - relying on exact LLM-generated quotes;
 - exposing long Hebrew quotes by default in the user report;
 - using embeddings as legal evidence validation;
 - comparing against many reference contracts in one LLM call;
 - building conflict-consultant mode before contract-audit pipeline is stable.
 
-Deferred:
+Deferred/frozen:
 
+- Surya/cloud OCR infrastructure, including always-on or serverless GPU work, until automatic OCR is a concrete blocker or real usage justifies reopening it;
 - on-device visual PII localization as a primary path;
 - project-owned full Hebrew OCR, CRNN training, full-line Gold transcription, and Android recognizer export;
 - production encryption and key management;
@@ -601,19 +610,15 @@ Keep the architecture measurable and replaceable.
 
 The canonical current privacy/OCR step is selected only by `docs/OCR_PROJECT_STATE.md` and its JSON mirror. Architecture documents define ordering constraints and gates, but they do not independently choose the next PR.
 
-For the active image track, the current planned order is:
+For the active Question Engine track, the current planned order is:
 
-1. Complete bounded client-side document geometry normalization (orientation, text-geometry analysis, conservative deskew with full-frame preservation; no destructive runtime crop) and audit that block as a unit.
-2. Run the serverless GPU OCR viability benchmark using only synthetic/redacted pages.
-3. Make the candidate quality, PII-localization geometry, latency, VRAM, and cost decision.
-4. Define the bounded encrypted job-envelope and cleanup contract.
-5. Implement server-side PII detection, stable role association, irreversible semantic image sanitization, and privacy evaluation.
-6. Produce privacy-validated sanitized full-page images as the primary multimodal LLM input; add sanitized structured evidence only where deterministic validation/citation needs it.
-7. Integrate multimodal LLM risk analysis and report generation.
-8. Add production consent, legal, provider, Israel-region, authorization, retention, and incident controls.
+1. Build a sanitized golden corpus from owner-controlled real rental contracts, preserving printed legal wording, monetary amounts, dates, clause structure, and contract-defined party roles while removing recoverable PII and excluding handwriting from semantic transcription.
+2. Inventory recurring questions and conditional branches across the corpus.
+3. Define structured Question Engine outputs and deterministic evidence references.
+4. Implement Python validation/completeness checks so the model is not the source of truth.
+5. Validate the Russian report structure and practical consequence wording on the corpus.
+6. Reopen production OCR/privacy infrastructure only if automatic OCR becomes a concrete product blocker or real usage justifies it.
 
-Document-boundary and crop estimators may remain as advisory capture-quality evidence, but production preprocessing must not physically remove source pixels before OCR unless a later explicitly approved architecture change reintroduces destructive crop.
+A future production photo/OCR path still must preserve source pixels before OCR unless an explicitly approved architecture change reintroduces destructive crop, and must satisfy the frozen serverless privacy/security boundaries before any raw material leaves the device.
 
-The serverless benchmark must not be treated as production deployment, and completing the client-side geometry block does not authorize upload, OCR, PII processing, or provider integration.
-
-The source of truth is the privacy-validated sanitized contract image set plus any deterministic sanitized evidence derived from it, not the LLM and not raw OCR JSON.
+The source of truth for current Question Engine development is sanitized golden contract evidence plus deterministic mappings, not the LLM. A future production source of truth may be privacy-validated sanitized contract images plus deterministic sanitized evidence derived from them, never raw OCR JSON or model-generated quotes.

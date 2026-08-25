@@ -1,6 +1,6 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-24, PR #234, `question-engine-track-pivot-v1`.
+Последнее обновление: 2026-08-25, PR #235, `question-engine-binding-docs-sync-v1`.
 
 Активный трек: `question-engine-development`.
 
@@ -8,7 +8,24 @@
 
 Этот документ вместе с `docs/OCR_PROJECT_STATE.json` является канонической operational-точкой восстановления privacy/OCR-проекта. Архитектурные документы задают обязательные границы, но текущий `next_step_id` выбирается только state-файлами.
 
-## Current change — PR #234 Question Engine track pivot
+## Current change — PR #235 binding-doc synchronization
+
+Перед началом `question-engine-golden-contract-corpus-v1` был обнаружен обязательный repository-level conflict: merged PR #234 уже переключил canonical state на `question-engine-development`, но `AGENTS.md`, `docs/ARCHITECTURE.md`, `docs/CUSTOM_OCR_PIPELINE.md` и `docs/SERVERLESS_GPU_OCR_PIPELINE_V1.md` всё ещё описывали serverless GPU OCR как активное направление. Поскольку `AGENTS.md`/`CODEX_WORKFLOW.md` требуют остановить implementation при конфликте binding sources, golden fixture не добавлялся до этого corrective.
+
+PR #235 синхронизирует только binding documentation:
+
+- активный implementation track во всех binding sources теперь согласован с canonical state: `question-engine-development`;
+- Surya/cloud OCR infrastructure остаётся frozen/deferred production candidate и research asset, а не удаляется и не объявляется провалившейся;
+- frozen serverless privacy constraints остаются binding для любого будущего reopen: approved Israel-only restricted-data processing, no raw Gemini/unrelated services, bounded retention/deletion, log hygiene, irreversible redaction;
+- Question Engine должен оставаться OCR-provider-independent;
+- sanitized golden fixtures могут сохранять печатный юридически значимый текст, суммы, даты, номера пунктов и contract-defined roles, но не recoverable PII;
+- handwriting не транскрибируется, не реконструируется и не угадывается для semantic ground truth; зависимость смысла от handwriting должна оставаться explicit unresolved dependency;
+- role-preserving de-identification теперь использует гранулярность, которую определяет сам договор: если несколько именованных лиц в шапке коллективно определены и далее используются только как `השוכר`, сохраняется единая роль `השוכר` / `АРЕНДАТОР`; `TENANT_1`, `TENANT_2` и т.п. не изобретаются без later operative text, которое действительно различает этих людей;
+- этот corrective не добавляет real contract text/images, OCR output, runtime code, provider/API calls, dependency, permission, workflow, storage, Gemini integration или production privacy claim.
+
+`active_track` и `next_step_id` намеренно не меняются. После merge PR #235 следующий bounded implementation остаётся `question-engine-golden-contract-corpus-v1`.
+
+## Previous change — PR #234 Question Engine track pivot
 
 PR #234 фиксирует явное product-owner решение заморозить Surya/cloud OCR infrastructure track и перенести основной implementation focus на Question Engine.
 
@@ -24,7 +41,7 @@ PR #234 фиксирует явное product-owner решение заморо�
 - следующий bounded-шаг — `question-engine-golden-contract-corpus-v1`: начать с нескольких owner-controlled реальных договоров аренды и получить эталонную печатную часть текста для разработки Question Engine;
 - persistent repository fixtures должны быть полностью обезличены и не содержать recoverable PII; raw real contracts не добавляются в repository/CI;
 - рукописный текст не должен семантически распознаваться, реконструироваться или угадываться. Если смысл ответа зависит от рукописной вставки, система должна вернуть explicit unresolved handwriting dependency, а не выводить содержание по контексту;
-- de-identification не должна уничтожать роли сторон: вместо безымянного `[REDACTED]` должны сохраняться стабильные semantic placeholders вроде `LANDLORD_1`, `TENANT_1`, `TENANT_2`, `GUARANTOR_1`, чтобы направление обязательств и платежей оставалось проверяемым;
+- de-identification должна сохранять роли сторон и направление обязательств; конкретная гранулярность placeholders уточнена и superseded текущим PR #235: не различать отдельных людей, если сам operative contract text их не различает;
 - этот PR не добавляет runtime, provider, upload, masking, Gemini call, storage, production auth или production privacy claim и не ослабляет существующий `SECURITY.md` boundary.
 
 ## Previous change — PR #233 targeted-region Cloud Run CPU benchmark
@@ -148,9 +165,9 @@ raw full-page contract image
 - Surya остаётся serverless-GPU OCR/layout candidate внутри trusted processing boundary; перенос Surya на смартфон не является текущим направлением;
 - цель PII-блока — не идеальная полная транскрипция договора до каждой буквы и знака препинания, а полный privacy coverage чувствительных областей;
 - ошибки OCR в не-PII юридическом слове сами по себе не являются privacy failure; пропуск чувствительной области является;
-- при известной роли чувствительное значение должно заменяться стабильным semantic marker, например `[АРЕНДОДАТЕЛЬ]`, `[АРЕНДАТОР 1]`, `[АРЕНДАТОР 2]`, `[ID АРЕНДАТОРА 1]`, а не оставляться как немаркированный белый прямоугольник;
+- при известной роли чувствительное значение должно заменяться stable semantic marker; исторические numbered examples в этом разделе не задают текущую role granularity и superseded PR #235;
 - исходные PII pixels сначала удаляются необратимо, и только после этого поверх очищенного raster рисуется semantic placeholder;
-- одна и та же сторона договора должна иметь один и тот же marker на всех страницах одного contract job;
+- одна и та же contract-defined role должна иметь стабильный marker на всех страницах одного contract job, если operative text не различает отдельных участников;
 - если область явно sensitive, но роль не удаётся определить безопасно, допустим generic safe placeholder; если неясно, полностью ли закрыто PII, downstream handoff блокируется;
 - development overlay может оставаться полупрозрачным для визуальной проверки покрытия, но любой artifact, который может покинуть trusted worker, должен содержать opaque irreversible pixel replacement;
 - privacy-validated sanitized full-page images являются primary downstream representation для approved multimodal legal-analysis model;
@@ -158,7 +175,7 @@ raw full-page contract image
 - sanitized structured text/evidence разрешается производить после privacy validation, если это понадобится deterministic validation/citation layer;
 - PR #227 не добавляет runtime mask renderer, PII detector, provider, endpoint, dependency, upload path, LLM call или production privacy claim.
 
-`active_track` и `next_step_id` намеренно не меняются. Следующий bounded implementation остаётся `surya-raw-fullframe-gpu-execution-v1`: выполнить существующий PR #226 worker на explicitly approved GPU infrastructure с approved non-identifying full-frame pages и собрать реальные quality/layout/PII-localization, latency, GPU/VRAM/OOM, cost, log hygiene, cleanup, region и retention evidence. Этот benchmark всё ещё не должен строить production masking или downstream LLM integration.
+`active_track` и `next_step_id` намеренно не меняются. Следующий bounded implementation остаётся `surya-raw-fullframe-gpu-execution-v1`: выполнить существующий PR #226 worker на explicitly approved GPU infrastructure с approved non-identifying full-frame pages и собрать реальные quality/layout/PII-localization, latency, GPU/VRAM/OOM, cost, log hygiene, cleanup, region и retention evidence. Этот исторический next-step record superseded PR #234/PR #235 and is not current.
 
 ## Previous change — PR #226 Surya raw-fullframe benchmark worker
 
@@ -193,7 +210,7 @@ ordered local benchmark pages
 - focused tests используют synthetic injected engine, поэтому реальный Surya package/model/backend в repository validation не запускался;
 - PR не добавляет Android upload/handoff, remote endpoint/provider configuration, production encryption/key management, PII implementation, Gemini/legal-analysis integration или persistent raw storage.
 
-Следующий bounded step `surya-raw-fullframe-gpu-execution-v1` должен уже выполнить worker на explicitly approved GPU infrastructure и approved non-identifying full-frame test pages. Нужно измерить Hebrew OCR/layout quality, cold/warm latency, queue delay, GPU/VRAM/OOM, billed seconds/cost, log hygiene, backend cleanup и фактические region/retention свойства среды. Только после этого evidence решаем, нужен ли вообще deskew/crop/grayscale в OCR path.
+Следующий bounded step `surya-raw-fullframe-gpu-execution-v1` в этой исторической записи superseded PR #234/PR #235 и не является current next step.
 
 Android audit findings #2 (session/cache atomicity) и #3 (stale TypeScript crop-result contract) остаются deferred и должны быть закрыты до повторного использования Android preprocessing path как OCR input/production handoff.
 
@@ -718,7 +735,7 @@ Current development pipeline:
 owner-controlled real rental contracts
 → obtain reliable printed-text ground truth outside the production OCR dependency
 → exclude handwriting from semantic transcription
-→ de-identify PII while preserving stable party-role placeholders
+→ de-identify PII while preserving contract-defined party roles
 → sanitized golden contract corpus
 → recurring-question inventory + conditional branches
 → Question Engine
@@ -734,7 +751,8 @@ Binding constraints:
 - raw real contracts and recoverable PII must not be committed to repository/CI;
 - persisted golden fixtures must be sanitized before repository storage;
 - handwriting is never guessed or reconstructed for semantic analysis; an answer that depends on handwriting must remain explicitly unresolved;
-- role-preserving placeholders must retain who owes, pays, returns, guarantees or may demand something from whom;
+- role-preserving placeholders must retain who owes, pays, returns, guarantees or may demand something from whom, using the role granularity actually defined by the contract;
+- multiple names in the header do not by themselves justify numbered party identities if later operative text treats them collectively under one role;
 - Question Engine input/output contracts should remain independent of OCR implementation so future Surya/other OCR infrastructure can be reattached without redesigning semantic logic;
 - production photo/OCR/privacy infrastructure remains deferred, not waived.
 
@@ -790,8 +808,8 @@ Last periodic Codex batch audit: after `b9527f046a0225c0e80f3f511e15b9a8b1eb0ea3
 
 Frozen Python geometry code baseline: `7fe4bc88df2427ea90442f7b074c3cfe4e0de33a`.
 
-Current PR: #234 `question-engine-track-pivot-v1`.
+Current PR: #235 `question-engine-binding-docs-sync-v1`.
 
-Canonical next step after merge PR #234: `question-engine-golden-contract-corpus-v1`.
+Canonical next step after merge PR #235: `question-engine-golden-contract-corpus-v1`.
 
-Surya/cloud OCR infrastructure is frozen by product-owner decision; the aborted Cloud Build attempt is not recorded as OCR-performance evidence.
+Surya/cloud OCR infrastructure remains frozen; PR #235 only synchronizes binding documentation and does not add OCR/runtime evidence.
