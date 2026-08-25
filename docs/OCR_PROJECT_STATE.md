@@ -1,14 +1,28 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-25, PR #235, `question-engine-binding-docs-sync-v1`.
+Последнее обновление: 2026-08-25, PR #236, `question-engine-golden-contract-corpus-v1`.
 
 Активный трек: `question-engine-development`.
 
-Канонический следующий bounded-шаг: `question-engine-golden-contract-corpus-v1`.
+Канонический следующий bounded-шаг: `question-engine-question-inventory-v1`.
 
 Этот документ вместе с `docs/OCR_PROJECT_STATE.json` является канонической operational-точкой восстановления privacy/OCR-проекта. Архитектурные документы задают обязательные границы, но текущий `next_step_id` выбирается только state-файлами.
 
-## Current change — PR #235 binding-doc synchronization
+## Current change — PR #236 first sanitized golden contract corpus
+
+PR #236 реализует первый `question-engine-golden-contract-corpus-v1` fixture на основе одного owner-controlled реального трёхстраничного договора аренды на иврите.
+
+Repository получает только два новых persistent artifacts: обезличенный печатный Hebrew text и metadata JSON. Исходные фотографии, raw OCR output, имена, Israeli ID, телефоны, полные адреса, банковские/счётные/branch details, подписи, handwriting и stamp content не коммитятся. Handwriting не транскрибируется, не реконструируется и не угадывается.
+
+Golden text намеренно сохраняет юридически значимые напечатанные значения и формулировки без нормализации: суммы, даты, номера пунктов, проценты, сроки, source blanks и apparent source inconsistencies остаются как в источнике. В частности, п.3 буквально содержит `12 חודשים` при напечатанных датах `1.1.26`–`31.12.27`, а п.11 описывает `שיק עירבון`, но далее говорит о возврате `הערבות הבנקאית`; PR не исправляет эти расхождения.
+
+Роль сторон по умолчанию сохраняется ровно на гранулярности договора: `המשכיר` и коллективный `השוכר`. При этом этот первый реальный fixture дал важный concrete exception к упрощённой гипотезе: в п.24 operative printed text всё-таки различает двух членов tenant party по имени и назначает им разное payment behavior. Поэтому только эти два индивидуальных упоминания обезличены как `TENANT_A` и `TENANT_B`; глобальные `TENANT_1/2/3` по всему договору не вводятся. Правило остаётся: отдельный party placeholder появляется только тогда, когда сам юридически значимый текст различает людей.
+
+Metadata фиксирует source-page count, transcription/sanitization policy, удалённые PII-классы, сохраняемые legal values, role model, source blank markers и отсутствие owner text-level review на момент PR. Это не production OCR evidence и не утверждение об автоматическом privacy pipeline.
+
+Следующий bounded step после merge — `question-engine-question-inventory-v1`: на этом sanitized fixture выделить первый набор повторяющихся и условных вопросов, ожидаемые structured answer fields и evidence targets, без Gemini/runtime integration.
+
+## Previous change — PR #235 binding-doc synchronization
 
 Перед началом `question-engine-golden-contract-corpus-v1` был обнаружен обязательный repository-level conflict: merged PR #234 уже переключил canonical state на `question-engine-development`, но `AGENTS.md`, `docs/ARCHITECTURE.md`, `docs/CUSTOM_OCR_PIPELINE.md` и `docs/SERVERLESS_GPU_OCR_PIPELINE_V1.md` всё ещё описывали serverless GPU OCR как активное направление. Поскольку `AGENTS.md`/`CODEX_WORKFLOW.md` требуют остановить implementation при конфликте binding sources, golden fixture не добавлялся до этого corrective.
 
@@ -681,7 +695,7 @@ The code-level freeze remains valid while Android preprocessing is ported. Andro
 
 - removes both the PR #221 boundary-recovery crop consumer and the older fully accepted SafeCrop physical crop consumer from `PreparedDocumentTransform`;
 - keeps structural validation of upstream geometry evidence but does not use crop coordinates to mutate the image;
-- routes `accepted` and `rotation_only` to expanded full-frame grayscale deskew with `cropBoxSource = null`;
+- routes `accepted` и `rotation_only` to expanded full-frame grayscale deskew with `cropBoxSource = null`;
 - keeps rejected/uncertain deskew at 0° full-frame grayscale with `cropBoxSource = null`;
 - leaves crop/boundary estimators available only as non-destructive advisory evidence;
 - changes no OCR/network/provider/dependency/permission/workflow behavior.
@@ -808,8 +822,8 @@ Last periodic Codex batch audit: after `b9527f046a0225c0e80f3f511e15b9a8b1eb0ea3
 
 Frozen Python geometry code baseline: `7fe4bc88df2427ea90442f7b074c3cfe4e0de33a`.
 
-Current PR: #235 `question-engine-binding-docs-sync-v1`.
+Current PR: #236 `question-engine-golden-contract-corpus-v1`.
 
-Canonical next step after merge PR #235: `question-engine-golden-contract-corpus-v1`.
+Canonical next step after merge PR #236: `question-engine-question-inventory-v1`.
 
-Surya/cloud OCR infrastructure remains frozen; PR #235 only synchronizes binding documentation and does not add OCR/runtime evidence.
+Surya/cloud OCR infrastructure remains frozen; PR #236 adds only sanitized golden text/metadata and no OCR/runtime evidence.
