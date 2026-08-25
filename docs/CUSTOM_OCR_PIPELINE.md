@@ -1,24 +1,28 @@
 # OCR and privacy handoff pipeline
 
-Status: active product contract. Read together with `docs/ARCHITECTURE.md`, `docs/SERVERLESS_GPU_OCR_PIPELINE_V1.md`, and `docs/OCR_PROJECT_STATE.md`.
+Status: frozen/deferred OCR/privacy reference while the canonical state is on `question-engine-development`. Read together with `docs/ARCHITECTURE.md`, `docs/SERVERLESS_GPU_OCR_PIPELINE_V1.md`, and `docs/OCR_PROJECT_STATE.md`.
 
-This file records the current MVP image-processing direction so that later work does not silently restore the failed Tesseract-on-phone path or build unbounded cloud storage around sensitive documents.
+Merged PR #234 froze Surya/cloud OCR infrastructure and moved the active implementation track to the Question Engine. Statements below that describe serverless GPU OCR as the active target are preserved as the deferred production candidate and privacy contract for any future reopen; they do not select the current next PR. The canonical `active_track` and `next_step_id` come only from the state files. Existing privacy, restricted-data, Israel-only, deletion, and no-raw-Gemini constraints remain binding.
+
+This file records the OCR/privacy image-processing direction so that later work does not silently restore the failed Tesseract-on-phone path or build unbounded cloud storage around sensitive documents.
 
 ## Non-negotiable decisions
 
 1. Tesseract full-page Hebrew OCR on the target phone is a proven NO-GO for the active MVP.
-2. The product owner has explicitly selected encrypted serverless GPU processing as the active remote OCR architecture to benchmark before production use.
-3. A raw contract may leave the device only after explicit user consent and only for the approved bounded serverless job.
+2. Encrypted serverless GPU processing is a frozen production OCR candidate, not the current implementation track; it may be reopened only by an explicit product/state decision.
+3. A raw contract may leave the device only after explicit user consent and only for an explicitly approved bounded serverless job after that path is reopened.
 4. Raw images and raw OCR text must not be sent onward to Gemini, Google Vision, general LLM APIs, analytics, logs, GitHub, CI, Airtable, or unrelated services.
-5. Encryption protects transport and temporary storage, but the authorized worker necessarily decrypts the document in memory to process it. Product disclosure must state this plainly.
-6. The primary purpose of the OCR/PII block is not perfect full-contract transcription. It is to locate sensitive regions, associate them with a party/field role where possible, irreversibly remove the original sensitive pixels, render stable semantic placeholders, and produce privacy-validated sanitized page images for downstream multimodal legal analysis.
+5. Encryption protects transport and temporary storage, but any authorized remote worker necessarily decrypts the document in memory to process it. Product disclosure must state this plainly.
+6. The primary purpose of any future OCR/PII block is not perfect full-contract transcription. It is to locate sensitive regions, associate them with a party/field role where possible, irreversibly remove the original sensitive pixels, render stable semantic placeholders, and produce privacy-validated sanitized page images for downstream multimodal legal analysis.
 7. Raw OCR text/layout is restricted transient worker state. It may support PII localization, role association, privacy validation, or later evidence extraction, but it is not the canonical downstream LLM handoff.
 8. Raw job inputs, transient plaintext, job keys, and raw OCR output must be deleted after completion or terminal failure according to verified provider/runtime behavior.
 9. Model throughput claims do not establish single-contract latency, cold-start time, GPU fit, cost, Hebrew quality, PII localization quality, or privacy behavior. Those must be measured.
-10. The first serverless OCR implementation step is a benchmark, not a production upload flow.
+10. Any reopened serverless OCR implementation step starts as a benchmark, not a production upload flow.
 11. The paused local visual detector work remains available as research or a future auxiliary layer, but it is not the active next step.
+12. During Question Engine development, sanitized golden text fixtures must preserve the contract-defined party roles needed for obligation direction while removing recoverable PII. Do not invent individual numbering when the contract itself treats multiple named people collectively under one role such as `השוכר`.
+13. Handwriting must not be semantically reconstructed or guessed for Question Engine ground truth. If a future answer depends on handwriting, that dependency must remain explicit and unresolved rather than inferred from context.
 
-## Active target pipeline
+## Deferred production OCR pipeline
 
 ```text
 raw phone photos
@@ -36,13 +40,13 @@ raw phone photos
 → deletion of raw and transient job material
 ```
 
-The serverless worker is part of the trusted processing boundary. It is not equivalent to zero-knowledge processing and must not be described as if the provider can never access plaintext during execution.
+The serverless worker would be part of the trusted processing boundary. It is not equivalent to zero-knowledge processing and must not be described as if the provider can never access plaintext during execution.
 
-The sanitized image derivative, not raw OCR JSON/text, is the primary downstream representation of the contract. Sanitized structured text/evidence may be generated later when useful for deterministic validation or citations, but it must be derived only after the privacy pass and must not be treated as a reason to expose raw OCR outside the trusted boundary.
+The sanitized image derivative, not raw OCR JSON/text, is the primary downstream representation of the contract in that future production path. Sanitized structured text/evidence may be generated later when useful for deterministic validation or citations, but it must be derived only after the privacy pass and must not be treated as a reason to expose raw OCR outside the trusted boundary.
 
-## Initial serverless topology
+## Initial serverless topology after any future reopen
 
-For the viability benchmark and earliest MVP slice:
+For a viability benchmark and earliest MVP slice:
 
 - use the serverless platform's queue rather than adding a separate VPS;
 - configure minimum workers `0` so compute scales to zero;
@@ -110,21 +114,23 @@ Blur is not an approved irreversible mask. Sanitized image output must replace s
 
 When a sensitive value can be associated with a known party/field role, the exported sanitized image should preserve that role with a stable safe placeholder instead of leaving an unlabeled blank rectangle.
 
-Examples:
+Preserve the role granularity actually used by the contract. Examples:
 
 ```text
-real landlord name  → [АРЕНДОДАТЕЛЬ]
-first tenant name   → [АРЕНДАТОР 1]
-second tenant name  → [АРЕНДАТОР 2]
-guarantor name      → [ПОРУЧИТЕЛЬ 1]
-tenant ID value     → [ID АРЕНДАТОРА 1]
-tenant phone        → [ТЕЛЕФОН АРЕНДАТОРА 1]
+real landlord name, later referenced only as המשכיר → [АРЕНДОДАТЕЛЬ]
+multiple named tenants collectively defined as השוכר → [АРЕНДАТОР]
+individually distinguished tenant, only when the contract later distinguishes them → [АРЕНДАТОР 1]
+guarantor explicitly distinguished from another guarantor → [ПОРУЧИТЕЛЬ 1]
+tenant ID value → [ID АРЕНДАТОРА]
+tenant phone → [ТЕЛЕФОН АРЕНДАТОРА]
 ```
 
 Rules:
 
+- do not invent `TENANT_1`, `TENANT_2`, etc. merely because several names appear in the header; use the collective contract role when the operative text does;
+- individual numbering is justified only when the contract itself distinguishes those individuals in rights, obligations, payments, guarantees, or other legally relevant wording;
 - the original sensitive pixels are removed first; placeholder text is drawn only onto the already-sanitized raster;
-- the same party must keep the same placeholder across every page of one contract;
+- the same contract role must keep the same placeholder across every page unless the contract itself distinguishes separate participants;
 - role/field labels must not encode any recoverable original value;
 - if the value is clearly sensitive but its role cannot be established safely, use a generic safe marker such as `[ЛИЧНЫЕ ДАННЫЕ]` or block handoff when coverage itself is uncertain;
 - development visualization may use semi-transparent overlays for human coverage inspection, but any artifact eligible for downstream transfer must contain irreversible opaque pixel replacement underneath the semantic marker;
@@ -132,7 +138,7 @@ Rules:
 
 ## Evaluation model
 
-The serverless OCR benchmark must measure enough OCR/layout quality to establish that the candidate can support reliable PII localization and document understanding, including:
+A reopened serverless OCR benchmark must measure enough OCR/layout quality to establish that the candidate can support reliable PII localization and document understanding, including:
 
 - printed Hebrew usability on held-out contract-like pages;
 - RTL order and mixed Hebrew/digit behavior where it affects PII localization or role association;
@@ -161,7 +167,7 @@ Evaluation splits are grouped by whole contract and template family. Real raw co
 
 ## Candidate policy
 
-Surya is the first benchmark candidate, not a committed production dependency.
+Surya is the frozen first benchmark candidate, not a committed production dependency.
 
 Before production selection, verify:
 
@@ -180,7 +186,7 @@ The worker request/response contract must remain model-neutral so another OCR mo
 
 The canonical current privacy/OCR step is defined only by `docs/OCR_PROJECT_STATE.md` and its JSON mirror. This document does not independently select the next PR.
 
-When the canonical state reaches `serverless-gpu-ocr-viability-benchmark-v1`, that bounded step may add a benchmark worker and reproducible synthetic/redacted test packet, but it must not add:
+If the canonical state later reopens a serverless OCR viability benchmark, that bounded step may add a benchmark worker and reproducible synthetic/redacted test packet, but it must not add:
 
 - production Android upload;
 - real user contracts;
@@ -197,12 +203,13 @@ When the canonical state reaches `serverless-gpu-ocr-viability-benchmark-v1`, th
 - Do not make raw OCR JSON/text the default downstream LLM payload when privacy-validated sanitized page images are available.
 - Do not claim that a ten-page contract runs in fractions of a second without measuring single-job latency.
 - Do not infer cost from model execution alone while ignoring cold start and idle timeout.
-- Do not build an always-on GPU server for sporadic MVP traffic.
-- Do not add Redis, RabbitMQ, MinIO, or PostgreSQL before the platform queue benchmark.
+- Do not build an always-on GPU server for sporadic MVP traffic before real load justifies it.
+- Do not add Redis, RabbitMQ, MinIO, or PostgreSQL before evidence establishes a need.
 - Do not send raw OCR text to Gemini before deterministic redaction.
 - Do not call encrypted server processing “local” or “zero access.”
 - Do not use real PII in repository tests.
 - Do not treat deletion intentions as verified deletion guarantees.
+- Do not spend Question Engine development time reopening frozen OCR infrastructure unless OCR becomes a concrete blocker or real product usage justifies it.
 
 ## Repository workflow
 
