@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-25-87",
+  "state_version": "privacy-ocr-2026-08-25-88",
   "active_track": "question-engine-development",
   "next_step_id": "question-engine-question-inventory-v1",
-  "next_step_summary": "PR #236 adds the first repository-safe Question Engine golden fixture from one owner-controlled real three-page Hebrew residential rental contract. Only sanitized printed legal text and metadata are persisted; source photos, raw OCR, person names, Israeli IDs, phone numbers, full addresses, bank/account/branch details, signatures, handwriting and stamp content are excluded. Handwriting is not transcribed, reconstructed or inferred. The fixture preserves printed monetary amounts, dates, clause numbering, blanks and apparent source inconsistencies without normalization. Contract roles remain collective המשכיר/השוכר by default, but clause 24 provides a concrete exception: the operative printed text distinguishes two members of the tenant party by name and assigns different payment behavior, so those two references alone are anonymized as TENANT_A and TENANT_B. This confirms the rule that individual party placeholders are introduced only when the contract itself materially distinguishes individuals. The next bounded step is question-engine-question-inventory-v1: derive the first recurring/conditional question inventory and evidence targets from this sanitized fixture without adding Gemini/runtime integration.",
-  "last_recorded_pr": 236,
-  "last_recorded_change": "question-engine-golden-contract-corpus-v1",
+  "next_step_summary": "PR #237 is a product-owner-authorized docs-only exception that adds docs/QUESTION_ENGINE_DISCOVERY_LOG.md as a dedicated non-canonical working notebook for Question Engine product discoveries, architecture hypotheses, analysis rules, open questions, and change history. It records the current preferred deterministic-engine-plus-LLM architecture, explicit blank/handwriting states, contract-defined role granularity, cross-clause interaction checks, a bounded novel-issue catch-all, practical-consequence-first analysis, security-instrument distinction, ratio/context checks, internal inconsistency checks, the user-facing essay-before-attention-list order, and the rule that שכירות בלתי מוגנת must immediately be explained as exclusion from the special protected-tenant regime rather than lack of ordinary rights. No raw contract, raw OCR, PII, handwriting value, runtime integration, Gemini call, dependency, provider, permission, workflow, or production privacy behavior is added. The new log does not replace canonical state or binding architecture/security documents. active_track and next_step_id remain unchanged; the next bounded implementation step remains question-engine-question-inventory-v1.",
+  "last_recorded_pr": 237,
+  "last_recorded_change": "question-engine-discovery-log-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-08-25"
