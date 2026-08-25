@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "fixture_id": "contract_001",
+  "language": "he",
+  "document_type": "residential_rental_contract",
+  "source_pages": 3,
+  "source_kind": "owner-controlled real contract",
+  "repository_artifact": "sanitized printed text only",
+  "transcription_method": "assistant visual reading of source photographs; no OCR engine output committed",
+  "review_status": "assistant visual two-pass review; product-owner text-level review not yet recorded",
+  "handwriting_policy": "ignored; not transcribed, reconstructed, or inferred",
+  "signatures_policy": "ignored",
+  "pii_removed": true,
+  "removed_classes": [
+    "person names",
+    "Israeli ID numbers",
+    "phone numbers",
+    "landlord address",
+    "property/full tenant address",
+    "bank/account/branch details",
+    "handwritten signatures and handwritten/stamp content"
+  ],
+  "preserved_legal_values": [
+    "rent amount",
+    "lease dates",
+    "notice/payment timing",
+    "late-interest percentage",
+    "security amount",
+    "daily holdover amount",
+    "clause numbering and printed wording"
+  ],
+  "party_role_model": {
+    "collective_roles": [
+      "המשכיר",
+      "השוכר"
+    ],
+    "individualized_references": {
+      "TENANT_A": "member of collective השוכר; individually distinguished in clause 24",
+      "TENANT_B": "member of collective השוכר; individually distinguished in clause 24"
+    },
+    "rule": "use collective contract role by default; preserve individual placeholders only where operative printed text itself distinguishes individuals"
+  },
+  "source_blank_markers": {
+    "BLANK_IN_SOURCE": "printed option-notice month field is blank",
+    "BLANK_OR_MISSING_VALUE_IN_SOURCE": "a numeric value before 'months after...' is absent/blank at the page transition; no value was inferred"
+  },
+  "sanitization_tokens": [
+    "SIGNING_LOCATION_REMOVED",
+    "SIGNING_DATE_REMOVED",
+    "LANDLORD_PII_REMOVED",
+    "TENANT_PARTY_PII_REMOVED",
+    "PROPERTY_ADDRESS_REMOVED",
+    "LANDLORD_ADDRESS_REMOVED",
+    "BANK_DETAILS_REMOVED",
+    "SIGNATURES_IGNORED"
+  ],
+  "source_fidelity_notes": [
+    "Clause 3 is preserved literally as printed: '12 months' with dates 1.1.26 through 31.12.27; no normalization was applied.",
+    "Clause 11 is preserved literally as a security check while later referring to return of a bank guarantee; no correction was applied."
+  ],
+  "privacy_assertion": "No source image, raw OCR, recoverable person identity, full address, phone, ID, bank account/branch detail, signature, or handwriting is intentionally persisted in this fixture."
+}
