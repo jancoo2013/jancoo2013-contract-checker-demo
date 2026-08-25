@@ -481,3 +481,25 @@ New conclusions:
 - contract-only findings such as security size and statutory-cap findings are separate analyses and must not be conflated;
 - legal references should provide a practical argument the tenant can understand and discuss with an agent/landlord, without turning the product into an unsupported legality verdict;
 - the maintained statutory map is stored separately in `docs/QUESTION_ENGINE_STATUTORY_BASELINE_V1.md` and must be refreshed against the official Knesset source.
+
+### 2026-08-25 — Reasonableness standards and practical-positioning discovery
+
+The Tel Aviv municipal template exposed a recurring legal-language problem: terms such as `reasonable time`, `reasonable grounds`, `reasonable notice`, and `reasonable conditions` are intentionally open-textured rather than numerically fixed.
+
+Engineering conclusions:
+
+- **Do not present “reasonable” as a concrete promise.** If the contract or statute uses an open standard, the user-facing report must say that the boundary is context-dependent.
+- **Explain who ultimately resolves a dispute.** If the parties disagree about whether conduct was “reasonable”, the question may ultimately require legal interpretation and, if the dispute escalates, a court or other competent tribunal can decide it from the circumstances. A court decision applying “reasonable time” under the Rental and Loan Law confirms that the inquiry turns on case-specific factors rather than a universal number.
+- **Prefer exact numbers when the statute supplies them.** For example, where the 2017 residential-rental amendment replaced a general “reasonable time” idea with a hard outside limit such as 30 days or 3 days for certain repairs, the report should surface the numeric statutory protection rather than leave the user with the vaguer contract wording.
+- **Create an explicit open-standard marker.** A likely future finding type is `OPEN_ENDED_REASONABLENESS_STANDARD`, carrying the source clause, affected right/obligation, whether the statute narrows it with a numeric limit, and whether legal interpretation may be required.
+- **Do not imply that “reasonable” means whatever the landlord, agent, tenant, or model personally thinks is reasonable.** It is a legal standard applied to circumstances, not a subjective preference.
+
+The same municipal-template review also clarified product positioning:
+
+- **Balanced public templates are reference material, not realistic rewrite targets.** The product should not assume an agent or landlord will replace their contract with the Tel Aviv municipal form merely because it is more balanced.
+- **The practical job is to improve the tenant's negotiating and decision position inside the actual contract they received.** The report should identify which clauses matter, what the current law adds or limits, and which specific points are worth questioning or negotiating.
+- **Do not encode a presumption of bad faith by landlords or agents.** Real contracts can be strongly landlord-favoring, but the engine must describe the mechanism and evidence rather than assume a universal intent to exploit the tenant.
+- **Use public balanced templates as comparative context only.** They can help calibrate what a more balanced arrangement looks like, but statutory analysis must come from current law, and the user's actual contract remains the primary source.
+- **Source-version freshness applies to public templates too.** A municipal URL can continue exposing an older template after a newer version exists; template age/version must be tracked before using it as current-market context.
+
+This update records generalized Question Engine design conclusions only; it does not store the municipal contract text or any user contract data.
