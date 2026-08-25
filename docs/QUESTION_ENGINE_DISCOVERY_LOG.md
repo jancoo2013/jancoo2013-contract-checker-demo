@@ -357,7 +357,41 @@ real contract under owner control
 
 Several varied contracts are more valuable at this stage than a prematurely large universal question list.
 
-## 20. Open design questions
+## 20. Statutory baseline is a separate evidence layer
+
+Contract analysis should not stop at “the contract says X” when current Israeli rental law materially limits, supplements, or contradicts the contractual wording.
+
+The preferred architecture now has a distinct statutory comparison layer:
+
+```text
+contract facts
+→ Question Engine semantic map
+→ statutory applicability gate
+→ effective-date-aware statutory baseline
+→ contract-vs-statute comparison
+→ cross-clause + legal interaction analysis
+→ user-facing explanation with section citation
+```
+
+The statute used for this baseline is `חוק השכירות והשאילה, התשל״א-1971` (Rental and Loan Law, 1971). The reform commonly called `שכירות הוגנת` / “Fair Rental Law” should be described accurately as the 2017 amendment to that law, not as a separate timeless statute. The Knesset records Amendment No. 1 as effective from `2017-09-17`.
+
+Important design rules:
+
+- **Contract fact and statutory rule are different evidence types.** The model must not blend them into one unsupported narrative.
+- **Applicability comes first.** Before invoking the special residential-rental protections, check the exclusions and scope rules in section `25טו`.
+- **Non-derogation must be explicit.** Section `25יד` is a central meta-rule: some statutory protections cannot be contracted away, while others may only be varied in the tenant's favor. Do not assume every statutory section is mandatory.
+- **Use exact section citations.** When supported, user-facing analysis should say, for example, “§25ח” or “§25י”, not vaguely “the 2017 fair-rental law”.
+- **Prefer statutory conflict language over accusations.** A finding should normally say “potential conflict with §X” or explain that the contract may not override the statutory rule, rather than automatically declare the landlord or agent unlawful.
+- **Current law, not 2017 memory, is authoritative.** The official Knesset database currently records later amendments, including a 2026 amendment. Therefore the system needs effective-date versioning.
+- **If freshness cannot be verified, degrade safely.** It is better to provide contract-only analysis than to assert an outdated statutory rule.
+
+A dedicated maintained reference now lives in `docs/QUESTION_ENGINE_STATUTORY_BASELINE_V1.md`.
+
+It intentionally does **not** vendor an unversioned full copy of the law. A static text dump is dangerous because the law changes and some wording can have future commencement dates. The baseline instead stores official source metadata, relevant section IDs, operative engineering summaries, applicability/non-derogation rules, and a refresh procedure.
+
+A future deterministic implementation may add immutable statutory snapshots, but only with explicit `effective_from` / superseded metadata and a source-refresh process.
+
+## 21. Open design questions
 
 Not yet frozen:
 
@@ -371,10 +405,12 @@ Not yet frozen:
 - how to calibrate "unusual", "strict", or "material" against Israeli rental practice;
 - which comparisons should be deterministic ratios/rules versus LLM interpretation;
 - exact final essay construction algorithm;
-- how to incorporate statutory/legal baseline checks while clearly separating contract facts from legal interpretation;
+- exact statutory-applicability schema and effective-date representation;
+- how to separate simple statutory comparison from questions that require case law / legal interpretation;
+- how often the statutory baseline must be refreshed in production;
 - how many diverse golden/sample contracts are enough before freezing v1 taxonomy.
 
-## 21. Change history
+## 22. Change history
 
 ### 2026-08-24 — Question Engine track pivot (PR #234)
 
@@ -412,3 +448,36 @@ The next contracts reviewed in product discussion produced the following design 
 - a bounded novel-issue catch-all should prevent the fixed taxonomy from missing genuinely new mechanisms.
 
 This section records design conclusions only. It intentionally contains no source photographs, recoverable PII, raw OCR, handwritten values, or other restricted material from the reviewed contracts.
+
+### 2026-08-25 — Same-template-family variation and special-condition discovery
+
+A further public blank rental template showed that visually and structurally similar contracts can belong to the same template family while producing materially different practical outcomes after relatively small edits, inserted subclauses, blank fields, or special conditions.
+
+New working conclusions:
+
+- **Never analyze by template recognition alone.** Recognizing a familiar form may help orient the model, but every concrete version must still be read end-to-end. Small edits can change renewal price, early-exit rights, notice periods, security enforcement, repair duties, or other material terms.
+- **Template similarity is not semantic equivalence.** The engine should treat template-family identity as optional metadata, never as evidence that a clause has the same meaning as in another specimen.
+- **Early-exit mechanisms must be composed.** A contract can simultaneously say that rent remains due after early departure, permit a replacement tenant under conditions, and contain a separate mutual termination mechanism with its own notice period. These are one decision structure, not three unrelated findings.
+- **Rights with an unfixed economic term need a dedicated warning.** For example, a renewal option may exist while the renewal rent is not fixed and is instead left for later determination subject only to a floor. `option_exists = true` is insufficient; the engine must ask how the renewal price is determined and whether the right is economically predictable.
+- **Broken internal references deserve a deterministic check.** If a clause refers to a missing subclause or nonexistent target, return an explicit `BROKEN_INTERNAL_REFERENCE`-type finding rather than ignoring the reference or inventing the missing rule.
+- **Blank sanctions remain meaningful structures.** A holdover penalty clause with an unfilled amount is not absent: the obligation structure is present while the monetary value is unresolved.
+- **Special/additional conditions are first-class evidence.** Individually inserted obligations such as pre-handover cleaning, repair, appliance checks, keys/remotes, painting, or other apartment-specific work may materially affect the tenant even though they fall outside the core taxonomy. The catch-all pass must explicitly search for such bespoke obligations.
+- **Standard text and bespoke additions must be compared.** The engine should ask whether later special conditions narrow, override, supplement, or contradict generic template language.
+- **User-facing analysis should explain the combined practical path.** For example, instead of separately stating "rent remains due", "replacement tenant is allowed", and "mutual termination exists", explain what practical routes the tenant actually has to leave early and what conditions attach to each route.
+
+This update records only generalized Question Engine design conclusions from a public blank template. No source images, personal data, filled contract values, or copyrighted template text are stored in the repository.
+
+### 2026-08-25 — Statutory-baseline architecture discovery
+
+Product direction now explicitly requires frequent section-level statutory grounding where it materially strengthens the user's understanding or exposes a contract-vs-law tension.
+
+New conclusions:
+
+- the system should cite the current Rental and Loan Law by exact section when possible;
+- “Fair Rental Law 2017” is user-friendly context, but the legal source of truth is the current consolidated `חוק השכירות והשאילה, התשל״א-1971`;
+- statutory applicability, effective date, and non-derogation must be resolved before stating that a contract term is overridden;
+- section `25יד` is a central meta-rule for determining when protected residential provisions cannot be worsened against the tenant;
+- section `25טו` is a mandatory applicability gate;
+- contract-only findings such as security size and statutory-cap findings are separate analyses and must not be conflated;
+- legal references should provide a practical argument the tenant can understand and discuss with an agent/landlord, without turning the product into an unsupported legality verdict;
+- the maintained statutory map is stored separately in `docs/QUESTION_ENGINE_STATUTORY_BASELINE_V1.md` and must be refreshed against the official Knesset source.

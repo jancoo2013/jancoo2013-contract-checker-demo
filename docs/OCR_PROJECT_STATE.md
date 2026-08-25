@@ -1,6 +1,6 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-25, PR #237, `question-engine-discovery-log-v1`.
+Последнее обновление: 2026-08-25, PR #238, `question-engine-template-family-discoveries-v1`.
 
 Активный трек: `question-engine-development`.
 
@@ -8,7 +8,50 @@
 
 Этот документ вместе с `docs/OCR_PROJECT_STATE.json` является канонической operational-точкой восстановления privacy/OCR-проекта. Архитектурные документы задают обязательные границы, но текущий `next_step_id` выбирается только state-файлами.
 
-## Current change — PR #237 dedicated Question Engine discovery log
+## Current change — PR #238 Question Engine template-family + statutory-baseline discoveries
+
+PR #238 — docs-only Question Engine discovery update перед `question-engine-question-inventory-v1`.
+
+Он фиксирует выводы из дополнительного публичного пустого шаблона аренды и добавляет отдельный поддерживаемый statutory-baseline документ `docs/QUESTION_ENGINE_STATUTORY_BASELINE_V1.md`.
+
+Зафиксированные продуктовые выводы:
+
+- внешне и структурно похожие договоры одной template family нельзя считать семантически эквивалентными; конкретную редакцию нужно читать полностью, потому что небольшие вставки, удалённые подпункты, blanks и special conditions могут materially менять права и обязанности;
+- early-exit analysis должен собирать совместно сохранение обязанности платить после выезда, replacement-tenant path и отдельные no-cause / mutual termination clauses, а не выдавать их как несвязанные findings;
+- `option_exists = true` недостаточно: нужно анализировать notice, чей это option и как определяется экономическое условие продления, включая ситуацию, когда будущая rent не зафиксирована;
+- broken internal references, blank sanctions и bespoke apartment-specific obligations являются first-class findings;
+- standard template text и later special conditions нужно сравнивать на override/supplement/contradiction.
+
+Statutory-layer direction:
+
+```text
+contract facts
+→ Question Engine semantic map
+→ statutory applicability gate
+→ effective-date-aware statutory baseline
+→ contract-vs-statute comparison
+→ cross-clause + legal interaction analysis
+→ user-facing explanation with exact section citation
+```
+
+Юридическая база для этого слоя — текущий `חוק השכירות והשאילה, התשל״א-1971` (Rental and Loan Law, 1971). Реформа, обычно называемая `שכירות הוגנת` / «справедливая аренда», фиксируется корректно как Amendment No. 1 от 2017 года к этому закону, effective `2017-09-17`, а не как отдельный неизменный закон.
+
+`docs/QUESTION_ENGINE_STATUTORY_BASELINE_V1.md` хранит официальный Knesset source metadata, relevant section IDs, engineering summaries, applicability/non-derogation rules и freshness procedure. Он намеренно не содержит unversioned full static copy закона: официальный Knesset database уже показывает более поздние amendments, включая amendment published `2026-03-31`, а section `25י` содержит wording с future effective date `2026-09-30`. Поэтому future legal layer должен version-ить rules по effective date.
+
+Ключевые правила statutory comparison:
+
+- contract fact, statutory rule и legal interpretation остаются разными evidence layers;
+- special residential protections нельзя применять до applicability gate, включая exclusions в `25טו`;
+- `25יד` используется как central non-derogation meta-rule, но нельзя ошибочно считать mandatory любой section закона;
+- user-facing report должен по возможности ссылаться на exact section (`§25ח`, `§25י`, `§25יד` и т.д.), а не писать расплывчатое «по закону 2017 года»;
+- предпочтительная формулировка при unresolved interpretation — `potential conflict with §X`, а не автоматическое «незаконно»;
+- если statutory freshness/version нельзя подтвердить, система должна безопасно деградировать до contract-only analysis, а не выдавать stale legal claim.
+
+`active_track` и `next_step_id` не меняются. Следующий bounded implementation остаётся `question-engine-question-inventory-v1`.
+
+PR #238 не добавляет source contract images, copied rental-template text, PII, handwriting values, OCR/runtime code, Gemini call, provider, network destination, dependency, permission, workflow, storage или production privacy claim.
+
+## Previous change — PR #237 dedicated Question Engine discovery log
 
 PR #237 — явно разрешённое product-owner docs-only исключение перед `question-engine-question-inventory-v1`. Оно добавляет `docs/QUESTION_ENGINE_DISCOVERY_LOG.md` как отдельный non-canonical рабочий журнал именно для Question Engine: текущих архитектурных гипотез, продуктовых выводов по анализу реальных договоров, правил user-facing объяснений, open questions и истории изменения этих выводов.
 
@@ -767,7 +810,8 @@ owner-controlled real rental contracts
 → Question Engine
 → structured answers with evidence references
 → deterministic / Python verification
-→ Russian user-facing report
+→ statutory applicability + effective-date-aware baseline comparison where relevant
+→ Russian user-facing report with contract facts separated from legal references
 ```
 
 This is a development/testing pipeline, not a new production data path.
@@ -780,6 +824,7 @@ Binding constraints:
 - role-preserving placeholders must retain who owes, pays, returns, guarantees or may demand something from whom, using the role granularity actually defined by the contract;
 - multiple names in the header do not by themselves justify numbered party identities if later operative text treats them collectively under one role;
 - Question Engine input/output contracts should remain independent of OCR implementation so future Surya/other OCR infrastructure can be reattached without redesigning semantic logic;
+- statutory claims must come from a current effective-date-aware baseline and remain distinguishable from contract facts and model interpretation;
 - production photo/OCR/privacy infrastructure remains deferred, not waived.
 
 ## 5. Review and merge policy
@@ -834,8 +879,8 @@ Last periodic Codex batch audit: after `b9527f046a0225c0e80f3f511e15b9a8b1eb0ea3
 
 Frozen Python geometry code baseline: `7fe4bc88df2427ea90442f7b074c3cfe4e0de33a`.
 
-Current PR: #237 `question-engine-discovery-log-v1`.
+Current PR: #238 `question-engine-template-family-discoveries-v1`.
 
-Canonical next step after merge PR #237: `question-engine-question-inventory-v1`.
+Canonical next step after merge PR #238: `question-engine-question-inventory-v1`.
 
-Surya/cloud OCR infrastructure remains frozen; PR #237 adds only a dedicated Question Engine design/discovery log and state metadata, with no OCR/runtime evidence.
+Surya/cloud OCR infrastructure remains frozen; PR #238 adds only Question Engine design/statutory-baseline documentation and canonical state metadata, with no OCR/runtime evidence.
