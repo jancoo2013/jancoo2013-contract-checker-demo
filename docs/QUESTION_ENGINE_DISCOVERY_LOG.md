@@ -412,3 +412,21 @@ The next contracts reviewed in product discussion produced the following design 
 - a bounded novel-issue catch-all should prevent the fixed taxonomy from missing genuinely new mechanisms.
 
 This section records design conclusions only. It intentionally contains no source photographs, recoverable PII, raw OCR, handwritten values, or other restricted material from the reviewed contracts.
+
+### 2026-08-25 — Same-template-family variation and special-condition discovery
+
+A further public blank rental template showed that visually and structurally similar contracts can belong to the same template family while producing materially different practical outcomes after relatively small edits, inserted subclauses, blank fields, or special conditions.
+
+New working conclusions:
+
+- **Never analyze by template recognition alone.** Recognizing a familiar form may help orient the model, but every concrete version must still be read end-to-end. Small edits can change renewal price, early-exit rights, notice periods, security enforcement, repair duties, or other material terms.
+- **Template similarity is not semantic equivalence.** The engine should treat template-family identity as optional metadata, never as evidence that a clause has the same meaning as in another specimen.
+- **Early-exit mechanisms must be composed.** A contract can simultaneously say that rent remains due after early departure, permit a replacement tenant under conditions, and contain a separate mutual termination mechanism with its own notice period. These are one decision structure, not three unrelated findings.
+- **Rights with an unfixed economic term need a dedicated warning.** For example, a renewal option may exist while the renewal rent is not fixed and is instead left for later determination subject only to a floor. `option_exists = true` is insufficient; the engine must ask how the renewal price is determined and whether the right is economically predictable.
+- **Broken internal references deserve a deterministic check.** If a clause refers to a missing subclause or nonexistent target, return an explicit `BROKEN_INTERNAL_REFERENCE`-type finding rather than ignoring the reference or inventing the missing rule.
+- **Blank sanctions remain meaningful structures.** A holdover penalty clause with an unfilled amount is not absent: the obligation structure is present while the monetary value is unresolved.
+- **Special/additional conditions are first-class evidence.** Individually inserted obligations such as pre-handover cleaning, repair, appliance checks, keys/remotes, painting, or other apartment-specific work may materially affect the tenant even though they fall outside the core taxonomy. The catch-all pass must explicitly search for such bespoke obligations.
+- **Standard text and bespoke additions must be compared.** The engine should ask whether later special conditions narrow, override, supplement, or contradict generic template language.
+- **User-facing analysis should explain the combined practical path.** For example, instead of separately stating "rent remains due", "replacement tenant is allowed", and "mutual termination exists", explain what practical routes the tenant actually has to leave early and what conditions attach to each route.
+
+This update records only generalized Question Engine design conclusions from a public blank template. No source images, personal data, filled contract values, or copyrighted template text are stored in the repository.
