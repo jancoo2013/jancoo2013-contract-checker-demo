@@ -1,6 +1,6 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-25, PR #236, `question-engine-golden-contract-corpus-v1`.
+Последнее обновление: 2026-08-25, PR #237, `question-engine-discovery-log-v1`.
 
 Активный трек: `question-engine-development`.
 
@@ -8,7 +8,19 @@
 
 Этот документ вместе с `docs/OCR_PROJECT_STATE.json` является канонической operational-точкой восстановления privacy/OCR-проекта. Архитектурные документы задают обязательные границы, но текущий `next_step_id` выбирается только state-файлами.
 
-## Current change — PR #236 first sanitized golden contract corpus
+## Current change — PR #237 dedicated Question Engine discovery log
+
+PR #237 — явно разрешённое product-owner docs-only исключение перед `question-engine-question-inventory-v1`. Оно добавляет `docs/QUESTION_ENGINE_DISCOVERY_LOG.md` как отдельный non-canonical рабочий журнал именно для Question Engine: текущих архитектурных гипотез, продуктовых выводов по анализу реальных договоров, правил user-facing объяснений, open questions и истории изменения этих выводов.
+
+Журнал фиксирует текущую рабочую архитектуру `deterministic Question Engine → targeted LLM semantic reading → conditional follow-ups → cross-clause checks → bounded novel-issue catch-all → Python/evidence validation → overview essay → focused attention points`. Также в нём отдельно записаны различение `NOT_FOUND` / `CLAUSE_PRESENT_VALUE_BLANK` / `HANDWRITING_DEPENDENCY`, запрет угадывать handwriting, contract-defined role granularity, важность соотношений и масштаба сумм, различение видов обеспечений, internal-consistency checks и принцип практических последствий вместо банального пересказа.
+
+Отдельно зафиксировано user-facing правило: термин `שכירות בלתי מוגנת` нельзя оставлять как голое «незащищённая аренда»; сразу нужно пояснять, что речь идёт об исключении из специального режима защищённого жильца (`דייר מוגן`), а не об отсутствии обычных прав арендатора.
+
+Новый файл не заменяет binding architecture/security/privacy documents и не выбирает operational next step. `docs/OCR_PROJECT_STATE.md` и JSON mirror остаются canonical state; `active_track` и `next_step_id` не меняются. Следующий bounded implementation по-прежнему `question-engine-question-inventory-v1`.
+
+PR #237 не добавляет raw real contracts, raw OCR, PII, handwritten values, Gemini/runtime integration, dependency, provider, permission, workflow, storage или production privacy claim.
+
+## Previous change — PR #236 first sanitized golden contract corpus
 
 PR #236 реализует первый `question-engine-golden-contract-corpus-v1` fixture на основе одного owner-controlled реального трёхстраничного договора аренды на иврите.
 
@@ -822,8 +834,8 @@ Last periodic Codex batch audit: after `b9527f046a0225c0e80f3f511e15b9a8b1eb0ea3
 
 Frozen Python geometry code baseline: `7fe4bc88df2427ea90442f7b074c3cfe4e0de33a`.
 
-Current PR: #236 `question-engine-golden-contract-corpus-v1`.
+Current PR: #237 `question-engine-discovery-log-v1`.
 
-Canonical next step after merge PR #236: `question-engine-question-inventory-v1`.
+Canonical next step after merge PR #237: `question-engine-question-inventory-v1`.
 
-Surya/cloud OCR infrastructure remains frozen; PR #236 adds only sanitized golden text/metadata and no OCR/runtime evidence.
+Surya/cloud OCR infrastructure remains frozen; PR #237 adds only a dedicated Question Engine design/discovery log and state metadata, with no OCR/runtime evidence.
