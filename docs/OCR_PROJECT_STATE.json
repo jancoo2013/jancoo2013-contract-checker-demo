@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-25-89",
+  "state_version": "privacy-ocr-2026-08-26-90",
   "active_track": "question-engine-development",
   "next_step_id": "question-engine-question-inventory-v1",
-  "next_step_summary": "PR #238 is a docs-only Question Engine discovery update that records same-template-family variation, composed early-exit analysis, economically incomplete renewal rights, broken internal-reference checks, blank sanction structures, bespoke special-condition handling, and a separate effective-date-aware statutory comparison layer. It adds docs/QUESTION_ENGINE_STATUTORY_BASELINE_V1.md as a maintained engineering map for the current חוק השכירות והשאילה, התשל״א-1971, grounded to the official Knesset legislation database and explicitly treating the 2017 'fair rental' reform as Amendment No. 1 rather than a separate evergreen statute. The statutory layer requires applicability checks (including section 25טו), exact section citations, non-derogation analysis (including section 25יד), effective-date/version checks, and separation of contract facts from statutory rules and legal interpretation. The baseline intentionally does not vendor an unversioned full statute snapshot because the law has later amendments and future-effective wording; if freshness cannot be verified, the system should degrade to contract-only analysis rather than assert stale legal rules. No raw contract, copied public template text, PII, handwriting value, runtime integration, Gemini call, dependency, provider, permission, workflow, or production privacy behavior is added. active_track and next_step_id remain unchanged; the next bounded implementation step remains question-engine-question-inventory-v1.",
-  "last_recorded_pr": 238,
-  "last_recorded_change": "question-engine-template-family-discoveries-v1",
+  "next_step_summary": "PR #239 consolidates the Question Engine discovery notebook into a contradiction-free current working design before implementation. It freezes the current three-screen UX hierarchy, plain-Russian rule, optional Hebrew discussion drawer/share flow, candidate-finding second pass that can confirm/narrow/clear findings, deterministic statutory gating, source-trust rules, remediation provenance/outcomes, and the boundary against advice-like outputs. It also compacts the canonical Markdown state while preserving active blockers and frozen OCR/Android history by reference to Git history. No runtime integration, contract source text/images, raw OCR, PII, handwriting values, dependency, provider, network destination, workflow, storage, or production behavior is added. active_track and next_step_id remain unchanged; the next bounded implementation remains question-engine-question-inventory-v1. Draft PR #240 must be stacked/rebased on the final PR #239 state before Ready.",
+  "last_recorded_pr": 239,
+  "last_recorded_change": "question-engine-discovery-consolidation-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
-  "updated_on": "2026-08-25"
+  "updated_on": "2026-08-26"
 }
