@@ -503,3 +503,43 @@ The same municipal-template review also clarified product positioning:
 - **Source-version freshness applies to public templates too.** A municipal URL can continue exposing an older template after a newer version exists; template age/version must be tracked before using it as current-market context.
 
 This update records generalized Question Engine design conclusions only; it does not store the municipal contract text or any user contract data.
+
+### 2026-08-26 — Legacy-template and statutory-comparison discovery
+
+A public residential lease template published in 2010, before the 2017 residential-rental reform, is useful not as a current legal benchmark but as evidence of how older landlord-oriented drafting patterns can continue to circulate in copied Word/PDF forms long after the statutory framework changes.
+
+New engineering conclusions:
+
+- **Template age is context, not a legality verdict.** A clause is not invalid merely because it came from an old form. Every concrete clause still requires current-law comparison, applicability analysis, and effective-date handling.
+- **Literal contract effect and current statutory effect must be represented separately.** A useful internal distinction is `CLAUSE_LITERAL_EFFECT` versus `STATUTORY_EFFECT`. A clause can read as a complete waiver or broad landlord right while current law narrows, supplements, or overrides its practical operation.
+- **Legacy clauses strengthen the need for effective-date-aware statutory comparison.** The engine should be able to explain that wording may have been drafted under an earlier legal environment and can remain in circulation even when later law changes the tenant's current rights.
+- **Repairs are a strong example of contract-vs-statute narrowing.** A legacy clause that assigns nearly every defect to the tenant except a narrow infrastructure carve-out must be compared against current §25ח, which generally distinguishes defects caused by unreasonable tenant use from other non-minor defects. If the protected residential regime applies and the clause worsens a non-derogable tenant protection, return a strong `POTENTIAL_STATUTORY_CONFLICT` candidate rather than merely paraphrasing the contract.
+- **Broad `AS-IS`/waiver language must never be reported as total loss of rights without the statutory layer.** The engine should check the current rules on conformity, known/unknown defects, landlord knowledge, notice/cure, and remedies before explaining what the waiver can actually do.
+- **Assignment/subletting requires precision rather than automatic invalidity.** Section §22 contains its own reasonableness/court mechanism, but it is not automatically covered by the same non-derogation logic as every protected residential section. An absolute contractual ban can therefore require `STATUTORY_INTERPRETATION_REQUIRED` rather than a simplistic “illegal clause” finding.
+- **Broad payment catch-alls need statutory scoping.** Phrases equivalent to “all other charges connected with the apartment” should be compared against the more specific tenant-charge categories in §25ט. The user-facing report should explain that broad drafting does not automatically make every owner/building cost payable by the tenant.
+- **Security enforcement needs multiple separate questions.** The engine must separately extract security type, amount, enforcement grounds, notice/cure procedure, return trigger, and return deadline. A legacy `ANY BREACH → security enforcement` rule should be compared against the enumerated current statutory grounds rather than treated as unrestricted merely because the contract says so.
+- **Objective open standards and subjective counterparty standards are different risk classes.** `reasonable grounds`, `reasonable time`, or `reasonable conditions` refer to an external legal standard. Language equivalent to `to the landlord's satisfaction` makes the counterparty's satisfaction part of the mechanism and should receive a distinct marker such as `SUBJECTIVE_COUNTERPARTY_SATISFACTION_STANDARD`.
+- **Statutory open standards remain open even when they protect the tenant.** If current law itself uses `reasonable notice` or `reasonable time`, the app must disclose that there is no universal numeric boundary unless another provision supplies one.
+- **A missing contract deadline can be supplemented by statute.** Where the contract says only that security will be returned after obligations are fulfilled but current applicable law supplies an outside return deadline, use `STATUTE_SUPPLEMENTS_CONTRACT`. The statutory value must come from the effective-date-correct baseline rather than a hard-coded evergreen number.
+- **External economic references are first-class dependencies.** Rent, interest, sanctions, or other obligations can depend on a foreign-currency exchange rate, CPI, bank overdraft rate, or another external variable. A likely future field/class is `EXTERNAL_VALUE_DEPENDENCY`, with source variable, fixing date, direction of exposure, and whether the resulting amount is deterministically computable.
+- **Translate penalty formulas into money.** When verified source values allow it, Python should convert abstract sanctions such as a percentage of monthly rent per day into useful quantities such as `₪/day`, `₪/week`, `₪/30 days`, and `multiple_of_monthly_rent`. This is practical consequence translation, not legal interpretation.
+- **Do not invent a statutory cap where none is identified.** A severe holdover penalty may be economically alarming without having a simple cap in the special residential-rental provisions. In that case report the contract fact and deterministic financial consequence, then use `LEGAL_INTERPRETATION_REQUIRED` if broader remedies/penalty law must be considered.
+- **Ambiguous remedy interaction is not automatically contradiction.** If one section gives 15 days before a breach becomes fundamental while another provides a 7-day cure route for cancellation, first classify the relationship as an `AMBIGUOUS_REMEDY_INTERACTION` unless the text clearly makes both rules impossible to reconcile. The engine should not overstate ambiguity as contradiction.
+
+The legacy-template comparison also sharpened the confidence model for statutory analysis. At minimum, the future engine should distinguish:
+
+```text
+DETERMINATE_STATUTORY_COMPARISON
+OPEN_STATUTORY_STANDARD
+LEGAL_INTERPRETATION_REQUIRED
+```
+
+These are not user-facing severity levels. They describe how mechanically certain the legal comparison is:
+
+- `DETERMINATE_STATUTORY_COMPARISON` — applicability and effective-date checks pass and the relevant statutory rule is concrete enough for a bounded comparison;
+- `OPEN_STATUTORY_STANDARD` — the governing rule itself depends on concepts such as reasonableness and the app must expose that uncertainty;
+- `LEGAL_INTERPRETATION_REQUIRED` — the relationship between contract and law cannot safely be reduced to a deterministic rule without broader legal analysis, case law, or fact-specific judgment.
+
+This confidence tier sits alongside, not instead of, outcome types such as `STATUTE_APPLIES_NO_CONFLICT`, `CONTRACT_MORE_TENANT_FAVORABLE`, `STATUTE_SUPPLEMENTS_CONTRACT`, `CONTRACT_NARROWER_THAN_STATUTE`, and `POTENTIAL_STATUTORY_CONFLICT`.
+
+This update stores only generalized engineering conclusions from a public historical template and current statutory comparison. It does not copy the template text, store user contract material, PII, handwriting, or raw OCR.
