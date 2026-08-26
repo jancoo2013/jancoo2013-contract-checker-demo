@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-26-92",
+  "state_version": "privacy-ocr-2026-08-26-93",
   "active_track": "question-engine-development",
-  "next_step_id": "question-engine-question-inventory-v1",
-  "next_step_summary": "PR #241 is a documentation/process corrective before Codex execution. It clarifies AGENTS.md context precedence, adds docs/DOCUMENT_STATUS_INDEX.md so historical/frozen/component scenarios cannot override canonical state, distinguishes sanitized source evidence from generated Hebrew discussion wording, and aligns the PR template with the approved sanitized-golden-fixture policy. It changes no runtime, provider, privacy boundary, dependency, workflow logic, OCR implementation, or product next step. After merge, the next bounded implementation remains question-engine-question-inventory-v1 and its Codex task must read current binding/state documents plus the Question Engine task-specific sources named by the document-status index.",
-  "last_recorded_pr": 241,
-  "last_recorded_change": "question-engine-pre-codex-governance-sync-v1",
+  "next_step_id": "question-engine-core-inventory-economic-v1",
+  "next_step_summary": "PR #242 is the first owner-authorized bounded slice inside question-engine-question-inventory-v1. It adds only an immutable standard-library schema foundation: the five-value string AnswerState enum, QuestionSpec with question_id/domain/purpose/answer_fields, QuestionInventory with schema_version/questions, and deterministic structural validation. It adds no populated question inventory, evidence-target or conditional-trigger logic, statutory/remediation references, contract analysis, statutory conclusion, remediation wording, UI, dependency, external API, network destination, storage, OCR/Android/serverless work, LLM/provider integration, raw contract material, raw OCR, handwriting values, credentials, recoverable PII, or privacy-boundary change. The parent question inventory remains incomplete; the next owner-authorized bounded step is question-engine-core-inventory-economic-v1.",
+  "last_recorded_pr": 242,
+  "last_recorded_change": "question-engine-schema-foundation-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-08-26"
