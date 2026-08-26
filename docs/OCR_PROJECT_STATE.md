@@ -1,6 +1,6 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-08-26, PR #241, `question-engine-pre-codex-governance-sync-v1`.
+Последнее обновление: 2026-08-26, PR #242, `question-engine-schema-foundation-v1`.
 
 Активный трек: `question-engine-development`.
 
@@ -8,27 +8,25 @@
 
 Этот документ вместе с `docs/OCR_PROJECT_STATE.json` является канонической operational-точкой восстановления проекта. Binding architecture/security/privacy documents задают обязательные границы; текущие `active_track` и `next_step_id` выбираются только state-файлами.
 
-## 1. Current change — PR #241 pre-Codex governance synchronization
+## 1. Current change — PR #242 Question Engine schema foundation
 
-PR #241 — documentation/process corrective перед запуском Codex на `question-engine-question-inventory-v1`.
+PR #242 — первый owner-authorized bounded slice внутри `question-engine-question-inventory-v1`.
 
-Он не меняет продуктовую архитектуру или следующий implementation step. Цель — убрать неоднозначность repository context:
+Он добавляет только provider-independent schema foundation для будущего inventory:
 
-- `AGENTS.md` теперь явно требует брать current track/next step только из canonical state;
-- historical/frozen/component documents не могут стать current direction лишь потому, что существуют в repository;
-- новый `docs/DOCUMENT_STATUS_INDEX.md` классифицирует binding/current, Question Engine task-specific, frozen/deferred, historical UX/workflow и optional audit/reference documents;
-- для будущего Question Engine Codex-task явно определён task-specific context после binding sources: discovery log, statutory references/snapshots when relevant, sanitized golden fixture/meta;
-- Hebrew source evidence отделено от optional generated Hebrew discussion wording: model-generated discussion text не может выдаваться за source quotation;
-- `.github/pull_request_template.md` больше не смешивает разрешённый privacy-reviewed sanitized golden text с запрещёнными raw/unsanitized contracts/PII;
-- старые Streamlit, mobile Tesseract, mobile-backend, Gold/reviewer и cloud-OCR scenario docs сохранены как historical/frozen context, а не переписаны задним числом.
+- строгие определения canonical answer states `FOUND`, `NOT_FOUND`, `AMBIGUOUS`, `HANDWRITING_DEPENDENCY`, `CLAUSE_PRESENT_VALUE_BLANK`;
+- отдельные evidence layers `CONTRACT_FACT`, `STATUTORY_RULE`, `PRODUCT_EXPLANATION`;
+- schema definitions для topic-specific answer fields, deterministic evidence targets и conditional follow-up triggers;
+- отдельные reserved references для будущих statutory/remediation slices;
+- versioned empty `QuestionInventory` container без populated questions.
 
-PR #241 не добавляет runtime code, dependencies, provider/API integration, network destination, workflow logic, storage, OCR implementation, user contract material, raw OCR, handwriting values, credentials или recoverable PII.
+PR #242 не добавляет actual question inventory, contract analysis, statutory conclusion, remediation wording, UI, OCR/Android/serverless work, LLM/provider integration, dependency, external API/network destination, storage, raw contract material, raw OCR, handwriting values, credentials или recoverable PII.
 
 ## 2. Canonical next step
 
 `next_step_id = question-engine-question-inventory-v1`
 
-После merge PR #241 следующий bounded implementation должен:
+После merge PR #242 следующий owner-authorized bounded slice должен использовать schema foundation и определить actual first deterministic recurring question inventory:
 
 - определить первый deterministic recurring question inventory;
 - определить необходимые conditional follow-ups;
@@ -42,7 +40,7 @@ PR #241 не добавляет runtime code, dependencies, provider/API integra
 - не добавлять production LLM/provider integration без отдельного разрешения;
 - не reopening OCR/Android/serverless infrastructure.
 
-Первый implementation PR должен оставаться маленьким и independently testable.
+Следующий inventory slice должен оставаться маленьким и independently testable.
 
 ## 3. Required pre-Codex reading order
 
@@ -169,7 +167,7 @@ A historical/component file may still be correct about its own experiment but ca
 
 Last completed periodic Codex batch audit before Question Engine pivot covered merged PRs #216–#224 and returned `CORRECTIVE PR REQUIRED` with no blocking findings. Worker-contract finding #1 was addressed by PR #225; the two Android findings above remain deferred.
 
-PRs #239–#241 are docs/state/process changes and add no new runtime/provider evidence.
+PRs #239–#241 are docs/state/process changes and add no new runtime/provider evidence. PR #242 adds schema-only Python definitions/tests and no runtime/provider integration.
 
 A new Codex implementation run for `question-engine-question-inventory-v1` is an executor task, not a substitute for the orchestrating assistant's final per-PR audit/security review.
 
@@ -191,16 +189,16 @@ Before a new PR:
 
 Documentation-only PRs do not require application tests but must validate references, JSON state syntax/consistency, declared paths, absence of restricted material/credentials/generated artifacts, and final security metadata.
 
-## 12. PR #241 validation target
+## 12. PR #242 validation target
 
-Before Ready, PR #241 must verify:
+Before Ready, PR #242 must verify:
 
 - changed paths exactly match its Context Gate;
-- `AGENTS.md` no longer hard-codes a current active track/next step and explicitly reads them from state;
-- the document-status index exists and classifies the known stale scenario documents without making them binding;
-- source Hebrew evidence and optional generated Hebrew discussion wording are explicitly separated;
-- PR template permits explicitly scoped privacy-reviewed sanitized golden fixtures while still prohibiting raw/unsanitized material and recoverable PII;
-- both state files identify PR #241 / `question-engine-pre-codex-governance-sync-v1`;
+- schema exposes all five canonical answer states and rejects unsupported literal values/extra fields;
+- contract facts, statutory rules and product explanation remain separate evidence layers;
+- conditional follow-up and answer/evidence definitions remain value-free and provider-independent;
+- no populated question inventory, contract-specific answer, source text/quote, statutory conclusion or remediation wording is added;
+- both state files identify PR #242 / `question-engine-schema-foundation-v1`;
 - `active_track = question-engine-development` and `next_step_id = question-engine-question-inventory-v1` remain unchanged;
-- no runtime/provider/workflow/dependency/network/storage/privacy-boundary change is introduced;
-- final documentation/process security review is `PASS`.
+- no dependency, external API/network destination, workflow, storage, OCR/Android/serverless, LLM/provider or privacy-boundary change is introduced;
+- focused compile/tests and final security review pass on the exact final head.
