@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-08-26-90",
+  "state_version": "privacy-ocr-2026-08-26-91",
   "active_track": "question-engine-development",
   "next_step_id": "question-engine-question-inventory-v1",
-  "next_step_summary": "PR #239 consolidates the Question Engine discovery notebook into a contradiction-free current working design before implementation. It freezes the current three-screen UX hierarchy, plain-Russian rule, optional Hebrew discussion drawer/share flow, candidate-finding second pass that can confirm/narrow/clear findings, deterministic statutory gating, source-trust rules, remediation provenance/outcomes, and the boundary against advice-like outputs. It also compacts the canonical Markdown state while preserving active blockers and frozen OCR/Android history by reference to Git history. Final docs-only validation confirmed the changed-path set is exactly docs/QUESTION_ENGINE_DISCOVERY_LOG.md plus both canonical state files, state identifiers agree, active_track/next_step_id are unchanged, and no raw contract material, PII, handwriting values, credentials, runtime/provider integration, dependencies, workflows, or production data-flow changes are introduced. Draft PR #240 must be stacked/rebased on the final PR #239 state before Ready. The next bounded implementation remains question-engine-question-inventory-v1.",
-  "last_recorded_pr": 239,
-  "last_recorded_change": "question-engine-discovery-consolidation-v1",
+  "next_step_summary": "PR #240 adds the first immutable, source-attributed, machine-readable historical snapshot of the 2017 residential-rental reform (Amendment No. 1 to the Rental and Loan Law) plus a statutory-snapshot maintenance README. The snapshot is a normalized engineering representation grounded to official Knesset source metadata, explicitly historical, and explicitly unsafe as current law without later effective-date overlays. It is stacked on merged PR #239, changes no runtime/provider/data flow, and keeps the current Question Engine implementation direction unchanged. active_track remains question-engine-development and next_step_id remains question-engine-question-inventory-v1.",
+  "last_recorded_pr": 240,
+  "last_recorded_change": "question-engine-statutory-source-snapshot-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-08-26"

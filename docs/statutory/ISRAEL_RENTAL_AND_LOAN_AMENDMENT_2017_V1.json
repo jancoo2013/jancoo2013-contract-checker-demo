@@ -1,0 +1,227 @@
+{
+  "schema_version": 1,
+  "snapshot_id": "israel-rental-and-loan-amendment-2017-v1",
+  "jurisdiction": "IL",
+  "language": "he",
+  "status": "historical-source-anchored-engineering-snapshot",
+  "law": {
+    "name_he": "חוק השכירות והשאילה, התשל״א-1971",
+    "name_en": "Rental and Loan Law, 1971",
+    "knesset_law_item_id": "2000596"
+  },
+  "amendment": {
+    "name_he": "חוק השכירות והשאילה (תיקון), התשע״ז-2017",
+    "number": 1,
+    "knesset_law_item_id": "2006776",
+    "publication_series": "ספר החוקים",
+    "publication_issue": 2649,
+    "publication_start_page": 1028,
+    "publication_date": "2017-07-19",
+    "effective_from": "2017-09-17",
+    "official_publication_pdf": "https://fs.knesset.gov.il/20/law/20_lsr_389390.pdf",
+    "official_legislation_page": "https://main.knesset.gov.il/Activity/Legislation/Laws/pages/lawbill.aspx?lawitemid=2006776&t=lawsuggestionssearch"
+  },
+  "transition_rule": {
+    "contracts_entered_before_effective_from": "pre-amendment wording of the principal law continues to apply under the amendment commencement clause",
+    "contracts_entered_on_or_after_effective_from": "apply the amendment subject to the principal law, later amendments, scope rules and effective-date checks"
+  },
+  "usage": {
+    "purpose": "deterministic historical baseline and regression fixture for Question Engine statutory comparison",
+    "verbatim_full_statute": false,
+    "normalized_rules": true,
+    "safe_as_current_law_without_later_overlays": false,
+    "current_law_authority": "Official Knesset National Legislation Database",
+    "warning": "Later amendments exist, including amendments published in 2023 and 2026. Never use this historical snapshot alone as the current-law answer."
+  },
+  "rules": {
+    "section_6": {
+      "topic": "conformity_and_nonconformity",
+      "summary": "The landlord must deliver the rented property in conformity with the agreement. Tenant reliance on nonconformity can depend on prior knowledge, timely notice and a reasonable opportunity for inspection or repair, with an exception where the landlord knew or should have known.",
+      "question_engine_triggers": ["AS_IS", "HIDDEN_DEFECT", "KNOWN_DEFECT", "PRE_HANDOVER_CONDITION"]
+    },
+    "section_8": {
+      "topic": "landlord_disclaimer_for_known_defects",
+      "summary": "A contractual term exempting or limiting landlord responsibility for a defect or nonconformity does not control where the landlord knew or should have known of it at contract formation or delivery and did not disclose it.",
+      "question_engine_triggers": ["AS_IS", "BROAD_WAIVER", "HIDDEN_DEFECT"]
+    },
+    "section_21_b_c": {
+      "topic": "transfer_of_landlord_rights",
+      "summary": "When the landlord transfers rights in the rented property, the transferee steps into the landlord's rights and obligations under the lease and law; qualifying tenant claims tied to earlier landlord nonperformance can continue against the transferee.",
+      "question_engine_triggers": ["LANDLORD_TRANSFER", "SALE_OF_PROPERTY"]
+    },
+    "section_22_amendment_effect": {
+      "topic": "assignment_and_subletting_consent_form",
+      "summary": "The 2017 amendment expanded the assignment/subletting provision and requires consent for real-estate rental assignment or subletting to be given in advance and in writing. The complete operative rule still depends on the principal section and later law.",
+      "question_engine_triggers": ["ASSIGNMENT", "SUBLEASE", "REPLACEMENT_TENANT"],
+      "non_derogation_warning": "Do not infer that section 22 is protected by section 25יד merely because it exists."
+    },
+    "section_25b": {
+      "topic": "written_residential_lease",
+      "summary": "A residential lease should be written and signed and each party should receive a signed copy; failure to satisfy the writing form alone does not invalidate the lease.",
+      "question_engine_triggers": ["DOCUMENT_FORM", "SIGNED_COPY"]
+    },
+    "section_25c_and_second_schedule": {
+      "topic": "required_contract_content",
+      "summary": "Residential leases must include specified information, including property address, party identification, property/furniture description, term, extension option and terms, termination rights and terms, rent amount/payment mechanics, additional tenant-borne payments and known material defects or disturbances.",
+      "question_engine_triggers": ["MISSING_REQUIRED_FIELD", "CLAUSE_PRESENT_VALUE_BLANK", "KNOWN_DEFECT_DISCLOSURE"]
+    },
+    "section_25e": {
+      "topic": "suitable_for_residential_use",
+      "summary": "The landlord must deliver a dwelling suitable for residential use; failure is treated through the nonconformity framework.",
+      "question_engine_triggers": ["HABITABILITY", "NONCONFORMITY"]
+    },
+    "section_25f": {
+      "topic": "fit_for_habitation",
+      "summary": "The landlord must deliver a dwelling fit for habitation. The First Schedule identifies conditions that make a dwelling unfit, including missing basic systems and unreasonable safety or health risk.",
+      "question_engine_triggers": ["HABITABILITY", "SAFETY_HEALTH_DEFECT"],
+      "derogation": "cannot_be_contracted_out_of_under_25יד_1"
+    },
+    "section_25h": {
+      "topic": "repairs_and_defects",
+      "tenant_responsibility": "Defects caused by unreasonable tenant use are the tenant's responsibility unless the parties agree otherwise in the tenant's favor.",
+      "landlord_responsibility": "Other non-minor defects are repaired by the landlord at the landlord's expense.",
+      "ordinary_deadline_days_max": 30,
+      "urgent_deadline_days_max": 3,
+      "urgent_definition": "a defect that prevents reasonable habitation",
+      "open_standard": "both statutory deadlines also use a reasonable-time standard inside the stated outside limits",
+      "question_engine_triggers": ["REPAIRS", "ORDINARY_WEAR", "TENANT_CAUSED_DAMAGE", "URGENT_DEFECT"],
+      "derogation": "tenant_favor_only_for_25ח_a1_b_c_under_25יד_2"
+    },
+    "section_25t": {
+      "topic": "tenant_payable_current_charges",
+      "tenant_categories": [
+        "rent",
+        "taxes imposed on the apartment holder including arnona",
+        "current consumption services such as water electricity gas and heating",
+        "current common-property maintenance",
+        "other category prescribed by the minister"
+      ],
+      "not_directly_shiftable_examples": [
+        "purchase or improvement of fixed systems serving the apartment except tenant-requested special adaptations or improvements",
+        "building insurance premium",
+        "landlord obligations to third parties outside the permitted current-payment categories, including broker fees where the broker acted for the landlord"
+      ],
+      "question_engine_triggers": ["TENANT_PAYMENTS", "ARNONA", "UTILITIES", "VAAD_BAYIT", "CAPITAL_IMPROVEMENT", "BUILDING_INSURANCE", "BROKER_FEE"],
+      "derogation": "tenant_favor_only_under_25יד_2"
+    },
+    "section_25y": {
+      "topic": "security",
+      "financial_outlay_cap_applies_to": "security involving financial outlay by the tenant, including examples such as cash and bank guarantee",
+      "financial_outlay_cap_formula": "min(total_rent_for_one_third_of_lease_period, three_months_rent)",
+      "realization_grounds": [
+        "unpaid_rent up to unpaid amount plus contract linkage/interest",
+        "tenant-responsible repair not performed up to repair cost",
+        "unpaid current charges within section 25ט categories",
+        "failure to vacate at end of term in the amount allowed by the contract"
+      ],
+      "notice_before_realization": "reasonable advance notice",
+      "cure_opportunity": "reasonable opportunity to cure where cure is possible",
+      "return_deadline_2017": "within 60 days after the later of return of the apartment or settlement of the relevant tenant debts",
+      "question_engine_triggers": ["SECURITY", "BANK_GUARANTEE", "CASH_DEPOSIT", "SECURITY_CHEQUE", "PROMISSORY_NOTE", "SECURITY_ENFORCEMENT"],
+      "critical_warning": "Do not apply the financial-outlay cap mechanically to every instrument called security.",
+      "derogation": "tenant_favor_only_under_25יד_2"
+    },
+    "section_25ya": {
+      "topic": "notice_on_transfer_of_landlord_rights",
+      "summary": "Before transfer to a new rights holder, the landlord must give the tenant written notice identifying the transferee and contact methods.",
+      "question_engine_triggers": ["LANDLORD_TRANSFER", "SALE_OF_PROPERTY"],
+      "derogation": "tenant_favor_only_under_25יד_2"
+    },
+    "section_25yb": {
+      "topic": "extension_option",
+      "landlord_general_extension_notice": "reasonable time before lease end",
+      "landlord_option_notice_days_min": 90,
+      "landlord_option_requires_terms_set_in_advance": true,
+      "tenant_option_notice_days_max_before_expiry": 60,
+      "question_engine_triggers": ["OPTION", "RENEWAL", "OPTION_NOTICE", "OPTION_ECONOMIC_TERMS"],
+      "derogation": "tenant_favor_only_under_25יד_2"
+    },
+    "section_25yg": {
+      "topic": "no_cause_termination",
+      "landlord_only_no_cause_clause_valid": false,
+      "requires_corresponding_tenant_right": true,
+      "landlord_notice_days_min": 90,
+      "tenant_notice_days_min": 60,
+      "question_engine_triggers": ["NO_CAUSE_TERMINATION", "BREAK_CLAUSE"],
+      "derogation": "tenant_favor_only_under_25יד_2"
+    },
+    "section_25yd": {
+      "topic": "non_derogation",
+      "cannot_contract_out": ["25ו"],
+      "tenant_favor_only": [
+        "6",
+        "8-10",
+        "15",
+        "21(b)-(c)",
+        "23-25ה",
+        "25ח(a)(1)",
+        "25ח(b)-(c)",
+        "25ט-25יג"
+      ],
+      "question_engine_triggers": ["STATUTORY_CONFLICT_GATE"],
+      "warning": "Do not extend this list to sections not named by the statute."
+    },
+    "section_25yt": {
+      "topic": "residential_protection_scope",
+      "excluded_categories_2017": [
+        "hotel or vacation accommodation",
+        "certain institutional residences",
+        "protected housing",
+        "student pupil or worker dormitory",
+        "protected tenancy under the Tenant Protection Law",
+        "lease no longer than three months with no extension option",
+        "lease longer than ten years with no earlier landlord cancellation option",
+        "rent above the indexed statutory threshold",
+        "other category prescribed by the minister"
+      ],
+      "base_monthly_rent_threshold_ils_2017": 20000,
+      "threshold_indexed_annually": true,
+      "do_not_use_base_threshold_as_current_value": true,
+      "close_relative_rule": "the tenant-favor non-derogation rule in 25יד(2) does not apply in the same way to leases between specified close relatives",
+      "sublease_allocation_rule": "the amendment contains special allocation rules for qualifying subleases",
+      "question_engine_triggers": ["STATUTORY_APPLICABILITY_GATE"]
+    },
+    "first_schedule": {
+      "topic": "unfit_dwelling_conditions",
+      "normalized_conditions": [
+        "no drainage/sewage disposal system",
+        "no electricity or lighting system",
+        "no ventilation/natural-light openings or closing doors/windows including a lockable main entrance",
+        "no drinking-water supply system",
+        "no partition between toilet and dwelling",
+        "unreasonable safety or health risk"
+      ]
+    },
+    "second_schedule": {
+      "topic": "minimum_residential_lease_information",
+      "normalized_items": [
+        "rented apartment address",
+        "party names identity numbers and addresses",
+        "description of apartment furniture accessories and attached common property",
+        "lease period extension option and conditions termination right and conditions",
+        "rent amount due date and payment method",
+        "additional tenant payments and amounts",
+        "known non-minor defects and known material disturbances affecting use",
+        "additional items prescribed by the minister"
+      ]
+    }
+  },
+  "source_validation": {
+    "official_source_checked_on": "2026-08-26",
+    "checked_against": [
+      "Knesset amendment page for law item 2006776",
+      "official ספר החוקים 2649 publication PDF"
+    ],
+    "known_later_amendments": [
+      {
+        "number": 2,
+        "publication_date": "2023-02-09"
+      },
+      {
+        "number": 3,
+        "publication_date": "2026-03-31"
+      }
+    ],
+    "current_comparison_policy": "Resolve later amendments and current effective wording before any production statutory claim."
+  }
+}
