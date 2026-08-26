@@ -543,3 +543,165 @@ These are not user-facing severity levels. They describe how mechanically certai
 This confidence tier sits alongside, not instead of, outcome types such as `STATUTE_APPLIES_NO_CONFLICT`, `CONTRACT_MORE_TENANT_FAVORABLE`, `STATUTE_SUPPLEMENTS_CONTRACT`, `CONTRACT_NARROWER_THAN_STATUTE`, and `POTENTIAL_STATUTORY_CONFLICT`.
 
 This update stores only generalized engineering conclusions from a public historical template and current statutory comparison. It does not copy the template text, store user contract material, PII, handwriting, or raw OCR.
+
+### 2026-08-26 — Actionable-remediation UX and legal-advice boundary discovery
+
+The Flamingo-template review and follow-up product discussion established that merely identifying a problem is not enough. The user must also understand what can realistically be discussed with the landlord or agent before signing, while the product must avoid presenting itself as individualized legal counsel.
+
+#### Actionable remediation is a separate product layer
+
+The preferred analysis path is now:
+
+```text
+finding
+→ contract consequence
+→ statutory comparison
+→ legal-certainty / interpretation class
+→ actionable discussion point
+→ optional proposed wording for discussion
+```
+
+The system should not stop at `finding → explanation`. A strong user-facing result should answer both “what does this mean?” and “what can I raise with the landlord?”.
+
+However, proposed wording must carry provenance and confidence. Do not use an internal label such as `STATUTE_ALIGNED_REWRITE`, which can imply that the system has produced a legally certified clause. Preferred internal categories are:
+
+```text
+STATUTE_GROUNDED_DISCUSSION_TEXT
+NEGOTIATION_DISCUSSION_TEXT
+LEGAL_REVIEW_RECOMMENDED
+```
+
+- `STATUTE_GROUNDED_DISCUSSION_TEXT` — a discussion text grounded in a concrete, applicability-checked, effective-date-correct statutory rule. It is still a proposal for discussion, not a guaranteed legally sufficient contract clause.
+- `NEGOTIATION_DISCUSSION_TEXT` — a practical tenant-protective proposal where the law does not require that exact wording.
+- `LEGAL_REVIEW_RECOMMENDED` — the issue depends on broader legal interpretation, case law, disputed facts, or an open standard; the product should not pretend to draft the legally correct clause.
+
+If statutory applicability, effective date, non-derogation, or section freshness cannot be verified, the engine must not generate statute-grounded wording. It may still offer a clearly labeled negotiation proposal if doing so does not misrepresent the law.
+
+#### Screen-level UX separation
+
+The current preferred mobile flow separates understanding from negotiation:
+
+```text
+Screen 1 — overall result / orientation
+Screen 2 — Russian essay analysis: what the contract means and what deserves attention
+Screen 3 — Russian action plan: what specifically can be discussed with the landlord
+```
+
+Screen 2 should contain the explanatory essay and statutory context, not long negotiation templates.
+
+Screen 3 should contain concrete Russian-language discussion cards. Each card should explain:
+
+- what the practical problem is;
+- why it matters;
+- whether the point is grounded in a concrete statutory rule, is merely a negotiation safeguard, or requires legal review;
+- what the user can ask to clarify or change.
+
+User-facing provenance labels should be simple and explicit, for example:
+
+```text
+Основано на законе
+Переговорное предложение
+Требует юридической оценки
+```
+
+The product should use wording such as “Что стоит обсудить” / “Вариант формулировки для обсуждения”, not “Как исправить договор” / “Правильная редакция”, because the latter suggests a legal-certification role the product does not have.
+
+#### Hebrew discussion text must be optional and secondary
+
+The primary interface for the target user is Russian. Hebrew negotiation text should not remain permanently visible on the main screen, especially for a user who may be seeing Hebrew for the first time.
+
+Preferred pattern:
+
+```text
+Russian discussion card
+→ [Показать текст на иврите]
+→ side sheet / drawer / bottom sheet with RTL Hebrew text
+→ [Копировать] [Поделиться]
+```
+
+The Hebrew text is an optional payload for communication, not the primary explanation.
+
+A copy action should be available directly next to the Hebrew phrase. On Android, a generic system share action is preferable to a hard-coded WhatsApp-only integration: the Android share sheet can surface WhatsApp, Telegram, SMS, email, and other installed apps without coupling the product to one provider.
+
+#### Non-legal-advice product invariant
+
+The product boundary should be enforced by architecture and output schema, not primarily by a footer disclaimer.
+
+The system may say:
+
+```text
+Here is what the contract says.
+Here is what the verified statute says.
+Here is where the two appear to differ or leave uncertainty.
+Here is a point you can discuss before signing.
+```
+
+The system must not claim:
+
+```text
+These are your final legal rights in a dispute.
+This clause is definitely illegal/void unless a deterministic, applicability-resolved rule actually supports that exact conclusion.
+You may safely ignore this obligation.
+You will win/lose in court.
+You should sue / refuse to pay / sign / not sign.
+This is the legally correct final wording of the clause.
+```
+
+The Question Engine should keep three evidence/meaning layers separate:
+
+```text
+CONTRACT_FACT
+STATUTORY_RULE
+PRODUCT_EXPLANATION
+```
+
+Do not silently create a fourth LLM-owned `LEGAL_CONCLUSION` layer.
+
+Contract evidence proves what the document says. The statutory layer provides verified legal context. The product explanation translates the practical consequence. None of those by itself authorizes the model to predict litigation outcomes or determine the user's complete legal position.
+
+#### Deterministic gate before statute-grounded remediation
+
+The LLM must not invent a legal rule and then write a Hebrew clause around it.
+
+A statute-grounded discussion text should only become eligible after a deterministic/legal-reference gate has resolved, at minimum:
+
+```text
+candidate statutory topic
+→ applicability gate
+→ effective-date-correct section version
+→ non-derogation / tenant-favor rule where relevant
+→ legal-certainty class
+→ allowed remediation type
+```
+
+If this gate fails, `STATUTE_GROUNDED_DISCUSSION_TEXT` is blocked.
+
+If the result is `LEGAL_INTERPRETATION_REQUIRED`, the product should generally offer a question or negotiation direction rather than a purported “correct” replacement clause. Example direction: “Можно ли ограничить ответственность арендатора ущербом, возникшим по его вине?” rather than a claim that the application has rewritten the clause into its legally definitive form.
+
+#### Do not personalize legal strategy
+
+The product can personalize factual explanation to the contract, but should not turn user profile information into litigation or transaction strategy.
+
+Avoid outputs such as:
+
+- “С вашей зарплатой этот риск можно принять.”
+- “В вашей ситуации лучше отказаться от сделки.”
+- “Если хозяин уже подписал, можете просто не платить.”
+- “Суд, скорее всего, будет на вашей стороне.”
+
+The bounded product scope remains:
+
+```text
+what the contract says
+→ what verified law may add / limit
+→ practical consequence
+→ what can be clarified or discussed
+```
+
+#### Disclaimer is secondary, not the safety mechanism
+
+A concise product notice can state that the app helps explain the contract and potentially relevant statutory rules, does not determine the user's final rights in a concrete dispute, and does not replace a lawyer. That notice is useful, but it is not enough on its own.
+
+The primary protection must be deterministic eligibility rules, schema validation, allowed output classes, provenance labels, and blocking of unsupported legal verdicts or overly strong remediation language before the final report is rendered.
+
+This update records generalized product/Question Engine design conclusions only. It stores no contract text, user PII, handwriting, raw OCR, or individualized legal advice.
