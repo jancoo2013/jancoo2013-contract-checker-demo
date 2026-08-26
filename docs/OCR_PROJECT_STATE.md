@@ -195,15 +195,15 @@ Before a new branch/PR:
 
 Documentation-only PRs do not require application tests, but must validate referenced files, JSON state parse/consistency, declared paths, absence of restricted material/credentials/generated artifacts, and final security metadata.
 
-## 12. PR #239 final validation target
+## 12. PR #239 final validation
 
-Required before Ready:
+Final head validation for PR #239:
 
-- changed files exactly match the PR #239 Context Gate;
-- `docs/QUESTION_ENGINE_DISCOVERY_LOG.md` contains the consolidated current decisions and no unresolved contradictory production UX instruction;
+- changed files exactly match the Context Gate: `docs/QUESTION_ENGINE_DISCOVERY_LOG.md`, `docs/OCR_PROJECT_STATE.md`, `docs/OCR_PROJECT_STATE.json`;
+- the consolidated discovery log contains one current UX hierarchy and explicitly supersedes the earlier ordering;
+- the earlier Russian label `Требует юридической оценки` survives only as an explicit **do-not-use** example; production copy uses plain alternatives such as `Нужно проверить отдельно`;
+- internal `LEGAL_*` identifiers are explicitly engineering-only and must not leak into Russian UI copy;
 - both state files identify PR #239 and `question-engine-discovery-consolidation-v1`;
-- `active_track = question-engine-development` unchanged;
-- `next_step_id = question-engine-question-inventory-v1` unchanged;
-- no raw contract/PII/handwriting values or copied public contract text are introduced;
-- security impact is documentation/state only;
-- final security review is `PASS` if the exact final diff satisfies these conditions.
+- `active_track = question-engine-development` and `next_step_id = question-engine-question-inventory-v1` remain unchanged;
+- no raw contract/PII/handwriting values, credentials, generated artifacts, runtime/provider integration, dependencies, workflows, or new network/data-flow behavior are introduced;
+- documentation/state-only security review: `PASS`.
