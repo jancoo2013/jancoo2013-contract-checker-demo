@@ -705,3 +705,51 @@ A concise product notice can state that the app helps explain the contract and p
 The primary protection must be deterministic eligibility rules, schema validation, allowed output classes, provenance labels, and blocking of unsupported legal verdicts or overly strong remediation language before the final report is rendered.
 
 This update records generalized product/Question Engine design conclusions only. It stores no contract text, user PII, handwriting, raw OCR, or individualized legal advice.
+
+### 2026-08-26 — Current-template second-pass and plain-language discovery
+
+Review of a current 2026 commercial residential-rental template confirmed that source recency and professional presentation do **not** imply that every clause is aligned with the current statute.
+
+New engineering conclusions:
+
+- **Source recency is not proof of statutory alignment.** A 2026 template can still contain wording that deserves comparison against current protected residential rules. Therefore `SOURCE_RECENCY != STATUTORY_ALIGNMENT` should be treated as a product invariant.
+- **Do not flag a defined term before resolving its definition and related clauses.** A phrase such as `any fundamental breach` can look much broader than it really is. The engine must first identify every clause that defines `fundamental breach`, then compare the resulting concrete set of triggers against the statutory rule. In the reviewed template, this cross-clause pass removed an initial false alarm about security enforcement.
+- **A second pass must be able to remove findings, not only add them.** The analysis pipeline should explicitly support `candidate finding → cross-clause/statutory review → confirmed / narrowed / cleared`. A trustworthy product should reduce false alarms instead of accumulating red flags.
+- **Non-use and inability to use are different mechanisms.** A clause requiring rent even when the tenant does not use the apartment should distinguish voluntary non-use from situations where use is impossible because of the apartment or access to it. This creates a dedicated comparison trigger for section `15` and suggests that §15 should be added to the maintained statutory map before implementation of this question.
+- **Repair wording based only on “ordinary wear” may be narrower than §25ח.** The engine should compare the contract's trigger for landlord-paid repairs against the statutory structure: tenant-caused unreasonable-use defects versus other non-trivial defects. A contract can use the correct 30-day / 3-day limits while still narrowing the landlord's repair responsibility through the trigger wording.
+- **`AS-IS` plus a condition protocol changes the practical action.** When the contract already contains an inspection/defect appendix, the best remediation may be procedural rather than textual: fill the protocol completely, photograph existing defects, and avoid leaving known problems undocumented. The remediation layer therefore needs a class for `ACTION_WITHOUT_REWRITE` / practical pre-signing action, not only replacement clause text.
+- **Repeated set-off prohibition is ready for deterministic promotion.** A blanket no-setoff clause has now appeared in more than one independent template family. It should move from catch-all discovery toward a permanent statutory-comparison question against §25 and the applicable §25יד protection.
+- **Tenant-favorable terms must survive into the final report and action screen.** A shorter security-return period, a more favorable tenant option notice period, properly allocated running costs, or another better-than-baseline safeguard should be explicitly marked as `NO_CHANGE_NEEDED` / “оставить как есть”. The remediation engine must not imply that every reviewed topic needs negotiation.
+- **Remediation outcomes need at least three directions:** `CHANGE_OR_CLARIFY`, `ACTION_WITHOUT_REWRITE`, and `NO_CHANGE_NEEDED`. These sit alongside provenance classes such as statute-grounded discussion text versus ordinary negotiation proposal.
+- **Party-role analysis may be collective for obligations but individual for remedies.** Where co-tenants are jointly liable but a guarantee is first applied to the tenant who caused the breach, de-identification and structured extraction must preserve enough role granularity to represent that remedy path.
+- **Penalty formulas remain deterministic consequence work.** Fixed daily or rent-relative holdover penalties should be converted to concrete money and monthly-rent multiples when verified rent is available, without turning that calculation into a claim about enforceability.
+
+#### Plain-language rule for Russian UX
+
+User-facing Russian must be written for a person who may be reading a Hebrew contract and Israeli rental rules for the first time.
+
+Do not use abstract phrases such as:
+
+```text
+“отдельная юридическая категория”
+“требует юридической оценки”
+“юридически корректная формулировка”
+```
+
+More broadly, **avoid Russian user-facing words built from `юрист-` / `юрид-`**. These terms are unnecessary, make the interface sound like professional counsel, and reduce readability. Internal engineering identifiers may remain in English where needed, but rendered Russian copy should use plain alternatives.
+
+Preferred user-facing language:
+
+```text
+Основано на законе
+Можно предложить хозяину
+Нужно проверить отдельно
+Точного ответа в законе здесь нет
+Если возникнет спор, это может решаться по обстоятельствам, вплоть до суда
+```
+
+The previously proposed Russian label `Требует юридической оценки` is deprecated and must not be used in production copy. Prefer `Нужно проверить отдельно` or a more specific plain-language explanation.
+
+The same rule applies to explanations of open standards such as `reasonable grounds` or `reasonable time`. Do not explain them through abstract terminology. Explain the practical point directly: there is no fixed list or number; if the parties disagree, the answer depends on the circumstances and may ultimately be decided in court.
+
+This update records generalized Question Engine and UX conclusions only. It stores no source contract text, PII, handwriting, raw OCR, or user-specific contract material.
