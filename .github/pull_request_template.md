@@ -39,7 +39,8 @@ Replace this block with the exact bounded change contract. Keep exactly one Cont
 - New dependencies: none / describe
 - External APIs, network destinations, permissions, or services added: none / describe
 - OCR or Gemini image calls added: no / describe
-- Real contracts, page images, contract text, raw OCR, credentials, or PII written to GitHub: no
+- Raw/unsanitized real contracts, original page images, raw OCR, credentials, secrets, or recoverable PII written to GitHub: no
+- Sanitized golden contract text/fixtures added or changed: no / describe explicit scope and privacy review
 
 ## Security Review
 
@@ -67,7 +68,7 @@ Replace this block with the exact bounded change contract. Keep exactly one Cont
 ## Review Policy
 
 - Per-PR Codex review required: no.
-- Periodic Codex batch audit: approximately twice per week or on explicit product-owner request.
+- Periodic Codex batch audit: per current repository workflow/state policy or explicit product-owner request.
 - Pending batch audit blocks this PR: no, unless a concrete finding or explicit freeze applies.
 
 ## Merge

@@ -1,26 +1,30 @@
 # AGENTS.md
 
-## 1. Binding Sources of Truth
+## 1. Repository context hierarchy
 
-Before creating a branch or modifying any file, read the current versions from the PR base branch:
+Before creating a branch or modifying any file, read the current versions from the PR base branch in this order:
 
 1. `AGENTS.md` — repository working rules.
-2. `SECURITY.md` — binding security invariants and mandatory final-diff security review gate.
+2. `SECURITY.md` — binding security invariants and mandatory final-diff security review.
 3. `docs/ARCHITECTURE.md` — product architecture source of truth.
 4. `docs/CUSTOM_OCR_PIPELINE.md` — binding privacy/OCR product contract.
-5. `docs/SERVERLESS_GPU_OCR_PIPELINE_V1.md` — frozen/deferred remote-processing architecture and benchmark contract unless the canonical state explicitly reopens that track.
-6. `docs/OCR_PROJECT_STATE.md` — canonical operational state, blockers, completed changes, and the single permitted next privacy/OCR step.
-7. `docs/OCR_PROJECT_STATE.json` — machine-readable identifier mirror for the canonical state document.
+5. `docs/SERVERLESS_GPU_OCR_PIPELINE_V1.md` — frozen/deferred remote-processing architecture unless canonical state explicitly reopens it.
+6. `docs/OCR_PROJECT_STATE.md` — canonical operational state, blockers, and the single permitted next step.
+7. `docs/OCR_PROJECT_STATE.json` — machine-readable mirror of the canonical state identifiers.
+8. `docs/DOCUMENT_STATUS_INDEX.md` — classification of current, task-specific, frozen, historical, and component-only documents.
+9. `docs/CODEX_WORKFLOW.md` — execution/audit protocol for Codex and the orchestrating assistant.
 
-Component contracts define exact inputs, outputs, schemas, and limits only for the component being changed.
+The state files alone select the current `active_track` and `next_step_id`. Permanent process documents must not be treated as evidence of a current PR number, branch, active track, or next step merely because they contain historical examples.
 
-Do not derive current architecture from chat history, old PRs, branch names, partially implemented code, or one agent's memory. The JSON companion does not replace `docs/OCR_PROJECT_STATE.md`; it makes the active state identifiers machine-readable. If the JSON and Markdown state documents disagree, or any binding documents conflict, stop implementation and report the conflict.
+If `docs/OCR_PROJECT_STATE.md` and `docs/OCR_PROJECT_STATE.json` disagree, or any binding documents conflict on a rule that affects the requested task, stop implementation and report the conflict.
 
-`docs/CODEX_WORKFLOW.md` defines the repository execution and periodic-audit protocol for the product owner, orchestrating assistant, and Codex. Read it after the binding sources. It cannot override product architecture, security, privacy contracts, or current state. Permanent process documents must not hard-code a supposedly current PR number, branch, `active_track`, or `next_step_id`; those values are read from the current state files on `main` at the start of each task.
+After the binding sources are consistent, read only the task-specific documents named by the canonical state, `docs/DOCUMENT_STATUS_INDEX.md`, or the approved task packet. Historical/frozen/component documents do not become current direction merely because they exist in the repository.
+
+Conversation history, old PRs, branch names, partially implemented code, README prose, and agent memory are not substitutes for current repository state.
 
 ## 2. Mandatory PR Context Gate v1
 
-Every PR must publish one exact JSON contract before implementation and copy the same contract into the PR description:
+Every PR must contain exactly one Context Gate v1 JSON object in its PR body:
 
 ```json
 {
@@ -36,107 +40,94 @@ Every PR must publish one exact JSON contract before implementation and copy the
 
 Rules:
 
-- `change` is a stable lowercase kebab-case identifier and must match `last_recorded_change` in the updated state JSON.
-- `allowed_paths` lists every file changed by the PR and no other file.
+- `change` is lowercase kebab-case and must match `last_recorded_change` in state JSON.
+- `allowed_paths` lists every changed file and no unchanged file.
 - Both state files are mandatory in every PR.
 - Every declared path must actually change; every changed path must be declared.
-- Human-readable PR prose is unrestricted and is not part of the machine contract.
-- Do not add a second context-gate JSON block to the PR body.
+- Do not add a second Context Gate JSON block to the PR body.
+- Implementation may proceed only when the task implements the current `next_step_id`, or the product owner explicitly authorizes a bounded corrective/security/documentation/architecture/process exception.
+- An exception does not silently replace the canonical next step.
 
-Implementation may proceed only when one of these is true:
+Every PR updates both state files after the PR number exists. Any change to active track, next step, blockers, evidence, privacy boundary, security invariants, or permitted scope must keep Markdown and JSON state semantically synchronized.
 
-- the task implements the current `next_step_id`; or
-- the product owner explicitly authorizes a bounded corrective, security, documentation, architecture, or process exception.
+## 3. Current-direction rule
 
-An exception does not silently replace the product next step.
+Do not hard-code or infer the current product direction here. Read it from the canonical state at task start.
 
-Every PR, including documentation-only and process-only PRs, must update `docs/OCR_PROJECT_STATE.md` in the same branch with a concise record of what that PR changes. The JSON companion must also be updated so that `state_version`, `updated_on`, `last_recorded_pr`, and `last_recorded_change` identify the new state snapshot.
+When the active track is Question Engine development, task-specific context normally includes, as applicable:
 
-Any change to `active_track`, `next_step_id`, blockers, proven evidence, implementation state, privacy boundary, security invariants, or the permitted next step must keep the Markdown and JSON state documents semantically synchronized in the same PR.
+- `docs/QUESTION_ENGINE_DISCOVERY_LOG.md` — current product/analysis design decisions;
+- `docs/QUESTION_ENGINE_STATUTORY_BASELINE_V1.md` — maintained statutory engineering map;
+- `docs/statutory/README.md` and versioned statutory snapshots when the task touches statutory comparison;
+- `research/question_engine/golden_contracts/` fixtures when the task touches inventory/schema/evidence behavior.
 
-If the requested task conflicts with the binding documents, do not mark the PR ready for review.
+These task-specific documents do not override binding privacy/security/architecture/state documents.
 
-## 3. Current Product Direction
+Question Engine must remain OCR-provider-independent. OCR, Android preprocessing, Surya/serverless work, old Streamlit UX, mobile transport experiments, and recognizer research remain outside a Question Engine PR unless the canonical state or product owner explicitly reopens them.
 
-The canonical operational direction is selected by `docs/OCR_PROJECT_STATE.md` and its JSON mirror. As of the product-owner pivot recorded by merged PR #234, the active track is Question Engine development and Surya/cloud OCR infrastructure is frozen research, not the active next step.
+## 4. Question Engine data and product invariants
 
-Current development path:
-
-```text
-owner-controlled real rental contracts
-→ reliable printed-text ground truth outside the production OCR dependency
-→ exclude handwriting from semantic transcription
-→ de-identify recoverable PII while preserving the role granularity actually used by the contract
-→ sanitized golden contract corpus
-→ recurring-question inventory + conditional branches
-→ Question Engine
-→ structured answers with deterministic evidence references
-→ Python validation / completeness checks
-→ Russian report
-```
-
-Question Engine must remain OCR-provider-independent. A future OCR implementation may feed the same normalized contract representation without redesigning the semantic layer.
-
-For golden-corpus and Question Engine work:
+For Question Engine and golden-fixture work:
 
 - raw real contract photos, raw OCR, and recoverable PII must not enter GitHub or CI;
 - persisted fixtures must be sanitized before commit;
-- handwriting must not be semantically reconstructed, transcribed, or guessed; if a result depends on handwriting, surface an explicit unresolved handwriting dependency;
-- preserve the party-role granularity defined by the contract itself. If several named people are collectively defined and subsequently referenced only as `השוכר`, keep the single role `השוכר`/`АРЕНДАТОР`; do not invent `TENANT_1`, `TENANT_2`, etc. unless the operative text actually distinguishes those individuals;
-- monetary amounts, dates, clause numbers, notice periods, and legally relevant wording are not PII by default and should be retained when safely separable.
+- handwriting must not be semantically reconstructed, transcribed, or guessed; if a result depends on handwriting, return an explicit unresolved dependency;
+- preserve the party-role granularity actually used by operative contract text; do not invent numbered parties only because several names appear in a header;
+- monetary amounts, dates, clause numbers, notice periods, and legally relevant printed wording are not PII by default when safely separable from identifiers;
+- different security instruments must remain semantically distinct;
+- contract facts, statutory rules, and product explanation remain separate evidence layers;
+- a candidate finding may need a second pass and may be confirmed, narrowed, or cleared after related clauses/definitions/statutory checks are resolved;
+- verified source evidence is the source of truth; the LLM is a semantic reader, not the authority.
 
-The frozen serverless GPU architecture remains available as a future production OCR candidate if automatic OCR becomes a concrete product blocker or real usage justifies renewed infrastructure work. Reopening it requires an explicit state/product decision. Its privacy constraints remain binding: raw material may reach only explicitly approved Israel-located infrastructure, must not be sent raw to Gemini or unrelated services, and must satisfy bounded retention/deletion and logging rules.
+### User-facing boundary
 
-Tesseract full-page OCR on the target phone remains a proven NO-GO and must not be restored as an active fallback merely because the cloud track is frozen.
+The product is an AI-assisted contract explanation and preparation tool. It must not:
 
-## 4. Privacy and Data Handling
+- produce a `safe to sign` verdict;
+- tell the user to sign or not sign;
+- tell the user to sue, refuse payment, or ignore an obligation;
+- predict who will win a dispute;
+- present a model-generated replacement clause as the uniquely correct final wording;
+- state with certainty that a clause is illegal, void, enforceable, or unenforceable unless a separately approved deterministic rule explicitly supports that exact bounded statement.
 
-- Raw contract photos and raw OCR text may leave the device only through an explicitly approved encrypted serverless job after that frozen path is formally reopened and only after explicit user consent.
-- Encryption does not make the worker zero-access: the authorized worker decrypts the document in memory to process it. Do not describe the design otherwise.
-- Raw images, plaintext OCR, job keys, signatures, bank details, and other PII must not enter GitHub, CI, Airtable, logs, analytics, crash reports, or downstream LLM prompts.
-- Raw job inputs, transient plaintext, job keys, temporary files, and raw OCR outputs must be deleted after completion or terminal failure according to verified runtime/provider behavior.
-- Provider retention, data-region availability, processor terms, legal obligations, and deletion guarantees must be verified before production use.
-- Only sanitized image/text derivatives may proceed to Gemini or another legal-analysis model.
-- Masked pixels must not remain recoverable through alpha channels, hidden layers, overlays, metadata, caches, debug exports, or reversible transformations.
-- Do not store PII or raw contract material in Airtable.
-- Monetary amounts, dates, clause numbers, notice periods, and legally relevant wording are not PII by default.
-- Do not require a mask on every page. Preserve legally relevant content whenever it can be separated safely from PII.
-- For repository benchmarks and golden fixtures, use only synthetic, public, owner-controlled redacted/sanitized, or otherwise non-identifying material.
-- Final reports may be persisted only under the sanitized-report contract in `SECURITY.md`; report persistence does not permit retention of original pages, raw OCR, recoverable PII, or processing secrets.
+Current Question Engine Russian UX rules live in `docs/QUESTION_ENGINE_DISCOVERY_LOG.md`. In production Russian copy, avoid words built from `юрист-` / `юрид-`; internal English `LEGAL_*` engineering identifiers may remain internal.
 
-## 5. Development Scope
+Exact Hebrew **source evidence** must come from sanitized source material or deterministic sanitized evidence references, never from an LLM-generated quotation. Optional Hebrew **discussion wording** is a separate remediation output and may be generated only under the provenance/gating rules defined for that subsystem; it must never be mislabeled as source evidence.
 
-- Implement one bounded, measurable step per branch and PR.
+## 5. Privacy and data handling
+
+- Restricted raw material may leave the device only through an explicitly approved processing path after that path is formally reopened and required consent/security controls exist.
+- Original images, raw OCR, recoverable PII, signatures, bank/account/check identifiers, job keys, secrets, and other restricted material must not enter GitHub, CI, Airtable, general logs, analytics, crash reports, support artifacts, or downstream LLM prompts.
+- Only privacy-validated sanitized derivatives may proceed to downstream analysis models.
+- Masked pixels must not remain recoverable through alpha channels, hidden layers, overlays, metadata, caches, alternate frames, or reversible transformations.
+- Encryption protects transport/storage, not computation; an authorized remote worker may decrypt in memory. Do not describe such processing as local or zero-access.
+- Any future raw remote processing must preserve the binding Israel-only, deletion, logging, fail-closed, and no-cross-region-fallback rules in `SECURITY.md`.
+- Do not store raw contract material or PII in Airtable.
+- Final reports may be persisted only under the sanitized-report contract in `SECURITY.md`.
+
+## 6. Development scope
+
+- Implement one bounded measurable step per branch and PR.
 - Make the smallest working change that satisfies the approved task.
 - Do not redesign unrelated components or add speculative abstractions.
-- Do not add features, dependencies, external APIs, or runtime integrations outside the approved scope.
+- Do not add dependencies, external APIs, permissions, workflows, providers, storage, or runtime integrations outside scope.
 - Prefer existing project patterns and readable code.
 - Target no more than 300 changed implementation lines per PR; treat 400 as the normal hard limit.
-- Never accept a worker session's claim that work is complete without inspecting its diff and validation results.
-- The orchestrating assistant owns bounded handoff, diff review, test review, state updates, and independent security review. The product owner is not responsible for transferring project history between sessions.
-- Unless explicitly required by the task, do not commit build directories, binaries, APKs, model weights, workflow artifacts, local logs, caches, IDE metadata, temporary scripts, temporary workflows, repository-external reports, or lock-file changes when dependencies did not change.
-- For serverless work, keep provider credentials, endpoint IDs, encryption keys, signed URLs, and real job payloads out of the repository.
-
-## 6. Product and Legal Boundaries
-
-- This product is a preliminary AI-assisted risk audit and explanation tool, not legal advice or an AI lawyer.
-- Do not implement a `safe to sign` verdict.
-- Do not state with certainty that a clause is illegal, void, enforceable, or unenforceable.
-- Do not predict court outcomes.
-- The LLM is not the source of truth. Verified source evidence and deterministic validation are required.
-- User-facing explanations default to Russian; exact Hebrew source text is retrieved from stored sanitized evidence rather than regenerated by the model.
-- Consent, privacy-policy language, processor agreements, data-region selection, and applicable Israeli privacy obligations require separate legal review before public release.
+- Do not commit build directories, binaries, APKs, model weights, workflow artifacts, local logs, caches, IDE metadata, temporary scripts/workflows, or lock-file changes without a dependency change unless explicitly required.
+- Never accept an executor's claim of completion without inspecting the actual final diff and validation evidence.
 
 ## 7. Validation
 
-For Python code changes, run when applicable:
+Use validation proportionately to the changed component.
+
+For Python changes when applicable:
 
 ```bash
 python -m py_compile app.py contract_checker/*.py research/hebrew_contract_ocr/*.py
 python -m unittest discover -s tests
 ```
 
-For mobile reviewer changes, use the repository-owned commands below from the repository root on Windows PowerShell. These wrappers are the canonical Android automation path; do not replace them with Android Studio copy/paste, direct Gradle invocations, or `expo run:android` unless a bounded task explicitly requires a lower-level diagnostic.
+For the repository-owned Android reviewer path when applicable:
 
 ```powershell
 npm --prefix mobile/pii-reviewer test
@@ -147,95 +138,68 @@ npm --prefix mobile/pii-reviewer test
 .\tools\android-dev.ps1 restart
 ```
 
-Use the commands proportionately:
+Do not substitute Android Studio/manual steps for required repository automation unless a bounded diagnostic explicitly requires it.
 
-- Run `npm --prefix mobile/pii-reviewer test` for every mobile JavaScript or application-behavior change.
-- Run `doctor` before the first Android build in a working session and again after a toolchain, SDK, Java, Node, Gradle, or adb failure.
-- Run `build` for every change that can affect the standalone APK. A successful build must end with `BUILD READY` and produce the expected repository-owned artifact.
-- Run `run` only when device installation or device behavior is part of the completion criteria and exactly one authorized ready device is available.
-- Run `logs` after a runtime failure or unexpected device behavior. Treat its output as local diagnostic material and do not publish raw logs without review.
-- Run `restart` only when the installed APK is already current and the task requires another launch without rebuilding or reinstalling it.
+For serverless work, report only evidence that actually ran, including relevant provider/region/resource/latency/log/cleanup facts. Configuration review is not runtime proof.
 
-For serverless benchmark changes, the task must define and report when applicable:
+When a required command fails:
 
-- exact container/worker command;
-- GPU class and VRAM;
-- cold-start delay;
-- warm execution time;
-- queue delay;
-- pages processed and total job latency;
-- billed worker seconds and estimated cost;
-- maximum memory use and OOM behavior;
-- absence of raw page content and raw OCR text from logs/results;
-- cleanup behavior after success, failure, timeout, and cancellation.
+1. inspect the output and repository-owned diagnostics;
+2. identify the first actionable root cause before editing;
+3. make the smallest in-scope correction;
+4. rerun the failed command;
+5. rerun final focused validation after it passes;
+6. stop when continuation requires broader scope, a new dependency/subsystem, unavailable credential/device/GPU/approved region, destructive action, or a new product/privacy/security decision.
 
-When a required validation command fails:
+Do not make more than two consecutive correction attempts for the same root cause without returning to the product owner. Stop earlier if failure category changes or the next fix becomes speculative.
 
-1. Read the command output and the repository-owned local failure log, when one is named.
-2. Identify the first actionable root cause before editing.
-3. Make the smallest in-scope correction; do not change product code to conceal a broken local environment.
-4. Re-run the failed command.
-5. After it passes, re-run the focused tests and the final required build or benchmark so the reported result matches the final diff.
-6. Repeat only while the correction remains inside the approved task contract. Stop and report the blocker if the next correction requires a new dependency, subsystem, privacy/product decision, destructive device action, unavailable credential, unavailable authorized device, unavailable GPU resource, or broader scope.
+All final validation claims must apply to the same final head SHA presented for review. If code, docs, state, dependencies, configuration, fixtures, or workflow changes after a passing command, rerun the required final checks.
 
-Do not make more than two consecutive correction attempts for the same root cause without returning to the product owner. Stop earlier if the failure changes category, the next fix becomes speculative, or scope is no longer clear.
+Documentation-only PRs do not require application tests, but must validate referenced files, state JSON syntax/semantic agreement, declared versus actual paths, absence of restricted material/credentials/generated artifacts, and final security metadata.
 
-All claimed final tests, builds, installs, launches, logs, device checks, and serverless benchmarks must apply to the same final head SHA presented for review. Record the base SHA, final head SHA, exact commands, results or exit codes, and relevant workflow/job identifiers. If code, documentation, state, container image, or benchmark fixture changes after a passing command, re-run the required final checks.
-
-Do not claim build, installation, launch, log, deletion, retention, privacy, security, or benchmark validation unless the corresponding command or inspection actually ran successfully. Android Studio may be used for human visual inspection, but it is not the required automation or evidence path.
-
-Documentation-only PRs do not require application tests, but must validate that:
-
-- all referenced files exist;
-- machine-readable state metadata is internally consistent with the canonical state document;
-- the PR template uses the same Context Gate v1 fields as the validator;
-- the current PR is recorded in both state files;
-- privacy-boundary and security-invariant changes are explicit and synchronized across binding documents;
-- the PR body contains the required security impact, final security verdict, findings, and unverified items;
-- no product next step changed unintentionally.
-
-## 8. Pull Request Requirements
+## 8. Pull request lifecycle
 
 - Create the PR against `main`.
-- Open every PR as a draft first so that its PR number is known.
+- Open every PR as a draft first so its number is known.
 - Do not auto-merge.
-- Include exactly one completed Context Gate v1 JSON block in the PR body.
-- Use this order: read current binding sources and state; check overlapping open PRs; publish the Context Gate before edits; branch from current `main`; implement and run focused checks; open a draft PR; update both state files after the PR number exists; run final checks on the final head SHA; inspect declared versus actual paths; complete the mandatory security review; then mark Ready.
-- After the PR number exists, add a final state-update commit to the same branch:
-  - record the PR number, date, bounded change, validation, remaining limitations, and next-step effect in `docs/OCR_PROJECT_STATE.md`;
-  - increment `state_version` and set `last_recorded_pr` and `last_recorded_change` in `docs/OCR_PROJECT_STATE.json`;
-  - keep `active_track` and `next_step_id` unchanged unless the product owner explicitly changes them.
-- Mark the PR ready for review only after the state-update commit is present, both state files agree, required validation applies to the final head SHA, the mandatory final-diff security review is `PASS`, and the final diff contains no undeclared, generated, temporary, binary, credential, or environment-specific files.
-- List changed files and explain why each is in scope.
-- State whether runtime behavior, data handling, dependencies, external APIs, OCR, Gemini image calls, privacy boundary, security invariants, report persistence, or state metadata changed.
-- Report tests or validation performed and any remaining limitations.
-- An individual Codex review is not required before Ready or merge.
-- Codex must not merge a PR or enable auto-merge when it is used as an executor or reviewer.
+- Read current binding/state documents and check overlapping open PRs before branching.
+- Publish the Context Gate before edits.
+- Branch from current `main`.
+- Implement only the bounded task and run focused checks.
+- Open the draft PR.
+- Update both state files after the PR number exists.
+- Rerun final checks on the final head SHA.
+- Compare declared and actual changed paths exactly.
+- Perform the mandatory final-diff security review.
+- Mark Ready only after state agreement, final validation, and `Security review: PASS`.
+- Leave merge decision to the product owner.
 
-Every 3–5 merged privacy/OCR PRs, run the repository-only cold-start audit defined in `docs/OCR_PROJECT_STATE.md`.
+The PR body must state changed files/scope, state effect, runtime/data/privacy/security impact, dependencies/network/API changes, validation, limitations, and exactly one final security verdict required by `SECURITY.md`.
 
-## 9. Orchestration and truthful dispatch
+Codex must not merge a PR or enable auto-merge when acting as executor or reviewer.
 
-The orchestrating assistant prepares one exact task packet and independently audits the resulting PR. Codex may execute a bounded task when explicitly invoked and may perform periodic batch audits. Detailed mechanics are defined in `docs/CODEX_WORKFLOW.md`.
+## 9. Codex execution and audit
 
-Do not say that a task was sent to Codex, that Codex is running, or that Codex completed work unless an actual Codex invocation occurred. When direct invocation is unavailable, provide the complete ready-to-run task packet and state that execution has not started. Do not substitute an improvised GitHub workflow while describing it as Codex.
+`docs/CODEX_WORKFLOW.md` defines detailed mechanics.
 
-The independent per-PR audit must verify the base, final head SHA, one Context Gate JSON block, actual changed paths, scope, final validation evidence, state agreement, privacy boundary, security verdict, generated files, credentials, provider artifacts, and auto-merge state before recommending merge.
+When Codex is used as a bounded executor, the task packet must include the repository/base, current state identifiers, one measurable change, exactly one Context Gate, allowed paths, explicit forbidden changes, expected behavior, focused/final validation, blocker policy, draft/Ready requirements, and no-auto-merge instruction.
 
-## 10. Mandatory Security Review Gate and Periodic Codex Audit
+Do not say that Codex was invoked, is running, or completed work unless an actual Codex invocation occurred. If direct invocation is unavailable, provide a ready-to-run packet and say execution has not started.
 
-`SECURITY.md` is binding for every PR. The orchestrating assistant must inspect the exact final diff rather than relying on the task description or an earlier commit.
+The orchestrating assistant independently audits each resulting PR: base/final head, Context Gate, actual paths, scope, final validation, state agreement, privacy/security invariants, generated files, credentials/provider artifacts, and auto-merge state.
 
-Before a PR is marked Ready, its body must include:
+Codex review is not a normal per-PR merge prerequisite. Periodic batch audits may be requested by the product owner or run at the cadence recorded in the current state/workflow policy. A pending batch audit does not block unrelated work unless a concrete blocking finding or explicit freeze applies.
+
+## 10. Mandatory security review
+
+`SECURITY.md` is binding for every PR, including docs/test/state-only changes.
+
+Before Ready, the exact final diff must be reviewed and the PR body must include:
 
 - `Security impact: NONE`, `LOW`, or `HIGH`;
 - exactly one verdict: `Security review: PASS` or `Security review: BLOCKING FINDINGS`;
-- the security areas inspected;
-- every finding and its disposition;
+- inspected areas;
+- findings and disposition;
 - runtime/provider behavior that remains unverified.
 
-A documentation-only, test-only, or state-only change still requires a security review. `Not applicable` is not a valid verdict.
-
-Any blocking condition listed in `SECURITY.md` prevents Ready and prevents a merge recommendation.
-
-Codex review is not a per-PR merge gate. Instead, Codex should audit the accumulated merged work approximately twice per week, or whenever the product owner explicitly requests it. A periodic audit should inspect the range since the previous completed audit, identify cross-PR integration defects, security/privacy regressions, stale tests or unsupported claims, and open bounded corrective work when needed. Pending periodic audit does not block ordinary PR merges unless the product owner explicitly freezes the affected area.
+Any blocking condition in `SECURITY.md`, or any unresolved conflict among binding/state documents, prevents Ready and a merge recommendation.
