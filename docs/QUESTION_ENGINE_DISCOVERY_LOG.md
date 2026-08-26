@@ -372,7 +372,7 @@ NEGOTIATION_DISCUSSION_TEXT
 LEGAL_REVIEW_RECOMMENDED
 ```
 
-These are engineering identifiers only.
+These are engineering identifiers only and must not appear in Russian user-facing copy.
 
 - `STATUTE_GROUNDED_DISCUSSION_TEXT`: wording grounded in a concrete, applicability-checked, effective-date-correct statutory rule. It is still discussion text, not a certified final clause.
 - `NEGOTIATION_DISCUSSION_TEXT`: a practical safeguard that the statute does not require in those exact words.
