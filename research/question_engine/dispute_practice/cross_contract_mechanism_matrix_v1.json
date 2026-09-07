@@ -1,0 +1,234 @@
+{
+  "schema_version": 1,
+  "artifact_status": "CROSS_CONTRACT_CLASSIFICATION_RESEARCH_ONLY_DO_NOT_USE_AS_LEGAL_AUTHORITY",
+  "research_date": "2026-09-07",
+  "jurisdiction": "Israel",
+  "contracts_compared": 2,
+  "privacy": {
+    "status": "SANITIZED",
+    "not_included": [
+      "party names",
+      "Israeli ID numbers",
+      "phone numbers",
+      "email addresses",
+      "exact property addresses",
+      "signatures",
+      "bank/account identifiers",
+      "raw cheque images",
+      "raw contract images",
+      "raw OCR",
+      "guarantor identifying data"
+    ]
+  },
+  "classification_meaning": {
+    "CORE": "Mechanism family recurred independently and materially changes pre-signing analysis; reserve stable maintained product knowledge for it.",
+    "CONDITIONAL": "Important only when triggered by contract facts; not universal core.",
+    "CORE_FACTS_CONDITIONAL_PRACTICE": "Fact extraction is core; deeper dispute/practice analysis is conditional on a special contract mechanism.",
+    "RESEARCH_ONLY": "Useful provenance/case/evidence lead or post-dispute detail; not ordinary pre-signing runtime knowledge."
+  },
+  "mechanism_families": [
+    {
+      "id": "security_and_enforcement",
+      "classification": "CORE",
+      "seen_in_contracts": 2,
+      "confirmed_subtypes": [
+        "security_cheque",
+        "rent_cheques",
+        "promissory_note",
+        "guarantors",
+        "open_utility_cheques"
+      ],
+      "required_separation": [
+        "bank_or_instrument_mechanics",
+        "authority_to_complete_or_realize",
+        "underlying_debt_and_amount",
+        "execution_or_opposition_procedure"
+      ],
+      "pre_signing_question_classes": [
+        "blank_or_missing_instrument_fields",
+        "payee_or_transfer_restriction",
+        "separate_promissory_note_or_guarantee_document_exists"
+      ],
+      "production_rule_status": "NOT_AUTHORIZED_BY_THIS_ARTIFACT"
+    },
+    {
+      "id": "early_exit_and_replacement_tenant",
+      "classification": "CORE",
+      "seen_in_contracts": 2,
+      "must_analyze_together": [
+        "remaining_term_payment",
+        "replacement_route",
+        "landlord_approval_standard",
+        "assignment_or_sublet_wording",
+        "mitigation_or_reletting",
+        "termination_consequences"
+      ],
+      "production_rule_status": "NOT_AUTHORIZED_BY_THIS_ARTIFACT"
+    },
+    {
+      "id": "financial_sanctions_and_overlap",
+      "classification": "CORE",
+      "seen_in_contracts": 2,
+      "heads_to_keep_separate": [
+        "principal_or_rent",
+        "late_interest_or_indexation",
+        "daily_holdover_compensation",
+        "fixed_agreed_damages",
+        "actual_loss",
+        "security_realization"
+      ],
+      "analysis_dimensions": [
+        "trigger",
+        "amount_or_formula",
+        "start_date",
+        "end_date",
+        "loss_head",
+        "overlap_with_other_head"
+      ],
+      "forbidden_shortcut": "large_penalty_implies_court_will_reduce",
+      "production_rule_status": "NOT_AUTHORIZED_BY_THIS_ARTIFACT"
+    },
+    {
+      "id": "condition_as_is_defects_damage",
+      "classification": "CORE",
+      "seen_in_contracts": 2,
+      "chronology": [
+        "entry_baseline",
+        "known_or_preexisting_defect",
+        "event_or_deterioration",
+        "notice",
+        "repair_responsibility",
+        "exit_condition",
+        "contemporaneous_proof"
+      ],
+      "production_rule_status": "NOT_AUTHORIZED_BY_THIS_ARTIFACT"
+    },
+    {
+      "id": "termination_cure_notice_eviction",
+      "classification": "CORE",
+      "seen_in_contracts": 2,
+      "required_separation": [
+        "breach_trigger",
+        "cure_and_notice_mechanics",
+        "contract_cancellation",
+        "demand_to_vacate",
+        "physical_eviction_procedure"
+      ],
+      "production_rule_status": "NOT_AUTHORIZED_BY_THIS_ARTIFACT"
+    },
+    {
+      "id": "option_and_renewal",
+      "classification": "CORE",
+      "seen_in_contracts": 2,
+      "fields": [
+        "duration",
+        "price_or_formula",
+        "activation_notice",
+        "activation_deadline",
+        "landlord_consent_dependency",
+        "external_addendum_dependency"
+      ],
+      "interpretation_status": "CONDITIONAL_ON_EXACT_WORDING_AND_VERIFIED_LAW",
+      "production_rule_status": "NOT_AUTHORIZED_BY_THIS_ARTIFACT"
+    },
+    {
+      "id": "utilities_and_occupancy_charges",
+      "classification": "CORE_FACTS_CONDITIONAL_PRACTICE",
+      "seen_in_contracts": 2,
+      "conditional_triggers": [
+        "shared_or_central_meter",
+        "landlord_calculated_allocation",
+        "monthly_advances_and_reconciliation",
+        "open_utility_security_cheques",
+        "unusual_common_charges"
+      ],
+      "production_rule_status": "NOT_AUTHORIZED_BY_THIS_ARTIFACT"
+    },
+    {
+      "id": "broad_no_setoff",
+      "classification": "CONDITIONAL",
+      "seen_in_contracts": 1,
+      "priority_when_triggered": "HIGH",
+      "trigger_examples": [
+        "אין לקזז",
+        "לא יהיה רשאי לקזז"
+      ],
+      "production_rule_status": "NOT_AUTHORIZED_BY_THIS_ARTIFACT"
+    },
+    {
+      "id": "shared_meter_accounting",
+      "classification": "CONDITIONAL",
+      "seen_in_contracts": 1,
+      "evidence_model": [
+        "supplier_bill",
+        "start_end_readings",
+        "allocation_formula",
+        "occupied_unit_data_if_relevant",
+        "advances_paid",
+        "upward_downward_reconciliation"
+      ],
+      "research_confidence": "LOWER_THAN_CORE",
+      "production_rule_status": "NOT_AUTHORIZED_BY_THIS_ARTIFACT"
+    },
+    {
+      "id": "landlord_access",
+      "classification": "CONDITIONAL",
+      "seen_in_contracts": 2,
+      "promotion_rule": "Do not surface ordinary access boilerplate unless wording materially broadens access or removes meaningful coordination/notice protections.",
+      "production_rule_status": "NOT_AUTHORIZED_BY_THIS_ARTIFACT"
+    },
+    {
+      "id": "alterations_and_restoration",
+      "classification": "CONDITIONAL",
+      "seen_in_contracts": 2,
+      "production_rule_status": "NOT_AUTHORIZED_BY_THIS_ARTIFACT"
+    },
+    {
+      "id": "third_party_indemnity",
+      "classification": "CONDITIONAL",
+      "seen_in_contracts": 1,
+      "production_rule_status": "NOT_AUTHORIZED_BY_THIS_ARTIFACT"
+    },
+    {
+      "id": "inventory_handwriting_dependency",
+      "classification": "CONDITIONAL",
+      "seen_in_contracts": 1,
+      "rule": "Legally relevant handwritten quantities/values remain HANDWRITING_DEPENDENCY until manually confirmed; OCR/LLM semantic reconstruction is prohibited.",
+      "production_rule_status": "BOUNDARY_ONLY_NO_SEMANTIC_GUESSING"
+    }
+  ],
+  "pre_signing_question_classes": [
+    "security_instrument_fields_that_change_mechanics",
+    "separate_promissory_note_or_guarantee_document_exists",
+    "named_payee_or_restriction_on_open_utility_cheques",
+    "referenced_condition_or_defect_appendix_exists",
+    "missing_renewal_activation_rule_or_external_addendum",
+    "direct_or_submeter_vs_landlord_controlled_utility_allocation",
+    "manual_confirmation_of_legally_relevant_handwriting"
+  ],
+  "exclude_from_normal_pre_signing_question_engine": [
+    "execution_warning_already_received",
+    "keys_already_returned",
+    "apartment_already_relet",
+    "replacement_tenant_already_proposed",
+    "lawsuit_already_filed",
+    "damage_discovered_after_moveout"
+  ],
+  "main_report_suppression_candidates": [
+    "generic_neighbor_or_noise_obligation",
+    "generic_integration_or_precedence_boilerplate",
+    "notice_addresses_as_standalone_risk",
+    "case_names_and_court_citations",
+    "procedural_detail_unless_drilldown",
+    "post_dispute_questions"
+  ],
+  "promotion_rules": [
+    "Two-contract recurrence promotes only the mechanism family, not any legal proposition.",
+    "Legal/case propositions require independent source and proposition verification before production use.",
+    "Resolve statutory applicability, effective date and non-derogation before statute-grounded output.",
+    "Preserve landlord-favorable and tenant-favorable materially relevant outcomes.",
+    "Distinguish residential decisions from commercial analogies.",
+    "Keep safe user output materially narrower than internal research.",
+    "Future contracts should test coverage and discover genuinely new families rather than restart taxonomy from zero."
+  ]
+}
