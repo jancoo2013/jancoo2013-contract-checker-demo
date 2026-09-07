@@ -26,13 +26,20 @@ Read these before implementation:
 Read these when the canonical task concerns Question Engine design/implementation:
 
 - `docs/QUESTION_ENGINE_DISCOVERY_LOG.md` — consolidated current Question Engine product and UX decisions.
+- `docs/QUESTION_ENGINE_DISPUTE_PRACTICE_LAYER_V0.md` — provisional separation of contract facts, dispute/practice research, pre-signing Question Engine questions, and safe user output; does not authorize a runtime case-law engine.
 - `docs/QUESTION_ENGINE_STATUTORY_BASELINE_V1.md` — maintained statutory engineering map; not current-law authority by itself.
 - `docs/statutory/README.md` — statutory source hierarchy/versioning policy.
 - `docs/statutory/ISRAEL_RENTAL_AND_LOAN_AMENDMENT_2017_V1.json` — immutable historical 2017 normalized snapshot; never use alone as current law.
 - `research/question_engine/golden_contracts/contract_001_he.txt` — sanitized printed Hebrew golden fixture.
 - `research/question_engine/golden_contracts/contract_001.meta.json` — fixture provenance/sanitization metadata.
 
-For `question-engine-question-inventory-v1`, these are the primary task-specific sources after the always-read governance set.
+For the current Question Engine inventory sequence, these are the primary task-specific sources after the always-read governance set. The canonical state files still decide the exact child step.
+
+### 2.1 Research-only dispute/practice artifacts
+
+- `research/question_engine/dispute_practice/rental_dispute_map_il_v1_unverified.json` — sanitized model-assisted first-pass research index from one contract. It is `UNVERIFIED_RESEARCH_ONLY_DO_NOT_USE_FOR_PRODUCTION_RULES`; use it only to discover candidate mechanisms, source leads, evidence patterns, and questions pending independent verification.
+
+Research-only artifacts do not become mandatory source-of-truth inputs merely because they are stored in the repository. They must not override sanitized contract evidence, verified statutory sources, or independently checked case/procedure evidence.
 
 ## 3. Frozen/deferred OCR and preprocessing references
 
