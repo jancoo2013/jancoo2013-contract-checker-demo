@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-07-94",
+  "state_version": "privacy-ocr-2026-09-07-95",
   "active_track": "question-engine-development",
   "next_step_id": "question-engine-core-inventory-economic-v1",
-  "next_step_summary": "PR #243 is a bounded documentation/research architecture exception after merged PR #242. It records the provisional Contract Facts -> Dispute / Practice Engine -> Question Engine -> Safe Output separation, adds a sanitized unverified first-pass dispute-practice research index, and classifies both in the repository document map. It changes no runtime, provider, privacy boundary, dependency, workflow logic, OCR implementation, schema behavior, or product implementation order. The canonical next bounded implementation remains question-engine-core-inventory-economic-v1.",
-  "last_recorded_pr": 243,
-  "last_recorded_change": "question-engine-dispute-practice-layer-v0",
+  "next_step_summary": "PR #244 is a bounded documentation/research classification update after comparing two independent sanitized residential leases. It promotes recurring product mechanism families to CORE/CONDITIONAL research classifications without promoting legal propositions into production rules, adds a sanitized cross-contract mechanism matrix, and preserves the Contract Facts -> Dispute / Practice Engine -> Question Engine -> Safe Output boundary. It changes no runtime, provider, privacy boundary, dependency, workflow logic, OCR implementation, schema behavior, or implementation order. The canonical next bounded implementation remains question-engine-core-inventory-economic-v1.",
+  "last_recorded_pr": 244,
+  "last_recorded_change": "question-engine-cross-contract-practice-classification-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-09-07"
