@@ -26,7 +26,8 @@ Read these before implementation:
 Read these when the canonical task concerns Question Engine design/implementation:
 
 - `docs/QUESTION_ENGINE_DISCOVERY_LOG.md` — consolidated current Question Engine product and UX decisions.
-- `docs/QUESTION_ENGINE_DISPUTE_PRACTICE_LAYER_V0.md` — provisional separation of contract facts, dispute/practice research, pre-signing Question Engine questions, and safe user output; does not authorize a runtime case-law engine.
+- `docs/QUESTION_ENGINE_DISPUTE_PRACTICE_LAYER_V0.md` — foundational separation of contract facts, dispute/practice research, pre-signing Question Engine questions, and safe user output; does not authorize a runtime case-law engine.
+- `docs/QUESTION_ENGINE_DISPUTE_PRACTICE_CLASSIFICATION_V1.md` — current cross-contract product classification after comparison of two independent sanitized leases; defines recurring CORE / CONDITIONAL mechanism families without promoting legal propositions into runtime rules.
 - `docs/QUESTION_ENGINE_STATUTORY_BASELINE_V1.md` — maintained statutory engineering map; not current-law authority by itself.
 - `docs/statutory/README.md` — statutory source hierarchy/versioning policy.
 - `docs/statutory/ISRAEL_RENTAL_AND_LOAN_AMENDMENT_2017_V1.json` — immutable historical 2017 normalized snapshot; never use alone as current law.
@@ -38,8 +39,9 @@ For the current Question Engine inventory sequence, these are the primary task-s
 ### 2.1 Research-only dispute/practice artifacts
 
 - `research/question_engine/dispute_practice/rental_dispute_map_il_v1_unverified.json` — sanitized model-assisted first-pass research index from one contract. It is `UNVERIFIED_RESEARCH_ONLY_DO_NOT_USE_FOR_PRODUCTION_RULES`; use it only to discover candidate mechanisms, source leads, evidence patterns, and questions pending independent verification.
+- `research/question_engine/dispute_practice/cross_contract_mechanism_matrix_v1.json` — sanitized comparison of the first two dispute/practice passes. It classifies product mechanism recurrence/priority only; `CORE` does not mean a legal proposition is verified or production-authorized.
 
-Research-only artifacts do not become mandatory source-of-truth inputs merely because they are stored in the repository. They must not override sanitized contract evidence, verified statutory sources, or independently checked case/procedure evidence.
+Research-only artifacts do not become mandatory source-of-truth inputs merely because they are stored in the repository. They must not override sanitized contract evidence, verified statutory sources, independently checked case/procedure evidence, or the current classification document.
 
 ## 3. Frozen/deferred OCR and preprocessing references
 
