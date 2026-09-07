@@ -1,0 +1,294 @@
+{
+  "metadata": {
+    "schema_version": "rental_dispute_map_il_v1_research_snapshot",
+    "artifact_status": "UNVERIFIED_RESEARCH_ONLY_DO_NOT_USE_FOR_PRODUCTION_RULES",
+    "research_date": "2026-09-07",
+    "jurisdiction": "Israel",
+    "source_contract": "sanitized three-page residential lease research trial; exact address and source-image identifiers removed",
+    "confidence_overall": 0.84,
+    "normalization_note": "Curated repository index of the model-assisted research result. This is not a verbatim model dump; verbose duplicated fields were omitted.",
+    "repository_sanitization": {
+      "status": "SANITIZED_FOR_REPOSITORY_RESEARCH",
+      "removed_or_generalized": [
+        "exact rented-property street address",
+        "original source image filenames"
+      ],
+      "not_included": [
+        "party names",
+        "Israeli ID numbers",
+        "phone numbers",
+        "signatures",
+        "bank/account/check identifiers",
+        "raw page images",
+        "raw OCR"
+      ]
+    },
+    "limitations": [
+      "The source lease contains a material 12-month versus printed-date contradiction.",
+      "Appendix B and the security-cheque face were not available in the research packet.",
+      "Several case texts came from secondary legal databases and require independent verification before production use.",
+      "No exact residential decision in the pass adjudicated the source contract's 10% per month clause.",
+      "The artifact comes from one contract and must not by itself define the permanent inventory."
+    ]
+  },
+  "mechanism_candidates": [
+    {"id": "m01_protected_tenancy_label", "clause": "title / 2", "category": "status_and_mandatory_law", "confidence": 0.81, "status": "UNVERIFIED"},
+    {"id": "m02_term_date_conflict", "clause": "3", "category": "term_interpretation", "confidence": 0.97, "status": "UNVERIFIED"},
+    {"id": "m03_rent_and_third_party_cheques", "clause": "4(a) / 24", "category": "payment_attribution_and_cheques", "confidence": 0.88, "status": "UNVERIFIED"},
+    {"id": "m04_late_interest_10_percent", "clause": "4(d)", "category": "interest_and_liquidated_damages", "confidence": 0.69, "status": "UNVERIFIED"},
+    {"id": "m05_fourteen_day_default_and_cancellation", "clause": "4(c) / 19", "category": "breach_notice_and_cancellation", "confidence": 0.90, "status": "UNVERIFIED"},
+    {"id": "m06_option_year_and_consent", "clause": "4(b)", "category": "option_and_renewal", "confidence": 0.76, "status": "UNVERIFIED"},
+    {"id": "m07_arnona_utilities_building", "clause": "5-6", "category": "utilities_and_municipal_tax", "confidence": 0.87, "status": "UNVERIFIED"},
+    {"id": "m08_assignment_sublet_occupancy", "clause": "7", "category": "sublet_and_occupancy", "confidence": 0.86, "status": "UNVERIFIED"},
+    {"id": "m09_early_exit_full_rent", "clause": "8(a)", "category": "early_termination_and_mitigation", "confidence": 0.91, "status": "UNVERIFIED"},
+    {"id": "m10_tenant_maintenance_wear", "clause": "9(a)", "category": "condition_and_repairs", "confidence": 0.90, "status": "UNVERIFIED"},
+    {"id": "m11_landlord_repairs_and_offset", "clause": "9(b)", "category": "landlord_repairs_habitability", "confidence": 0.92, "status": "UNVERIFIED"},
+    {"id": "m12_third_party_damage_indemnity", "clause": "9(c)", "category": "third_party_liability", "confidence": 0.83, "status": "UNVERIFIED"},
+    {"id": "m13_as_is_appendix_defect_waiver", "clause": "12", "category": "habitability_and_disclosure", "confidence": 0.90, "status": "UNVERIFIED"},
+    {"id": "m14_cleanliness_neighbors_compliance", "clause": "13", "category": "conduct_and_nuisance", "confidence": 0.80, "status": "UNVERIFIED"},
+    {"id": "m15_alterations_contents", "clause": "14 / 16", "category": "alterations_and_restoration", "confidence": 0.70, "status": "UNVERIFIED"},
+    {"id": "m16_landlord_entry", "clause": "15", "category": "landlord_access", "confidence": 0.79, "status": "UNVERIFIED"},
+    {"id": "m17_holdover_200_per_day", "clause": "17", "category": "holdover_and_liquidated_damages", "confidence": 0.78, "status": "UNVERIFIED"},
+    {"id": "m18_security_cheque_10000", "clause": "11(a)", "category": "security_and_cheque_realization", "confidence": 0.82, "status": "UNVERIFIED"},
+    {"id": "m19_security_return_timing", "clause": "11 continuation", "category": "security_return", "confidence": 0.84, "status": "UNVERIFIED"},
+    {"id": "m20_vacate_and_judicial_eviction", "clause": "10 / 19", "category": "eviction_and_self_help", "confidence": 0.94, "status": "UNVERIFIED"},
+    {"id": "m21_notice_72_hours", "clause": "20-21", "category": "notice_and_service", "confidence": 0.82, "status": "UNVERIFIED"},
+    {"id": "m22_landlord_liability_disclaimer", "clause": "22", "category": "liability_exclusion", "confidence": 0.77, "status": "UNVERIFIED"},
+    {"id": "m23_agreement_precedence", "clause": "23", "category": "integration_and_modification", "confidence": 0.80, "status": "UNVERIFIED"},
+    {"id": "m24_unauthorized_third_party_payer", "clause": "24", "category": "party_identity_and_authority", "confidence": 0.64, "status": "UNVERIFIED"}
+  ],
+  "cross_cutting_patterns": [
+    {
+      "id": "x01_no_self_help",
+      "pattern": "A contractual right to cancel or demand vacancy is distinct from physical eviction.",
+      "case_ids": ["case_tavorov"]
+    },
+    {
+      "id": "x02_proof_and_chronology",
+      "pattern": "Many outcomes turn on dated chronology: demand, cure, payment, defect, handover, key return, presentation, and service.",
+      "case_ids": ["case_hazan", "case_habani", "case_gabai"]
+    },
+    {
+      "id": "x03_no_double_recovery",
+      "pattern": "Rent, holdover sums, interest, security realization, and actual damages must be mapped by date and head to detect overlap.",
+      "case_ids": ["case_gabai", "case_pi_glilot"]
+    },
+    {
+      "id": "x04_mandatory_rules",
+      "pattern": "Contract wording must be analyzed separately from mandatory residential-lease protections and applicability gates.",
+      "case_ids": ["case_hazan"]
+    },
+    {
+      "id": "x05_security_layers",
+      "pattern": "Separate bank/instrument processing, authority to complete or present, underlying debt, and execution/opposition procedure.",
+      "case_ids": ["case_hazan", "case_aburumi", "case_habani"]
+    }
+  ],
+  "question_engine_candidates": [
+    {
+      "id": "q01_term",
+      "trigger": "term, option, early-exit, or holdover analysis",
+      "question": "Есть ли подписанное уточнение, переписка или чеки, показывающие 12 или 24 месяца?",
+      "changes": ["end_date", "rent_period", "option_window", "holdover_start"],
+      "pre_signing_fit": "CONDITIONAL"
+    },
+    {
+      "id": "q02_option",
+      "trigger": "additional-year option is relevant",
+      "question": "Есть ли письменное уточнение условий опции и согласия арендодателя?",
+      "changes": ["option_mechanism", "authorized_post_term_occupancy"],
+      "pre_signing_fit": "YES_IF_DOCUMENT_PACKAGE_HAS_EXTERNAL_OR_LATER_WRITING"
+    },
+    {
+      "id": "q03_cheque",
+      "trigger": "security cheque is present",
+      "question": "Заполнены ли на чеке дата и получатель, и есть ли отдельный документ об обеспечении?",
+      "changes": ["instrument_mechanics", "completion_authority", "security_document_dependency"],
+      "pre_signing_fit": "YES"
+    },
+    {
+      "id": "q04_payment",
+      "trigger": "dispute about already-made payments",
+      "question": "Какие платежи прошли, какие возвращены и есть ли расписки о зачёте по месяцам?",
+      "changes": ["principal", "payer_attribution", "interest_period"],
+      "pre_signing_fit": "NO_FUTURE_DISPUTE_MODE"
+    },
+    {
+      "id": "q05_repair",
+      "trigger": "existing defect/repair facts are relevant",
+      "question": "Есть ли уже известный дефект, который не отражён в приложении или письменной переписке?",
+      "changes": ["known_defect", "appendix_dependency", "repair_branch"],
+      "pre_signing_fit": "YES_IF_EXISTING_DEFECT"
+    },
+    {
+      "id": "q06_condition",
+      "trigger": "condition protocol or Appendix B is referenced",
+      "question": "Приложено ли приложение «Б» с перечнем состояния или дефектов?",
+      "changes": ["appendix_exception", "document_completeness"],
+      "pre_signing_fit": "YES"
+    },
+    {
+      "id": "q07_early_exit",
+      "trigger": "tenant already left",
+      "question": "Когда освобождены квартира и ключи, и какие меры по поиску нового жильца предпринимались?",
+      "changes": ["mitigation", "vacancy_loss", "holdover"],
+      "pre_signing_fit": "NO_FUTURE_DISPUTE_MODE"
+    },
+    {
+      "id": "q08_access_lockout",
+      "trigger": "eviction/lockout already occurred",
+      "question": "Есть ли судебное решение/исполнительное предупреждение или факт смены замков до решения?",
+      "changes": ["ordinary_enforcement_vs_self_help", "damage_claim"],
+      "pre_signing_fit": "NO_FUTURE_DISPUTE_MODE"
+    },
+    {
+      "id": "q09_notice",
+      "trigger": "a disputed notice was already sent",
+      "question": "Каким способом, когда и на какой адрес направлялось уведомление; сохранилось ли подтверждение отправки?",
+      "changes": ["effective_notice_date", "cure_period", "procedural_deadline"],
+      "pre_signing_fit": "NO_FUTURE_DISPUTE_MODE"
+    },
+    {
+      "id": "q10_arnona",
+      "trigger": "utility/arnona debt already disputed",
+      "question": "Есть ли подтверждение смены держателя и оплаченные счета с показаниями на дату передачи?",
+      "changes": ["period_allocation", "reimbursement", "security_deduction"],
+      "pre_signing_fit": "NO_UNIVERSAL_REMINDER_OR_FUTURE_DISPUTE_MODE"
+    },
+    {
+      "id": "q11_sublet",
+      "trigger": "replacement tenant has already been proposed",
+      "question": "Был ли предложен конкретный новый жилец и ответил ли арендодатель письменно с причинами?",
+      "changes": ["reasonableness_of_refusal", "breach", "mitigation"],
+      "pre_signing_fit": "NO_FUTURE_DISPUTE_MODE"
+    },
+    {
+      "id": "q12_third_payer",
+      "trigger": "third-party payment clause is ambiguous in the signed package",
+      "question": "Кто по тексту договора обязан платить и есть ли отдельное поручительство или только способ оплаты?",
+      "changes": ["payer_role", "guarantee_document_dependency"],
+      "pre_signing_fit": "YES_IF_AMBIGUOUS"
+    }
+  ],
+  "case_law_index": [
+    {
+      "case_id": "case_hazan",
+      "citation": "תא (י-ם) 35226-02-20 דוד חזן נ' שירלי נעמי דינוביץ",
+      "court": "Jerusalem Magistrates Court",
+      "date": "2024-02-21",
+      "result_side": "tenant-favorable on security-cheque claim",
+      "source_url": "https://he.afiklaw.com/caselaw/16227",
+      "reliability": "medium_high"
+    },
+    {
+      "case_id": "case_habani",
+      "citation": "תא\"מ 46722-02-10 חבאני נ' שבתאי",
+      "court": "Ramla Magistrates Court",
+      "date": "2012-05-14",
+      "result_side": "landlord-favorable on unpaid cheque",
+      "source_url": "https://www.psakdin.co.il/Court/חבאני-נ'-%D7%A9%D7%91%D7%AAאי_1",
+      "reliability": "medium"
+    },
+    {
+      "case_id": "case_tavorov",
+      "citation": "ת\"א 32264-01-19 טחורב נ' פליגלמן ואח'",
+      "court": "Tel Aviv Magistrates Court",
+      "date": "2022-04-18",
+      "result_side": "tenant-favorable on self-help",
+      "source_url": "https://www.psakdin.co.il/Court/ת-א-32264-01-19-טחורב-נ-פליגלמן-ואח_2?IsMobile=false",
+      "reliability": "medium_high"
+    },
+    {
+      "case_id": "case_gabai",
+      "citation": "ת\"א 35596-04-18 גבאי נ' בדש",
+      "court": "Ashkelon Magistrates Court",
+      "date": "2020-06-15",
+      "result_side": "mixed; documented loss recovered, overlapping/post-term claims narrowed",
+      "source_url": "https://he.afiklaw.com/caselaw/10889/12",
+      "reliability": "medium_high"
+    },
+    {
+      "case_id": "case_pinhas",
+      "citation": "ת\"א 41441/06 פינחס יהודה נ' יפתח אדוני אשר",
+      "court": "Tel Aviv Magistrates Court",
+      "date": "2008-03-30",
+      "result_side": "mixed; commercial mitigation analogy",
+      "source_url": "https://www.psakdin.co.il/Court/פסק-דין-בתיק-א-41441-06",
+      "reliability": "medium"
+    },
+    {
+      "case_id": "case_pruchter",
+      "citation": "ת\"א 8603-05-20 פרוכטר נ' סיוון",
+      "court": "Tel Aviv Magistrates Court",
+      "date": "2023-07-10",
+      "result_side": "mixed; source-limited residential decision",
+      "source_url": "https://judgments.org.il/judgments/תא-תל-אביב-8603-05-20-שמשון-פרוכטר-נ-יעל-סיוון/",
+      "reliability": "low_medium"
+    },
+    {
+      "case_id": "case_pi_glilot",
+      "citation": "ת\"א 47375-11-19 פי גלילות נ' דיסקברי",
+      "court": "Tel Aviv District Court",
+      "date": "2025-02-03",
+      "result_side": "defendant-favorable on calculation heads; commercial analogy",
+      "source_url": "https://he.afiklaw.com/caselaw/17845",
+      "reliability": "medium_high"
+    },
+    {
+      "case_id": "case_zeevi",
+      "citation": "ע\"א 8506/13, 8535/13 זאבי תקשורת נ' בנק הפועלים",
+      "court": "Supreme Court of Israel",
+      "date": "2015-08-23",
+      "result_side": "general liquidated-damages principle; commercial",
+      "source_url": "https://he.afiklaw.com/caselaw/13041",
+      "reliability": "medium_high"
+    },
+    {
+      "case_id": "case_aburumi",
+      "citation": "עש\"א 66024-06-22 מחמוד אבו רומי נ' רשות המסים–חיפה",
+      "court": "Haifa Magistrates Court",
+      "date": null,
+      "result_side": "security-instrument classification; non-residential context",
+      "source_url": "https://www.gov.il/BlobFolder/legalinfo/law66024-06-22/he/LegalInformation_kesher_66024-06-22.pdf",
+      "reliability": "medium_high"
+    },
+    {
+      "case_id": "case_shitrit",
+      "citation": "ת\"א חיפה 18046-11-17 שיטרית ואח' נ' אסדו",
+      "court": "Haifa court; secondary reproduction",
+      "date": null,
+      "result_side": "extension inference; source-limited",
+      "source_url": "https://www.psakdin.co.il/Court/תא-ח-18046-11-17-שיטרית-ואח'-נ'-אסדו_1",
+      "reliability": "low_medium"
+    },
+    {
+      "case_id": "case_wagner",
+      "citation": "תפ\"מ 66847-05-23 וגנר נ' אורינוביץ",
+      "court": "Petah Tikva Magistrates Court",
+      "date": "2023-07-04",
+      "result_side": "landlord-favorable on no valid extension; research lead only",
+      "source_url": "https://www.verdicts.co.il/ת-פ-66847-05-23-מלאכי-וגנר-נגד-שחר-אורינוביץ-04-07-2023/",
+      "reliability": "low"
+    },
+    {
+      "case_id": "case_elishar",
+      "citation": "תא\"מ 12985-03-14 אלישר נ' הרווי",
+      "court": "Tel Aviv Magistrates Court",
+      "date": "2015-06-30",
+      "result_side": "tenant-favorable on excessive daily claim; research lead only",
+      "source_url": "https://judgments.org.il/judgments/תאמ-תל-אביב-12985-03-14-אמיר-אלישר-נ-אנדרו-הרווי/",
+      "reliability": "low"
+    }
+  ],
+  "primary_source_leads": [
+    {"id": "rental_law", "url": "https://main.knesset.gov.il/Activity/Legislation/Laws/pages/lawprimary.aspx?lawitemid=2000596&st=lawlaws&t=lawlaws", "status": "VERIFY_CURRENT_TEXT"},
+    {"id": "rental_law_readable", "url": "https://he.wikisource.org/wiki/חוק_השכירות_והשאילה", "status": "SECONDARY_CONSOLIDATION_CROSS_CHECK"},
+    {"id": "contract_general", "url": "https://he.wikisource.org/wiki/חוק_החוזים_(חלק_כללי)", "status": "SECONDARY_CONSOLIDATION_CROSS_CHECK"},
+    {"id": "contract_remedies", "url": "https://he.wikisource.org/wiki/חוק_החוזים_(תרופות_בשל_הפרת_חוזה)", "status": "SECONDARY_CONSOLIDATION_CROSS_CHECK"},
+    {"id": "bills_ordinance_official_pdf", "url": "https://fs.knesset.gov.il/3/law/3_lsr_vn_525669.pdf", "status": "OFFICIAL_SOURCE_LEAD"},
+    {"id": "cheque_opposition", "url": "https://www.gov.il/he/service/objection_iou_repayment", "status": "OFFICIAL_PROCEDURE_LEAD"},
+    {"id": "eviction_enforcement", "url": "https://www.gov.il/he/service/tenant-eviction-application", "status": "OFFICIAL_PROCEDURE_LEAD"},
+    {"id": "defense_deadlines", "url": "https://www.gov.il/he/service/filing-letter-of-defense", "status": "OFFICIAL_PROCEDURE_LEAD"},
+    {"id": "specified_amount", "url": "https://www.gov.il/he/service/claim_for_a_specified_amount_opening_file", "status": "OFFICIAL_PROCEDURE_LEAD"}
+  ]
+}
