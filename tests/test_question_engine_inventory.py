@@ -16,6 +16,7 @@ _EXPECTED_QUESTION_IDS = (
     "security.instrument_relationship",
     "security.instrument_amounts",
     "security.instrument_blanks",
+    "security.instrument_control",
     "security.completion_authority",
     "security.instrument_linkage",
     "security.realization_chain",
@@ -69,8 +70,21 @@ class EconomicCoreInventoryTests(unittest.TestCase):
 
         self.assertIn("security.instrument_inventory", question_ids)
         self.assertIn("security.instrument_relationship", question_ids)
+        self.assertIn("security.instrument_control", question_ids)
         self.assertIn("security.recovery_overlap", question_ids)
         self.assertNotIn("security.generic_deposit", question_ids)
+
+    def test_instrument_control_covers_payee_and_transfer_restriction(self) -> None:
+        control = next(
+            question
+            for question in ECONOMIC_CORE_INVENTORY_V1.questions
+            if question.question_id == "security.instrument_control"
+        )
+
+        self.assertEqual(
+            control.answer_fields,
+            ("instrument_payees", "transfer_restrictions"),
+        )
 
     def test_golden_fixture_metadata_contains_security_grounding(self) -> None:
         root = Path(__file__).resolve().parents[1]
