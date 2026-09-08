@@ -11,6 +11,7 @@ from contract_checker.question_engine.inventory import (
     EARLY_EXIT_CORE_INVENTORY_V1,
     ECONOMIC_CORE_INVENTORY_V1,
     FINANCIAL_SANCTIONS_CORE_INVENTORY_V1,
+    TERMINATION_CURE_CORE_INVENTORY_V1,
 )
 from contract_checker.question_engine.schema import QuestionInventory
 
@@ -55,6 +56,15 @@ _EXPECTED_CONDITION_DEFECTS_QUESTION_IDS = (
     "condition.repair_mechanics",
     "condition.return_condition",
     "condition.evidence_dependencies",
+)
+
+_EXPECTED_TERMINATION_CURE_QUESTION_IDS = (
+    "termination.breach_triggers",
+    "termination.fundamental_breach_definition",
+    "termination.notice_cure",
+    "termination.cancellation_mechanics",
+    "termination.vacancy_demand",
+    "termination.cross_clause_interaction",
 )
 
 
@@ -426,6 +436,123 @@ class ConditionDefectsCoreInventoryTests(unittest.TestCase):
             "expert report",
             "lawsuit filed",
             "court will decide",
+        ):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, joined)
+
+
+class TerminationCureCoreInventoryTests(unittest.TestCase):
+    def test_inventory_has_exact_bounded_question_set(self) -> None:
+        inventory = TERMINATION_CURE_CORE_INVENTORY_V1
+
+        self.assertIsInstance(inventory, QuestionInventory)
+        self.assertEqual(inventory.schema_version, 1)
+        self.assertEqual(
+            tuple(question.question_id for question in inventory.questions),
+            _EXPECTED_TERMINATION_CURE_QUESTION_IDS,
+        )
+        self.assertEqual(
+            {question.domain for question in inventory.questions},
+            {"termination_cure"},
+        )
+
+    def test_fundamental_breach_notice_and_vacancy_remain_separate(self) -> None:
+        question_ids = {
+            question.question_id
+            for question in TERMINATION_CURE_CORE_INVENTORY_V1.questions
+        }
+
+        self.assertIn("termination.breach_triggers", question_ids)
+        self.assertIn("termination.fundamental_breach_definition", question_ids)
+        self.assertIn("termination.notice_cure", question_ids)
+        self.assertIn("termination.cancellation_mechanics", question_ids)
+        self.assertIn("termination.vacancy_demand", question_ids)
+        self.assertNotIn("termination.eviction_allowed", question_ids)
+
+    def test_notice_cure_keeps_form_timing_and_exceptions_separate(self) -> None:
+        notice_cure = next(
+            question
+            for question in TERMINATION_CURE_CORE_INVENTORY_V1.questions
+            if question.question_id == "termination.notice_cure"
+        )
+
+        self.assertEqual(
+            notice_cure.answer_fields,
+            (
+                "notice_required",
+                "notice_form",
+                "notice_period",
+                "cure_available",
+                "cure_period",
+                "cure_exceptions",
+            ),
+        )
+
+    def test_vacancy_question_preserves_contract_wording_without_procedure_field(self) -> None:
+        vacancy = next(
+            question
+            for question in TERMINATION_CURE_CORE_INVENTORY_V1.questions
+            if question.question_id == "termination.vacancy_demand"
+        )
+
+        self.assertEqual(
+            vacancy.answer_fields,
+            (
+                "vacancy_demand_available",
+                "vacancy_trigger",
+                "vacancy_deadline",
+                "immediate_vacancy_wording",
+                "self_help_or_physical_removal_wording",
+            ),
+        )
+        self.assertNotIn("physical_eviction_procedure", vacancy.answer_fields)
+
+    def test_cross_clause_interaction_keeps_remedy_layers_distinct(self) -> None:
+        interaction = next(
+            question
+            for question in TERMINATION_CURE_CORE_INVENTORY_V1.questions
+            if question.question_id == "termination.cross_clause_interaction"
+        )
+
+        self.assertEqual(
+            interaction.answer_fields,
+            (
+                "linked_breach_categories",
+                "linked_notice_cure_rules",
+                "linked_cancellation_rules",
+                "linked_vacancy_rules",
+                "interaction_ambiguity",
+            ),
+        )
+
+    def test_sanitized_golden_fixture_contains_termination_grounding(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        fixture_path = (
+            root
+            / "research"
+            / "question_engine"
+            / "golden_contracts"
+            / "contract_001_he.txt"
+        )
+
+        fixture = fixture_path.read_text(encoding="utf-8")
+
+        self.assertIn("הפרה יסודית", fixture)
+        self.assertIn("פינוי מיידי", fixture)
+        self.assertIn("72 שעות", fixture)
+
+    def test_inventory_stays_pre_signing_and_does_not_encode_eviction_procedure(self) -> None:
+        joined = "\n".join(
+            f"{question.question_id} {question.purpose}"
+            for question in TERMINATION_CURE_CORE_INVENTORY_V1.questions
+        ).lower()
+
+        for forbidden in (
+            "bailiff",
+            "physical eviction procedure",
+            "court order required",
+            "lawsuit filed",
+            "landlord may physically remove",
         ):
             with self.subTest(forbidden=forbidden):
                 self.assertNotIn(forbidden, joined)
