@@ -341,9 +341,85 @@ CONDITION_DEFECTS_CORE_INVENTORY_V1 = QuestionInventory(
 )
 
 
+TERMINATION_CURE_CORE_INVENTORY_V1 = QuestionInventory(
+    schema_version=1,
+    questions=(
+        QuestionSpec(
+            question_id="termination.breach_triggers",
+            domain="termination_cure",
+            purpose="Identify contractual breach events that can activate termination-related remedies without collapsing them into one generic breach flag.",
+            answer_fields=(
+                "breach_events",
+                "remedy_holders",
+                "triggered_remedies",
+            ),
+        ),
+        QuestionSpec(
+            question_id="termination.fundamental_breach_definition",
+            domain="termination_cure",
+            purpose="Identify which breaches the contract expressly classifies as fundamental or material and any clause references used to define that category.",
+            answer_fields=(
+                "fundamental_breach_categories",
+                "fundamental_breach_clause_references",
+                "automatic_fundamental_breach_wording",
+            ),
+        ),
+        QuestionSpec(
+            question_id="termination.notice_cure",
+            domain="termination_cure",
+            purpose="Identify notice and cure mechanics that apply before or after a stated breach, including form, timing, and any stated exceptions.",
+            answer_fields=(
+                "notice_required",
+                "notice_form",
+                "notice_period",
+                "cure_available",
+                "cure_period",
+                "cure_exceptions",
+            ),
+        ),
+        QuestionSpec(
+            question_id="termination.cancellation_mechanics",
+            domain="termination_cure",
+            purpose="Identify who may cancel the contract, the contractual trigger for cancellation, and when cancellation is stated to take effect.",
+            answer_fields=(
+                "cancellation_right_holder",
+                "cancellation_trigger",
+                "cancellation_notice_required",
+                "cancellation_effective_point",
+            ),
+        ),
+        QuestionSpec(
+            question_id="termination.vacancy_demand",
+            domain="termination_cure",
+            purpose="Identify contractual wording allowing a demand to vacate, its trigger and deadline, while preserving any immediate-vacancy or self-help wording as contract text only.",
+            answer_fields=(
+                "vacancy_demand_available",
+                "vacancy_trigger",
+                "vacancy_deadline",
+                "immediate_vacancy_wording",
+                "self_help_or_physical_removal_wording",
+            ),
+        ),
+        QuestionSpec(
+            question_id="termination.cross_clause_interaction",
+            domain="termination_cure",
+            purpose="Map how breach classifications, notice/cure rules, cancellation rights, and vacancy demands interact across the contract and identify unresolved interaction ambiguity.",
+            answer_fields=(
+                "linked_breach_categories",
+                "linked_notice_cure_rules",
+                "linked_cancellation_rules",
+                "linked_vacancy_rules",
+                "interaction_ambiguity",
+            ),
+        ),
+    ),
+)
+
+
 __all__ = (
     "CONDITION_DEFECTS_CORE_INVENTORY_V1",
     "EARLY_EXIT_CORE_INVENTORY_V1",
     "ECONOMIC_CORE_INVENTORY_V1",
     "FINANCIAL_SANCTIONS_CORE_INVENTORY_V1",
+    "TERMINATION_CURE_CORE_INVENTORY_V1",
 )

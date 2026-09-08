@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-08-99",
+  "state_version": "privacy-ocr-2026-09-08-100",
   "active_track": "question-engine-development",
-  "next_step_id": "question-engine-core-inventory-termination-cure-v1",
-  "next_step_summary": "PR #248 extends the populated provider-independent Question Engine inventory with the recurring pre-signing condition / AS-IS / defects / damage-evidence mechanism. The bounded slice keeps entry baseline, AS-IS/inspection wording, pre-existing defects, damage versus ordinary wear, repair mechanics, return condition, and referenced condition/inventory documents as separate contract-fact questions. Missing referenced documents remain explicit dependencies rather than guessed content. It adds no statutory repair runtime, court-outcome logic, post-dispute evidence mode, conditional trigger runtime, LLM/provider integration, UI, OCR, Android, serverless, storage, dependencies, permissions, workflows, or network access. The next bounded inventory slice is termination + cure + notice + physical-eviction distinction.",
-  "last_recorded_pr": 248,
-  "last_recorded_change": "question-engine-core-inventory-condition-defects-v1",
+  "next_step_id": "question-engine-core-inventory-option-renewal-v1",
+  "next_step_summary": "PR #249 extends the populated provider-independent Question Engine inventory with the recurring pre-signing termination + cure + notice mechanism. The bounded slice keeps breach triggers, expressly fundamental/material breach categories, notice/cure mechanics, contract cancellation, contractual vacancy demands, and cross-clause interactions separate. Immediate-vacancy or self-help wording is preserved only as contract text and is not converted into a physical-eviction procedure claim. It adds no eviction-procedure runtime, statutory/case-law runtime, court-outcome logic, post-dispute mode, LLM/provider integration, UI, OCR, Android, serverless, storage, dependencies, permissions, workflows, or network access. The next bounded inventory slice is option / renewal mechanics; after the CORE inventory sequence is complete, the product owner requested a periodic Codex batch audit before the next implementation layer.",
+  "last_recorded_pr": 249,
+  "last_recorded_change": "question-engine-core-inventory-termination-cure-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-09-08"
