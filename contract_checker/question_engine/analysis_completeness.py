@@ -73,13 +73,12 @@ _DEPENDENCY_RULES = (
 
 def _looks_like_rental_agreement(text: str) -> bool:
     has_parties = bool(_LANDLORD_RE.search(text) and _TENANT_RE.search(text))
-    has_transaction = bool(
-        _TITLE_RE.search(text) or (_RENT_RE.search(text) and _PROPERTY_RE.search(text))
+    signals = (
+        bool(_TITLE_RE.search(text)),
+        bool(_RENT_RE.search(text) and _PROPERTY_RE.search(text)),
+        bool(_AGREEMENT_STRUCTURE_RE.search(text)),
     )
-    has_agreement_form = bool(
-        _TITLE_RE.search(text) or _AGREEMENT_STRUCTURE_RE.search(text)
-    )
-    return has_parties and has_transaction and has_agreement_form
+    return has_parties and sum(signals) >= 2
 
 
 def _matching_blocks(
