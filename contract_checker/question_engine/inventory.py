@@ -43,6 +43,12 @@ ECONOMIC_CORE_INVENTORY_V1 = QuestionInventory(
             ),
         ),
         QuestionSpec(
+            question_id="security.instrument_control",
+            domain="security",
+            purpose="Identify named payees and any printed transfer or endorsement restrictions for security instruments.",
+            answer_fields=("instrument_payees", "transfer_restrictions"),
+        ),
+        QuestionSpec(
             question_id="security.completion_authority",
             domain="security",
             purpose="Identify any printed authority to complete missing particulars of a security instrument.",
