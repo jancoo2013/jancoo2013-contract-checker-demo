@@ -9,6 +9,7 @@ import unittest
 from contract_checker.question_engine.inventory import (
     EARLY_EXIT_CORE_INVENTORY_V1,
     ECONOMIC_CORE_INVENTORY_V1,
+    FINANCIAL_SANCTIONS_CORE_INVENTORY_V1,
 )
 from contract_checker.question_engine.schema import QuestionInventory
 
@@ -35,6 +36,14 @@ _EXPECTED_EARLY_EXIT_QUESTION_IDS = (
     "early_exit.approval_standard",
     "early_exit.assignment_subletting_interaction",
     "early_exit.release_consequences",
+)
+
+_EXPECTED_FINANCIAL_SANCTIONS_QUESTION_IDS = (
+    "financial_sanctions.late_payment",
+    "financial_sanctions.holdover_compensation",
+    "financial_sanctions.fixed_agreed_damages",
+    "financial_sanctions.other_contractual_sanctions",
+    "financial_sanctions.overlap",
 )
 
 
@@ -193,6 +202,105 @@ class EarlyExitCoreInventoryTests(unittest.TestCase):
             "candidate already proposed",
             "keys returned later",
             "actual re-letting",
+            "lawsuit filed",
+        ):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, joined)
+
+
+class FinancialSanctionsCoreInventoryTests(unittest.TestCase):
+    def test_inventory_has_exact_bounded_question_set(self) -> None:
+        inventory = FINANCIAL_SANCTIONS_CORE_INVENTORY_V1
+
+        self.assertIsInstance(inventory, QuestionInventory)
+        self.assertEqual(inventory.schema_version, 1)
+        self.assertEqual(
+            tuple(question.question_id for question in inventory.questions),
+            _EXPECTED_FINANCIAL_SANCTIONS_QUESTION_IDS,
+        )
+        self.assertEqual(
+            {question.domain for question in inventory.questions},
+            {"financial_sanctions"},
+        )
+
+    def test_sanction_mechanisms_remain_separate_questions(self) -> None:
+        question_ids = {
+            question.question_id
+            for question in FINANCIAL_SANCTIONS_CORE_INVENTORY_V1.questions
+        }
+
+        self.assertIn("financial_sanctions.late_payment", question_ids)
+        self.assertIn("financial_sanctions.holdover_compensation", question_ids)
+        self.assertIn("financial_sanctions.fixed_agreed_damages", question_ids)
+        self.assertIn("financial_sanctions.other_contractual_sanctions", question_ids)
+        self.assertIn("financial_sanctions.overlap", question_ids)
+        self.assertNotIn("financial_sanctions.total_penalty", question_ids)
+
+    def test_late_payment_keeps_principal_rate_period_and_indexation_separate(self) -> None:
+        late_payment = next(
+            question
+            for question in FINANCIAL_SANCTIONS_CORE_INVENTORY_V1.questions
+            if question.question_id == "financial_sanctions.late_payment"
+        )
+
+        self.assertEqual(
+            late_payment.answer_fields,
+            (
+                "late_payment_trigger",
+                "principal_reference",
+                "interest_rate",
+                "interest_period",
+                "partial_period_rule",
+                "indexation_formula",
+                "accrual_start",
+                "accrual_end",
+            ),
+        )
+
+    def test_overlap_keeps_trigger_loss_and_interaction_separate(self) -> None:
+        overlap = next(
+            question
+            for question in FINANCIAL_SANCTIONS_CORE_INVENTORY_V1.questions
+            if question.question_id == "financial_sanctions.overlap"
+        )
+
+        self.assertEqual(
+            overlap.answer_fields,
+            (
+                "overlapping_mechanisms",
+                "shared_trigger",
+                "shared_loss_head",
+                "cumulative_language",
+                "interaction_rule",
+            ),
+        )
+
+    def test_golden_fixture_metadata_contains_financial_sanction_grounding(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        metadata_path = (
+            root
+            / "research"
+            / "question_engine"
+            / "golden_contracts"
+            / "contract_001.meta.json"
+        )
+
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        preserved_values = metadata["preserved_legal_values"]
+
+        self.assertIn("late-interest percentage", preserved_values)
+        self.assertIn("daily holdover amount", preserved_values)
+
+    def test_inventory_does_not_encode_court_outcome_or_reduction_rule(self) -> None:
+        joined = "\n".join(
+            f"{question.question_id} {question.purpose}"
+            for question in FINANCIAL_SANCTIONS_CORE_INVENTORY_V1.questions
+        ).lower()
+
+        for forbidden in (
+            "court will reduce",
+            "court would reduce",
+            "unenforceable",
             "lawsuit filed",
         ):
             with self.subTest(forbidden=forbidden):
