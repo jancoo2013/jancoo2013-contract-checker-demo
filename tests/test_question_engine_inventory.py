@@ -1,4 +1,4 @@
-"""Focused tests for the first economic/security Question Engine inventory."""
+"""Focused tests for bounded Question Engine inventories."""
 
 from __future__ import annotations
 
@@ -6,11 +6,14 @@ import json
 from pathlib import Path
 import unittest
 
-from contract_checker.question_engine.inventory import ECONOMIC_CORE_INVENTORY_V1
+from contract_checker.question_engine.inventory import (
+    EARLY_EXIT_CORE_INVENTORY_V1,
+    ECONOMIC_CORE_INVENTORY_V1,
+)
 from contract_checker.question_engine.schema import QuestionInventory
 
 
-_EXPECTED_QUESTION_IDS = (
+_EXPECTED_ECONOMIC_QUESTION_IDS = (
     "economic.monthly_rent",
     "security.instrument_inventory",
     "security.instrument_relationship",
@@ -26,6 +29,14 @@ _EXPECTED_QUESTION_IDS = (
     "security.guarantor_scope",
 )
 
+_EXPECTED_EARLY_EXIT_QUESTION_IDS = (
+    "early_exit.continuing_liability",
+    "early_exit.replacement_route",
+    "early_exit.approval_standard",
+    "early_exit.assignment_subletting_interaction",
+    "early_exit.release_consequences",
+)
+
 
 class EconomicCoreInventoryTests(unittest.TestCase):
     def test_inventory_has_exact_bounded_question_set(self) -> None:
@@ -35,7 +46,7 @@ class EconomicCoreInventoryTests(unittest.TestCase):
         self.assertEqual(inventory.schema_version, 1)
         self.assertEqual(
             tuple(question.question_id for question in inventory.questions),
-            _EXPECTED_QUESTION_IDS,
+            _EXPECTED_ECONOMIC_QUESTION_IDS,
         )
 
     def test_inventory_is_limited_to_economic_and_security_domains(self) -> None:
@@ -117,6 +128,74 @@ class EconomicCoreInventoryTests(unittest.TestCase):
             "execution warning received",
             "keys returned later",
             "apartment re-let",
+        ):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, joined)
+
+
+class EarlyExitCoreInventoryTests(unittest.TestCase):
+    def test_inventory_has_exact_bounded_question_set(self) -> None:
+        inventory = EARLY_EXIT_CORE_INVENTORY_V1
+
+        self.assertIsInstance(inventory, QuestionInventory)
+        self.assertEqual(inventory.schema_version, 1)
+        self.assertEqual(
+            tuple(question.question_id for question in inventory.questions),
+            _EXPECTED_EARLY_EXIT_QUESTION_IDS,
+        )
+        self.assertEqual(
+            {question.domain for question in inventory.questions},
+            {"early_exit"},
+        )
+
+    def test_approval_standard_and_release_consequences_stay_separate(self) -> None:
+        questions = {
+            question.question_id: question
+            for question in EARLY_EXIT_CORE_INVENTORY_V1.questions
+        }
+
+        self.assertEqual(
+            questions["early_exit.approval_standard"].answer_fields,
+            (
+                "landlord_approval_required",
+                "approval_standard",
+                "stated_refusal_grounds",
+            ),
+        )
+        self.assertEqual(
+            questions["early_exit.release_consequences"].answer_fields,
+            (
+                "release_trigger",
+                "future_rent_release",
+                "additional_payment_rule",
+            ),
+        )
+
+    def test_golden_fixture_contains_early_exit_and_transfer_grounding(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        fixture_path = (
+            root
+            / "research"
+            / "question_engine"
+            / "golden_contracts"
+            / "contract_001_he.txt"
+        )
+        fixture = fixture_path.read_text(encoding="utf-8")
+
+        self.assertIn("אם יפנה השוכר את הדירה לפני תום התקופה הקצובה", fixture)
+        self.assertIn("השוכר אינו רשאי להעביר זכויותיו לפי הסכם זה", fixture)
+
+    def test_inventory_stays_pre_signing(self) -> None:
+        joined = "\n".join(
+            f"{question.question_id} {question.purpose}"
+            for question in EARLY_EXIT_CORE_INVENTORY_V1.questions
+        ).lower()
+
+        for forbidden in (
+            "candidate already proposed",
+            "keys returned later",
+            "actual re-letting",
+            "lawsuit filed",
         ):
             with self.subTest(forbidden=forbidden):
                 self.assertNotIn(forbidden, joined)
