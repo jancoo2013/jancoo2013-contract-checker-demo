@@ -253,7 +253,96 @@ FINANCIAL_SANCTIONS_CORE_INVENTORY_V1 = QuestionInventory(
 )
 
 
+CONDITION_DEFECTS_CORE_INVENTORY_V1 = QuestionInventory(
+    schema_version=1,
+    questions=(
+        QuestionSpec(
+            question_id="condition.entry_baseline",
+            domain="condition_defects",
+            purpose="Identify the contract's stated baseline condition of the dwelling and included items at entry.",
+            answer_fields=(
+                "entry_condition_statement",
+                "cleanliness_statement",
+                "fitness_statement",
+                "inspection_acknowledged",
+            ),
+        ),
+        QuestionSpec(
+            question_id="condition.as_is_acknowledgment",
+            domain="condition_defects",
+            purpose="Identify AS-IS, inspection, acceptance, and defect-waiver wording together with any stated exceptions.",
+            answer_fields=(
+                "as_is_present",
+                "inspection_acknowledged",
+                "acceptance_statement",
+                "waived_defect_categories",
+                "waiver_exceptions",
+            ),
+        ),
+        QuestionSpec(
+            question_id="condition.pre_existing_defects",
+            domain="condition_defects",
+            purpose="Identify how known or pre-existing defects are recorded or excluded from the entry-condition acknowledgment.",
+            answer_fields=(
+                "known_defects_present",
+                "known_defect_description_source",
+                "defect_list_reference",
+                "defect_list_present",
+            ),
+        ),
+        QuestionSpec(
+            question_id="condition.damage_allocation",
+            domain="condition_defects",
+            purpose="Identify the contractual boundary between tenant-caused damage and ordinary wear without treating them as the same condition category.",
+            answer_fields=(
+                "tenant_caused_damage_rule",
+                "ordinary_wear_exception",
+                "causation_standard",
+                "repair_standard",
+            ),
+        ),
+        QuestionSpec(
+            question_id="condition.repair_mechanics",
+            domain="condition_defects",
+            purpose="Identify tenant and landlord repair responsibilities and the contract's notice, timing, self-help, reimbursement, or set-off mechanics.",
+            answer_fields=(
+                "tenant_repair_scope",
+                "landlord_repair_scope",
+                "notice_required",
+                "repair_deadline",
+                "tenant_self_help_available",
+                "reimbursement_or_setoff_rule",
+            ),
+        ),
+        QuestionSpec(
+            question_id="condition.return_condition",
+            domain="condition_defects",
+            purpose="Identify the required condition at return, including cleaning, painting, restoration, and any ordinary-wear exception.",
+            answer_fields=(
+                "return_condition_standard",
+                "cleaning_required",
+                "painting_required",
+                "restoration_required",
+                "ordinary_wear_exception",
+            ),
+        ),
+        QuestionSpec(
+            question_id="condition.evidence_dependencies",
+            domain="condition_defects",
+            purpose="Identify referenced condition protocols, defect lists, inventories, or appendices and whether those referenced documents are present in the contract package.",
+            answer_fields=(
+                "condition_document_references",
+                "defect_list_reference",
+                "inventory_reference",
+                "referenced_documents_present",
+            ),
+        ),
+    ),
+)
+
+
 __all__ = (
+    "CONDITION_DEFECTS_CORE_INVENTORY_V1",
     "EARLY_EXIT_CORE_INVENTORY_V1",
     "ECONOMIC_CORE_INVENTORY_V1",
     "FINANCIAL_SANCTIONS_CORE_INVENTORY_V1",
