@@ -181,4 +181,80 @@ EARLY_EXIT_CORE_INVENTORY_V1 = QuestionInventory(
 )
 
 
-__all__ = ("EARLY_EXIT_CORE_INVENTORY_V1", "ECONOMIC_CORE_INVENTORY_V1")
+FINANCIAL_SANCTIONS_CORE_INVENTORY_V1 = QuestionInventory(
+    schema_version=1,
+    questions=(
+        QuestionSpec(
+            question_id="financial_sanctions.late_payment",
+            domain="financial_sanctions",
+            purpose="Identify monetary additions triggered by late payment while keeping the underlying principal obligation separate.",
+            answer_fields=(
+                "late_payment_trigger",
+                "principal_reference",
+                "interest_rate",
+                "interest_period",
+                "partial_period_rule",
+                "indexation_formula",
+                "accrual_start",
+                "accrual_end",
+            ),
+        ),
+        QuestionSpec(
+            question_id="financial_sanctions.holdover_compensation",
+            domain="financial_sanctions",
+            purpose="Identify any monetary compensation or penalty tied to remaining in the property after the contractual return date.",
+            answer_fields=(
+                "holdover_trigger",
+                "holdover_amount",
+                "holdover_formula",
+                "accrual_unit",
+                "accrual_start",
+                "accrual_end",
+            ),
+        ),
+        QuestionSpec(
+            question_id="financial_sanctions.fixed_agreed_damages",
+            domain="financial_sanctions",
+            purpose="Identify any fixed agreed-damages amount or formula triggered by breach, cancellation, or another stated event.",
+            answer_fields=(
+                "agreed_damages_trigger",
+                "agreed_damages_amount",
+                "agreed_damages_formula",
+                "stated_loss_head",
+                "payment_timing",
+            ),
+        ),
+        QuestionSpec(
+            question_id="financial_sanctions.other_contractual_sanctions",
+            domain="financial_sanctions",
+            purpose="Identify other explicit contractual monetary sanctions not already captured as late-payment, holdover, or fixed agreed damages.",
+            answer_fields=(
+                "sanction_type",
+                "sanction_trigger",
+                "sanction_amount_formula",
+                "sanction_start",
+                "sanction_end",
+                "stated_loss_head",
+            ),
+        ),
+        QuestionSpec(
+            question_id="financial_sanctions.overlap",
+            domain="financial_sanctions",
+            purpose="Identify whether two or more monetary mechanisms can apply to the same event or stated loss and how the contract relates them.",
+            answer_fields=(
+                "overlapping_mechanisms",
+                "shared_trigger",
+                "shared_loss_head",
+                "cumulative_language",
+                "interaction_rule",
+            ),
+        ),
+    ),
+)
+
+
+__all__ = (
+    "EARLY_EXIT_CORE_INVENTORY_V1",
+    "ECONOMIC_CORE_INVENTORY_V1",
+    "FINANCIAL_SANCTIONS_CORE_INVENTORY_V1",
+)
