@@ -65,7 +65,7 @@ class AnalysisCompletenessTests(unittest.TestCase):
 
         self.assertEqual(
             result.document_gate,
-            DocumentGateStatus.RENTAL_DOCUMENT_CONFIRMED,
+            DocumentGateStatus.RENTAL_DOCUMENT_ACCEPTED,
         )
         self.assertEqual(result.readiness, AnalysisReadiness.READY)
         self.assertEqual(result.dependencies, ())
@@ -111,7 +111,7 @@ class AnalysisCompletenessTests(unittest.TestCase):
 
         self.assertEqual(
             result.document_gate,
-            DocumentGateStatus.RENTAL_DOCUMENT_CONFIRMED,
+            DocumentGateStatus.RENTAL_DOCUMENT_ACCEPTED,
         )
         self.assertEqual(result.readiness, AnalysisReadiness.PARTIAL)
         self.assertIn("appendix:ב", result.missing_dependency_ids)
