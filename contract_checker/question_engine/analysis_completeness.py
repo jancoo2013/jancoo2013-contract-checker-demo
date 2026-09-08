@@ -11,7 +11,7 @@ from contract_checker.evidence_blocks import EvidenceBlock, build_evidence_block
 
 
 class DocumentGateStatus(str, Enum):
-    RENTAL_DOCUMENT_ACCEPTED = "RENTAL_DOCUMENT_ACCEPTED"
+    RENTAL_DOCUMENT_CONFIRMED = "RENTAL_DOCUMENT_CONFIRMED"
     DOCUMENT_TYPE_UNCONFIRMED = "DOCUMENT_TYPE_UNCONFIRMED"
     TEXT_UNUSABLE = "TEXT_UNUSABLE"
 
@@ -158,7 +158,7 @@ def audit_analysis_completeness(
         else AnalysisReadiness.READY
     )
     return AnalysisCompleteness(
-        DocumentGateStatus.RENTAL_DOCUMENT_ACCEPTED, readiness, ordered
+        DocumentGateStatus.RENTAL_DOCUMENT_CONFIRMED, readiness, ordered
     )
 
 
