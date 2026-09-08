@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-08-96",
+  "state_version": "privacy-ocr-2026-09-08-97",
   "active_track": "question-engine-development",
-  "next_step_id": "question-engine-core-inventory-early-exit-v1",
-  "next_step_summary": "PR #245 implements the first populated provider-independent Question Engine inventory on the existing immutable schema foundation. The bounded slice adds one monthly-rent baseline plus recurring pre-signing security questions covering distinct instruments, cumulative/alternative relationships, amounts, blank instrument fields, named payees/transfer restrictions, completion authority, linkage to obligations/periods/separate documents, realization grounds/amount/notice/cure, recovery overlap, option continuity, return mechanics, and guarantor scope. It adds no conditional trigger runtime, evidence-target layer, statutory/case-law runtime, LLM/provider integration, UI, OCR, Android, serverless, storage, dependencies, permissions, or network access. The next bounded inventory slice is early exit + replacement tenant.",
-  "last_recorded_pr": 245,
-  "last_recorded_change": "question-engine-core-inventory-economic-v1",
+  "next_step_id": "question-engine-core-inventory-financial-sanctions-v1",
+  "next_step_summary": "PR #246 extends the populated provider-independent Question Engine inventory with the recurring pre-signing early-exit and replacement-tenant mechanism. The bounded slice keeps continuing rent liability, replacement route, landlord approval standard, assignment/subletting interaction, and release/financial consequences as separate contract-fact questions. It adds no conditional trigger runtime, evidence-target layer, statutory/case-law runtime, post-dispute mode, LLM/provider integration, UI, OCR, Android, serverless, storage, dependencies, permissions, or network access. The next bounded inventory slice is financial sanctions and overlap.",
+  "last_recorded_pr": 246,
+  "last_recorded_change": "question-engine-core-inventory-early-exit-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-09-08"
