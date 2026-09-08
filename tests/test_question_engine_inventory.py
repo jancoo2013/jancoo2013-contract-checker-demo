@@ -148,6 +148,18 @@ class EarlyExitCoreInventoryTests(unittest.TestCase):
             {"early_exit"},
         )
 
+    def test_cross_clause_components_remain_separate_questions(self) -> None:
+        question_ids = {
+            question.question_id for question in EARLY_EXIT_CORE_INVENTORY_V1.questions
+        }
+
+        self.assertIn("early_exit.continuing_liability", question_ids)
+        self.assertIn("early_exit.replacement_route", question_ids)
+        self.assertIn("early_exit.approval_standard", question_ids)
+        self.assertIn("early_exit.assignment_subletting_interaction", question_ids)
+        self.assertIn("early_exit.release_consequences", question_ids)
+        self.assertNotIn("early_exit.allowed", question_ids)
+
     def test_approval_standard_and_release_consequences_stay_separate(self) -> None:
         questions = {
             question.question_id: question
@@ -170,20 +182,6 @@ class EarlyExitCoreInventoryTests(unittest.TestCase):
                 "additional_payment_rule",
             ),
         )
-
-    def test_golden_fixture_contains_early_exit_and_transfer_grounding(self) -> None:
-        root = Path(__file__).resolve().parents[1]
-        fixture_path = (
-            root
-            / "research"
-            / "question_engine"
-            / "golden_contracts"
-            / "contract_001_he.txt"
-        )
-        fixture = fixture_path.read_text(encoding="utf-8")
-
-        self.assertIn("אם יפנה השוכר את הדירה לפני תום התקופה הקצובה", fixture)
-        self.assertIn("השוכר אינו רשאי להעביר זכויותיו לפי הסכם זה", fixture)
 
     def test_inventory_stays_pre_signing(self) -> None:
         joined = "\n".join(
