@@ -45,9 +45,9 @@ class AnalysisCompletenessTests(unittest.TestCase):
 
     def test_unconfirmed_document_does_not_emit_dependency_findings(self) -> None:
         text = """
-מסמך מידע כללי על שטר חוב ועל כתב ערבות.
-המסמך מסביר מונחים לציבור ואינו הסכם שכירות בין צדדים.
-יש בו מידע כללי נוסף על בטוחות ועל מסמכים מסחריים.
+מדריך לקריאת הסכם שכירות מסביר מה המשכיר ומה השוכר צריכים לבדוק.
+המאמר דן גם בשטר חוב ובכתב ערבות ובהבדלים בין בטוחות נפוצות.
+זהו מידע כללי לציבור ולא נוסח הסכם בין צדדים מסוימים.
 """
 
         result = audit_analysis_completeness(text)
