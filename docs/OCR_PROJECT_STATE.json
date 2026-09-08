@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-08-100",
+  "state_version": "privacy-ocr-2026-09-08-101",
   "active_track": "question-engine-development",
-  "next_step_id": "question-engine-core-inventory-option-renewal-v1",
-  "next_step_summary": "PR #249 extends the populated provider-independent Question Engine inventory with the recurring pre-signing termination + cure + notice mechanism. The bounded slice keeps breach triggers, expressly fundamental/material breach categories, notice/cure mechanics, contract cancellation, contractual vacancy demands, and cross-clause interactions separate. Immediate-vacancy or self-help wording is preserved only as contract text and is not converted into a physical-eviction procedure claim. It adds no eviction-procedure runtime, statutory/case-law runtime, court-outcome logic, post-dispute mode, LLM/provider integration, UI, OCR, Android, serverless, storage, dependencies, permissions, workflows, or network access. The next bounded inventory slice is option / renewal mechanics; after the CORE inventory sequence is complete, the product owner requested a periodic Codex batch audit before the next implementation layer.",
-  "last_recorded_pr": 249,
-  "last_recorded_change": "question-engine-core-inventory-termination-cure-v1",
+  "next_step_id": "question-engine-codex-batch-audit-v1",
+  "next_step_summary": "PR #250 completes the currently classified six-family CORE Question Engine inventory sequence by adding the pre-signing option / renewal mechanism. The bounded slice keeps renewal right structure, period, economics, activation, prerequisites, external dependencies, and cross-clause interaction separate without assuming that every renewal clause creates a unilateral option. No statutory/case-law interpretation, conditional execution, LLM/provider integration, UI, OCR, Android, serverless, storage, dependencies, permissions, workflows, or network access is added. Before any next implementation layer, the owner-requested bounded step is a periodic Codex batch audit of the accumulated Question Engine work, following docs/CODEX_WORKFLOW.md and recording the inspected SHA/PR range, findings, validation actually run, and any bounded corrective PRs.",
+  "last_recorded_pr": 250,
+  "last_recorded_change": "question-engine-core-inventory-option-renewal-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-09-08"
