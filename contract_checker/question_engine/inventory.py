@@ -416,10 +416,99 @@ TERMINATION_CURE_CORE_INVENTORY_V1 = QuestionInventory(
 )
 
 
+OPTION_RENEWAL_CORE_INVENTORY_V1 = QuestionInventory(
+    schema_version=1,
+    questions=(
+        QuestionSpec(
+            question_id="option.right_structure",
+            domain="option_renewal",
+            purpose="Identify the contract's renewal mechanism, the stated right holder, and whether further landlord consent or approval is expressly required without assuming every renewal clause is unilateral.",
+            answer_fields=(
+                "renewal_mechanism_present",
+                "right_holder",
+                "mechanism_type",
+                "unilateral_wording",
+                "landlord_consent_required",
+            ),
+        ),
+        QuestionSpec(
+            question_id="option.period",
+            domain="option_renewal",
+            purpose="Identify the renewal duration and how the renewal period starts and ends.",
+            answer_fields=(
+                "renewal_duration",
+                "renewal_start_rule",
+                "renewal_end_rule",
+                "renewal_period_count",
+            ),
+        ),
+        QuestionSpec(
+            question_id="option.economics",
+            domain="option_renewal",
+            purpose="Identify the rent amount, formula, increase cap, or external economic dependency that applies during renewal.",
+            answer_fields=(
+                "renewal_rent_amount",
+                "renewal_rent_formula",
+                "renewal_increase_cap",
+                "external_value_dependency",
+            ),
+        ),
+        QuestionSpec(
+            question_id="option.activation",
+            domain="option_renewal",
+            purpose="Identify who must activate the renewal, whether notice is required, its form, and the contractual deadline or notice period.",
+            answer_fields=(
+                "activation_actor",
+                "activation_notice_required",
+                "notice_form",
+                "notice_deadline",
+                "notice_period",
+            ),
+        ),
+        QuestionSpec(
+            question_id="option.prerequisites",
+            domain="option_renewal",
+            purpose="Identify stated prerequisites for renewal, including performance of existing obligations, security extension, and required payment instruments.",
+            answer_fields=(
+                "performance_condition",
+                "security_extension_required",
+                "payment_instruments_required",
+                "other_prerequisites",
+            ),
+        ),
+        QuestionSpec(
+            question_id="option.external_dependencies",
+            domain="option_renewal",
+            purpose="Identify any addendum, external writing, or referenced document needed to determine or complete the renewal mechanism and whether it is present.",
+            answer_fields=(
+                "referenced_addendum",
+                "external_writing_required",
+                "referenced_document_present",
+                "unresolved_dependency",
+            ),
+        ),
+        QuestionSpec(
+            question_id="option.cross_clause_interaction",
+            domain="option_renewal",
+            purpose="Map how the option clause interacts with consent, notice, economic terms, performance prerequisites, and security-continuity wording while preserving unresolved contradictions or ambiguity.",
+            answer_fields=(
+                "linked_consent_rule",
+                "linked_notice_rule",
+                "linked_economic_rule",
+                "linked_prerequisites",
+                "linked_security_rule",
+                "interaction_ambiguity",
+            ),
+        ),
+    ),
+)
+
+
 __all__ = (
     "CONDITION_DEFECTS_CORE_INVENTORY_V1",
     "EARLY_EXIT_CORE_INVENTORY_V1",
     "ECONOMIC_CORE_INVENTORY_V1",
     "FINANCIAL_SANCTIONS_CORE_INVENTORY_V1",
+    "OPTION_RENEWAL_CORE_INVENTORY_V1",
     "TERMINATION_CURE_CORE_INVENTORY_V1",
 )
