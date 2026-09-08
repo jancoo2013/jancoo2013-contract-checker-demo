@@ -56,8 +56,13 @@ _LANDLORD_RE = re.compile(r"(?:המשכיר|משכיר)")
 _TENANT_RE = re.compile(r"(?:השוכר|שוכר)")
 _RENT_RE = re.compile(r"דמי\s+שכירות")
 _PROPERTY_RE = re.compile(r"(?:דירה|המושכר|מושכר)")
-_AGREEMENT_STRUCTURE_RE = re.compile(r"(?:לפיכך\s+הוסכם|והואיל|ולראיה\s+באו\s+הצדדים)")
-_APPENDIX_RE = re.compile(r"נספח\s*[\"'׳״]?([א-תA-Z0-9]+)?[\"'׳״]?")
+_AGREEMENT_STRUCTURE_RE = re.compile(
+    r"(?:לפיכך\s+הוסכם|והואיל|ולראיה\s+באו\s+הצדדים)"
+)
+_APPENDIX_REFERENCE_RE = re.compile(r"נספח")
+_LABELED_APPENDIX_RE = re.compile(
+    r"נספח\s+[\"'׳״]?([א-תA-Z0-9])[\"'׳״]?(?=\s|$|[,.;:()])"
+)
 
 _DEPENDENCY_RULES = (
     _DependencyRule(
@@ -75,7 +80,10 @@ _DEPENDENCY_RULES = (
     _DependencyRule(
         dependency_id="security_cheque",
         kind="security_cheque",
-        patterns=(r"שיק\s+(?:ביטחון|בטחון|עירבון|ערבון)", r"צ['׳]?ק\s+(?:ביטחון|בטחון)"),
+        patterns=(
+            r"שיק\s+(?:ביטחון|בטחון|עירבון|ערבון)",
+            r"צ['׳]?ק\s+(?:ביטחון|בטחון)",
+        ),
         affected_domains=("security",),
     ),
     _DependencyRule(
@@ -99,16 +107,24 @@ def _text_usable(text: str, blocks: Sequence[EvidenceBlock]) -> bool:
 
 def _looks_like_rental_agreement(text: str) -> bool:
     has_parties = bool(_LANDLORD_RE.search(text) and _TENANT_RE.search(text))
-    has_transaction = bool(_TITLE_RE.search(text) or (_RENT_RE.search(text) and _PROPERTY_RE.search(text)))
-    has_agreement_form = bool(_TITLE_RE.search(text) or _AGREEMENT_STRUCTURE_RE.search(text))
+    has_transaction = bool(
+        _TITLE_RE.search(text) or (_RENT_RE.search(text) and _PROPERTY_RE.search(text))
+    )
+    has_agreement_form = bool(
+        _TITLE_RE.search(text) or _AGREEMENT_STRUCTURE_RE.search(text)
+    )
     return has_parties and has_transaction and has_agreement_form
 
 
-def _matching_blocks(blocks: Sequence[EvidenceBlock], patterns: tuple[str, ...]) -> tuple[str, ...]:
+def _matching_blocks(
+    blocks: Sequence[EvidenceBlock], patterns: tuple[str, ...]
+) -> tuple[str, ...]:
     return tuple(
         block.block_id
         for block in blocks
-        if any(re.search(pattern, block.text, flags=re.IGNORECASE) for pattern in patterns)
+        if any(
+            re.search(pattern, block.text, flags=re.IGNORECASE) for pattern in patterns
+        )
     )
 
 
@@ -117,9 +133,9 @@ def _appendix_dependencies(
     blocks: Sequence[EvidenceBlock],
     provided: set[str],
 ) -> list[AnalysisDependency]:
-    labels = {match.group(1) for match in _APPENDIX_RE.finditer(text) if match.group(1)}
+    labels = {match.group(1) for match in _LABELED_APPENDIX_RE.finditer(text)}
     dependency_ids = {f"appendix:{label}" for label in labels}
-    if _APPENDIX_RE.search(text) and not dependency_ids:
+    if _APPENDIX_REFERENCE_RE.search(text) and not dependency_ids:
         dependency_ids.add("appendix")
     if not dependency_ids:
         return []
@@ -145,9 +161,17 @@ def audit_analysis_completeness(
 ) -> AnalysisCompleteness:
     """Gate smart analysis on document type and analysis-relevant package dependencies."""
 
-    evidence_blocks = tuple(blocks) if blocks is not None else tuple(build_evidence_blocks(sanitized_text))
+    evidence_blocks = (
+        tuple(blocks)
+        if blocks is not None
+        else tuple(build_evidence_blocks(sanitized_text))
+    )
     if not text_usable or not _text_usable(sanitized_text, evidence_blocks):
-        return AnalysisCompleteness(DocumentGateStatus.TEXT_UNUSABLE, AnalysisReadiness.BLOCKED, ())
+        return AnalysisCompleteness(
+            DocumentGateStatus.TEXT_UNUSABLE,
+            AnalysisReadiness.BLOCKED,
+            (),
+        )
     if not _looks_like_rental_agreement(sanitized_text):
         return AnalysisCompleteness(
             DocumentGateStatus.DOCUMENT_TYPE_UNCONFIRMED,
@@ -172,8 +196,16 @@ def audit_analysis_completeness(
         )
 
     ordered = tuple(sorted(dependencies, key=lambda item: item.dependency_id))
-    readiness = AnalysisReadiness.PARTIAL if any(not item.provided for item in ordered) else AnalysisReadiness.READY
-    return AnalysisCompleteness(DocumentGateStatus.RENTAL_DOCUMENT_CONFIRMED, readiness, ordered)
+    readiness = (
+        AnalysisReadiness.PARTIAL
+        if any(not item.provided for item in ordered)
+        else AnalysisReadiness.READY
+    )
+    return AnalysisCompleteness(
+        DocumentGateStatus.RENTAL_DOCUMENT_CONFIRMED,
+        readiness,
+        ordered,
+    )
 
 
 __all__ = (
