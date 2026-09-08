@@ -7,6 +7,7 @@ from pathlib import Path
 import unittest
 
 from contract_checker.question_engine.inventory import (
+    CONDITION_DEFECTS_CORE_INVENTORY_V1,
     EARLY_EXIT_CORE_INVENTORY_V1,
     ECONOMIC_CORE_INVENTORY_V1,
     FINANCIAL_SANCTIONS_CORE_INVENTORY_V1,
@@ -44,6 +45,16 @@ _EXPECTED_FINANCIAL_SANCTIONS_QUESTION_IDS = (
     "financial_sanctions.fixed_agreed_damages",
     "financial_sanctions.other_contractual_sanctions",
     "financial_sanctions.overlap",
+)
+
+_EXPECTED_CONDITION_DEFECTS_QUESTION_IDS = (
+    "condition.entry_baseline",
+    "condition.as_is_acknowledgment",
+    "condition.pre_existing_defects",
+    "condition.damage_allocation",
+    "condition.repair_mechanics",
+    "condition.return_condition",
+    "condition.evidence_dependencies",
 )
 
 
@@ -302,6 +313,119 @@ class FinancialSanctionsCoreInventoryTests(unittest.TestCase):
             "court would reduce",
             "unenforceable",
             "lawsuit filed",
+        ):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, joined)
+
+
+class ConditionDefectsCoreInventoryTests(unittest.TestCase):
+    def test_inventory_has_exact_bounded_question_set(self) -> None:
+        inventory = CONDITION_DEFECTS_CORE_INVENTORY_V1
+
+        self.assertIsInstance(inventory, QuestionInventory)
+        self.assertEqual(inventory.schema_version, 1)
+        self.assertEqual(
+            tuple(question.question_id for question in inventory.questions),
+            _EXPECTED_CONDITION_DEFECTS_QUESTION_IDS,
+        )
+        self.assertEqual(
+            {question.domain for question in inventory.questions},
+            {"condition_defects"},
+        )
+
+    def test_as_is_and_pre_existing_defects_remain_separate_questions(self) -> None:
+        question_ids = {
+            question.question_id
+            for question in CONDITION_DEFECTS_CORE_INVENTORY_V1.questions
+        }
+
+        self.assertIn("condition.entry_baseline", question_ids)
+        self.assertIn("condition.as_is_acknowledgment", question_ids)
+        self.assertIn("condition.pre_existing_defects", question_ids)
+        self.assertIn("condition.damage_allocation", question_ids)
+        self.assertNotIn("condition.good_or_bad", question_ids)
+
+    def test_damage_allocation_preserves_ordinary_wear_exception(self) -> None:
+        damage = next(
+            question
+            for question in CONDITION_DEFECTS_CORE_INVENTORY_V1.questions
+            if question.question_id == "condition.damage_allocation"
+        )
+
+        self.assertEqual(
+            damage.answer_fields,
+            (
+                "tenant_caused_damage_rule",
+                "ordinary_wear_exception",
+                "causation_standard",
+                "repair_standard",
+            ),
+        )
+
+    def test_repair_mechanics_keeps_notice_and_self_help_separate(self) -> None:
+        repair = next(
+            question
+            for question in CONDITION_DEFECTS_CORE_INVENTORY_V1.questions
+            if question.question_id == "condition.repair_mechanics"
+        )
+
+        self.assertEqual(
+            repair.answer_fields,
+            (
+                "tenant_repair_scope",
+                "landlord_repair_scope",
+                "notice_required",
+                "repair_deadline",
+                "tenant_self_help_available",
+                "reimbursement_or_setoff_rule",
+            ),
+        )
+
+    def test_evidence_dependency_records_presence_without_guessing_content(self) -> None:
+        dependency = next(
+            question
+            for question in CONDITION_DEFECTS_CORE_INVENTORY_V1.questions
+            if question.question_id == "condition.evidence_dependencies"
+        )
+
+        self.assertEqual(
+            dependency.answer_fields,
+            (
+                "condition_document_references",
+                "defect_list_reference",
+                "inventory_reference",
+                "referenced_documents_present",
+            ),
+        )
+        self.assertNotIn("inferred_document_contents", dependency.answer_fields)
+
+    def test_sanitized_golden_fixture_contains_condition_grounding(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        fixture_path = (
+            root
+            / "research"
+            / "question_engine"
+            / "golden_contracts"
+            / "contract_001_he.txt"
+        )
+
+        fixture = fixture_path.read_text(encoding="utf-8")
+
+        self.assertIn("בלאי סביר", fixture)
+        self.assertIn('נספח "ב"', fixture)
+        self.assertIn("ראה ובדק את הדירה", fixture)
+
+    def test_inventory_stays_pre_signing_and_contract_fact_focused(self) -> None:
+        joined = "\n".join(
+            f"{question.question_id} {question.purpose}"
+            for question in CONDITION_DEFECTS_CORE_INVENTORY_V1.questions
+        ).lower()
+
+        for forbidden in (
+            "post-move-out photographs",
+            "expert report",
+            "lawsuit filed",
+            "court will decide",
         ):
             with self.subTest(forbidden=forbidden):
                 self.assertNotIn(forbidden, joined)
