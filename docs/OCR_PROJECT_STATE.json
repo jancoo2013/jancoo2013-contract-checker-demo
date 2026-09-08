@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-08-101",
+  "state_version": "privacy-ocr-2026-09-08-102",
   "active_track": "question-engine-development",
-  "next_step_id": "question-engine-codex-batch-audit-v1",
-  "next_step_summary": "PR #250 completes the currently classified six-family CORE Question Engine inventory sequence by adding the pre-signing option / renewal mechanism. The bounded slice keeps renewal right structure, period, economics, activation, prerequisites, external dependencies, and cross-clause interaction separate without assuming that every renewal clause creates a unilateral option. No statutory/case-law interpretation, conditional execution, LLM/provider integration, UI, OCR, Android, serverless, storage, dependencies, permissions, workflows, or network access is added. Before any next implementation layer, the owner-requested bounded step is a periodic Codex batch audit of the accumulated Question Engine work, following docs/CODEX_WORKFLOW.md and recording the inspected SHA/PR range, findings, validation actually run, and any bounded corrective PRs.",
-  "last_recorded_pr": 250,
-  "last_recorded_change": "question-engine-core-inventory-option-renewal-v1",
+  "next_step_id": "question-engine-answer-state-separation-v1",
+  "next_step_summary": "The owner-requested Codex batch audit covering cbbb8e0905c1fda8610260d4046b51952a9f636c through ee66e0063e270abd5eb7992f2be73c89dbec3a5d completed with CORRECTIVE PR REQUIRED. The product owner rejected the audit's proposal to turn obvious/basic lease facts into a universal user-facing CORE skeleton: such facts are support/dependency inputs only when they materially enable deeper analysis. PR #251 adds the first accepted correction, a provider-independent analysis-completeness gate that blocks when the sanitized upload cannot be established as a residential rental agreement and marks only affected smart-analysis domains partial when referenced analysis-relevant documents are missing. The next bounded correction separates the overloaded AnswerState semantics without building a large universal ontology.",
+  "last_recorded_pr": 251,
+  "last_recorded_change": "question-engine-analysis-completeness-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-09-08"
