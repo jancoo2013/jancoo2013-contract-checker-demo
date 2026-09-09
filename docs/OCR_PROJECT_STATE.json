@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-09-105",
+  "state_version": "privacy-ocr-2026-09-09-106",
   "active_track": "question-engine-development",
-  "next_step_id": "question-engine-smart-analysis-corpus-v1",
-  "next_step_summary": "PR #254 implements the fourth accepted post-audit correction by adding a minimal structured finding-resolution contract. A FindingCandidate is now separate from its second-pass FindingResolution; the only resolution outcomes are CONFIRMED, NARROWED, and CLEARED; and the resolution records the related local/sanitized references reviewed plus an internal resolution summary. This prevents a merely detected concerning phrase from being treated as a final finding before cross-clause review. The change remains provider-independent and does not add a universal relation graph, statutory runtime, ranking/UI, OCR, or provider integration. The next bounded step builds a smart-analysis corpus focused on semantic counterexamples and cross-clause cases rather than generic lease summarization.",
-  "last_recorded_pr": 254,
-  "last_recorded_change": "question-engine-finding-resolution-v1",
+  "next_step_id": "question-engine-security-provider-experiment-v1",
+  "next_step_summary": "PR #255 adds the first smart-analysis evaluation corpus: 14 sanitized/synthetic semantic counterexamples with explicit expected states and cross-clause outcomes. The corpus covers CONFIRMED/NARROWED/CLEARED resolution, repeatable security identity, missing dependencies, template versus executed blanks, handwriting dependency without reconstruction, distant-clause composition, contradictory role references, option consent structure, materially relevant ABSENT behavior, and condition-appendix dependency. It is an evaluation oracle, not training data and not a generic lease-summary corpus. The next bounded step is a security-focused provider experiment using only this sanitized/synthetic material to learn what the LLM↔Python contract actually needs before wider runtime work.",
+  "last_recorded_pr": 255,
+  "last_recorded_change": "question-engine-smart-analysis-corpus-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-09-09"
