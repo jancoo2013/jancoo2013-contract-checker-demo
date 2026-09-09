@@ -7,6 +7,7 @@
       "domain": "security",
       "lifecycle": "EXECUTED",
       "basis": "synthetic_from_observed_pattern",
+      "target_question_ids": ["security.realization_chain"],
       "clauses": [{"ref":"c1","text_he":"המשכיר רשאי לממש את שיק הביטחון במקרה של כל הפרה של ההסכם."}],
       "expected": {"presence":"PRESENT","value_status":"PROVIDED","evidence_status":"SUFFICIENT","source_status":"CLEAR","finding_outcome":"CONFIRMED","mechanism_ids":["security_1"],"must_link_refs":["c1"]}
     },
@@ -15,6 +16,7 @@
       "domain": "security",
       "lifecycle": "EXECUTED",
       "basis": "synthetic_from_observed_pattern",
+      "target_question_ids": ["security.realization_chain"],
       "clauses": [{"ref":"c1","text_he":"המשכיר רשאי לממש את שיק הביטחון במקרה של כל הפרה של ההסכם."},{"ref":"c9","text_he":"מימוש הבטוחה ייעשה רק לאחר התראה בכתב של 14 ימים ומתן אפשרות לשוכר לתקן את ההפרה."}],
       "expected": {"presence":"PRESENT","value_status":"PROVIDED","evidence_status":"SUFFICIENT","source_status":"CLEAR","finding_outcome":"NARROWED","mechanism_ids":["security_1"],"must_link_refs":["c1","c9"]}
     },
@@ -23,7 +25,8 @@
       "domain": "security",
       "lifecycle": "EXECUTED",
       "basis": "synthetic_boundary_case",
-      "clauses": [{"ref":"c1","text_he":"הבטוחה נועדה להבטחת התחייבויות השוכר לפי הסכם זה."},{"ref":"c12","text_he":"למרות האמור לעיל, ניתן לממש את הבטוחה רק בגין דמי שכירות שלא שולמו לאחר התראה בכתב של 14 ימים."}],
+      "target_question_ids": ["security.realization_chain"],
+      "clauses": [{"ref":"c1","text_he":"המשכיר רשאי לממש את הבטוחה במקרה של כל הפרה של ההסכם."},{"ref":"c12","text_he":"למרות האמור לעיל, ניתן לממש את הבטוחה רק בגין דמי שכירות שלא שולמו לאחר התראה בכתב של 14 ימים."}],
       "expected": {"presence":"PRESENT","value_status":"PROVIDED","evidence_status":"SUFFICIENT","source_status":"CLEAR","finding_outcome":"CLEARED","mechanism_ids":["security_1"],"must_link_refs":["c1","c12"]}
     },
     {
@@ -31,6 +34,7 @@
       "domain": "security",
       "lifecycle": "EXECUTED",
       "basis": "synthetic_from_observed_pattern",
+      "target_question_ids": ["security.instrument_inventory","security.instrument_amounts","security.instrument_blanks"],
       "clauses": [{"ref":"c3","text_he":"השוכר ימסור שיק ביטחון על סך 10,000 ש״ח ללא תאריך."},{"ref":"c4","text_he":"בנוסף יימסר שטר חוב על סך 30,000 ש״ח שמועדו 01.01.2027."}],
       "expected": {"presence":"PRESENT","value_status":"PROVIDED","evidence_status":"SUFFICIENT","source_status":"CLEAR","finding_outcome":null,"mechanism_ids":["security_1","security_2"],"must_link_refs":["c3","c4"]}
     },
@@ -39,6 +43,7 @@
       "domain": "security",
       "lifecycle": "EXECUTED",
       "basis": "synthetic_from_observed_pattern",
+      "target_question_ids": ["security.instrument_linkage"],
       "clauses": [{"ref":"c5","text_he":"השוכר יחתום על שטר החוב המצורף כנספח ג׳ להסכם."},{"ref":"package","text_he":"[נספח ג׳ לא צורף לחומר שהועלה]"}],
       "expected": {"presence":"PRESENT","value_status":"UNKNOWN","evidence_status":"MISSING_DEPENDENCY","source_status":"CLEAR","finding_outcome":null,"mechanism_ids":["security_1"],"must_link_refs":["c5","package"]}
     },
@@ -47,6 +52,7 @@
       "domain": "security",
       "lifecycle": "TEMPLATE",
       "basis": "synthetic_boundary_case",
+      "target_question_ids": ["security.instrument_amounts","security.instrument_blanks"],
       "clauses": [{"ref":"c2","text_he":"השוכר ימסור שטר חוב על סך ______ ש״ח."}],
       "expected": {"presence":"PRESENT","value_status":"BLANK","evidence_status":"SUFFICIENT","source_status":"CLEAR","finding_outcome":null,"mechanism_ids":["security_1"],"must_link_refs":["c2"]}
     },
@@ -55,6 +61,7 @@
       "domain": "security",
       "lifecycle": "EXECUTED",
       "basis": "synthetic_boundary_case",
+      "target_question_ids": ["security.instrument_amounts","security.instrument_blanks"],
       "clauses": [{"ref":"c2","text_he":"השוכר ימסור שטר חוב על סך ______ ש״ח."}],
       "expected": {"presence":"PRESENT","value_status":"BLANK","evidence_status":"SUFFICIENT","source_status":"CLEAR","finding_outcome":"CONFIRMED","mechanism_ids":["security_1"],"must_link_refs":["c2"]}
     },
@@ -63,6 +70,7 @@
       "domain": "security",
       "lifecycle": "EXECUTED",
       "basis": "synthetic_boundary_case",
+      "target_question_ids": ["security.instrument_amounts"],
       "clauses": [{"ref":"c6","text_he":"סכום שיק הביטחון: [HANDWRITING_REDACTED] ש״ח."}],
       "expected": {"presence":"PRESENT","value_status":"UNKNOWN","evidence_status":"HANDWRITING_DEPENDENCY","source_status":"CLEAR","finding_outcome":null,"mechanism_ids":["security_1"],"must_link_refs":["c6"]}
     },
@@ -71,6 +79,7 @@
       "domain": "security",
       "lifecycle": "EXECUTED",
       "basis": "synthetic_from_observed_pattern",
+      "target_question_ids": ["security.instrument_amounts","security.realization_chain","security.return_mechanics"],
       "clauses": [{"ref":"c2","text_he":"השוכר ימסור שיק ביטחון על סך 9,000 ש״ח."},{"ref":"c14","text_he":"מימוש השיק יתאפשר בגין חוב שלא שולם לאחר התראה של 7 ימים."},{"ref":"c27","text_he":"השיק יוחזר בתוך 30 ימים לאחר פינוי הדירה וסילוק החובות."}],
       "expected": {"presence":"PRESENT","value_status":"PROVIDED","evidence_status":"SUFFICIENT","source_status":"CLEAR","finding_outcome":null,"mechanism_ids":["security_1"],"must_link_refs":["c2","c14","c27"]}
     },
@@ -79,6 +88,7 @@
       "domain": "security",
       "lifecycle": "EXECUTED",
       "basis": "synthetic_from_observed_pattern",
+      "target_question_ids": ["security.completion_authority"],
       "clauses": [{"ref":"c8","text_he":"המשכיר רשאי להשלים פרטים חסרים בשטר החוב."},{"ref":"c9","text_he":"השוכר רשאי להשלים את אותם פרטים ולממש את השטר במקרה של הפרה."}],
       "expected": {"presence":"PRESENT","value_status":"PROVIDED","evidence_status":"SUFFICIENT","source_status":"CONTRADICTORY","finding_outcome":"CONFIRMED","mechanism_ids":["security_1"],"must_link_refs":["c8","c9"]}
     },
@@ -87,6 +97,7 @@
       "domain": "option_renewal",
       "lifecycle": "EXECUTED",
       "basis": "synthetic_from_observed_pattern",
+      "target_question_ids": ["option.right_structure"],
       "clauses": [{"ref":"c4a","text_he":"לשוכר ניתנת אופציה להאריך את תקופת השכירות בשנה נוספת."},{"ref":"c4b","text_he":"מימוש האופציה כפוף להסכמת המשכיר בכתב."}],
       "expected": {"presence":"PRESENT","value_status":"PROVIDED","evidence_status":"SUFFICIENT","source_status":"CLEAR","finding_outcome":"NARROWED","mechanism_ids":[],"must_link_refs":["c4a","c4b"]}
     },
@@ -95,6 +106,7 @@
       "domain": "early_exit",
       "lifecycle": "EXECUTED",
       "basis": "synthetic_from_observed_pattern",
+      "target_question_ids": ["early_exit.replacement_route","early_exit.continuing_liability"],
       "clauses": [{"ref":"c11","text_he":"עזיבת המושכר לפני תום התקופה אינה פוטרת את השוכר מתשלום דמי השכירות עד תום התקופה."}],
       "expected": {"presence":"ABSENT","value_status":"OMITTED","evidence_status":"SUFFICIENT","source_status":"CLEAR","finding_outcome":"CONFIRMED","mechanism_ids":[],"must_link_refs":["c11"]}
     },
@@ -103,6 +115,7 @@
       "domain": "condition_defects",
       "lifecycle": "EXECUTED",
       "basis": "synthetic_from_observed_pattern",
+      "target_question_ids": ["condition.evidence_dependencies"],
       "clauses": [{"ref":"c7","text_he":"מצב הדירה והליקויים הקיימים מפורטים בנספח ב׳."},{"ref":"package","text_he":"[נספח ב׳ לא צורף לחומר שהועלה]"}],
       "expected": {"presence":"PRESENT","value_status":"UNKNOWN","evidence_status":"MISSING_DEPENDENCY","source_status":"CLEAR","finding_outcome":null,"mechanism_ids":[],"must_link_refs":["c7","package"]}
     },
@@ -111,6 +124,7 @@
       "domain": "condition_defects",
       "lifecycle": "EXECUTED",
       "basis": "synthetic_boundary_case",
+      "target_question_ids": ["condition.repair_mechanics"],
       "clauses": [{"ref":"c10","text_he":"השוכר אחראי לתקן כל נזק או תקלה בדירה."},{"ref":"c18","text_he":"המשכיר יתקן על חשבונו תקלות שמקורן בבלאי סביר או במערכות הדירה שלא נגרמו על ידי השוכר."}],
       "expected": {"presence":"PRESENT","value_status":"PROVIDED","evidence_status":"SUFFICIENT","source_status":"CLEAR","finding_outcome":"NARROWED","mechanism_ids":[],"must_link_refs":["c10","c18"]}
     }
