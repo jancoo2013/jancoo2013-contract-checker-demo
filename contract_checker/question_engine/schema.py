@@ -88,6 +88,74 @@ def _as_tuple(value: object, *, field_name: str) -> tuple[object, ...]:
 
 
 @dataclass(frozen=True)
+class MechanismProperty:
+    """One named property attached to one repeatable mechanism instance."""
+
+    name: str
+    value: object
+    state: AnswerState
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.name, str) or not _SNAKE_CASE_PATTERN.fullmatch(self.name):
+            raise ValueError("property name must be a snake_case identifier")
+        if not isinstance(self.state, AnswerState):
+            raise ValueError("state must be an AnswerState")
+
+
+@dataclass(frozen=True)
+class MechanismInstance:
+    """One locally identified mechanism whose properties cannot drift to peers."""
+
+    mechanism_id: str
+    mechanism_type: str
+    properties: tuple[MechanismProperty, ...] = ()
+
+    def __post_init__(self) -> None:
+        if (
+            not isinstance(self.mechanism_id, str)
+            or not _SNAKE_CASE_PATTERN.fullmatch(self.mechanism_id)
+        ):
+            raise ValueError("mechanism_id must be a snake_case identifier")
+        if (
+            not isinstance(self.mechanism_type, str)
+            or not _SNAKE_CASE_PATTERN.fullmatch(self.mechanism_type)
+        ):
+            raise ValueError("mechanism_type must be a snake_case identifier")
+
+        properties = _as_tuple(self.properties, field_name="properties")
+        if not all(isinstance(item, MechanismProperty) for item in properties):
+            raise ValueError("properties must contain only MechanismProperty values")
+        property_names = tuple(item.name for item in properties)
+        if len(set(property_names)) != len(property_names):
+            raise ValueError("properties must not contain duplicate names")
+        object.__setattr__(self, "properties", properties)
+
+
+@dataclass(frozen=True)
+class MechanismCollection:
+    """Repeatable mechanisms in one domain with collection-local stable IDs."""
+
+    domain: str
+    mechanisms: tuple[MechanismInstance, ...]
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.domain, str) or not _SNAKE_CASE_PATTERN.fullmatch(self.domain):
+            raise ValueError("domain must be a snake_case identifier")
+
+        mechanisms = _as_tuple(self.mechanisms, field_name="mechanisms")
+        if not all(isinstance(item, MechanismInstance) for item in mechanisms):
+            raise ValueError("mechanisms must contain only MechanismInstance values")
+        mechanism_ids = tuple(item.mechanism_id for item in mechanisms)
+        if len(set(mechanism_ids)) != len(mechanism_ids):
+            raise ValueError("mechanisms must not contain duplicate mechanism IDs")
+        object.__setattr__(self, "mechanisms", mechanisms)
+
+    @property
+    def cardinality(self) -> int:
+        return len(self.mechanisms)
+
+
+@dataclass(frozen=True)
 class QuestionSpec:
     """Definition of one inventory question, without populated answers."""
 
@@ -153,6 +221,9 @@ __all__ = (
     "AnswerState",
     "DocumentLifecycle",
     "EvidenceStatus",
+    "MechanismCollection",
+    "MechanismInstance",
+    "MechanismProperty",
     "PresenceStatus",
     "QuestionInventory",
     "QuestionSpec",
