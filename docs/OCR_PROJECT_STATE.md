@@ -1,91 +1,84 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-09-09, PR #253, `question-engine-repeatable-mechanism-identity-v1`.
+Последнее обновление: 2026-09-09, PR #254, `question-engine-finding-resolution-v1`.
 
 Активный трек: `question-engine-development`.
 
-Канонический следующий bounded-шаг: `question-engine-finding-resolution-v1`.
+Канонический следующий bounded-шаг: `question-engine-smart-analysis-corpus-v1`.
 
 Этот документ вместе с `docs/OCR_PROJECT_STATE.json` является канонической operational-точкой восстановления проекта. Binding architecture/security/privacy documents задают обязательные границы; текущие `active_track` и `next_step_id` выбираются только state-файлами.
 
-## 1. Current change — PR #253 repeatable mechanism identity
+## 1. Current change — PR #254 finding resolution
 
 Owner-requested Codex batch audit диапазона `cbbb8e0905c1fda8610260d4046b51952a9f636c` → `ee66e0063e270abd5eb7992f2be73c89dbec3a5d` завершён с итогом `CORRECTIVE PR REQUIRED`.
 
-После product-owner review audit findings были сужены. Сохраняется ключевая продуктовая коррекция:
+После product-owner review audit findings были сужены. Ключевая продуктовая коррекция сохраняется:
 
 - продукт не должен становиться универсальным пересказчиком договора;
-- очевидные пользователю facts не становятся пользовательским `CORE` только потому, что они присутствуют в договоре;
+- очевидные пользователю facts не становятся пользовательским `CORE` только потому, что присутствуют в договоре;
 - простой fact извлекается как support/dependency input только когда materially нужен для более глубокого анализа, deterministic calculation, statutory gate или cross-clause resolution;
 - обнаруженное формальное несоответствие не обязано становиться finding, если оно не меняет существенный механизм для пользователя.
 
-PR #251 добавил provider-independent `analysis completeness` gate: unrelated/unconfirmed document type блокируется fail-closed; отсутствующие analysis-relevant дополнительные документы делают только зависимые области `PARTIAL`.
+Post-audit corrective sequence теперь закрывает четыре принятых архитектурных дефекта:
 
-PR #252 разделил перегруженный answer state на независимые оси:
+1. PR #251 — `analysis completeness` / document-type gate: unrelated/unconfirmed document type блокируется fail-closed; missing analysis-relevant documents делают только зависимые области `PARTIAL`.
+2. PR #252 — answer-state separation: presence, value, evidence, source consistency и lifecycle представлены независимо.
+3. PR #253 — repeatable mechanism identity: свойства нескольких security instruments и других повторяющихся mechanisms остаются привязаны к конкретному local `mechanism_id`.
+4. PR #254 — finding resolution: candidate concern отделён от second-pass result и не становится финальным finding до cross-clause review.
 
-- `PresenceStatus`;
-- `ValueStatus`;
-- `EvidenceStatus`;
-- `SourceStatus`;
-- `DocumentLifecycle`.
-
-PR #253 реализует третий accepted corrective slice: стабильную локальную identity/cardinality для повторяющихся smart mechanisms.
-
-Минимальный reusable contract:
+Новый минимальный finding contract:
 
 ```text
-MechanismCollection
+FindingCandidate
+  finding_id
   domain
-  mechanisms[]
-  cardinality
+  subject_refs[]
 
-MechanismInstance
-  mechanism_id
-  mechanism_type
-  properties[]
-
-MechanismProperty
-  name
-  value
-  state: AnswerState
+FindingResolution
+  candidate
+  outcome: CONFIRMED | NARROWED | CLEARED
+  reviewed_refs[]
+  resolution_summary
 ```
 
-Главный semantic effect:
+Главный semantic effect PR #254:
 
-- несколько security instruments больше не должны представляться только как независимые parallel arrays;
-- amount, blank state, payee, trigger, return mechanics и другие properties могут быть привязаны к конкретному `mechanism_id`;
-- IDs уникальны внутри `MechanismCollection`;
-- property names уникальны внутри одного instance;
-- identity-only instance разрешён для первого inventory pass, до заполнения properties;
-- typed values, evidence refs и provider output contract в этом PR намеренно не добавляются.
+- одна найденная пугающая фраза остаётся только `FindingCandidate`;
+- итог появляется только как отдельный `FindingResolution` после second-pass review;
+- `CONFIRMED` означает, что related review не снял исходную проблему;
+- `NARROWED` означает, что related clauses/mechanisms ограничили первоначальный concern;
+- `CLEARED` означает, что related review снял candidate как итоговую проблему;
+- `reviewed_refs` сохраняют ссылки на конкретные local/sanitized facts/clauses/mechanisms, которые были проверены;
+- это не universal relation graph и не evidence/provenance subsystem;
+- `resolution_summary` остаётся internal structured explanation и сам по себе не является user-facing legal conclusion.
 
-Security используется как stress-test family, но schema остаётся reusable для других repeatable smart mechanisms. Существующие six smart inventories в PR #253 массово не мигрируются.
-
-PR #253 не добавляет provider/runtime integration, statutory runtime, finding resolution, ranking/UI, OCR, Android, serverless, storage, network destinations, dependencies, permissions или workflows.
+PR #254 не добавляет provider/runtime integration, statutory runtime, ranking/UI, OCR, Android, serverless, storage, network destinations, dependencies, permissions или workflows.
 
 ## 2. Canonical next step
 
-`next_step_id = question-engine-finding-resolution-v1`
+`next_step_id = question-engine-smart-analysis-corpus-v1`
 
-Следующий bounded corrective slice должен превратить архитектурный принцип `CONFIRMED / NARROWED / CLEARED` в минимальный structured result contract.
+Следующий bounded-шаг должен построить небольшой smart-analysis corpus, который проверяет именно способность будущего Question Engine различать смысловые случаи, а не способность пересказывать обычный договор.
 
 Минимальный scope следующего PR:
 
-- представить candidate finding отдельно от результата second-pass review;
-- разрешить три outcomes: `CONFIRMED`, `NARROWED`, `CLEARED`;
-- сохранить ссылки на то, какие related mechanism facts/clauses изменили исход кандидата, без universal relation graph;
-- не считать найденную пугающую фразу автоматически финальным finding;
-- не добавлять provider runtime, statutory runtime, ranking/UI, OCR или инфраструктуру;
-- не строить широкую remediation/legal ontology.
+- добавить sanitized/synthetic counterexamples для одного и того же механизма в разных формулировках;
+- включить случаи, где alarming clause подтверждается, сужается или полностью снимается другой частью договора;
+- включить несколько одновременно существующих security mechanisms;
+- включить missing appendix / missing security instrument dependency;
+- включить template blank отдельно от executed blank;
+- включить handwriting dependency без попытки угадывать содержание;
+- включить mechanism, размазанный по нескольким distant clauses;
+- включить negative/absent mechanism cases там, где они materially проверяют Question Engine;
+- не строить generic full-lease summary corpus;
+- не использовать raw contracts, recoverable PII или guessed handwriting;
+- не добавлять provider/runtime вызовы в этом PR.
 
-Дальнейшая accepted corrective sequence после этого шага:
-
-1. smart-analysis corpus с различными способами выражения/маскировки одного механизма;
-2. первый bounded contract-fact provider experiment.
+После corpus следующий ожидаемый этап — первый bounded contract-fact provider experiment, вероятно с security как stress-test family. Его конкретный scope должен определяться после проверки corpus и не проектироваться заранее шире необходимого.
 
 ## 3. Required reading order
 
-Перед следующим PR читать с актуального `main`:
+Перед новым PR читать с актуального `main`:
 
 1. `AGENTS.md`;
 2. `SECURITY.md`;
@@ -111,7 +104,7 @@ Research-only dispute/practice JSON artifacts не являются authority и
 
 ## 4. Current Question Engine architecture
 
-Текущая целевая цепочка после accepted audit corrections:
+Текущая целевая цепочка:
 
 ```text
 privacy-validated sanitized contract material
@@ -124,7 +117,7 @@ privacy-validated sanitized contract material
 → bounded novel-issue catch-all
 → Python/schema/evidence/consistency validation
 → statutory comparison where applicable
-→ CONFIRMED / NARROWED / CLEARED
+→ FindingResolution: CONFIRMED / NARROWED / CLEARED
 → materiality / suppression
 → Safe Output
 ```
@@ -133,15 +126,14 @@ privacy-validated sanitized contract material
 
 - продукт предназначен прежде всего для нормального заключения договора и предотвращения будущих конфликтов;
 - Question Engine не обязан извлекать или показывать банальный fact, если он не нужен для более глубокого анализа;
-- ordinary Question Engine содержит только вопросы, ответы на которые materially меняют анализ договора до подписания;
-- обнаруженность механизма или inconsistency сама по себе не является основанием показывать её пользователю;
+- обнаруженность mechanism/inconsistency сама по себе не является основанием показывать её пользователю;
 - contract facts, statutory rules, dispute/practice research, Question Engine decisions и product explanation остаются разными слоями;
 - cross-clause analysis обязателен;
-- candidate finding может быть `CONFIRMED`, `NARROWED` или `CLEARED` после второго прохода;
+- candidate finding не является final finding;
 - handwriting никогда не реконструируется и не угадывается;
 - different security instruments остаются семантически различными;
-- internal contradictions, blanks, missing references и missing appendices не исправляются молча;
-- incomplete package должен сужать только те выводы, которым не хватает evidence, когда остальной анализ безопасно возможен;
+- blanks, missing references и missing appendices не исправляются молча;
+- incomplete package сужает только те выводы, которым не хватает evidence, когда остальной анализ безопасно возможен;
 - production output не выдаёт `safe to sign`, не советует подписывать/не подписывать, не прогнозирует исход суда и не даёт категорических enforceability/invalidity выводов без отдельно одобренного deterministic rule.
 
 ## 5. Current schema and inventories
@@ -155,9 +147,7 @@ privacy-validated sanitized contract material
 5. `TERMINATION_CURE_CORE_INVENTORY_V1` — breach triggers + fundamental-breach classification + notice/cure + cancellation + contractual vacancy demand + cross-clause interaction;
 6. `OPTION_RENEWAL_CORE_INVENTORY_V1` — renewal right structure + period + economics + activation + prerequisites + external dependencies + cross-clause interaction.
 
-PR #251 добавляет gate перед этими inventories.
-
-Текущий answer-state contract после PR #252:
+Supporting contracts after corrective PRs:
 
 ```text
 AnswerState
@@ -168,21 +158,25 @@ AnswerState
   lifecycle: DocumentLifecycle
 ```
 
-Repeatable-mechanism contract после PR #253:
-
 ```text
 MechanismCollection(domain, mechanisms)
 MechanismInstance(mechanism_id, mechanism_type, properties)
 MechanismProperty(name, value, state)
 ```
 
-`QuestionSpec(question_id, domain, purpose, answer_fields)` и `QuestionInventory` остаются прежними. Existing inventories ещё являются static question definitions; provider execution отсутствует.
+```text
+FindingCandidate(finding_id, domain, subject_refs)
+FindingResolution(candidate, outcome, reviewed_refs, resolution_summary)
+FindingOutcome = CONFIRMED | NARROWED | CLEARED
+```
 
-Model confidence, applicability, provenance, deterministic evidence refs и typed values пока не входят в bounded schema.
+`QuestionSpec(question_id, domain, purpose, answer_fields)` и `QuestionInventory` остаются static question definitions; provider execution отсутствует.
+
+Model confidence, statutory applicability result, deterministic evidence refs, provenance graph и typed monetary/date values пока не входят в bounded runtime schema.
 
 ## 6. Current mechanism classification
 
-Текущий smart `CORE` сохраняется после owner review batch audit:
+Текущий smart `CORE`:
 
 1. security and enforcement;
 2. early exit + replacement tenant;
@@ -204,7 +198,7 @@ High-value `CONDITIONAL`:
 - third-party indemnity;
 - inventory/handwriting evidence dependency.
 
-Batch-audit proposal to promote a universal basic `parties/term/rent schedule/notices` skeleton into user-facing CORE был explicitly rejected by the product owner. Такие facts остаются analysis-support inputs, когда smart mechanism действительно в них нуждается.
+Batch-audit proposal to promote a universal basic `parties/term/rent schedule/notices` skeleton into user-facing CORE был explicitly rejected. Такие facts остаются analysis-support inputs, когда smart mechanism действительно в них нуждается.
 
 ## 7. Statutory source status
 
@@ -216,7 +210,7 @@ Maintained baseline отдельно предупреждает о 2026 amendmen
 
 Если freshness/applicability/effective date не могут быть безопасно установлены, future runtime должен деградировать к contract-only analysis, а не утверждать устаревшую норму.
 
-PR #253 statutory runtime или current-law claims не добавляет.
+PR #254 statutory runtime или current-law claims не добавляет.
 
 ## 8. Privacy and security invariants
 
@@ -226,7 +220,7 @@ Restricted material не должен попадать в GitHub/CI, Airtable, a
 
 Persistent fixtures/research artifacts должны быть sanitized до commit. Handwriting не угадывается. Monetary amounts, dates, clause numbers, notice periods и legally relevant printed wording не являются PII по умолчанию, когда их можно безопасно отделить от идентификаторов.
 
-PR #253 меняет только provider-independent standard-library schema, focused tests и state metadata. Он не добавляет raw contract material, PII, credentials, provider configuration, persistence, network behavior или новый privacy boundary.
+PR #254 меняет только provider-independent standard-library schema, focused tests и state metadata. Он не добавляет raw contract material, PII, credentials, provider configuration, persistence, network behavior или новый privacy boundary.
 
 Repository остаётся pre-production. Production use с real contracts остаётся blocked до реализации и проверки applicable consent, authorization, encryption/key lifecycle, Israel-only restricted-data processing, deletion/retention, logging, provider terms, abuse/resource controls и incident response.
 
@@ -240,15 +234,7 @@ Tesseract full-page Hebrew OCR на target phone остаётся `NO-GO`.
 
 Historical Android geometry/preprocessing findings deferred и не блокируют Question Engine development.
 
-## 10. Document authority continuity
-
-`docs/DOCUMENT_STATUS_INDEX.md` остаётся картой authority классов.
-
-Binding/current governance, current Question Engine context, research-only artifacts, frozen/deferred OCR references и historical UX/workflow documents сохраняют ранее установленный статус. Historical/component/research-only files не могут переопределять canonical state или verified sources.
-
-## 11. Audit continuity
-
-Previous periodic Codex batch audit before Question Engine pivot covered merged PRs #216–#224 and returned `CORRECTIVE PR REQUIRED` with no blocking findings. Worker-contract finding #1 был закрыт PR #225; deferred Android findings остаются вне current track.
+## 10. Audit continuity
 
 Question Engine batch audit completed on 2026-09-08:
 
@@ -261,30 +247,19 @@ Question Engine batch audit completed on 2026-09-08:
 - reported broader suite after one Windows symlink-privilege exclusion: 594/594 PASS, 3 skips;
 - provider runtime, production OCR/privacy behavior and exact current-law consolidated wording remained unverified.
 
-Owner review accepted: analysis completeness/document identity, minimal answer-state separation, stable identity for repeated smart mechanisms, structured finding resolution, and stronger smart-analysis corpus. The proposal to build a comprehensive basic-fact user-facing CORE was rejected as product drift toward a generic lease parser.
+Owner review accepted: analysis completeness/document identity, minimal answer-state separation, stable identity for repeated smart mechanisms, structured finding resolution, and stronger smart-analysis corpus. Universal basic-fact user-facing CORE was rejected as product drift.
 
 Question Engine continuity:
 
-- PRs #234–#235 — active-track pivot / freeze of OCR infrastructure;
-- PR #236 — first sanitized golden contract;
-- PRs #237–#238 — Question Engine discovery and statutory/template discoveries;
-- PRs #239–#241 — docs/state/process consolidation;
-- PR #242 — initial schema foundation + tests;
-- PR #243 — Dispute / Practice layer boundary;
-- PR #244 — cross-contract mechanism classification;
-- PR #245 — economic/security inventory;
-- PR #246 — early-exit/replacement-tenant inventory;
-- PR #247 — financial-sanctions/overlap inventory;
-- PR #248 — condition/AS-IS/defects/damage-evidence inventory;
-- PR #249 — termination/cure/notice/vacancy inventory;
-- PR #250 — option/renewal inventory and completion of current six-family CORE coverage;
+- PRs #234–#250 — Question Engine pivot, research, schema foundation and six smart CORE inventories;
 - PR #251 — analysis completeness/document-type gate;
-- PR #252 — minimal orthogonal answer-state separation;
-- PR #253 — stable local identity/cardinality for repeatable smart mechanisms.
+- PR #252 — orthogonal answer-state separation;
+- PR #253 — stable local identity/cardinality for repeatable smart mechanisms;
+- PR #254 — structured candidate finding resolution.
 
-Ни один из перечисленных Question Engine PR не доказывает production provider/runtime behavior.
+Ни один из этих PR не доказывает production provider/runtime behavior.
 
-## 12. Recovery/work rules
+## 11. Recovery/work rules
 
 Перед новым PR:
 
@@ -298,26 +273,27 @@ Question Engine continuity:
 8. compare actual paths with Context Gate;
 9. perform mandatory final-diff security review;
 10. mark Ready only with `Security review: PASS` and no blocking conflict;
-11. leave merge/auto-merge to explicit product-owner decision.
+11. merge only under explicit product-owner authorization.
+
+Current owner authorization permits the orchestrating assistant to merge completed corrective PRs after final validation/security review. Auto-merge remains disabled.
 
 Implementation-size rule remains binding: target no more than 300 changed implementation lines per PR and treat 400 as the normal hard limit.
 
-## 13. PR #253 validation target
+## 12. PR #254 validation target
 
-Before Ready, PR #253 must verify:
+Before Ready/merge, PR #254 must verify:
 
 - changed paths exactly match its Context Gate;
-- branch is based on merged PR #252 / current `main`;
-- both state files identify PR #253 / `question-engine-repeatable-mechanism-identity-v1` and select `question-engine-finding-resolution-v1` as next bounded step;
-- repeatable mechanisms have unique collection-local `mechanism_id` values;
-- each mechanism keeps its own `mechanism_type` and properties together;
-- each property keeps its own `AnswerState`;
-- duplicate mechanism IDs and duplicate property names are rejected;
-- an identity-only first-pass mechanism instance is allowed;
-- a security stress test proves that amount/blank/return values for two instruments do not collapse into parallel arrays or drift between instances;
-- existing `AnswerState`, `QuestionSpec`, and `QuestionInventory` behavior remains intact;
-- existing inventories are not mass-migrated in this PR;
-- no provider/runtime integration, finding-resolution logic, statutory runtime, ranking/UI, OCR, storage, network, dependency, permission or workflow change is introduced;
+- branch is based on merged PR #253 / current `main`;
+- both state files identify PR #254 / `question-engine-finding-resolution-v1` and select `question-engine-smart-analysis-corpus-v1` as next bounded step;
+- `FindingCandidate` exists independently of second-pass `FindingResolution`;
+- only `CONFIRMED`, `NARROWED`, and `CLEARED` are valid outcomes;
+- resolution records non-empty unique reviewed references;
+- candidate records non-empty unique subject references;
+- raw string values cannot silently bypass outcome typing;
+- a `CLEARED` resolution does not mutate or erase the original candidate record;
+- no candidate object alone is represented as an automatically user-visible final finding;
+- no universal relation graph, broad remediation ontology, provider/runtime integration, statutory runtime, ranking/UI, OCR, storage, network, dependency, permission or workflow change is introduced;
 - no raw/unsanitized contract material, raw OCR, handwriting reconstruction, party identifiers, exact address, phone/email/ID, signatures, guarantor identifying data, bank/account/check images, credentials or secrets are added;
 - focused tests and Python compilation pass on exact final head content;
 - final security review passes on exact final head.
