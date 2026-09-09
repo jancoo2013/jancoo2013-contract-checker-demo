@@ -1,14 +1,14 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-09-09, PR #252, `question-engine-answer-state-separation-v1`.
+Последнее обновление: 2026-09-09, PR #253, `question-engine-repeatable-mechanism-identity-v1`.
 
 Активный трек: `question-engine-development`.
 
-Канонический следующий bounded-шаг: `question-engine-repeatable-mechanism-identity-v1`.
+Канонический следующий bounded-шаг: `question-engine-finding-resolution-v1`.
 
 Этот документ вместе с `docs/OCR_PROJECT_STATE.json` является канонической operational-точкой восстановления проекта. Binding architecture/security/privacy documents задают обязательные границы; текущие `active_track` и `next_step_id` выбираются только state-файлами.
 
-## 1. Current change — PR #252 answer-state separation
+## 1. Current change — PR #253 repeatable mechanism identity
 
 Owner-requested Codex batch audit диапазона `cbbb8e0905c1fda8610260d4046b51952a9f636c` → `ee66e0063e270abd5eb7992f2be73c89dbec3a5d` завершён с итогом `CORRECTIVE PR REQUIRED`.
 
@@ -19,52 +19,69 @@ Owner-requested Codex batch audit диапазона `cbbb8e0905c1fda8610260d404
 - простой fact извлекается как support/dependency input только когда materially нужен для более глубокого анализа, deterministic calculation, statutory gate или cross-clause resolution;
 - обнаруженное формальное несоответствие не обязано становиться finding, если оно не меняет существенный механизм для пользователя.
 
-PR #251 уже добавил provider-independent `analysis completeness` gate: unrelated/unconfirmed document type блокируется fail-closed; отсутствующие analysis-relevant дополнительные документы делают только зависимые области `PARTIAL`.
+PR #251 добавил provider-independent `analysis completeness` gate: unrelated/unconfirmed document type блокируется fail-closed; отсутствующие analysis-relevant дополнительные документы делают только зависимые области `PARTIAL`.
 
-PR #252 реализует второй accepted corrective slice: вместо одного перегруженного enum `AnswerState` вводится минимальный orthogonal answer envelope.
+PR #252 разделил перегруженный answer state на независимые оси:
 
-Новые независимые оси:
+- `PresenceStatus`;
+- `ValueStatus`;
+- `EvidenceStatus`;
+- `SourceStatus`;
+- `DocumentLifecycle`.
 
-- `PresenceStatus`: `PRESENT / ABSENT / UNKNOWN`;
-- `ValueStatus`: `PROVIDED / OMITTED / BLANK / UNKNOWN`;
-- `EvidenceStatus`: `SUFFICIENT / HANDWRITING_DEPENDENCY / MISSING_DEPENDENCY / UNREADABLE`;
-- `SourceStatus`: `CLEAR / AMBIGUOUS / CONTRADICTORY`;
-- `DocumentLifecycle`: `UNKNOWN / TEMPLATE / DRAFT / EXECUTED`.
+PR #253 реализует третий accepted corrective slice: стабильную локальную identity/cardinality для повторяющихся smart mechanisms.
 
-`AnswerState` теперь frozen dataclass, который хранит эти оси вместе, не смешивая их в одно значение.
+Минимальный reusable contract:
+
+```text
+MechanismCollection
+  domain
+  mechanisms[]
+  cardinality
+
+MechanismInstance
+  mechanism_id
+  mechanism_type
+  properties[]
+
+MechanismProperty
+  name
+  value
+  state: AnswerState
+```
 
 Главный semantic effect:
 
-- handwriting dependency больше не превращается в отсутствие механизма;
-- source ambiguity больше не притворяется evidence failure;
-- blank value остаётся blank value, а смысл blank определяется отдельно lifecycle-контекстом;
-- поэтому `BLANK + TEMPLATE/DRAFT` и `BLANK + EXECUTED` различимы без создания комбинированных enum вроде `SIGNED_BLANK`.
+- несколько security instruments больше не должны представляться только как независимые parallel arrays;
+- amount, blank state, payee, trigger, return mechanics и другие properties могут быть привязаны к конкретному `mechanism_id`;
+- IDs уникальны внутри `MechanismCollection`;
+- property names уникальны внутри одного instance;
+- identity-only instance разрешён для первого inventory pass, до заполнения properties;
+- typed values, evidence refs и provider output contract в этом PR намеренно не добавляются.
 
-PR #252 намеренно не добавляет model confidence, applicability runtime, typed values/units, stable mechanism IDs, relation graph, evidence refs, statutory runtime, ranking/UI, provider integration, OCR, storage, network, dependencies, permissions или workflows.
+Security используется как stress-test family, но schema остаётся reusable для других repeatable smart mechanisms. Существующие six smart inventories в PR #253 массово не мигрируются.
 
-Существующие six smart CORE inventories в этом PR массово не мигрируются.
+PR #253 не добавляет provider/runtime integration, statutory runtime, finding resolution, ranking/UI, OCR, Android, serverless, storage, network destinations, dependencies, permissions или workflows.
 
 ## 2. Canonical next step
 
-`next_step_id = question-engine-repeatable-mechanism-identity-v1`
+`next_step_id = question-engine-finding-resolution-v1`
 
-Следующий bounded corrective slice должен решить accepted audit finding о repeatable mechanism identity/cardinality.
+Следующий bounded corrective slice должен превратить архитектурный принцип `CONFIRMED / NARROWED / CLEARED` в минимальный structured result contract.
 
 Минимальный scope следующего PR:
 
-- дать повторяющимся smart mechanisms стабильный local ID;
-- не хранить properties нескольких security instruments как не связанные parallel arrays;
-- обеспечить, чтобы type/amount/blank/payee/trigger/return и другие properties оставались привязаны к одному и тому же instrument/mechanism;
-- начать с минимального reusable contract, достаточного для security как самого сложного stress-test family;
-- не строить universal legal graph;
-- не мигрировать все families одним большим PR;
-- не добавлять provider runtime, statutory runtime, finding resolution, ranking/UI, OCR или инфраструктуру.
+- представить candidate finding отдельно от результата second-pass review;
+- разрешить три outcomes: `CONFIRMED`, `NARROWED`, `CLEARED`;
+- сохранить ссылки на то, какие related mechanism facts/clauses изменили исход кандидата, без universal relation graph;
+- не считать найденную пугающую фразу автоматически финальным finding;
+- не добавлять provider runtime, statutory runtime, ranking/UI, OCR или инфраструктуру;
+- не строить широкую remediation/legal ontology.
 
 Дальнейшая accepted corrective sequence после этого шага:
 
-1. structured `CONFIRMED / NARROWED / CLEARED` relation model;
-2. smart-analysis corpus с различными способами выражения/маскировки одного механизма;
-3. первый bounded contract-fact provider experiment.
+1. smart-analysis corpus с различными способами выражения/маскировки одного механизма;
+2. первый bounded contract-fact provider experiment.
 
 ## 3. Required reading order
 
@@ -140,9 +157,7 @@ privacy-validated sanitized contract material
 
 PR #251 добавляет gate перед этими inventories.
 
-PR #252 меняет только schema semantics вокруг будущего answer object. `QuestionSpec(question_id, domain, purpose, answer_fields)` и `QuestionInventory` остаются прежними.
-
-Текущий answer-state contract:
+Текущий answer-state contract после PR #252:
 
 ```text
 AnswerState
@@ -153,7 +168,17 @@ AnswerState
   lifecycle: DocumentLifecycle
 ```
 
-Model confidence, applicability, provenance, evidence refs и typed values пока не входят в этот bounded schema slice.
+Repeatable-mechanism contract после PR #253:
+
+```text
+MechanismCollection(domain, mechanisms)
+MechanismInstance(mechanism_id, mechanism_type, properties)
+MechanismProperty(name, value, state)
+```
+
+`QuestionSpec(question_id, domain, purpose, answer_fields)` и `QuestionInventory` остаются прежними. Existing inventories ещё являются static question definitions; provider execution отсутствует.
+
+Model confidence, applicability, provenance, deterministic evidence refs и typed values пока не входят в bounded schema.
 
 ## 6. Current mechanism classification
 
@@ -187,11 +212,11 @@ Current statutory authority должен разрешаться из актуа�
 
 2017 residential-rental reform — Amendment No. 1, effective `2017-09-17`, а не отдельный evergreen statute. Repository snapshot 2017 года является historical engineering snapshot, а не current-law authority сам по себе.
 
-Maintained baseline отдельно предупреждает о 2026 amendment timing для section `25י`; therefore future runtime must version statutory rules by effective date.
+Maintained baseline отдельно предупреждает о 2026 amendment timing для section `25י`; future runtime должен version statutory rules by effective date.
 
 Если freshness/applicability/effective date не могут быть безопасно установлены, future runtime должен деградировать к contract-only analysis, а не утверждать устаревшую норму.
 
-PR #252 statutory runtime или current-law claims не добавляет.
+PR #253 statutory runtime или current-law claims не добавляет.
 
 ## 8. Privacy and security invariants
 
@@ -201,7 +226,7 @@ Restricted material не должен попадать в GitHub/CI, Airtable, a
 
 Persistent fixtures/research artifacts должны быть sanitized до commit. Handwriting не угадывается. Monetary amounts, dates, clause numbers, notice periods и legally relevant printed wording не являются PII по умолчанию, когда их можно безопасно отделить от идентификаторов.
 
-PR #252 меняет только provider-independent standard-library schema, focused tests и state metadata. Он не добавляет raw contract material, PII, credentials, provider configuration, persistence, network behavior или новый privacy boundary.
+PR #253 меняет только provider-independent standard-library schema, focused tests и state metadata. Он не добавляет raw contract material, PII, credentials, provider configuration, persistence, network behavior или новый privacy boundary.
 
 Repository остаётся pre-production. Production use с real contracts остаётся blocked до реализации и проверки applicable consent, authorization, encryption/key lifecycle, Israel-only restricted-data processing, deletion/retention, logging, provider terms, abuse/resource controls и incident response.
 
@@ -254,7 +279,8 @@ Question Engine continuity:
 - PR #249 — termination/cure/notice/vacancy inventory;
 - PR #250 — option/renewal inventory and completion of current six-family CORE coverage;
 - PR #251 — analysis completeness/document-type gate;
-- PR #252 — minimal orthogonal answer-state separation.
+- PR #252 — minimal orthogonal answer-state separation;
+- PR #253 — stable local identity/cardinality for repeatable smart mechanisms.
 
 Ни один из перечисленных Question Engine PR не доказывает production provider/runtime behavior.
 
@@ -276,22 +302,22 @@ Question Engine continuity:
 
 Implementation-size rule remains binding: target no more than 300 changed implementation lines per PR and treat 400 as the normal hard limit.
 
-## 13. PR #252 validation target
+## 13. PR #253 validation target
 
-Before Ready, PR #252 must verify:
+Before Ready, PR #253 must verify:
 
 - changed paths exactly match its Context Gate;
-- branch is based on merged PR #251 / current `main`;
-- both state files identify PR #252 / `question-engine-answer-state-separation-v1` and select `question-engine-repeatable-mechanism-identity-v1` as next bounded step;
-- old hybrid enum states are not retained as the only answer representation;
-- presence, value, evidence, source consistency and document lifecycle are independently representable;
-- `BLANK + TEMPLATE/DRAFT` and `BLANK + EXECUTED` are distinguishable without inventing combined enum values;
-- handwriting dependency does not erase a separately known `PRESENT` mechanism;
-- source ambiguity can coexist with sufficient evidence and therefore is not collapsed into an evidence failure;
-- raw string values cannot silently bypass enum typing in the frozen answer envelope;
-- existing `QuestionSpec` and `QuestionInventory` behavior remains intact;
-- existing smart inventories are not mass-migrated in this PR;
-- no provider/runtime integration, stable repeated-mechanism IDs, finding-resolution logic, statutory runtime, ranking/UI, OCR, storage, network, dependency, permission or workflow change is introduced;
+- branch is based on merged PR #252 / current `main`;
+- both state files identify PR #253 / `question-engine-repeatable-mechanism-identity-v1` and select `question-engine-finding-resolution-v1` as next bounded step;
+- repeatable mechanisms have unique collection-local `mechanism_id` values;
+- each mechanism keeps its own `mechanism_type` and properties together;
+- each property keeps its own `AnswerState`;
+- duplicate mechanism IDs and duplicate property names are rejected;
+- an identity-only first-pass mechanism instance is allowed;
+- a security stress test proves that amount/blank/return values for two instruments do not collapse into parallel arrays or drift between instances;
+- existing `AnswerState`, `QuestionSpec`, and `QuestionInventory` behavior remains intact;
+- existing inventories are not mass-migrated in this PR;
+- no provider/runtime integration, finding-resolution logic, statutory runtime, ranking/UI, OCR, storage, network, dependency, permission or workflow change is introduced;
 - no raw/unsanitized contract material, raw OCR, handwriting reconstruction, party identifiers, exact address, phone/email/ID, signatures, guarantor identifying data, bank/account/check images, credentials or secrets are added;
 - focused tests and Python compilation pass on exact final head content;
 - final security review passes on exact final head.

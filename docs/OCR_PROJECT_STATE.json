@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-09-103",
+  "state_version": "privacy-ocr-2026-09-09-104",
   "active_track": "question-engine-development",
-  "next_step_id": "question-engine-repeatable-mechanism-identity-v1",
-  "next_step_summary": "PR #252 implements the second accepted post-audit correction by replacing the overloaded single AnswerState enum with a minimal orthogonal envelope: presence status, value status, evidence status, source status, and document lifecycle. This keeps handwriting dependency and source ambiguity separate from presence/absence and lets the same BLANK value be interpreted differently in TEMPLATE/DRAFT versus EXECUTED material when lifecycle is known. Existing smart inventories are not migrated in this PR, and no provider/runtime, statutory, ranking/UI, OCR, storage, network, dependency, permission, or workflow behavior is added. The next bounded corrective slice adds stable identity/cardinality for repeatable smart mechanisms so amounts, blanks, triggers, and other properties cannot drift between multiple security instruments or similar repeated entities.",
-  "last_recorded_pr": 252,
-  "last_recorded_change": "question-engine-answer-state-separation-v1",
+  "next_step_id": "question-engine-finding-resolution-v1",
+  "next_step_summary": "PR #253 implements the third accepted post-audit correction by adding a minimal repeatable-mechanism schema: MechanismCollection owns collection-local unique mechanism IDs, each MechanismInstance keeps its mechanism type and properties together, and each MechanismProperty carries its own AnswerState. Security is the stress-test family, so multiple security instruments can no longer be modeled only as unrelated parallel arrays that allow amount, blank, payee, trigger, or return properties to drift between instruments. The schema remains provider-independent and intentionally leaves typed values, evidence references, provider runtime, statutory runtime, and mass migration of all inventories for later bounded work. The next corrective slice structures CONFIRMED / NARROWED / CLEARED finding resolution so a candidate concern can be narrowed or removed after cross-clause review.",
+  "last_recorded_pr": 253,
+  "last_recorded_change": "question-engine-repeatable-mechanism-identity-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-09-09"
