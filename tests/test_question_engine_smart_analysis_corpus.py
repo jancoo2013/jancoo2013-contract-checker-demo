@@ -45,8 +45,14 @@ class SmartAnalysisCorpusTests(unittest.TestCase):
         for case in self.cases:
             with self.subTest(case_id=case["case_id"]):
                 self.assertIn(case["basis"], allowed_basis)
+                self.assertTrue(case["target_question_ids"])
                 self.assertTrue(case["clauses"])
                 self.assertEqual(set(case["expected"]), expected_keys)
+                for question_id in case["target_question_ids"]:
+                    self.assertRegex(
+                        question_id,
+                        r"^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$",
+                    )
 
                 refs = [clause["ref"] for clause in case["clauses"]]
                 self.assertEqual(len(refs), len(set(refs)))
