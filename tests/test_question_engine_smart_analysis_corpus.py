@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import unittest
 
+# Oracle v2 correction in progress.
 
 CORPUS_PATH = (
     Path(__file__).resolve().parents[1]
