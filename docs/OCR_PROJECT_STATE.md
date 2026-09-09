@@ -1,6 +1,6 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-09-09, PR #255, `question-engine-smart-analysis-corpus-v1`.
+Последнее обновление: 2026-09-09, PR #256, `question-engine-smart-analysis-corpus-oracle-v2`.
 
 Активный трек: `question-engine-development`.
 
@@ -8,63 +8,59 @@
 
 Этот документ вместе с `docs/OCR_PROJECT_STATE.json` является канонической operational-точкой восстановления проекта. Binding architecture/security/privacy documents задают обязательные границы; текущие `active_track` и `next_step_id` выбираются только state-файлами.
 
-## 1. Current change — PR #255 smart-analysis corpus v1
+## 1. Current change — PR #256 smart-analysis corpus oracle v2
 
-После owner review Codex batch audit сохранена ключевая продуктовая коррекция:
+Ключевая продуктовая рамка не меняется:
 
-- продукт не должен становиться универсальным пересказчиком договора;
-- очевидные пользователю facts не становятся пользовательским `CORE` только потому, что присутствуют в договоре;
-- простой fact извлекается как support/dependency input только когда materially нужен для более глубокого анализа, deterministic calculation, statutory gate или cross-clause resolution;
-- обнаруженное формальное несоответствие не обязано становиться finding, если оно не меняет существенный механизм для пользователя.
+- приложение не является универсальным пересказчиком договора;
+- пользователь считается способным самостоятельно понять очевидные факты вроде своей роли, обычной суммы аренды и явных дат;
+- простой fact извлекается только если он нужен как input для более глубокого smart-analysis вывода, расчёта, statutory gate или cross-clause resolution;
+- найденная странность не обязана становиться user-facing finding, если она не меняет существенный механизм;
+- ценность продукта — замечать неочевидные связи, рисковые механизмы, missing evidence и практические последствия, которые легко пропустить при обычном чтении.
 
-Post-audit corrective foundation теперь включает:
+После PR #255 был проведён узкий semantic audit только качества `smart_analysis_corpus_v1.json`. Аудит не требовал расширять продукт до полного парсера; наоборот, он подтвердил selective-intelligence подход, но выявил, что corpus v1 слишком легко проходится поверхностным matcher и местами имеет слишком грубый oracle.
 
-1. PR #251 — `analysis completeness` / document-type gate: unrelated/unconfirmed document type блокируется fail-closed; missing analysis-relevant documents делают только зависимые области `PARTIAL`.
-2. PR #252 — answer-state separation: presence, value, evidence, source consistency и lifecycle представлены независимо.
-3. PR #253 — repeatable mechanism identity: properties нескольких security instruments остаются привязаны к конкретному local `mechanism_id`.
-4. PR #254 — finding resolution: candidate concern отделён от second-pass result и не становится финальным finding до cross-clause review.
-5. PR #255 — первый smart-analysis evaluation corpus.
+PR #256 — owner-authorized bounded corrective exception перед первым provider experiment.
 
-PR #255 добавляет `research/question_engine/smart_analysis_corpus_v1.json` как небольшой sanitized/synthetic oracle из 14 semantic counterexamples. Это не training data и не generic full-lease corpus.
+Главные исправления:
 
-Корпус покрывает:
+- единый global expected state заменён на sparse assertions, привязанные к конкретным `question_id`, при необходимости `mechanism_id` и конкретному answer field;
+- oracle теперь проверяет фактическое содержание: instrument type, amount, blank field, notice/cure, trigger, return deadline, overlap relationship и другие только реально нужные tested values;
+- `CONFIRMED / NARROWED / CLEARED` всегда относится к явно заданному candidate claim, а не к case name;
+- package completeness, missing documents и handwriting/redaction signals вынесены из Hebrew clauses в structured corpus metadata;
+- `ABSENT` допустим только если case явно объявляет полный relevant search scope для этого question;
+- исправлен ранний exit case: continuing liability теперь `PRESENT`, а replacement route отдельно `ABSENT` только при complete scope;
+- прежний псевдо-conflict двух party roles заменён на настоящий mutually exclusive completion-authority conflict;
+- linking cases содержат distractors, поэтому стратегия «вернуть все refs» больше не должна проходить;
+- multi-instrument cases проверяют, что суммы, blank states, notice rules и return rules не мигрируют между security instruments;
+- добавлен scoped case, где notice применяется к одному security instrument, но не к другому;
+- добавлен cumulative recovery-overlap case для rent cheque + security cheque;
+- добавлен case, где referenced security document присутствует, но ожидаемая сумма в нём отсутствует.
 
-- одинаковый security concern, который после related-clause review заканчивается `CONFIRMED`, `NARROWED` или `CLEARED`;
-- несколько одновременно существующих security instruments с раздельной identity;
-- missing security instrument / missing appendix dependency;
-- одинаковый blank в `TEMPLATE` и `EXECUTED` lifecycle;
-- handwriting dependency без реконструкции или угадывания рукописи;
-- один security mechanism, размазанный по нескольким distant clauses;
-- contradictory party-role wording;
-- apparent option, которая требует landlord consent;
-- materially relevant `ABSENT` early-exit route;
-- condition/defect analysis, ограниченный отсутствующим appendix;
-- repair concern, который сужается другой clause.
+Artifact сохраняет историческое имя `research/question_engine/smart_analysis_corpus_v1.json`, но его внутренний `schema_version` теперь `2`. Это corpus oracle v2, не новый production schema.
 
-Для каждого case заранее зафиксирован ручной expected semantic oracle: presence/value/evidence/source state, optional finding outcome, expected mechanism IDs и refs, которые должны быть связаны анализом.
+Corpus содержит 16 bounded synthetic/sanitized cases. Это evaluation oracle, не training data и не generic full-contract dataset.
 
-Focused integrity tests проверяют структуру corpus, уникальность case/ref IDs, coverage трёх finding outcomes, blank lifecycle pair, handwriting dependency, repeatable security identity, missing dependency, contradiction, materially relevant ABSENT case и отсутствие очевидного contact/identity payload.
-
-PR #255 не добавляет provider/runtime calls, statutory runtime, OCR, Android, serverless, storage, network destinations, dependencies, permissions, workflows, ranking/UI или broad full-contract parser.
+PR #256 не добавляет provider/runtime calls, statutory runtime, OCR, Android, serverless, storage, network destinations, dependencies, permissions, workflows, ranking/UI или broad full-contract parser.
 
 ## 2. Canonical next step
 
 `next_step_id = question-engine-security-provider-experiment-v1`
 
-Следующий bounded-шаг — первый реальный contract-fact provider experiment, ограниченный security family и только sanitized/synthetic corpus material.
+Следующий bounded-шаг — первый реальный provider experiment, ограниченный security family и только sanitized/synthetic corpus material.
 
-Цель эксперимента — не «проанализировать договор целиком», а проверить, может ли модель стабильно:
+Цель эксперимента — проверить, может ли модель стабильно:
 
 - различать несколько security instruments и сохранять их identity;
-- возвращать значения вместе с правильными `AnswerState` axes;
-- не угадывать handwriting/missing dependencies;
-- связывать distant clauses;
-- создавать candidate concern отдельно от `CONFIRMED / NARROWED / CLEARED` second-pass result;
-- не превращать generic clause presence в user-facing finding без cross-clause review.
+- извлекать только нужные tested values без смешивания между instruments;
+- правильно различать blank, missing dependency и handwriting dependency;
+- связывать distant clauses и игнорировать distractors;
+- понимать, к какому instrument относится notice/cure/return rule;
+- распознавать cumulative recovery overlap;
+- создавать candidate concern отдельно от second-pass `CONFIRMED / NARROWED / CLEARED` result;
+- не выдумывать missing document contents или handwritten values.
 
-Эксперимент должен измерить реальные failure modes и только после этого решить, нужны ли дополнительные fields в LLM↔Python contract, например deterministic evidence refs, typed values или отдельный confidence signal.
-
-Не проектировать эти расширения заранее без provider evidence.
+Эксперимент должен дать реальные failure modes. Только после него решается, нужны ли изменения LLM↔Python contract. Не проектировать дополнительные fields, confidence, typed-value framework или broad ontology заранее без provider evidence.
 
 ## 3. Required reading order
 
@@ -90,7 +86,7 @@ Question Engine context, когда применимо:
 - `research/question_engine/golden_contracts/contract_001.meta.json`;
 - `research/question_engine/smart_analysis_corpus_v1.json`.
 
-Research-only dispute/practice artifacts не являются authority и не могут переопределять verified contract evidence, current law, binding docs или canonical state.
+Research-only artifacts не являются authority и не могут переопределять verified contract evidence, current law, binding docs или canonical state.
 
 ## 4. Current Question Engine architecture
 
@@ -112,7 +108,7 @@ privacy-validated sanitized contract material
 
 Главные invariants:
 
-- продукт предназначен прежде всего для нормального заключения договора и предотвращения будущих конфликтов;
+- продукт ориентирован прежде всего на нормальное заключение договора и предотвращение будущих конфликтов;
 - Question Engine не обязан извлекать или показывать банальный fact, если он не нужен для более глубокого анализа;
 - обнаруженность mechanism/inconsistency сама по себе не является основанием показывать её пользователю;
 - contract facts, statutory rules, dispute/practice research, Question Engine decisions и product explanation остаются разными слоями;
@@ -126,7 +122,7 @@ privacy-validated sanitized contract material
 
 ## 5. Current schema and smart inventories
 
-После PR #250 реализованы шесть provider-independent smart `CORE` inventory slices:
+После PR #250 реализованы шесть provider-independent smart `CORE` families:
 
 1. security and enforcement + monthly-rent support baseline;
 2. early exit + replacement tenant;
@@ -160,7 +156,9 @@ FindingOutcome = CONFIRMED | NARROWED | CLEARED
 
 `QuestionSpec` и `QuestionInventory` остаются static question definitions; provider execution пока отсутствует.
 
-Model confidence, statutory applicability result, deterministic evidence refs, provenance graph и typed monetary/date values пока не входят в bounded runtime schema.
+Corpus oracle v2 является evaluation representation, а не production runtime schema. Он намеренно sparse и описывает только assertions, нужные конкретному testcase.
+
+Model confidence, statutory applicability result, production deterministic evidence refs, provenance graph и universal typed monetary/date framework пока не входят в bounded runtime schema.
 
 ## 6. Mechanism classification
 
@@ -198,7 +196,7 @@ Maintained baseline предупреждает о 2026 amendment timing для s
 
 Если freshness/applicability/effective date не могут быть безопасно установлены, runtime должен деградировать к contract-only analysis, а не утверждать устаревшую норму.
 
-PR #255 statutory runtime/current-law claims не добавляет.
+PR #256 statutory runtime/current-law claims не добавляет.
 
 ## 8. Privacy and security invariants
 
@@ -208,7 +206,7 @@ Restricted material не должен попадать в GitHub/CI, analytics/c
 
 Persistent fixtures/research artifacts должны быть sanitized до commit. Handwriting не угадывается. Monetary amounts, dates, clause numbers, notice periods и legally relevant printed wording не являются PII по умолчанию, когда безопасно отделены от identifiers.
 
-PR #255 содержит только synthetic/sanitized Hebrew clauses, expected semantic metadata, focused tests и state metadata. Он не добавляет raw contracts, raw OCR, user identifiers, credentials, provider configuration, persistence, network behavior или новый privacy boundary.
+PR #256 содержит только synthetic/sanitized Hebrew clauses, structured synthetic package/redaction metadata, expected semantic assertions, focused tests и state metadata. Он не добавляет raw contracts, raw OCR, user identifiers, credentials, provider configuration, persistence, network behavior или новый privacy boundary.
 
 Repository остаётся pre-production. Production use с real contracts blocked до реализации и проверки applicable consent, authorization, encryption/key lifecycle, Israel-only restricted-data processing, deletion/retention, logging, provider terms, abuse/resource controls и incident response.
 
@@ -239,7 +237,10 @@ Question Engine continuity:
 - PR #252 — orthogonal answer-state separation;
 - PR #253 — repeatable mechanism identity;
 - PR #254 — structured finding resolution;
-- PR #255 — smart-analysis evaluation corpus v1.
+- PR #255 — smart-analysis evaluation corpus v1;
+- PR #256 — corpus oracle v2 semantic correction after narrow corpus audit.
+
+The narrow post-#255 corpus audit found no reason to broaden the product into generic lease parsing. Its actionable result was to make the evaluation oracle harder and more semantically precise before the provider experiment.
 
 Ни один из этих PR не доказывает production provider/runtime behavior.
 
@@ -250,7 +251,7 @@ Question Engine continuity:
 1. read current binding/state/index documents from `main`;
 2. check overlapping open PRs;
 3. publish exactly one Context Gate v1;
-4. implement only the permitted bounded step;
+4. implement only the permitted bounded step or explicit owner-authorized bounded exception;
 5. open PR as Draft;
 6. update both state files after PR number exists;
 7. run final validation on exact final head;
@@ -261,23 +262,28 @@ Question Engine continuity:
 
 Current owner authorization permits the orchestrating assistant to merge subsequent project PRs after final validation/security review. Auto-merge remains disabled.
 
-Implementation-size rule: target <=300 changed implementation lines per PR; 400 is the normal hard limit.
+Implementation-size rule: target <=300 changed implementation lines per PR; 400 is the normal hard limit. Corpus fixture data is not implementation code, but test/implementation code should remain bounded.
 
-## 12. PR #255 validation target
+## 12. PR #256 validation target
 
-Before Ready/merge, PR #255 must verify:
+Before Ready/merge, PR #256 must verify:
 
 - changed paths exactly match Context Gate;
-- branch is based on merged PR #254 / current `main`;
-- both state files identify PR #255 and `question-engine-smart-analysis-corpus-v1`;
-- next step is `question-engine-security-provider-experiment-v1`;
-- corpus contains 12–15 bounded cases with unique IDs;
+- branch is based on merged PR #255 / current `main`;
+- both state files identify PR #256 and `question-engine-smart-analysis-corpus-oracle-v2`;
+- next step remains `question-engine-security-provider-experiment-v1`;
+- corpus JSON parses with `schema_version = 2`;
+- every assertion targets an existing current `QuestionSpec` and valid answer field in the same domain;
+- omitted state axes inherit explicit corpus defaults and all effective states use current enum values;
+- `ABSENT` assertions require declared complete scope;
+- every resolution has an explicit candidate claim and valid source refs;
+- package/handwriting signals are structured outside Hebrew clauses;
+- template blank and executed blank remain a controlled pair;
+- multiple security instruments preserve distinct amounts/blanks/notice/return properties;
+- linking stress case contains distractors and does not reward returning every input ref;
+- corrected early-exit and true contradiction cases are represented;
+- security recovery overlap and present-but-incomplete referenced document cases are represented;
 - all corpus material is synthetic/sanitized and contains no recoverable PII;
-- `CONFIRMED`, `NARROWED`, `CLEARED` are all represented;
-- template blank and executed blank are separate cases with identical clause text but different lifecycle;
-- handwriting case remains unresolved and contains no reconstructed handwriting;
-- multiple security instruments preserve distinct mechanism IDs;
-- missing dependency, contradiction, distant-clause composition and materially relevant ABSENT behavior are represented;
 - no provider/runtime call, statutory runtime, ranking/UI, OCR, storage, network, dependency, permission or workflow change is introduced;
-- corpus JSON parses and focused tests pass on exact final head;
+- corpus JSON, focused tests and Python compilation pass on exact final head;
 - final security review passes on exact final head.
