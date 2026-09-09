@@ -10,6 +10,9 @@ from contract_checker.question_engine import (
     AnswerState,
     DocumentLifecycle,
     EvidenceStatus,
+    FindingCandidate,
+    FindingOutcome,
+    FindingResolution,
     MechanismCollection,
     MechanismInstance,
     MechanismProperty,
@@ -42,6 +45,16 @@ def _answer(**overrides: object) -> AnswerState:
     }
     values.update(overrides)
     return AnswerState(**values)  # type: ignore[arg-type]
+
+
+def _candidate(**overrides: object) -> FindingCandidate:
+    values: dict[str, object] = {
+        "finding_id": "security_broad_trigger_1",
+        "domain": "security",
+        "subject_refs": ("security_1",),
+    }
+    values.update(overrides)
+    return FindingCandidate(**values)  # type: ignore[arg-type]
 
 
 class AnswerStateTests(unittest.TestCase):
@@ -183,6 +196,77 @@ class MechanismIdentityTests(unittest.TestCase):
             MechanismProperty("amount", 10000, "FOUND")  # type: ignore[arg-type]
 
 
+class FindingResolutionTests(unittest.TestCase):
+    def test_outcomes_are_exactly_confirmed_narrowed_cleared(self) -> None:
+        self.assertEqual(
+            [member.value for member in FindingOutcome],
+            ["CONFIRMED", "NARROWED", "CLEARED"],
+        )
+
+    def test_candidate_is_separate_from_second_pass_resolution(self) -> None:
+        candidate = _candidate()
+        resolution = FindingResolution(
+            candidate=candidate,
+            outcome=FindingOutcome.NARROWED,
+            reviewed_refs=("security_1", "termination_notice_cure"),
+            resolution_summary="A related notice/cure rule narrows the initial concern.",
+        )
+
+        self.assertIs(resolution.candidate, candidate)
+        self.assertEqual(candidate.subject_refs, ("security_1",))
+        self.assertEqual(resolution.outcome, FindingOutcome.NARROWED)
+        self.assertEqual(
+            resolution.reviewed_refs,
+            ("security_1", "termination_notice_cure"),
+        )
+        with self.assertRaises(FrozenInstanceError):
+            resolution.outcome = FindingOutcome.CONFIRMED  # type: ignore[misc]
+
+    def test_cleared_candidate_remains_a_candidate_not_a_final_finding(self) -> None:
+        candidate = _candidate(finding_id="security_notice_candidate_1")
+        resolution = FindingResolution(
+            candidate=candidate,
+            outcome=FindingOutcome.CLEARED,
+            reviewed_refs=("security_1", "security_notice_rule"),
+            resolution_summary="The related clause supplies the missing safeguard.",
+        )
+
+        self.assertEqual(resolution.outcome, FindingOutcome.CLEARED)
+        self.assertEqual(candidate.finding_id, "security_notice_candidate_1")
+
+    def test_candidate_requires_valid_identity_and_subject_refs(self) -> None:
+        with self.assertRaisesRegex(ValueError, "finding_id"):
+            _candidate(finding_id="Security-1")
+        with self.assertRaisesRegex(ValueError, "subject_refs must not be empty"):
+            _candidate(subject_refs=())
+        with self.assertRaisesRegex(ValueError, "subject_refs must not contain duplicates"):
+            _candidate(subject_refs=("security_1", "security_1"))
+
+    def test_resolution_rejects_raw_outcome_and_invalid_review_data(self) -> None:
+        candidate = _candidate()
+        with self.assertRaisesRegex(ValueError, "outcome must be a FindingOutcome"):
+            FindingResolution(
+                candidate=candidate,
+                outcome="CONFIRMED",  # type: ignore[arg-type]
+                reviewed_refs=("security_1",),
+                resolution_summary="Reviewed.",
+            )
+        with self.assertRaisesRegex(ValueError, "reviewed_refs must not be empty"):
+            FindingResolution(
+                candidate=candidate,
+                outcome=FindingOutcome.CONFIRMED,
+                reviewed_refs=(),
+                resolution_summary="Reviewed.",
+            )
+        with self.assertRaisesRegex(ValueError, "resolution_summary must not be empty"):
+            FindingResolution(
+                candidate=candidate,
+                outcome=FindingOutcome.CONFIRMED,
+                reviewed_refs=("security_1",),
+                resolution_summary="   ",
+            )
+
+
 class QuestionSpecTests(unittest.TestCase):
     def test_fields_are_exact_and_values_are_immutable(self) -> None:
         question = _question(answer_fields=["amount", "currency"])
@@ -284,6 +368,9 @@ class QuestionInventoryTests(unittest.TestCase):
                 "AnswerState",
                 "DocumentLifecycle",
                 "EvidenceStatus",
+                "FindingCandidate",
+                "FindingOutcome",
+                "FindingResolution",
                 "MechanismCollection",
                 "MechanismInstance",
                 "MechanismProperty",

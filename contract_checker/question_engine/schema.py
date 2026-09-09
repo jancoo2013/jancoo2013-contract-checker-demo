@@ -87,6 +87,17 @@ def _as_tuple(value: object, *, field_name: str) -> tuple[object, ...]:
     return tuple(value)
 
 
+def _as_reference_tuple(value: object, *, field_name: str) -> tuple[str, ...]:
+    references = _as_tuple(value, field_name=field_name)
+    if not references:
+        raise ValueError(f"{field_name} must not be empty")
+    if not all(isinstance(item, str) and item.strip() for item in references):
+        raise ValueError(f"{field_name} must contain only non-empty strings")
+    if len(set(references)) != len(references):
+        raise ValueError(f"{field_name} must not contain duplicates")
+    return references  # type: ignore[return-value]
+
+
 @dataclass(frozen=True)
 class MechanismProperty:
     """One named property attached to one repeatable mechanism instance."""
@@ -155,6 +166,60 @@ class MechanismCollection:
         return len(self.mechanisms)
 
 
+class FindingOutcome(str, Enum):
+    """Second-pass outcome for a candidate finding."""
+
+    CONFIRMED = "CONFIRMED"
+    NARROWED = "NARROWED"
+    CLEARED = "CLEARED"
+
+
+@dataclass(frozen=True)
+class FindingCandidate:
+    """A concern detected before related clauses/mechanisms are reviewed."""
+
+    finding_id: str
+    domain: str
+    subject_refs: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        if (
+            not isinstance(self.finding_id, str)
+            or not _SNAKE_CASE_PATTERN.fullmatch(self.finding_id)
+        ):
+            raise ValueError("finding_id must be a snake_case identifier")
+        if not isinstance(self.domain, str) or not _SNAKE_CASE_PATTERN.fullmatch(self.domain):
+            raise ValueError("domain must be a snake_case identifier")
+        object.__setattr__(
+            self,
+            "subject_refs",
+            _as_reference_tuple(self.subject_refs, field_name="subject_refs"),
+        )
+
+
+@dataclass(frozen=True)
+class FindingResolution:
+    """Second-pass result after relevant facts/clauses have been reviewed."""
+
+    candidate: FindingCandidate
+    outcome: FindingOutcome
+    reviewed_refs: tuple[str, ...]
+    resolution_summary: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.candidate, FindingCandidate):
+            raise ValueError("candidate must be a FindingCandidate")
+        if not isinstance(self.outcome, FindingOutcome):
+            raise ValueError("outcome must be a FindingOutcome")
+        object.__setattr__(
+            self,
+            "reviewed_refs",
+            _as_reference_tuple(self.reviewed_refs, field_name="reviewed_refs"),
+        )
+        if not isinstance(self.resolution_summary, str) or not self.resolution_summary.strip():
+            raise ValueError("resolution_summary must not be empty")
+
+
 @dataclass(frozen=True)
 class QuestionSpec:
     """Definition of one inventory question, without populated answers."""
@@ -221,6 +286,9 @@ __all__ = (
     "AnswerState",
     "DocumentLifecycle",
     "EvidenceStatus",
+    "FindingCandidate",
+    "FindingOutcome",
+    "FindingResolution",
     "MechanismCollection",
     "MechanismInstance",
     "MechanismProperty",
