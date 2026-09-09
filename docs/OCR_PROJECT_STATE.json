@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-09-104",
+  "state_version": "privacy-ocr-2026-09-09-105",
   "active_track": "question-engine-development",
-  "next_step_id": "question-engine-finding-resolution-v1",
-  "next_step_summary": "PR #253 implements the third accepted post-audit correction by adding a minimal repeatable-mechanism schema: MechanismCollection owns collection-local unique mechanism IDs, each MechanismInstance keeps its mechanism type and properties together, and each MechanismProperty carries its own AnswerState. Security is the stress-test family, so multiple security instruments can no longer be modeled only as unrelated parallel arrays that allow amount, blank, payee, trigger, or return properties to drift between instruments. The schema remains provider-independent and intentionally leaves typed values, evidence references, provider runtime, statutory runtime, and mass migration of all inventories for later bounded work. The next corrective slice structures CONFIRMED / NARROWED / CLEARED finding resolution so a candidate concern can be narrowed or removed after cross-clause review.",
-  "last_recorded_pr": 253,
-  "last_recorded_change": "question-engine-repeatable-mechanism-identity-v1",
+  "next_step_id": "question-engine-smart-analysis-corpus-v1",
+  "next_step_summary": "PR #254 implements the fourth accepted post-audit correction by adding a minimal structured finding-resolution contract. A FindingCandidate is now separate from its second-pass FindingResolution; the only resolution outcomes are CONFIRMED, NARROWED, and CLEARED; and the resolution records the related local/sanitized references reviewed plus an internal resolution summary. This prevents a merely detected concerning phrase from being treated as a final finding before cross-clause review. The change remains provider-independent and does not add a universal relation graph, statutory runtime, ranking/UI, OCR, or provider integration. The next bounded step builds a smart-analysis corpus focused on semantic counterexamples and cross-clause cases rather than generic lease summarization.",
+  "last_recorded_pr": 254,
+  "last_recorded_change": "question-engine-finding-resolution-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-09-09"
