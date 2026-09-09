@@ -33,7 +33,7 @@ PR #257 добавляет первый реальный provider-experiment har
 - API key читается только из `GEMINI_API_KEY` или локального `.env.local` на Desktop и не сохраняется в отчёт;
 - сохраняет локально JSON с полным synthetic/sanitized model output и короткий TXT summary рядом с `.env.local`;
 - предоставляет Windows launcher `run_security_provider_experiment.cmd`, чтобы эксперимент можно было запустить двойным щелчком без PowerShell/Android Studio;
-- удаляет случайно попавший в repository tree `.env.local`; `.gitignore` уже исключает `.env` и `.env.*`.
+- current `main` больше не содержит случайно закоммиченный `.env.local`; `.gitignore` уже исключает `.env` и `.env.*`, а PR #257 локальный secret-файл в repository tree не возвращает.
 
 В PR нет real contracts, raw OCR, recoverable PII, statutory runtime, OCR/Android/serverless изменений, production storage, UI behavior или production quality claim.
 
@@ -199,7 +199,7 @@ Restricted material не должен попадать в GitHub/CI, analytics/c
 
 Persistent fixtures/research artifacts должны быть sanitized до commit. Handwriting не угадывается. Monetary amounts, dates, clause numbers, notice periods и legally relevant printed wording не являются PII по умолчанию, когда безопасно отделены от identifiers.
 
-PR #257 отправляет provider только synthetic/sanitized corpus material. Он не использует real user contracts, raw OCR, user identifiers, signatures, bank/check identifiers или recoverable PII. Local API key не должен попадать в GitHub, output report или error text; tracked `.env.local` удаляется из current repository tree.
+PR #257 отправляет provider только synthetic/sanitized corpus material. Он не использует real user contracts, raw OCR, user identifiers, signatures, bank/check identifiers или recoverable PII. Local API key не должен попадать в GitHub, output report или error text; `.env.local` отсутствует в current PR diff/tree.
 
 Repository остаётся pre-production. Production use с real contracts blocked до реализации и проверки applicable consent, authorization, encryption/key lifecycle, Israel-only restricted-data processing, deletion/retention, logging, provider terms, abuse/resource controls и incident response.
 
@@ -263,10 +263,10 @@ Implementation-size rule: target <=300 changed implementation lines per PR; 400 
 Before Ready/merge, PR #257 must verify:
 
 - changed paths exactly match Context Gate;
-- branch is based on current `main` head `1d7a58d7f8be627eb3f982e4a9d88fb6cbd4c485`;
+- branch includes current `main` head `59da92f2385dbefc954ac2d5563a6cbdba5f2151` and is not behind it;
 - both state files identify PR #257 and `question-engine-security-provider-experiment-v1`;
 - next step is `question-engine-security-provider-experiment-local-run-v1`;
-- `.env.local` is absent from the PR final tree and remains ignored by `.gitignore`;
+- `.env.local` is absent from the PR final tree/diff and remains ignored by `.gitignore`;
 - experiment selection contains exactly 10 existing security-domain corpus cases;
 - expected oracle values/outcomes are not copied into provider input except the explicit candidate claim needed for second-pass resolution;
 - API key is read only from local environment/Desktop `.env.local`, never printed or persisted by the harness;
@@ -274,7 +274,7 @@ Before Ready/merge, PR #257 must verify:
 - malformed provider JSON, unsupported refs and guessed unavailable values fail visibly rather than silently passing;
 - output reports remain local and contain no API key;
 - no new Python dependency, workflow, permission, production storage, OCR/Android/serverless path or statutory runtime is introduced;
-- focused tests and Python compilation pass on exact final head;
+- focused tests and Python compilation pass on exact final code blobs;
 - Markdown/JSON state agree;
 - final security review passes on exact final head;
 - actual provider behavior, quality, latency and model correctness remain unverified until the product owner performs the local run.
