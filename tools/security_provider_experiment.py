@@ -58,8 +58,7 @@ def case_input(case):
         if item["field"] not in targets[item["question_id"]]:
             targets[item["question_id"]].append(item["field"])
     data = {
-        "lifecycle": case["lifecycle"],
-        "clauses": case["clauses"],
+        "lifecycle": case["lifecycle"], "clauses": case["clauses"],
         "complete_for": case.get("complete_for", []),
         "documents": case.get("documents", []),
         "redactions": case.get("redactions", []),
@@ -82,14 +81,12 @@ def build_prompt(case):
             "Return every requested field exactly once and no unrequested fields.",
             "If candidate exists, resolve exactly that claim as CONFIRMED, NARROWED or CLEARED.",
             "Normalize annex ג as annex_c and ד as annex_d.",
-            "Use canonical values: security_cheque, promissory_note, rent_cheque; "
-            "any_contract_breach, unpaid_rent_only, unpaid_debt; cumulative, alternative, mixed, unclear.",
+            "Use canonical values: security_cheque, promissory_note, rent_cheque; any_contract_breach, unpaid_rent_only, unpaid_debt; cumulative, alternative, mixed, unclear.",
         ],
         "state_values": {
             "presence": ["PRESENT", "ABSENT", "UNKNOWN"],
             "value": ["PROVIDED", "OMITTED", "BLANK", "UNKNOWN"],
-            "evidence": ["SUFFICIENT", "HANDWRITING_DEPENDENCY",
-                         "MISSING_DEPENDENCY", "UNREADABLE"],
+            "evidence": ["SUFFICIENT", "HANDWRITING_DEPENDENCY", "MISSING_DEPENDENCY", "UNREADABLE"],
             "source": ["CLEAR", "AMBIGUOUS", "CONTRADICTORY"],
         },
         "output": {
@@ -102,6 +99,16 @@ def build_prompt(case):
         },
         "input": case_input(case),
     }, ensure_ascii=False, separators=(",", ":"))
+
+
+def parse_provider_text(text):
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        raise RuntimeError("Malformed Gemini JSON: invalid_json") from None
+    if not isinstance(parsed, dict):
+        raise RuntimeError("Malformed Gemini JSON: root_not_object")
+    return parsed
 
 
 def call_gemini(key, prompt):
@@ -128,9 +135,9 @@ def call_gemini(key, prompt):
         raise RuntimeError(f"Gemini network error: {exc.reason}") from None
     try:
         text = "".join(p.get("text", "") for p in envelope["candidates"][0]["content"]["parts"])
-        return json.loads(text)
-    except (KeyError, IndexError, TypeError, json.JSONDecodeError) as exc:
-        raise RuntimeError(f"Malformed Gemini JSON: {type(exc).__name__}") from None
+    except (KeyError, IndexError, TypeError):
+        raise RuntimeError("Malformed Gemini response envelope") from None
+    return parse_provider_text(text)
 
 
 def canon(value):
@@ -140,15 +147,26 @@ def canon(value):
 
 
 def score_case(case, actual):
+    if not isinstance(actual, dict):
+        return {"assertions_exact": 0, "assertions_total": len(case["assertions"]),
+                "value_matches": 0, "state_matches": 0, "refs_matches": 0,
+                "resolution_ok": False, "hard_failures": ["invalid_root"]}
     allowed = {x["ref"] for x in case["clauses"]} | {"@scope"}
     allowed |= {x["ref"] for n in ("documents", "redactions") for x in case.get(n, [])}
     got, hard = {}, []
-    for item in actual.get("assertions", []) if isinstance(actual, dict) else []:
+    assertions = actual.get("assertions", [])
+    if not isinstance(assertions, list):
+        assertions, hard = [], ["assertions_not_list"]
+    for item in assertions:
+        if not isinstance(item, dict):
+            hard.append("assertion_not_object")
+            continue
         key = (item.get("question_id"), item.get("mechanism_id"), item.get("field"))
         if key in got:
             hard.append("duplicate_assertion")
         got[key] = item
-        if not set(item.get("refs", [])).issubset(allowed):
+        refs = item.get("refs", [])
+        if not isinstance(refs, list) or not set(refs).issubset(allowed):
             hard.append("unsupported_ref")
     exact = values = states = refs_ok = 0
     expected_keys = set()
@@ -160,7 +178,8 @@ def score_case(case, actual):
         state.update(want.get("state", {}))
         v_ok = item is not None and canon(item.get("value")) == canon(want.get("expected"))
         s_ok = item is not None and item.get("state") == state
-        r_ok = item is not None and sorted(item.get("refs", [])) == sorted(want.get("refs", []))
+        refs = item.get("refs", []) if item else []
+        r_ok = isinstance(refs, list) and sorted(refs) == sorted(want.get("refs", []))
         values += v_ok
         states += s_ok
         refs_ok += r_ok
@@ -204,8 +223,7 @@ def render(report):
         else:
             x = item["score"]
             lines.append(f"- {item['case_id']}: {x['assertions_exact']}/{x['assertions_total']} exact; "
-                         f"resolution={'OK' if x['resolution_ok'] else 'FAIL'}; "
-                         f"hard={len(x['hard_failures'])}")
+                         f"resolution={'OK' if x['resolution_ok'] else 'FAIL'}; hard={len(x['hard_failures'])}")
     return "\n".join(lines) + "\n"
 
 
@@ -213,6 +231,9 @@ def run():
     key, key_path = load_key()
     corpus = json.loads(CORPUS.read_text(encoding="utf-8"))
     by_id = {x["case_id"]: x for x in corpus["cases"]}
+    missing = [case_id for case_id in CASES if case_id not in by_id or by_id[case_id].get("domain") != "security"]
+    if missing:
+        raise RuntimeError(f"Corpus selection invalid: {', '.join(missing)}")
     results, started = [], time.time()
     for n, case_id in enumerate(CASES, 1):
         case = by_id[case_id]
@@ -225,6 +246,7 @@ def run():
             results.append({"case_id": case_id, "status": "ERROR",
                             "error": str(exc).replace(key, "[REDACTED]")})
     scored = [x["score"] for x in results if x["status"] == "OK"]
+    resolution_results = [x for x in results if x["status"] == "OK" and by_id[x["case_id"]].get("resolution")]
     summary = {
         "cases_requested": len(CASES), "cases_completed": len(scored),
         "assertions_exact": sum(x["assertions_exact"] for x in scored),
@@ -232,12 +254,12 @@ def run():
         "value_matches": sum(x["value_matches"] for x in scored),
         "state_matches": sum(x["state_matches"] for x in scored),
         "refs_matches": sum(x["refs_matches"] for x in scored),
-        "resolution_matches": sum(bool(x["resolution_ok"]) for x in scored),
-        "resolution_cases": sum(bool(by_id[x["case_id"]].get("resolution"))
-                                for x in results if x["status"] == "OK"),
+        "resolution_matches": sum(bool(x["score"]["resolution_ok"]) for x in resolution_results),
+        "resolution_cases": len(resolution_results),
         "hard_failures": sum(len(x["hard_failures"]) for x in scored),
     }
-    out = key_path.parent if key_path else (desktop_dirs()[0] if desktop_dirs() else ROOT)
+    folders = desktop_dirs()
+    out = key_path.parent if key_path else (folders[0] if folders else ROOT)
     stamp = time.strftime("%Y%m%d_%H%M%S")
     json_path = out / f"security_provider_experiment_{stamp}.json"
     report = {"experiment": "question-engine-security-provider-experiment-v1",
