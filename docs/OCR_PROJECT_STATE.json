@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-09-107",
+  "state_version": "privacy-ocr-2026-09-09-108",
   "active_track": "question-engine-development",
-  "next_step_id": "question-engine-security-provider-experiment-v1",
-  "next_step_summary": "PR #256 strengthens the smart-analysis evaluation oracle before the first provider experiment. The corpus keeps targeted smart analysis rather than generic lease parsing, but now uses sparse per-question/per-mechanism assertions with actual expected values, explicit candidate claims for CONFIRMED/NARROWED/CLEARED resolution, structured package and handwriting context outside Hebrew clauses, complete-scope gating for ABSENT, corrected contradiction and early-exit cases, distractors, scoped multi-instrument notice behavior, cumulative recovery overlap, and a present-but-incomplete referenced security document. The next bounded step remains the security-focused provider experiment using only sanitized/synthetic corpus material.",
-  "last_recorded_pr": 256,
-  "last_recorded_change": "question-engine-smart-analysis-corpus-oracle-v2",
+  "next_step_id": "question-engine-security-provider-experiment-local-run-v1",
+  "next_step_summary": "PR #257 adds a bounded local Gemini provider-experiment harness for 10 synthetic/sanitized security cases. It keeps expected oracle answers out of prompts, scores semantic values, mechanism identity, answer-state axes, evidence refs and candidate resolution, rejects unsupported refs and guessed unavailable values, reads the API key only from the local environment/Desktop .env.local, and provides a Windows double-click launcher. The actual provider run is not claimed by the PR; the next step is the owner's local run and review of the generated JSON before any further LLM↔Python schema change.",
+  "last_recorded_pr": 257,
+  "last_recorded_change": "question-engine-security-provider-experiment-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-09-09"
