@@ -1,4 +1,4 @@
-"""Immutable, standard-library schema primitives for a question inventory."""
+"""Immutable, standard-library schema primitives for the Question Engine."""
 
 from __future__ import annotations
 
@@ -15,14 +15,70 @@ _DOTTED_QUESTION_ID_PATTERN = re.compile(
 _SUPPORTED_SCHEMA_VERSION = 1
 
 
-class AnswerState(str, Enum):
-    """Canonical states for a future question answer."""
+class PresenceStatus(str, Enum):
+    """Whether the requested contract mechanism/fact can be located."""
 
-    FOUND = "FOUND"
-    NOT_FOUND = "NOT_FOUND"
-    AMBIGUOUS = "AMBIGUOUS"
+    PRESENT = "PRESENT"
+    ABSENT = "ABSENT"
+    UNKNOWN = "UNKNOWN"
+
+
+class ValueStatus(str, Enum):
+    """Condition of a requested value, independent of mechanism presence."""
+
+    PROVIDED = "PROVIDED"
+    OMITTED = "OMITTED"
+    BLANK = "BLANK"
+    UNKNOWN = "UNKNOWN"
+
+
+class EvidenceStatus(str, Enum):
+    """Whether the provided source material is sufficient for this answer."""
+
+    SUFFICIENT = "SUFFICIENT"
     HANDWRITING_DEPENDENCY = "HANDWRITING_DEPENDENCY"
-    CLAUSE_PRESENT_VALUE_BLANK = "CLAUSE_PRESENT_VALUE_BLANK"
+    MISSING_DEPENDENCY = "MISSING_DEPENDENCY"
+    UNREADABLE = "UNREADABLE"
+
+
+class SourceStatus(str, Enum):
+    """Clarity/consistency of the source wording itself."""
+
+    CLEAR = "CLEAR"
+    AMBIGUOUS = "AMBIGUOUS"
+    CONTRADICTORY = "CONTRADICTORY"
+
+
+class DocumentLifecycle(str, Enum):
+    """Known lifecycle context for interpreting source states such as blanks."""
+
+    UNKNOWN = "UNKNOWN"
+    TEMPLATE = "TEMPLATE"
+    DRAFT = "DRAFT"
+    EXECUTED = "EXECUTED"
+
+
+@dataclass(frozen=True)
+class AnswerState:
+    """Minimal orthogonal state envelope for a future question answer."""
+
+    presence: PresenceStatus
+    value: ValueStatus
+    evidence: EvidenceStatus
+    source: SourceStatus
+    lifecycle: DocumentLifecycle
+
+    def __post_init__(self) -> None:
+        expected = (
+            ("presence", self.presence, PresenceStatus),
+            ("value", self.value, ValueStatus),
+            ("evidence", self.evidence, EvidenceStatus),
+            ("source", self.source, SourceStatus),
+            ("lifecycle", self.lifecycle, DocumentLifecycle),
+        )
+        for field_name, value, enum_type in expected:
+            if not isinstance(value, enum_type):
+                raise ValueError(f"{field_name} must be a {enum_type.__name__}")
 
 
 def _as_tuple(value: object, *, field_name: str) -> tuple[object, ...]:
@@ -93,4 +149,13 @@ class QuestionInventory:
         object.__setattr__(self, "questions", questions)
 
 
-__all__ = ("AnswerState", "QuestionInventory", "QuestionSpec")
+__all__ = (
+    "AnswerState",
+    "DocumentLifecycle",
+    "EvidenceStatus",
+    "PresenceStatus",
+    "QuestionInventory",
+    "QuestionSpec",
+    "SourceStatus",
+    "ValueStatus",
+)

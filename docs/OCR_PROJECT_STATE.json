@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-08-102",
+  "state_version": "privacy-ocr-2026-09-09-103",
   "active_track": "question-engine-development",
-  "next_step_id": "question-engine-answer-state-separation-v1",
-  "next_step_summary": "The owner-requested Codex batch audit covering cbbb8e0905c1fda8610260d4046b51952a9f636c through ee66e0063e270abd5eb7992f2be73c89dbec3a5d completed with CORRECTIVE PR REQUIRED. The product owner rejected the audit's proposal to turn obvious/basic lease facts into a universal user-facing CORE skeleton: such facts are support/dependency inputs only when they materially enable deeper analysis. PR #251 adds the first accepted correction, a provider-independent analysis-completeness gate that blocks when the sanitized upload cannot be established as a residential rental agreement and marks only affected smart-analysis domains partial when referenced analysis-relevant documents are missing. The next bounded correction separates the overloaded AnswerState semantics without building a large universal ontology.",
-  "last_recorded_pr": 251,
-  "last_recorded_change": "question-engine-analysis-completeness-v1",
+  "next_step_id": "question-engine-repeatable-mechanism-identity-v1",
+  "next_step_summary": "PR #252 implements the second accepted post-audit correction by replacing the overloaded single AnswerState enum with a minimal orthogonal envelope: presence status, value status, evidence status, source status, and document lifecycle. This keeps handwriting dependency and source ambiguity separate from presence/absence and lets the same BLANK value be interpreted differently in TEMPLATE/DRAFT versus EXECUTED material when lifecycle is known. Existing smart inventories are not migrated in this PR, and no provider/runtime, statutory, ranking/UI, OCR, storage, network, dependency, permission, or workflow behavior is added. The next bounded corrective slice adds stable identity/cardinality for repeatable smart mechanisms so amounts, blanks, triggers, and other properties cannot drift between multiple security instruments or similar repeated entities.",
+  "last_recorded_pr": 252,
+  "last_recorded_change": "question-engine-answer-state-separation-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
-  "updated_on": "2026-09-08"
+  "updated_on": "2026-09-09"
 }

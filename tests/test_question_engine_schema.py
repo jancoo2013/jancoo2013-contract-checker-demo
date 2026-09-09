@@ -3,11 +3,19 @@
 from __future__ import annotations
 
 from dataclasses import FrozenInstanceError, fields
-from enum import Enum
 import unittest
 
 import contract_checker.question_engine as question_engine
-from contract_checker.question_engine import AnswerState, QuestionInventory, QuestionSpec
+from contract_checker.question_engine import (
+    AnswerState,
+    DocumentLifecycle,
+    EvidenceStatus,
+    PresenceStatus,
+    QuestionInventory,
+    QuestionSpec,
+    SourceStatus,
+    ValueStatus,
+)
 
 
 def _question(**overrides: object) -> QuestionSpec:
@@ -21,23 +29,77 @@ def _question(**overrides: object) -> QuestionSpec:
     return QuestionSpec(**values)  # type: ignore[arg-type]
 
 
+def _answer(**overrides: object) -> AnswerState:
+    values: dict[str, object] = {
+        "presence": PresenceStatus.PRESENT,
+        "value": ValueStatus.PROVIDED,
+        "evidence": EvidenceStatus.SUFFICIENT,
+        "source": SourceStatus.CLEAR,
+        "lifecycle": DocumentLifecycle.EXECUTED,
+    }
+    values.update(overrides)
+    return AnswerState(**values)  # type: ignore[arg-type]
+
+
 class AnswerStateTests(unittest.TestCase):
-    def test_answer_state_is_string_enum_with_exact_members(self) -> None:
-        self.assertTrue(issubclass(AnswerState, str))
-        self.assertTrue(issubclass(AnswerState, Enum))
+    def test_axes_have_exact_minimal_members(self) -> None:
         self.assertEqual(
-            [(member.name, member.value) for member in AnswerState],
-            [
-                ("FOUND", "FOUND"),
-                ("NOT_FOUND", "NOT_FOUND"),
-                ("AMBIGUOUS", "AMBIGUOUS"),
-                ("HANDWRITING_DEPENDENCY", "HANDWRITING_DEPENDENCY"),
-                (
-                    "CLAUSE_PRESENT_VALUE_BLANK",
-                    "CLAUSE_PRESENT_VALUE_BLANK",
-                ),
-            ],
+            [member.value for member in PresenceStatus],
+            ["PRESENT", "ABSENT", "UNKNOWN"],
         )
+        self.assertEqual(
+            [member.value for member in ValueStatus],
+            ["PROVIDED", "OMITTED", "BLANK", "UNKNOWN"],
+        )
+        self.assertEqual(
+            [member.value for member in EvidenceStatus],
+            ["SUFFICIENT", "HANDWRITING_DEPENDENCY", "MISSING_DEPENDENCY", "UNREADABLE"],
+        )
+        self.assertEqual(
+            [member.value for member in SourceStatus],
+            ["CLEAR", "AMBIGUOUS", "CONTRADICTORY"],
+        )
+        self.assertEqual(
+            [member.value for member in DocumentLifecycle],
+            ["UNKNOWN", "TEMPLATE", "DRAFT", "EXECUTED"],
+        )
+
+    def test_answer_state_keeps_axes_separate_and_immutable(self) -> None:
+        answer = _answer(
+            value=ValueStatus.UNKNOWN,
+            evidence=EvidenceStatus.HANDWRITING_DEPENDENCY,
+        )
+
+        self.assertEqual(answer.presence, PresenceStatus.PRESENT)
+        self.assertEqual(answer.value, ValueStatus.UNKNOWN)
+        self.assertEqual(answer.evidence, EvidenceStatus.HANDWRITING_DEPENDENCY)
+        self.assertEqual(answer.source, SourceStatus.CLEAR)
+        with self.assertRaises(FrozenInstanceError):
+            answer.value = ValueStatus.PROVIDED  # type: ignore[misc]
+
+    def test_blank_template_and_blank_executed_value_are_distinguishable(self) -> None:
+        template = _answer(
+            value=ValueStatus.BLANK,
+            lifecycle=DocumentLifecycle.TEMPLATE,
+        )
+        executed = _answer(
+            value=ValueStatus.BLANK,
+            lifecycle=DocumentLifecycle.EXECUTED,
+        )
+
+        self.assertNotEqual(template, executed)
+        self.assertEqual(template.value, executed.value)
+        self.assertNotEqual(template.lifecycle, executed.lifecycle)
+
+    def test_source_ambiguity_is_not_an_evidence_failure(self) -> None:
+        answer = _answer(source=SourceStatus.AMBIGUOUS)
+
+        self.assertEqual(answer.evidence, EvidenceStatus.SUFFICIENT)
+        self.assertEqual(answer.source, SourceStatus.AMBIGUOUS)
+
+    def test_raw_strings_are_rejected_for_state_axes(self) -> None:
+        with self.assertRaisesRegex(ValueError, "presence must be a PresenceStatus"):
+            _answer(presence="PRESENT")
 
 
 class QuestionSpecTests(unittest.TestCase):
@@ -137,7 +199,16 @@ class QuestionInventoryTests(unittest.TestCase):
     def test_public_exports_are_exact(self) -> None:
         self.assertEqual(
             question_engine.__all__,
-            ("AnswerState", "QuestionInventory", "QuestionSpec"),
+            (
+                "AnswerState",
+                "DocumentLifecycle",
+                "EvidenceStatus",
+                "PresenceStatus",
+                "QuestionInventory",
+                "QuestionSpec",
+                "SourceStatus",
+                "ValueStatus",
+            ),
         )
 
 
