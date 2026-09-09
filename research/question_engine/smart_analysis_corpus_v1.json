@@ -1,0 +1,118 @@
+{
+  "schema_version": 1,
+  "purpose": "Sanitized/synthetic evaluation oracle for non-obvious lease-analysis semantics; not training data and not a generic lease-summary corpus.",
+  "cases": [
+    {
+      "case_id": "security_broad_trigger_confirmed",
+      "domain": "security",
+      "lifecycle": "EXECUTED",
+      "basis": "synthetic_from_observed_pattern",
+      "clauses": [{"ref":"c1","text_he":"המשכיר רשאי לממש את שיק הביטחון במקרה של כל הפרה של ההסכם."}],
+      "expected": {"presence":"PRESENT","value_status":"PROVIDED","evidence_status":"SUFFICIENT","source_status":"CLEAR","finding_outcome":"CONFIRMED","mechanism_ids":["security_1"],"must_link_refs":["c1"]}
+    },
+    {
+      "case_id": "security_broad_trigger_narrowed_by_notice_cure",
+      "domain": "security",
+      "lifecycle": "EXECUTED",
+      "basis": "synthetic_from_observed_pattern",
+      "clauses": [{"ref":"c1","text_he":"המשכיר רשאי לממש את שיק הביטחון במקרה של כל הפרה של ההסכם."},{"ref":"c9","text_he":"מימוש הבטוחה ייעשה רק לאחר התראה בכתב של 14 ימים ומתן אפשרות לשוכר לתקן את ההפרה."}],
+      "expected": {"presence":"PRESENT","value_status":"PROVIDED","evidence_status":"SUFFICIENT","source_status":"CLEAR","finding_outcome":"NARROWED","mechanism_ids":["security_1"],"must_link_refs":["c1","c9"]}
+    },
+    {
+      "case_id": "security_generic_trigger_cleared_by_specific_limit",
+      "domain": "security",
+      "lifecycle": "EXECUTED",
+      "basis": "synthetic_boundary_case",
+      "clauses": [{"ref":"c1","text_he":"הבטוחה נועדה להבטחת התחייבויות השוכר לפי הסכם זה."},{"ref":"c12","text_he":"למרות האמור לעיל, ניתן לממש את הבטוחה רק בגין דמי שכירות שלא שולמו לאחר התראה בכתב של 14 ימים."}],
+      "expected": {"presence":"PRESENT","value_status":"PROVIDED","evidence_status":"SUFFICIENT","source_status":"CLEAR","finding_outcome":"CLEARED","mechanism_ids":["security_1"],"must_link_refs":["c1","c12"]}
+    },
+    {
+      "case_id": "multiple_security_instruments_keep_identity",
+      "domain": "security",
+      "lifecycle": "EXECUTED",
+      "basis": "synthetic_from_observed_pattern",
+      "clauses": [{"ref":"c3","text_he":"השוכר ימסור שיק ביטחון על סך 10,000 ש״ח ללא תאריך."},{"ref":"c4","text_he":"בנוסף יימסר שטר חוב על סך 30,000 ש״ח שמועדו 01.01.2027."}],
+      "expected": {"presence":"PRESENT","value_status":"PROVIDED","evidence_status":"SUFFICIENT","source_status":"CLEAR","finding_outcome":null,"mechanism_ids":["security_1","security_2"],"must_link_refs":["c3","c4"]}
+    },
+    {
+      "case_id": "missing_security_instrument_dependency",
+      "domain": "security",
+      "lifecycle": "EXECUTED",
+      "basis": "synthetic_from_observed_pattern",
+      "clauses": [{"ref":"c5","text_he":"השוכר יחתום על שטר החוב המצורף כנספח ג׳ להסכם."},{"ref":"package","text_he":"[נספח ג׳ לא צורף לחומר שהועלה]"}],
+      "expected": {"presence":"PRESENT","value_status":"UNKNOWN","evidence_status":"MISSING_DEPENDENCY","source_status":"CLEAR","finding_outcome":null,"mechanism_ids":["security_1"],"must_link_refs":["c5","package"]}
+    },
+    {
+      "case_id": "template_blank_security_amount",
+      "domain": "security",
+      "lifecycle": "TEMPLATE",
+      "basis": "synthetic_boundary_case",
+      "clauses": [{"ref":"c2","text_he":"השוכר ימסור שטר חוב על סך ______ ש״ח."}],
+      "expected": {"presence":"PRESENT","value_status":"BLANK","evidence_status":"SUFFICIENT","source_status":"CLEAR","finding_outcome":null,"mechanism_ids":["security_1"],"must_link_refs":["c2"]}
+    },
+    {
+      "case_id": "executed_blank_security_amount",
+      "domain": "security",
+      "lifecycle": "EXECUTED",
+      "basis": "synthetic_boundary_case",
+      "clauses": [{"ref":"c2","text_he":"השוכר ימסור שטר חוב על סך ______ ש״ח."}],
+      "expected": {"presence":"PRESENT","value_status":"BLANK","evidence_status":"SUFFICIENT","source_status":"CLEAR","finding_outcome":"CONFIRMED","mechanism_ids":["security_1"],"must_link_refs":["c2"]}
+    },
+    {
+      "case_id": "handwriting_dependency_without_guessing",
+      "domain": "security",
+      "lifecycle": "EXECUTED",
+      "basis": "synthetic_boundary_case",
+      "clauses": [{"ref":"c6","text_he":"סכום שיק הביטחון: [HANDWRITING_REDACTED] ש״ח."}],
+      "expected": {"presence":"PRESENT","value_status":"UNKNOWN","evidence_status":"HANDWRITING_DEPENDENCY","source_status":"CLEAR","finding_outcome":null,"mechanism_ids":["security_1"],"must_link_refs":["c6"]}
+    },
+    {
+      "case_id": "security_mechanism_split_across_distant_clauses",
+      "domain": "security",
+      "lifecycle": "EXECUTED",
+      "basis": "synthetic_from_observed_pattern",
+      "clauses": [{"ref":"c2","text_he":"השוכר ימסור שיק ביטחון על סך 9,000 ש״ח."},{"ref":"c14","text_he":"מימוש השיק יתאפשר בגין חוב שלא שולם לאחר התראה של 7 ימים."},{"ref":"c27","text_he":"השיק יוחזר בתוך 30 ימים לאחר פינוי הדירה וסילוק החובות."}],
+      "expected": {"presence":"PRESENT","value_status":"PROVIDED","evidence_status":"SUFFICIENT","source_status":"CLEAR","finding_outcome":null,"mechanism_ids":["security_1"],"must_link_refs":["c2","c14","c27"]}
+    },
+    {
+      "case_id": "contradictory_party_reference_in_security_clause",
+      "domain": "security",
+      "lifecycle": "EXECUTED",
+      "basis": "synthetic_from_observed_pattern",
+      "clauses": [{"ref":"c8","text_he":"המשכיר רשאי להשלים פרטים חסרים בשטר החוב."},{"ref":"c9","text_he":"השוכר רשאי להשלים את אותם פרטים ולממש את השטר במקרה של הפרה."}],
+      "expected": {"presence":"PRESENT","value_status":"PROVIDED","evidence_status":"SUFFICIENT","source_status":"CONTRADICTORY","finding_outcome":"CONFIRMED","mechanism_ids":["security_1"],"must_link_refs":["c8","c9"]}
+    },
+    {
+      "case_id": "option_requires_landlord_consent",
+      "domain": "option_renewal",
+      "lifecycle": "EXECUTED",
+      "basis": "synthetic_from_observed_pattern",
+      "clauses": [{"ref":"c4a","text_he":"לשוכר ניתנת אופציה להאריך את תקופת השכירות בשנה נוספת."},{"ref":"c4b","text_he":"מימוש האופציה כפוף להסכמת המשכיר בכתב."}],
+      "expected": {"presence":"PRESENT","value_status":"PROVIDED","evidence_status":"SUFFICIENT","source_status":"CLEAR","finding_outcome":"NARROWED","mechanism_ids":[],"must_link_refs":["c4a","c4b"]}
+    },
+    {
+      "case_id": "early_exit_route_absent_is_material",
+      "domain": "early_exit",
+      "lifecycle": "EXECUTED",
+      "basis": "synthetic_from_observed_pattern",
+      "clauses": [{"ref":"c11","text_he":"עזיבת המושכר לפני תום התקופה אינה פוטרת את השוכר מתשלום דמי השכירות עד תום התקופה."}],
+      "expected": {"presence":"ABSENT","value_status":"OMITTED","evidence_status":"SUFFICIENT","source_status":"CLEAR","finding_outcome":"CONFIRMED","mechanism_ids":[],"must_link_refs":["c11"]}
+    },
+    {
+      "case_id": "missing_condition_appendix_limits_defect_analysis",
+      "domain": "condition_defects",
+      "lifecycle": "EXECUTED",
+      "basis": "synthetic_from_observed_pattern",
+      "clauses": [{"ref":"c7","text_he":"מצב הדירה והליקויים הקיימים מפורטים בנספח ב׳."},{"ref":"package","text_he":"[נספח ב׳ לא צורף לחומר שהועלה]"}],
+      "expected": {"presence":"PRESENT","value_status":"UNKNOWN","evidence_status":"MISSING_DEPENDENCY","source_status":"CLEAR","finding_outcome":null,"mechanism_ids":[],"must_link_refs":["c7","package"]}
+    },
+    {
+      "case_id": "repair_candidate_narrowed_by_landlord_duty",
+      "domain": "condition_defects",
+      "lifecycle": "EXECUTED",
+      "basis": "synthetic_boundary_case",
+      "clauses": [{"ref":"c10","text_he":"השוכר אחראי לתקן כל נזק או תקלה בדירה."},{"ref":"c18","text_he":"המשכיר יתקן על חשבונו תקלות שמקורן בבלאי סביר או במערכות הדירה שלא נגרמו על ידי השוכר."}],
+      "expected": {"presence":"PRESENT","value_status":"PROVIDED","evidence_status":"SUFFICIENT","source_status":"CLEAR","finding_outcome":"NARROWED","mechanism_ids":[],"must_link_refs":["c10","c18"]}
+    }
+  ]
+}
