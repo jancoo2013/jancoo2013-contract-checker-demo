@@ -10,6 +10,9 @@ from contract_checker.question_engine import (
     AnswerState,
     DocumentLifecycle,
     EvidenceStatus,
+    MechanismCollection,
+    MechanismInstance,
+    MechanismProperty,
     PresenceStatus,
     QuestionInventory,
     QuestionSpec,
@@ -100,6 +103,84 @@ class AnswerStateTests(unittest.TestCase):
     def test_raw_strings_are_rejected_for_state_axes(self) -> None:
         with self.assertRaisesRegex(ValueError, "presence must be a PresenceStatus"):
             _answer(presence="PRESENT")
+
+
+class MechanismIdentityTests(unittest.TestCase):
+    def test_security_properties_stay_attached_to_their_instrument(self) -> None:
+        security_cheque = MechanismInstance(
+            mechanism_id="security_1",
+            mechanism_type="security_cheque",
+            properties=(
+                MechanismProperty("amount", 10000, _answer()),
+                MechanismProperty(
+                    "date",
+                    None,
+                    _answer(value=ValueStatus.BLANK),
+                ),
+                MechanismProperty("return_deadline", "60_days", _answer()),
+            ),
+        )
+        promissory_note = MechanismInstance(
+            mechanism_id="security_2",
+            mechanism_type="promissory_note",
+            properties=(
+                MechanismProperty("amount", 30000, _answer()),
+                MechanismProperty("date", "2026_01_01", _answer()),
+                MechanismProperty("return_deadline", "30_days", _answer()),
+            ),
+        )
+        collection = MechanismCollection(
+            domain="security",
+            mechanisms=(security_cheque, promissory_note),
+        )
+
+        self.assertEqual(collection.cardinality, 2)
+        by_id = {item.mechanism_id: item for item in collection.mechanisms}
+        first = {item.name: item for item in by_id["security_1"].properties}
+        second = {item.name: item for item in by_id["security_2"].properties}
+        self.assertEqual(first["amount"].value, 10000)
+        self.assertEqual(first["date"].state.value, ValueStatus.BLANK)
+        self.assertEqual(first["return_deadline"].value, "60_days")
+        self.assertEqual(second["amount"].value, 30000)
+        self.assertEqual(second["return_deadline"].value, "30_days")
+
+    def test_identity_only_instance_is_allowed_for_inventory_first_pass(self) -> None:
+        instance = MechanismInstance(
+            mechanism_id="security_1",
+            mechanism_type="bank_guarantee",
+        )
+        collection = MechanismCollection(domain="security", mechanisms=(instance,))
+
+        self.assertEqual(collection.cardinality, 1)
+        self.assertEqual(collection.mechanisms[0].properties, ())
+
+    def test_duplicate_mechanism_ids_are_rejected(self) -> None:
+        first = MechanismInstance("security_1", "security_cheque")
+        second = MechanismInstance("security_1", "promissory_note")
+
+        with self.assertRaisesRegex(ValueError, "duplicate mechanism IDs"):
+            MechanismCollection(domain="security", mechanisms=(first, second))
+
+    def test_duplicate_property_names_are_rejected(self) -> None:
+        with self.assertRaisesRegex(ValueError, "duplicate names"):
+            MechanismInstance(
+                mechanism_id="security_1",
+                mechanism_type="security_cheque",
+                properties=(
+                    MechanismProperty("amount", 10000, _answer()),
+                    MechanismProperty("amount", 20000, _answer()),
+                ),
+            )
+
+    def test_malformed_identifiers_and_raw_property_state_are_rejected(self) -> None:
+        with self.assertRaisesRegex(ValueError, "mechanism_id"):
+            MechanismInstance("Security-1", "security_cheque")
+        with self.assertRaisesRegex(ValueError, "mechanism_type"):
+            MechanismInstance("security_1", "Security Cheque")
+        with self.assertRaisesRegex(ValueError, "property name"):
+            MechanismProperty("return.deadline", "60_days", _answer())
+        with self.assertRaisesRegex(ValueError, "state must be an AnswerState"):
+            MechanismProperty("amount", 10000, "FOUND")  # type: ignore[arg-type]
 
 
 class QuestionSpecTests(unittest.TestCase):
@@ -203,6 +284,9 @@ class QuestionInventoryTests(unittest.TestCase):
                 "AnswerState",
                 "DocumentLifecycle",
                 "EvidenceStatus",
+                "MechanismCollection",
+                "MechanismInstance",
+                "MechanismProperty",
                 "PresenceStatus",
                 "QuestionInventory",
                 "QuestionSpec",
