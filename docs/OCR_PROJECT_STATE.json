@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-09-106",
+  "state_version": "privacy-ocr-2026-09-09-107",
   "active_track": "question-engine-development",
   "next_step_id": "question-engine-security-provider-experiment-v1",
-  "next_step_summary": "PR #255 adds the first smart-analysis evaluation corpus: 14 sanitized/synthetic semantic counterexamples with explicit expected states and cross-clause outcomes. The corpus covers CONFIRMED/NARROWED/CLEARED resolution, repeatable security identity, missing dependencies, template versus executed blanks, handwriting dependency without reconstruction, distant-clause composition, contradictory role references, option consent structure, materially relevant ABSENT behavior, and condition-appendix dependency. It is an evaluation oracle, not training data and not a generic lease-summary corpus. The next bounded step is a security-focused provider experiment using only this sanitized/synthetic material to learn what the LLM↔Python contract actually needs before wider runtime work.",
-  "last_recorded_pr": 255,
-  "last_recorded_change": "question-engine-smart-analysis-corpus-v1",
+  "next_step_summary": "PR #256 strengthens the smart-analysis evaluation oracle before the first provider experiment. The corpus keeps targeted smart analysis rather than generic lease parsing, but now uses sparse per-question/per-mechanism assertions with actual expected values, explicit candidate claims for CONFIRMED/NARROWED/CLEARED resolution, structured package and handwriting context outside Hebrew clauses, complete-scope gating for ABSENT, corrected contradiction and early-exit cases, distractors, scoped multi-instrument notice behavior, cumulative recovery overlap, and a present-but-incomplete referenced security document. The next bounded step remains the security-focused provider experiment using only sanitized/synthetic corpus material.",
+  "last_recorded_pr": 256,
+  "last_recorded_change": "question-engine-smart-analysis-corpus-oracle-v2",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-09-09"
