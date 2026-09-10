@@ -178,12 +178,8 @@ def request_body(prompt, assertion_count):
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {
             "maxOutputTokens": 3000,
-            "responseFormat": {
-                "text": {
-                    "mimeType": "application/json",
-                    "schema": response_schema(assertion_count),
-                }
-            },
+            "responseMimeType": "application/json",
+            "responseJsonSchema": response_schema(assertion_count),
         },
     }
 

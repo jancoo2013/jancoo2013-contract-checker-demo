@@ -76,13 +76,12 @@ class SecurityProviderExperimentTests(unittest.TestCase):
         self.assertFalse(state["additionalProperties"])
         self.assertFalse(schema["additionalProperties"])
 
-    def test_request_body_uses_current_structured_output_shape(self):
+    def test_request_body_uses_generate_content_schema_fields(self):
         body = experiment.request_body("{}", 2)
         config = body["generationConfig"]
-        self.assertNotIn("responseMimeType", config)
-        text = config["responseFormat"]["text"]
-        self.assertEqual(text["mimeType"], "application/json")
-        self.assertEqual(text["schema"]["properties"]["assertions"]["maxItems"], 2)
+        self.assertNotIn("responseFormat", config)
+        self.assertEqual(config["responseMimeType"], "application/json")
+        self.assertEqual(config["responseJsonSchema"]["properties"]["assertions"]["maxItems"], 2)
 
     def test_exact_scoring(self):
         case = {"clauses": [{"ref": "c1", "text_he": "טקסט"}], "assertions": [{
@@ -183,10 +182,10 @@ class SecurityProviderExperimentTests(unittest.TestCase):
             experiment.call_gemini("test-key", "{}", 2)
         for call in urlopen.call_args_list:
             body = json.loads(call.args[0].data.decode("utf-8"))
-            self.assertEqual(body["generationConfig"]["responseFormat"]["text"]["mimeType"],
-                             "application/json")
-            self.assertEqual(body["generationConfig"]["responseFormat"]["text"]["schema"]
-                             ["properties"]["assertions"]["minItems"], 2)
+            config = body["generationConfig"]
+            self.assertEqual(config["responseMimeType"], "application/json")
+            self.assertEqual(config["responseJsonSchema"]["properties"]["assertions"]["minItems"], 2)
+            self.assertNotIn("responseFormat", config)
 
 
 if __name__ == "__main__":
