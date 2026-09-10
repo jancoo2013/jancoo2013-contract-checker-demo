@@ -1,14 +1,14 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-09-10, PR #262, `question-engine-security-provider-structured-output-v1`.
+Последнее обновление: 2026-09-10, PR #263, `question-engine-security-provider-response-schema-api-fix-v1`.
 
 Активный трек: `question-engine-development`.
 
-Канонический следующий bounded-шаг: `question-engine-security-provider-experiment-local-run-v4`.
+Канонический следующий bounded-шаг: `question-engine-security-provider-experiment-local-run-v5`.
 
 Этот документ вместе с `docs/OCR_PROJECT_STATE.json` является канонической operational-точкой восстановления проекта. Binding architecture/security/privacy documents задают обязательные границы; текущие `active_track` и `next_step_id` выбираются только state-файлами.
 
-## 1. Current change — PR #262 structured provider-output corrective
+## 1. Current change — PR #263 GenerateContent structured-output API corrective
 
 Ключевая продуктовая рамка не меняется:
 
@@ -25,48 +25,40 @@ Provider experiment continuity:
 - второй локальный запуск после PR #259 дошёл до case `7/10`, затем аварийно завершился на uncaught read timeout;
 - PR #260 увеличил per-request timeout до 120 секунд и сделал timeout bounded per-case retry/failure;
 - PR #261 добавил `gemini-3.5-flash` fallback для transient 503/timeouts и per-case `model_used` provenance;
-- локальный run v3 после PR #261 дал первый usable semantic report: `9/10` cases completed, `12/33` exact assertions, `18/33` value matches, `18/33` state matches, `19/33` ref matches, `5/5` candidate resolutions, `4` hard failures, `1` malformed-JSON case; один successful case был обработан fallback 3.5.
+- локальный run v3 после PR #261 дал первый usable semantic report: `9/10` cases completed, `12/33` exact assertions, `18/33` value matches, `18/33` state matches, `19/33` ref matches, `5/5` candidate resolutions, `4` hard failures, `1` malformed-JSON case; один successful case был обработан fallback 3.5;
+- PR #262 сохранил отдельные mechanism-specific target slots, уточнил day/state/ref semantics и добавил provider-side JSON schema;
+- локальный run v4 после PR #262 не дал semantic evidence: все `10/10` запросов были отклонены до model execution одинаковым HTTP `400 INVALID_ARGUMENT` на `generation_config.response_format.text.mime_type`; `cases_completed=0`.
 
-Разбор run v3 показал, что значительная часть exact-score потерь относится к контракту ответа между Gemini и Python, а не только к semantic reading:
+Run v4 изолировал проблему до формы самого GenerateContent request. Это не semantic failure Gemini, не перегрузка и не проблема размера prompt. PR #263 меняет только способ передачи уже существующей JSON schema:
 
-- day counts возвращались как `P14D` вместо integer `14`;
-- повторяющиеся поля разных security instruments агрегировались под `mechanism_id: null` вместо отдельных mechanism-specific assertions;
-- explicit BLANK, HANDWRITING_DEPENDENCY и MISSING_DEPENDENCY иногда получали неправильные state axes или evidence refs;
-- refs иногда были шире минимально нужных direct refs;
-- один case вернул syntactically invalid JSON несмотря на requested JSON MIME type.
+- `generationConfig.responseFormat.text` удалён из diagnostic GenerateContent request;
+- JSON output снова задаётся через `generationConfig.responseMimeType = application/json`;
+- та же JSON schema передаётся через `generationConfig.responseJsonSchema`;
+- explicit target assertions, integer day-count convention, BLANK/HANDWRITING_DEPENDENCY/MISSING_DEPENDENCY semantics и strict scorer из PR #262 сохраняются;
+- primary/fallback остаются `gemini-3.6-flash` / `gemini-3.5-flash`; pacing, timeout, retry/failover, key handling и local report destination не меняются.
 
-При этом 5/5 candidate-resolution outcomes были правильными, поэтому PR #262 не меняет Question Engine architecture, corpus oracle или finding-resolution semantics. Он только делает provider response contract более точным:
-
-- каждый oracle target теперь передаётся как отдельный `(question_id, mechanism_id, field)` slot без expected value/ref;
-- model должна вернуть ровно один assertion на каждый slot и не агрегировать механизмы;
-- prompt задаёт integer day-count convention, minimal direct refs и явную семантику BLANK/HANDWRITING_DEPENDENCY/MISSING_DEPENDENCY;
-- provider request использует current Gemini GenerateContent structured-output shape `generationConfig.responseFormat.text` с JSON schema;
-- schema ограничивает assertion count, обязательные поля, state enums и resolution shape;
-- scorer остаётся strict и oracle answers по-прежнему не передаются модели;
-- primary/fallback остаются `gemini-3.6-flash` / `gemini-3.5-flash`; pacing, retry/failover, key handling и local report destination не меняются.
-
-Current Google structured-output documentation проверена 2026-09-10: current GenerateContent REST examples используют `generationConfig.responseFormat.text.mimeType=application/json` с `schema`; structured output предназначен для schema-constrained JSON extraction.
+Current official Google GenerateContent API reference проверена 2026-09-10: `GenerationConfig` документирует `responseMimeType` и `responseJsonSchema`; `responseJsonSchema` является текущим JSON-Schema полем и требует совместимый `responseMimeType`. Поэтому PR #263 возвращает structured output на эти GenerateContent-поля вместо ошибочного сочетания `responseFormat.text.mimeType=application/json`, которое фактически отверг API в run v4.
 
 В PR нет real contracts, raw OCR, recoverable PII, statutory runtime, OCR/Android/serverless изменений, production storage, UI behavior, нового provider, dependency, workflow или production quality claim.
 
 ## 2. Canonical next step
 
-`next_step_id = question-engine-security-provider-experiment-local-run-v4`
+`next_step_id = question-engine-security-provider-experiment-local-run-v5`
 
-Следующий шаг — повторить тот же 10-case local provider experiment двойным щелчком и сравнить новый JSON/TXT с run v3.
+Следующий шаг — повторить тот же 10-case local provider experiment двойным щелчком и проверить, принимает ли реальный Gemini GenerateContent API `responseMimeType + responseJsonSchema` в пользовательском API environment.
 
-Проверить в run v4:
+Если provider принимает request, сравнить semantic report прежде всего с usable run v3:
 
 - исчез ли malformed JSON;
 - возвращаются ли durations/deadlines integer day counts;
 - сохраняются ли отдельные mechanism IDs для повторяющихся instrument fields;
 - различаются ли BLANK, MISSING_DEPENDENCY и HANDWRITING_DEPENDENCY с правильными refs;
 - стали ли evidence refs минимальными и точными;
-- сохранились ли 5/5 candidate resolutions;
+- сохранились ли правильные candidate resolutions;
 - какие cases обработаны primary 3.6, а какие fallback 3.5;
 - появились ли новые hard failures или реальные semantic mismatches после устранения format noise.
 
-Только реальные failure modes run v4 определят следующий LLM↔Python corrective. Не добавлять confidence, broad typed-value framework, universal ontology или новые production schema fields заранее без provider evidence.
+Если provider снова отвергает schema request до model execution, не менять semantic prompt/corpus/scorer: сначала изолировать точный provider contract mismatch. Только реальные semantic failure modes успешного provider run определяют следующий LLM↔Python corrective.
 
 ## 3. Required reading order
 
@@ -160,7 +152,7 @@ FindingResolution(candidate, outcome, reviewed_refs, resolution_summary)
 FindingOutcome = CONFIRMED | NARROWED | CLEARED
 ```
 
-`QuestionSpec` и `QuestionInventory` остаются static question definitions. PR #257 добавил локальный diagnostic provider harness; PR #259–#262 меняют только provider/model-call robustness/routing/output-contract этого experiment harness, не Question Engine production schema.
+`QuestionSpec` и `QuestionInventory` остаются static question definitions. PR #257 добавил локальный diagnostic provider harness; PR #259–#263 меняют только provider/model-call robustness/routing/output-contract/API-shape этого experiment harness, не Question Engine production schema.
 
 Corpus oracle v2 является evaluation representation, а не production runtime schema. Он намеренно sparse и описывает только assertions, нужные конкретному testcase.
 
@@ -202,7 +194,7 @@ Maintained baseline предупреждает о 2026 amendment timing для s
 
 Если freshness/applicability/effective date не могут быть безопасно установлены, runtime должен деградировать к contract-only analysis, а не утверждать устаревшую норму.
 
-PR #262 statutory runtime/current-law claims не добавляет и external law в provider prompt не передаёт.
+PR #263 statutory runtime/current-law claims не добавляет и external law в provider prompt не передаёт.
 
 ## 8. Privacy and security invariants
 
@@ -214,7 +206,7 @@ Persistent fixtures/research artifacts должны быть sanitized до comm
 
 Provider experiment отправляет только synthetic/sanitized corpus material. Он не использует real user contracts, raw OCR, user identifiers, signatures, bank/check identifiers или recoverable PII. Local API key читается из environment/Desktop `.env.local`, не входит в prompt/report и scrubbed из HTTP error detail. `.env.local` остаётся вне repository tree и игнорируется `.gitignore`.
 
-PR #262 не меняет provider host, model routing или resource bounds. Case count остаётся 10, общий cap — максимум 4 attempts на case, timeout — 120 секунд, 429/503/fallback policy прежняя. Новый provider-side JSON schema ограничивает только форму ответа и не расширяет передаваемые данные. Target assertion slots содержат только question/field/mechanism identifiers; oracle expected values и refs модели не передаются.
+PR #263 не меняет provider host, model routing или resource bounds. Case count остаётся 10, общий cap — максимум 4 attempts на case, timeout — 120 секунд, 429/503/fallback policy прежняя. `responseJsonSchema` ограничивает только форму ответа и не расширяет передаваемые данные. Target assertion slots содержат только question/field/mechanism identifiers; oracle expected values и refs модели не передаются.
 
 Repository остаётся pre-production. Production use с real contracts blocked до реализации и проверки applicable consent, authorization, encryption/key lifecycle, Israel-only restricted-data processing, deletion/retention, logging, provider terms, abuse/resource controls и incident response.
 
@@ -254,9 +246,11 @@ Question Engine continuity:
 - PR #260 — owner-authorized bounded corrective adding timeout tolerance while preserving the same model, corpus and semantic contract;
 - PR #261 — owner-authorized bounded corrective adding `gemini-3.5-flash` fallback for primary 3.6 transient 503/timeouts and explicit per-case model provenance;
 - local run v3 after PR #261 — first usable semantic provider report: 9/10 cases, 5/5 resolutions, one successful fallback case, one malformed JSON case, and recurrent formatting/state/ref mismatches identified above;
-- PR #262 — owner-authorized bounded corrective adding explicit mechanism-specific target slots and provider-enforced structured output without changing corpus oracle or production schema.
+- PR #262 — owner-authorized bounded corrective adding explicit mechanism-specific target slots and provider-enforced structured output without changing corpus oracle or production schema;
+- local run v4 after PR #262 — 0/10 semantic cases; every request rejected with the same pre-generation HTTP 400 invalid `response_format.text.mime_type` argument;
+- PR #263 — bounded corrective moving the existing JSON schema to GenerateContent `responseMimeType + responseJsonSchema` fields documented by the current API reference.
 
-The next evidence gate is local run v4. No semantic quality claim is promoted to production from run v3 alone.
+The next evidence gate is local run v5. Run v4 is transport/API-contract evidence only and does not supersede run v3 semantic evidence.
 
 ## 11. Recovery/work rules
 
@@ -278,27 +272,27 @@ Current owner authorization permits the orchestrating assistant to merge subsequ
 
 Implementation-size rule: target <=300 changed implementation lines per PR; 400 is the normal hard limit. Corpus fixture data is not implementation code, but test/implementation code should remain bounded.
 
-## 12. PR #262 validation target
+## 12. PR #263 validation target
 
-Before Ready/merge, PR #262 must verify:
+Before Ready/merge, PR #263 must verify:
 
 - changed paths exactly match Context Gate;
-- branch is based on current `main` head `d0997796c9faf550c1c90ccc91d0074be8b145b5` and is not behind it;
-- both state files identify PR #262 and `question-engine-security-provider-structured-output-v1`;
-- next step is `question-engine-security-provider-experiment-local-run-v4`;
+- branch is based on current `main` head `df0c78261d5fa1b22ea2186cfac5651ede4e2921` and is not behind it;
+- both state files identify PR #263 and `question-engine-security-provider-response-schema-api-fix-v1`;
+- next step is `question-engine-security-provider-experiment-local-run-v5`;
 - experiment selection remains exactly the same 10 security-domain corpus cases;
 - oracle expected values and expected refs remain hidden from provider input;
 - repeated `(question_id, field)` targets with different mechanism IDs remain separate target slots;
-- durations/deadlines are requested as integer day counts;
-- prompt distinguishes explicit BLANK, HANDWRITING_DEPENDENCY, MISSING_DEPENDENCY and complete-scope ABSENT/OMITTED cases;
-- request uses current `generationConfig.responseFormat.text` JSON structured-output shape and bounds assertions to the requested count;
-- state/resolution enum shape is constrained without weakening strict Python scoring;
+- durations/deadlines remain requested as integer day counts;
+- prompt still distinguishes explicit BLANK, HANDWRITING_DEPENDENCY, MISSING_DEPENDENCY and complete-scope ABSENT/OMITTED cases;
+- GenerateContent request uses `generationConfig.responseMimeType=application/json` plus `generationConfig.responseJsonSchema=<same bounded schema>` and no longer uses the rejected `responseFormat.text.mimeType=application/json` shape;
+- schema still bounds assertions to the requested count and constrains state/resolution shape without weakening strict Python scoring;
 - primary/fallback remain exactly `gemini-3.6-flash` / `gemini-3.5-flash`;
 - timeout, pacing, retry/fallback cap and 429 behavior remain unchanged;
 - retry/error messages do not disclose the API key;
 - output reports remain local and contain no API key;
 - no new dependency, workflow, permission, provider host, production storage, OCR/Android/serverless path or statutory runtime is introduced;
-- focused tests and Python compilation pass on exact final code blobs;
+- focused tests and Python compilation pass on exact final code/test blobs;
 - Markdown/JSON state agree;
 - final security review passes on exact final head;
-- actual Gemini structured-output acceptance, semantic quality and score improvement remain unverified until local run v4.
+- actual Gemini acceptance of `responseJsonSchema`, semantic quality and score improvement remain unverified until the product owner performs local run v5.
