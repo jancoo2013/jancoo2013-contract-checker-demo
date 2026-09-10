@@ -2,12 +2,17 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+import re
 import time
 from urllib import error, request
 
 ROOT = Path(__file__).resolve().parents[1]
 CORPUS = ROOT / "research/question_engine/smart_analysis_corpus_v1.json"
-MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.8-flash")
+DEFAULT_MODEL = "gemini-3.6-flash"
+MODEL = os.environ.get("GEMINI_MODEL", DEFAULT_MODEL)
+REQUEST_SPACING_SECONDS = 15
+MAX_ATTEMPTS = 4
+RETRYABLE_HTTP_CODES = {429, 503}
 CASES = (
     "security_broad_trigger_confirmed",
     "security_broad_trigger_narrowed_by_notice_cure",
@@ -111,11 +116,25 @@ def parse_provider_text(text):
     return parsed
 
 
+def retry_wait_seconds(detail, headers, attempt):
+    if headers:
+        raw = headers.get("Retry-After")
+        try:
+            if raw:
+                return min(max(float(raw), 1.0), 120.0)
+        except (TypeError, ValueError):
+            pass
+    match = re.search(r"retry in\s+([0-9]+(?:\.[0-9]+)?)s", detail, re.IGNORECASE)
+    if match:
+        return min(max(float(match.group(1)) + 1.0, 1.0), 120.0)
+    return min(15.0 * (2 ** (attempt - 1)), 60.0)
+
+
 def call_gemini(key, prompt):
     body = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {
-            "temperature": 0, "maxOutputTokens": 3000,
+            "maxOutputTokens": 3000,
             "responseMimeType": "application/json",
         },
     }
@@ -125,14 +144,24 @@ def call_gemini(key, prompt):
         headers={"Content-Type": "application/json", "x-goog-api-key": key},
         method="POST",
     )
-    try:
-        with request.urlopen(req, timeout=60) as response:
-            envelope = json.load(response)
-    except error.HTTPError as exc:
-        detail = exc.read(1200).decode("utf-8", "replace").replace(key, "[REDACTED]")
-        raise RuntimeError(f"Gemini HTTP {exc.code}: {detail}") from None
-    except error.URLError as exc:
-        raise RuntimeError(f"Gemini network error: {exc.reason}") from None
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        try:
+            with request.urlopen(req, timeout=60) as response:
+                envelope = json.load(response)
+            break
+        except error.HTTPError as exc:
+            detail = exc.read(1200).decode("utf-8", "replace").replace(key, "[REDACTED]")
+            if exc.code in RETRYABLE_HTTP_CODES and attempt < MAX_ATTEMPTS:
+                wait = retry_wait_seconds(detail, exc.headers, attempt)
+                print(f"Gemini HTTP {exc.code}; retrying in {wait:.0f}s "
+                      f"({attempt}/{MAX_ATTEMPTS - 1} retries used)")
+                time.sleep(wait)
+                continue
+            raise RuntimeError(f"Gemini HTTP {exc.code}: {detail}") from None
+        except error.URLError as exc:
+            raise RuntimeError(f"Gemini network error: {exc.reason}") from None
+    else:
+        raise RuntimeError("Gemini request retry loop ended unexpectedly")
     try:
         text = "".join(p.get("text", "") for p in envelope["candidates"][0]["content"]["parts"])
     except (KeyError, IndexError, TypeError):
@@ -236,6 +265,8 @@ def run():
         raise RuntimeError(f"Corpus selection invalid: {', '.join(missing)}")
     results, started = [], time.time()
     for n, case_id in enumerate(CASES, 1):
+        if n > 1:
+            time.sleep(REQUEST_SPACING_SECONDS)
         case = by_id[case_id]
         print(f"[{n}/{len(CASES)}] {case_id}")
         try:
