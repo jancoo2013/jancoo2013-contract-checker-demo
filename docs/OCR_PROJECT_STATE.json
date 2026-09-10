@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-10-109",
+  "state_version": "privacy-ocr-2026-09-10-110",
   "active_track": "question-engine-development",
-  "next_step_id": "question-engine-security-provider-experiment-local-run-v2",
-  "next_step_summary": "The first local run of the PR #257 harness reached the Gemini API but completed 0/10 cases: early requests returned transient HTTP 503 high-demand responses and later requests hit a free-tier HTTP 429 request-rate limit, so it produced no semantic provider evidence. PR #259 is a bounded corrective: default to stable gemini-3.6-flash, remove the deprecated temperature request parameter, space case requests by 15 seconds, and retry only transient 429/503 responses with bounded provider-hint/exponential waits. No Question Engine schema or corpus semantics change. The next step is a second local run and review of its generated JSON/TXT before any LLM↔Python schema change.",
-  "last_recorded_pr": 259,
-  "last_recorded_change": "question-engine-security-provider-36-backoff-v1",
+  "next_step_id": "question-engine-security-provider-experiment-local-run-v3",
+  "next_step_summary": "The second local Gemini 3.6 run reached case 7/10 and showed that HTTP 503 retry can recover, but a later read timeout escaped the per-case RuntimeError boundary and aborted the whole experiment before a report was saved. PR #260 is a bounded transport corrective: increase the per-request read timeout from 60 to 120 seconds, treat direct and URL-wrapped timeout errors as transient within the existing maximum 4 attempts, and convert an exhausted timeout into a per-case RuntimeError so later cases still run and the final report can be written. Model, prompts, corpus, semantic scoring, credential handling and Question Engine schema remain unchanged. The next step is local run v3 and review of its generated JSON/TXT before any semantic schema change.",
+  "last_recorded_pr": 260,
+  "last_recorded_change": "question-engine-security-provider-timeout-tolerance-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-09-10"
