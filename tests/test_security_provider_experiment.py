@@ -40,6 +40,50 @@ class SecurityProviderExperimentTests(unittest.TestCase):
         self.assertNotIn('"CONFIRMED"', prompt)
         self.assertIn('"candidate"', prompt)
 
+    def test_target_slots_preserve_mechanism_identity(self):
+        case = {
+            "lifecycle": "EXECUTED", "clauses": [],
+            "assertions": [
+                {"question_id": "security.instrument_amounts", "field": "instrument_amounts",
+                 "expected": 10000, "refs": ["c1"], "mechanism_id": "security_1"},
+                {"question_id": "security.instrument_amounts", "field": "instrument_amounts",
+                 "expected": 30000, "refs": ["c2"], "mechanism_id": "security_2"},
+            ],
+        }
+        data = experiment.case_input(case)
+        self.assertEqual(data["target_assertions"], [
+            {"question_id": "security.instrument_amounts", "mechanism_id": "security_1",
+             "field": "instrument_amounts"},
+            {"question_id": "security.instrument_amounts", "mechanism_id": "security_2",
+             "field": "instrument_amounts"},
+        ])
+        self.assertNotIn("target_questions", data)
+
+    def test_prompt_defines_days_and_dependency_states(self):
+        case = {"lifecycle": "EXECUTED", "clauses": [], "assertions": []}
+        prompt = experiment.build_prompt(case)
+        self.assertIn("integer day counts", prompt)
+        self.assertIn("HANDWRITING_DEPENDENCY", prompt)
+        self.assertIn("MISSING_DEPENDENCY", prompt)
+        self.assertIn("state.value=BLANK", prompt)
+
+    def test_response_schema_bounds_assertion_count_and_states(self):
+        schema = experiment.response_schema(3)
+        assertions = schema["properties"]["assertions"]
+        self.assertEqual((assertions["minItems"], assertions["maxItems"]), (3, 3))
+        state = assertions["items"]["properties"]["state"]
+        self.assertEqual(state["properties"]["presence"]["enum"], experiment.STATE_VALUES["presence"])
+        self.assertFalse(state["additionalProperties"])
+        self.assertFalse(schema["additionalProperties"])
+
+    def test_request_body_uses_current_structured_output_shape(self):
+        body = experiment.request_body("{}", 2)
+        config = body["generationConfig"]
+        self.assertNotIn("responseMimeType", config)
+        text = config["responseFormat"]["text"]
+        self.assertEqual(text["mimeType"], "application/json")
+        self.assertEqual(text["schema"]["properties"]["assertions"]["maxItems"], 2)
+
     def test_exact_scoring(self):
         case = {"clauses": [{"ref": "c1", "text_he": "טקסט"}], "assertions": [{
             "question_id": "security.instrument_amounts", "field": "instrument_amounts",
@@ -102,7 +146,7 @@ class SecurityProviderExperimentTests(unittest.TestCase):
         with patch.object(experiment.request, "urlopen",
                           side_effect=[TimeoutError("The read operation timed out"), FakeResponse()]) as urlopen, \
              patch.object(experiment.time, "sleep") as sleep:
-            actual, model_used = experiment.call_gemini("test-key", "{}")
+            actual, model_used = experiment.call_gemini("test-key", "{}", 0)
         self.assertEqual(actual, {"assertions": [], "resolution": None})
         self.assertEqual(model_used, experiment.FALLBACK_MODEL)
         self.assertEqual(urlopen.call_count, 2)
@@ -116,7 +160,7 @@ class SecurityProviderExperimentTests(unittest.TestCase):
         with patch.object(experiment.request, "urlopen",
                           side_effect=[http_error(503), FakeResponse()]) as urlopen, \
              patch.object(experiment.time, "sleep") as sleep:
-            _, model_used = experiment.call_gemini("test-key", "{}")
+            _, model_used = experiment.call_gemini("test-key", "{}", 0)
         self.assertEqual(model_used, experiment.FALLBACK_MODEL)
         self.assertIn(experiment.MODEL, urlopen.call_args_list[0].args[0].full_url)
         self.assertIn(experiment.FALLBACK_MODEL, urlopen.call_args_list[1].args[0].full_url)
@@ -127,10 +171,22 @@ class SecurityProviderExperimentTests(unittest.TestCase):
         with patch.object(experiment.request, "urlopen",
                           side_effect=[limited, FakeResponse()]) as urlopen, \
              patch.object(experiment.time, "sleep") as sleep:
-            _, model_used = experiment.call_gemini("test-key", "{}")
+            _, model_used = experiment.call_gemini("test-key", "{}", 0)
         self.assertEqual(model_used, experiment.MODEL)
         self.assertTrue(all(experiment.MODEL in call.args[0].full_url for call in urlopen.call_args_list))
         sleep.assert_called_once_with(2.0)
+
+    def test_structured_output_schema_is_sent_to_both_models(self):
+        with patch.object(experiment.request, "urlopen",
+                          side_effect=[http_error(503), FakeResponse()]) as urlopen, \
+             patch.object(experiment.time, "sleep"):
+            experiment.call_gemini("test-key", "{}", 2)
+        for call in urlopen.call_args_list:
+            body = json.loads(call.args[0].data.decode("utf-8"))
+            self.assertEqual(body["generationConfig"]["responseFormat"]["text"]["mimeType"],
+                             "application/json")
+            self.assertEqual(body["generationConfig"]["responseFormat"]["text"]["schema"]
+                             ["properties"]["assertions"]["minItems"], 2)
 
 
 if __name__ == "__main__":
