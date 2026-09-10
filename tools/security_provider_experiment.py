@@ -11,6 +11,7 @@ CORPUS = ROOT / "research/question_engine/smart_analysis_corpus_v1.json"
 DEFAULT_MODEL = "gemini-3.6-flash"
 MODEL = os.environ.get("GEMINI_MODEL", DEFAULT_MODEL)
 REQUEST_SPACING_SECONDS = 15
+REQUEST_TIMEOUT_SECONDS = 120
 MAX_ATTEMPTS = 4
 RETRYABLE_HTTP_CODES = {429, 503}
 CASES = (
@@ -130,6 +131,11 @@ def retry_wait_seconds(detail, headers, attempt):
     return min(15.0 * (2 ** (attempt - 1)), 60.0)
 
 
+def is_timeout_error(exc):
+    reason = getattr(exc, "reason", exc)
+    return isinstance(reason, TimeoutError) or "timed out" in str(reason).lower()
+
+
 def call_gemini(key, prompt):
     body = {
         "contents": [{"parts": [{"text": prompt}]}],
@@ -146,7 +152,7 @@ def call_gemini(key, prompt):
     )
     for attempt in range(1, MAX_ATTEMPTS + 1):
         try:
-            with request.urlopen(req, timeout=60) as response:
+            with request.urlopen(req, timeout=REQUEST_TIMEOUT_SECONDS) as response:
                 envelope = json.load(response)
             break
         except error.HTTPError as exc:
@@ -159,7 +165,21 @@ def call_gemini(key, prompt):
                 continue
             raise RuntimeError(f"Gemini HTTP {exc.code}: {detail}") from None
         except error.URLError as exc:
+            if is_timeout_error(exc) and attempt < MAX_ATTEMPTS:
+                wait = retry_wait_seconds("", None, attempt)
+                print(f"Gemini network timeout; retrying in {wait:.0f}s "
+                      f"({attempt}/{MAX_ATTEMPTS - 1} retries used)")
+                time.sleep(wait)
+                continue
             raise RuntimeError(f"Gemini network error: {exc.reason}") from None
+        except TimeoutError as exc:
+            if attempt < MAX_ATTEMPTS:
+                wait = retry_wait_seconds("", None, attempt)
+                print(f"Gemini read timeout; retrying in {wait:.0f}s "
+                      f"({attempt}/{MAX_ATTEMPTS - 1} retries used)")
+                time.sleep(wait)
+                continue
+            raise RuntimeError(f"Gemini timeout after {MAX_ATTEMPTS} attempts: {exc}") from None
     else:
         raise RuntimeError("Gemini request retry loop ended unexpectedly")
     try:
