@@ -1,3 +1,4 @@
+import io
 import json
 from pathlib import Path
 import tempfile
@@ -19,6 +20,10 @@ class FakeResponse:
             "text": '{"assertions":[],"resolution":null}'
         }]}}]}
         return json.dumps(payload).encode("utf-8")
+
+
+def http_error(code, detail=b"temporary"):
+    return experiment.error.HTTPError("https://example.invalid", code, "error", {}, io.BytesIO(detail))
 
 
 class SecurityProviderExperimentTests(unittest.TestCase):
@@ -78,6 +83,7 @@ class SecurityProviderExperimentTests(unittest.TestCase):
 
     def test_default_model_and_retry_policy(self):
         self.assertEqual(experiment.DEFAULT_MODEL, "gemini-3.6-flash")
+        self.assertEqual(experiment.FALLBACK_MODEL, "gemini-3.5-flash")
         self.assertEqual(experiment.RETRYABLE_HTTP_CODES, {429, 503})
         self.assertGreaterEqual(experiment.REQUEST_SPACING_SECONDS, 12)
         self.assertGreaterEqual(experiment.REQUEST_TIMEOUT_SECONDS, 120)
@@ -92,15 +98,39 @@ class SecurityProviderExperimentTests(unittest.TestCase):
         wrapped = experiment.error.URLError(TimeoutError("The read operation timed out"))
         self.assertTrue(experiment.is_timeout_error(wrapped))
 
-    def test_read_timeout_retries_and_then_succeeds(self):
+    def test_read_timeout_switches_to_fallback_and_succeeds(self):
         with patch.object(experiment.request, "urlopen",
                           side_effect=[TimeoutError("The read operation timed out"), FakeResponse()]) as urlopen, \
              patch.object(experiment.time, "sleep") as sleep:
-            actual = experiment.call_gemini("test-key", "{}")
+            actual, model_used = experiment.call_gemini("test-key", "{}")
         self.assertEqual(actual, {"assertions": [], "resolution": None})
+        self.assertEqual(model_used, experiment.FALLBACK_MODEL)
         self.assertEqual(urlopen.call_count, 2)
-        self.assertEqual(urlopen.call_args.kwargs["timeout"], experiment.REQUEST_TIMEOUT_SECONDS)
-        sleep.assert_called_once_with(15.0)
+        first_url = urlopen.call_args_list[0].args[0].full_url
+        second_url = urlopen.call_args_list[1].args[0].full_url
+        self.assertIn(experiment.MODEL, first_url)
+        self.assertIn(experiment.FALLBACK_MODEL, second_url)
+        sleep.assert_not_called()
+
+    def test_http_503_switches_to_fallback(self):
+        with patch.object(experiment.request, "urlopen",
+                          side_effect=[http_error(503), FakeResponse()]) as urlopen, \
+             patch.object(experiment.time, "sleep") as sleep:
+            _, model_used = experiment.call_gemini("test-key", "{}")
+        self.assertEqual(model_used, experiment.FALLBACK_MODEL)
+        self.assertIn(experiment.MODEL, urlopen.call_args_list[0].args[0].full_url)
+        self.assertIn(experiment.FALLBACK_MODEL, urlopen.call_args_list[1].args[0].full_url)
+        sleep.assert_not_called()
+
+    def test_http_429_retries_same_model(self):
+        limited = http_error(429, b"retry in 1s")
+        with patch.object(experiment.request, "urlopen",
+                          side_effect=[limited, FakeResponse()]) as urlopen, \
+             patch.object(experiment.time, "sleep") as sleep:
+            _, model_used = experiment.call_gemini("test-key", "{}")
+        self.assertEqual(model_used, experiment.MODEL)
+        self.assertTrue(all(experiment.MODEL in call.args[0].full_url for call in urlopen.call_args_list))
+        sleep.assert_called_once_with(2.0)
 
 
 if __name__ == "__main__":
