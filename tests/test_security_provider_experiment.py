@@ -1,9 +1,24 @@
+import json
 from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
 
 from tools import security_provider_experiment as experiment
+
+
+class FakeResponse:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+    def read(self):
+        payload = {"candidates": [{"content": {"parts": [{
+            "text": '{"assertions":[],"resolution":null}'
+        }]}}]}
+        return json.dumps(payload).encode("utf-8")
 
 
 class SecurityProviderExperimentTests(unittest.TestCase):
@@ -65,12 +80,27 @@ class SecurityProviderExperimentTests(unittest.TestCase):
         self.assertEqual(experiment.DEFAULT_MODEL, "gemini-3.6-flash")
         self.assertEqual(experiment.RETRYABLE_HTTP_CODES, {429, 503})
         self.assertGreaterEqual(experiment.REQUEST_SPACING_SECONDS, 12)
+        self.assertGreaterEqual(experiment.REQUEST_TIMEOUT_SECONDS, 120)
         self.assertLessEqual(experiment.MAX_ATTEMPTS, 4)
 
     def test_retry_wait_uses_provider_hint_and_bounds_it(self):
         self.assertEqual(experiment.retry_wait_seconds("Please retry in 49.5s.", {}, 1), 50.5)
         self.assertEqual(experiment.retry_wait_seconds("Please retry in 999s.", {}, 1), 120.0)
         self.assertEqual(experiment.retry_wait_seconds("temporary overload", {}, 2), 30.0)
+
+    def test_timeout_is_recognized_inside_url_error(self):
+        wrapped = experiment.error.URLError(TimeoutError("The read operation timed out"))
+        self.assertTrue(experiment.is_timeout_error(wrapped))
+
+    def test_read_timeout_retries_and_then_succeeds(self):
+        with patch.object(experiment.request, "urlopen",
+                          side_effect=[TimeoutError("The read operation timed out"), FakeResponse()]) as urlopen, \
+             patch.object(experiment.time, "sleep") as sleep:
+            actual = experiment.call_gemini("test-key", "{}")
+        self.assertEqual(actual, {"assertions": [], "resolution": None})
+        self.assertEqual(urlopen.call_count, 2)
+        self.assertEqual(urlopen.call_args.kwargs["timeout"], experiment.REQUEST_TIMEOUT_SECONDS)
+        sleep.assert_called_once_with(15.0)
 
 
 if __name__ == "__main__":
