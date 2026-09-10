@@ -128,7 +128,7 @@ class SecurityProviderExperimentTests(unittest.TestCase):
         self.assertEqual(experiment.DEFAULT_MODEL, "gemini-3.6-flash")
         self.assertEqual(experiment.FALLBACK_MODEL, "gemini-3.5-flash")
         self.assertEqual(experiment.RETRYABLE_HTTP_CODES, {429, 503})
-        self.assertGreaterEqual(experiment.REQUEST_SPACING_SECONDS, 12)
+        self.assertEqual(experiment.REQUEST_SPACING_SECONDS, 30)
         self.assertGreaterEqual(experiment.REQUEST_TIMEOUT_SECONDS, 120)
         self.assertLessEqual(experiment.MAX_ATTEMPTS, 4)
 
