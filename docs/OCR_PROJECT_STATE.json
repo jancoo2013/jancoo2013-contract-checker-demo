@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-10-112",
+  "state_version": "privacy-ocr-2026-09-10-113",
   "active_track": "question-engine-development",
-  "next_step_id": "question-engine-security-provider-experiment-local-run-v4",
-  "next_step_summary": "Local provider run v3 after PR #261 produced the first usable semantic evidence: 9/10 cases completed, 5/5 candidate resolutions matched, one successful 3.5 fallback case, one malformed-JSON case, and recurring exact-score losses from response-contract mismatches such as P14D day strings, aggregation across mechanism IDs, and incorrect BLANK/HANDWRITING/MISSING dependency state or refs. PR #262 is a bounded diagnostic corrective: preserve explicit per-mechanism target assertion slots, clarify integer day/state/ref semantics, and request provider-enforced JSON structured output with an exact assertion-count bound. Models, corpus oracle, strict scorer, retry/failover, credentials and Question Engine production schema remain unchanged. Next step is local run v4 and comparison against run v3.",
-  "last_recorded_pr": 262,
-  "last_recorded_change": "question-engine-security-provider-structured-output-v1",
+  "next_step_id": "question-engine-security-provider-experiment-local-run-v5",
+  "next_step_summary": "Local provider run v4 after PR #262 completed 0/10 semantic cases because every request was rejected before model execution with HTTP 400 INVALID_ARGUMENT on generation_config.response_format.text.mime_type. PR #263 is a bounded API-shape corrective: keep the same response JSON schema and prompt contract, but send it through the established GenerateContent generationConfig.responseMimeType=application/json plus generationConfig.responseJsonSchema fields documented by the current API reference. Models, corpus oracle, strict scorer, retry/failover, credentials and Question Engine production schema remain unchanged. Next step is local run v5 and comparison against run v3 once provider acceptance is restored.",
+  "last_recorded_pr": 263,
+  "last_recorded_change": "question-engine-security-provider-response-schema-api-fix-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-09-10"
