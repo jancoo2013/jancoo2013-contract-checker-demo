@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-10-114",
+  "state_version": "privacy-ocr-2026-09-10-115",
   "active_track": "question-engine-development",
-  "next_step_id": "question-engine-security-provider-experiment-local-run-v5",
-  "next_step_summary": "Local run v5 is currently the evidence gate after PR #263 restored the documented GenerateContent responseMimeType + responseJsonSchema request shape. During that run the harness showed repeated HTTP 429 rate-limit responses with provider retry hints around 41-60 seconds while fixed inter-case pacing was 15 seconds. PR #264 is an owner-authorized bounded pacing corrective only: increase REQUEST_SPACING_SECONDS from 15 to 30, leaving models, structured-output schema, prompt, corpus, strict scorer, 429/503 retry/failover, timeout, credentials and report destination unchanged. Finish and review the current local run v5 first; the 30-second pacing remains runtime-unverified until a later run uses PR #264 if another run is needed.",
-  "last_recorded_pr": 264,
-  "last_recorded_change": "question-engine-security-provider-pacing-30s-v1",
+  "next_step_id": "question-engine-security-provider-experiment-local-run-v6",
+  "next_step_summary": "Local run v5 after PR #263 confirmed provider acceptance of responseMimeType + responseJsonSchema, but completed only 3/10 cases in 1196.61 seconds. The dominant failure after case 4 was HTTP 429 with quotaId GenerateRequestsPerDayPerProjectPerModel-FreeTier for gemini-3.6-flash, showing per-model daily quota exhaustion rather than a short-window rate limit. PR #265 is an owner-authorized bounded routing corrective: distinguish per-model daily-quota 429 from short-window 429, immediately advance on daily exhaustion through gemini-3.6-flash -> gemini-3.5-flash -> gemini-3.1-pro-preview, keep provider-guided same-model waiting for short-window 429, and also allow 503/timeouts to advance through the same bounded route. Keep 30-second pacing, 120-second timeout, four total attempts per case, structured-output schema, prompt, corpus, strict scorer, credentials and local report destination unchanged. Next step is local run v6 to verify routing, Pro availability for the user's API project, latency, and semantic quality.",
+  "last_recorded_pr": 265,
+  "last_recorded_change": "question-engine-security-provider-quota-pro-fallback-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-09-10"
