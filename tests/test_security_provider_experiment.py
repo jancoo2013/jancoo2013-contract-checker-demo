@@ -26,6 +26,10 @@ def http_error(code, detail=b"temporary"):
     return experiment.error.HTTPError("https://example.invalid", code, "error", {}, io.BytesIO(detail))
 
 
+def daily_quota_error():
+    return http_error(429, b"quotaId: GenerateRequestsPerDayPerProjectPerModel-FreeTier")
+
+
 class SecurityProviderExperimentTests(unittest.TestCase):
     def test_prompt_hides_oracle_answers(self):
         case = {
@@ -124,9 +128,12 @@ class SecurityProviderExperimentTests(unittest.TestCase):
         self.assertEqual(len(experiment.CASES), 10)
         self.assertEqual(len(set(experiment.CASES)), 10)
 
-    def test_default_model_and_retry_policy(self):
+    def test_default_models_and_retry_policy(self):
         self.assertEqual(experiment.DEFAULT_MODEL, "gemini-3.6-flash")
         self.assertEqual(experiment.FALLBACK_MODEL, "gemini-3.5-flash")
+        self.assertEqual(experiment.PRO_MODEL, "gemini-3.1-pro-preview")
+        self.assertEqual(experiment.MODEL_ROUTE, (
+            experiment.MODEL, experiment.FALLBACK_MODEL, experiment.PRO_MODEL))
         self.assertEqual(experiment.RETRYABLE_HTTP_CODES, {429, 503})
         self.assertEqual(experiment.REQUEST_SPACING_SECONDS, 30)
         self.assertGreaterEqual(experiment.REQUEST_TIMEOUT_SECONDS, 120)
@@ -137,11 +144,16 @@ class SecurityProviderExperimentTests(unittest.TestCase):
         self.assertEqual(experiment.retry_wait_seconds("Please retry in 999s.", {}, 1), 120.0)
         self.assertEqual(experiment.retry_wait_seconds("temporary overload", {}, 2), 30.0)
 
+    def test_daily_quota_detection_is_specific(self):
+        self.assertTrue(experiment.is_daily_quota_error(
+            "quotaId: GenerateRequestsPerDayPerProjectPerModel-FreeTier"))
+        self.assertFalse(experiment.is_daily_quota_error("Please retry in 41s"))
+
     def test_timeout_is_recognized_inside_url_error(self):
         wrapped = experiment.error.URLError(TimeoutError("The read operation timed out"))
         self.assertTrue(experiment.is_timeout_error(wrapped))
 
-    def test_read_timeout_switches_to_fallback_and_succeeds(self):
+    def test_read_timeout_switches_to_flash_fallback_and_succeeds(self):
         with patch.object(experiment.request, "urlopen",
                           side_effect=[TimeoutError("The read operation timed out"), FakeResponse()]) as urlopen, \
              patch.object(experiment.time, "sleep") as sleep:
@@ -149,13 +161,11 @@ class SecurityProviderExperimentTests(unittest.TestCase):
         self.assertEqual(actual, {"assertions": [], "resolution": None})
         self.assertEqual(model_used, experiment.FALLBACK_MODEL)
         self.assertEqual(urlopen.call_count, 2)
-        first_url = urlopen.call_args_list[0].args[0].full_url
-        second_url = urlopen.call_args_list[1].args[0].full_url
-        self.assertIn(experiment.MODEL, first_url)
-        self.assertIn(experiment.FALLBACK_MODEL, second_url)
+        self.assertIn(experiment.MODEL, urlopen.call_args_list[0].args[0].full_url)
+        self.assertIn(experiment.FALLBACK_MODEL, urlopen.call_args_list[1].args[0].full_url)
         sleep.assert_not_called()
 
-    def test_http_503_switches_to_fallback(self):
+    def test_http_503_switches_to_flash_fallback(self):
         with patch.object(experiment.request, "urlopen",
                           side_effect=[http_error(503), FakeResponse()]) as urlopen, \
              patch.object(experiment.time, "sleep") as sleep:
@@ -165,7 +175,16 @@ class SecurityProviderExperimentTests(unittest.TestCase):
         self.assertIn(experiment.FALLBACK_MODEL, urlopen.call_args_list[1].args[0].full_url)
         sleep.assert_not_called()
 
-    def test_http_429_retries_same_model(self):
+    def test_second_503_switches_to_pro(self):
+        with patch.object(experiment.request, "urlopen",
+                          side_effect=[http_error(503), http_error(503), FakeResponse()]) as urlopen, \
+             patch.object(experiment.time, "sleep") as sleep:
+            _, model_used = experiment.call_gemini("test-key", "{}", 0)
+        self.assertEqual(model_used, experiment.PRO_MODEL)
+        self.assertIn(experiment.PRO_MODEL, urlopen.call_args_list[2].args[0].full_url)
+        sleep.assert_not_called()
+
+    def test_http_429_short_window_retries_same_model(self):
         limited = http_error(429, b"retry in 1s")
         with patch.object(experiment.request, "urlopen",
                           side_effect=[limited, FakeResponse()]) as urlopen, \
@@ -175,11 +194,38 @@ class SecurityProviderExperimentTests(unittest.TestCase):
         self.assertTrue(all(experiment.MODEL in call.args[0].full_url for call in urlopen.call_args_list))
         sleep.assert_called_once_with(2.0)
 
-    def test_structured_output_schema_is_sent_to_both_models(self):
+    def test_daily_quota_switches_without_sleep(self):
         with patch.object(experiment.request, "urlopen",
-                          side_effect=[http_error(503), FakeResponse()]) as urlopen, \
+                          side_effect=[daily_quota_error(), FakeResponse()]) as urlopen, \
+             patch.object(experiment.time, "sleep") as sleep:
+            _, model_used = experiment.call_gemini("test-key", "{}", 0)
+        self.assertEqual(model_used, experiment.FALLBACK_MODEL)
+        self.assertIn(experiment.FALLBACK_MODEL, urlopen.call_args_list[1].args[0].full_url)
+        sleep.assert_not_called()
+
+    def test_daily_quota_chain_reaches_pro(self):
+        with patch.object(experiment.request, "urlopen",
+                          side_effect=[daily_quota_error(), daily_quota_error(), FakeResponse()]) as urlopen, \
+             patch.object(experiment.time, "sleep") as sleep:
+            _, model_used = experiment.call_gemini("test-key", "{}", 0)
+        self.assertEqual(model_used, experiment.PRO_MODEL)
+        self.assertIn(experiment.PRO_MODEL, urlopen.call_args_list[2].args[0].full_url)
+        sleep.assert_not_called()
+
+    def test_daily_quota_on_final_model_fails_without_waiting(self):
+        with patch.object(experiment.request, "urlopen",
+                          side_effect=[daily_quota_error(), daily_quota_error(), daily_quota_error()]), \
+             patch.object(experiment.time, "sleep") as sleep:
+            with self.assertRaisesRegex(RuntimeError, "daily quota exhausted"):
+                experiment.call_gemini("test-key", "{}", 0)
+        sleep.assert_not_called()
+
+    def test_structured_output_schema_is_sent_to_all_routed_models(self):
+        with patch.object(experiment.request, "urlopen",
+                          side_effect=[http_error(503), http_error(503), FakeResponse()]) as urlopen, \
              patch.object(experiment.time, "sleep"):
             experiment.call_gemini("test-key", "{}", 2)
+        self.assertEqual(urlopen.call_count, 3)
         for call in urlopen.call_args_list:
             body = json.loads(call.args[0].data.decode("utf-8"))
             config = body["generationConfig"]

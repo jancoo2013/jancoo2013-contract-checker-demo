@@ -1,14 +1,14 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-09-10, PR #264, `question-engine-security-provider-pacing-30s-v1`.
+Последнее обновление: 2026-09-10, PR #265, `question-engine-security-provider-quota-pro-fallback-v1`.
 
 Активный трек: `question-engine-development`.
 
-Канонический следующий bounded-шаг: `question-engine-security-provider-experiment-local-run-v5`.
+Канонический следующий bounded-шаг: `question-engine-security-provider-experiment-local-run-v6`.
 
 Этот документ вместе с `docs/OCR_PROJECT_STATE.json` является канонической operational-точкой восстановления проекта. Binding architecture/security/privacy documents задают обязательные границы; текущие `active_track` и `next_step_id` выбираются только state-файлами.
 
-## 1. Current change — PR #264 provider pacing corrective
+## 1. Current change — PR #265 quota-aware three-model provider routing
 
 Ключевая продуктовая рамка не меняется:
 
@@ -29,37 +29,37 @@ Provider experiment continuity:
 - PR #262 сохранил отдельные mechanism-specific target slots, уточнил day/state/ref semantics и добавил provider-side JSON schema;
 - локальный run v4 после PR #262 не дал semantic evidence: все `10/10` запросов были отклонены до model execution одинаковым HTTP `400 INVALID_ARGUMENT` на `generation_config.response_format.text.mime_type`; `cases_completed=0`;
 - PR #263 перенёс ту же JSON schema на documented GenerateContent fields `responseMimeType + responseJsonSchema`;
-- текущий локальный run v5 после PR #263 уже прошёл несколько semantic cases, но показал repeated HTTP `429` на primary 3.6 с provider retry hints примерно `41–60s`; inter-case pacing при этом остаётся 15 секунд. Один observed `503` на case 2 штатно переключился на fallback 3.5.
+- локальный run v5 после PR #263 подтвердил, что provider принимает schema request, но занял `1196.61s` и завершил только `3/10` cases. После case 4 primary 3.6 стал возвращать HTTP `429` с quotaId `GenerateRequestsPerDayPerProjectPerModel-FreeTier`, limit `20`, то есть была исчерпана per-model daily free-tier quota. До этого один `503` штатно переключил case 2 на 3.5. По завершённым cases: `9/11` exact assertions, `9/11` value matches, `9/11` state matches, `11/11` refs, `2/3` resolutions, `0` hard failures.
 
-PR #264 — owner-authorized bounded corrective только к диагностическому pacing:
+PR #264 заранее увеличил fixed inter-case pacing с `15` до `30` секунд, но run v5 показал отдельный failure mode: 30-секундная или любая другая короткая пауза не может восстановить суточную per-model quota.
 
-- `REQUEST_SPACING_SECONDS` увеличен с `15` до `30`;
-- цель — снизить число заведомо лишних столкновений с free-tier/provider rate limit между независимыми cases;
-- HTTP `429` по-прежнему не переключает модель и использует provider-guided same-model retry;
-- HTTP `503`/timeout failover остаётся `gemini-3.6-flash → gemini-3.5-flash`;
-- timeout остаётся 120 секунд, общий cap — максимум 4 provider attempts на case;
+PR #265 — owner-authorized bounded routing corrective:
+
+- primary остаётся `gemini-3.6-flash`;
+- второй уровень остаётся `gemini-3.5-flash`;
+- третьим bounded fallback добавлен `gemini-3.1-pro-preview`;
+- точный model code `gemini-3.1-pro-preview` и поддержка Structured outputs подтверждены current Google model documentation на 2026-09-10; модель остаётся Preview, runtime availability для пользовательского API project ещё не проверена;
+- HTTP `429` с per-model daily-quota marker больше не ждёт минутами на той же модели: harness немедленно переходит к следующей модели;
+- short-window HTTP `429` без daily-quota marker по-прежнему использует provider-guided wait и retry той же модели;
+- HTTP `503` и timeout теперь также могут пройти bounded route `3.6 → 3.5 → 3.1 Pro`;
+- если daily quota исчерпана уже на последней модели, case завершается ошибкой без бессмысленного ожидания;
+- fixed pacing остаётся 30 секунд, timeout 120 секунд, общий cap остаётся максимум 4 provider attempts на case;
 - structured-output request, prompt, target slots, corpus oracle, strict scorer, credentials и local report destination не меняются.
 
-В PR нет real contracts, raw OCR, recoverable PII, statutory runtime, OCR/Android/serverless изменений, production storage, UI behavior, нового provider, dependency, workflow или production quality claim.
+В PR нет real contracts, raw OCR, recoverable PII, statutory runtime, OCR/Android/serverless изменений, production storage, UI behavior, нового provider host, dependency или workflow. Добавляется только ещё одна модель того же Gemini provider в diagnostic route.
 
 ## 2. Canonical next step
 
-`next_step_id = question-engine-security-provider-experiment-local-run-v5`
+`next_step_id = question-engine-security-provider-experiment-local-run-v6`
 
-Канонический следующий шаг не заменяется pacing-corrective: дождаться завершения уже запущенного local run v5 после PR #263 и разобрать его generated JSON/TXT.
+Следующий шаг — повторить тот же 10-case local provider experiment после merge PR #265 и проверить реальную работу новой маршрутизации:
 
-Если текущий provider run завершится и даст semantic evidence, проверить прежде всего:
-
-- исчез ли malformed JSON;
-- возвращаются ли durations/deadlines integer day counts;
-- сохраняются ли отдельные mechanism IDs для повторяющихся instrument fields;
-- различаются ли BLANK, MISSING_DEPENDENCY и HANDWRITING_DEPENDENCY с правильными refs;
-- стали ли evidence refs минимальными и точными;
-- сохранились ли правильные candidate resolutions;
-- какие cases обработаны primary 3.6, а какие fallback 3.5;
-- появились ли новые hard failures или реальные semantic mismatches после устранения format noise.
-
-Если после разбора понадобится ещё один provider run, он должен использовать merged PR #264 и 30-секундный inter-case pacing; фактическое снижение 429 остаётся непроверенным до такого запуска. Не менять semantic prompt/corpus/scorer без реального semantic evidence.
+- daily-quota `429` на 3.6 должен без ожидания перейти на 3.5;
+- если 3.5 также недоступна по daily quota / transient failure, route должен дойти до 3.1 Pro в пределах общего attempt cap;
+- short-window `429` должен оставаться same-model retry;
+- проверить, доступен ли `gemini-3.1-pro-preview` пользовательскому API project и принимает ли тот же `responseMimeType + responseJsonSchema` contract;
+- сравнить model provenance, latency, malformed JSON, exact assertions, values/states/refs, resolutions и hard failures с run v3 и run v5;
+- не менять semantic prompt/corpus/scorer до появления нового реального semantic evidence.
 
 ## 3. Required reading order
 
@@ -153,7 +153,7 @@ FindingResolution(candidate, outcome, reviewed_refs, resolution_summary)
 FindingOutcome = CONFIRMED | NARROWED | CLEARED
 ```
 
-`QuestionSpec` и `QuestionInventory` остаются static question definitions. PR #257 добавил локальный diagnostic provider harness; PR #259–#264 меняют только provider/model-call robustness/routing/output-contract/API-shape/pacing этого experiment harness, не Question Engine production schema.
+`QuestionSpec` и `QuestionInventory` остаются static question definitions. PR #257 добавил локальный diagnostic provider harness; PR #259–#265 меняют только provider/model-call robustness/routing/output-contract/API-shape/pacing этого experiment harness, не Question Engine production schema.
 
 Corpus oracle v2 является evaluation representation, а не production runtime schema. Он намеренно sparse и описывает только assertions, нужные конкретному testcase.
 
@@ -195,7 +195,7 @@ Maintained baseline предупреждает о 2026 amendment timing для s
 
 Если freshness/applicability/effective date не могут быть безопасно установлены, runtime должен деградировать к contract-only analysis, а не утверждать устаревшую норму.
 
-PR #264 statutory runtime/current-law claims не добавляет и external law в provider prompt не передаёт.
+PR #265 statutory runtime/current-law claims не добавляет и external law в provider prompt не передаёт.
 
 ## 8. Privacy and security invariants
 
@@ -207,7 +207,7 @@ Persistent fixtures/research artifacts должны быть sanitized до comm
 
 Provider experiment отправляет только synthetic/sanitized corpus material. Он не использует real user contracts, raw OCR, user identifiers, signatures, bank/check identifiers или recoverable PII. Local API key читается из environment/Desktop `.env.local`, не входит в prompt/report и scrubbed из HTTP error detail. `.env.local` остаётся вне repository tree и игнорируется `.gitignore`.
 
-PR #264 не меняет provider host, model routing или максимальный retry cap. Case count остаётся 10, timeout — 120 секунд, общий cap — максимум 4 attempts на case, 429/503/fallback policy прежняя. Единственное runtime изменение — fixed inter-case pacing `15s → 30s`, что уменьшает потенциальную частоту вызовов и не расширяет exposure. Structured-output schema и передаваемые synthetic/sanitized данные не меняются.
+PR #265 сохраняет тот же fixed Google GenerateContent host и те же synthetic/sanitized payload classes, но расширяет model routing внутри этого provider с двух до трёх моделей. `gemini-3.1-pro-preview` используется только как третий bounded diagnostic fallback. Case count остаётся 10, timeout — 120 секунд, общий cap — максимум 4 attempts на case, pacing — 30 секунд. Daily per-model quota failure теперь уменьшает resource amplification, потому что не вызывает повторные минутные ожидания на модели, чья суточная квота уже исчерпана. Short-window 429 retry остаётся provider-guided. API-key handling и local-only report output не меняются.
 
 Repository остаётся pre-production. Production use с real contracts blocked до реализации и проверки applicable consent, authorization, encryption/key lifecycle, Israel-only restricted-data processing, deletion/retention, logging, provider terms, abuse/resource controls и incident response.
 
@@ -250,10 +250,11 @@ Question Engine continuity:
 - PR #262 — owner-authorized bounded corrective adding explicit mechanism-specific target slots and provider-enforced structured output without changing corpus oracle or production schema;
 - local run v4 after PR #262 — 0/10 semantic cases; every request rejected with the same pre-generation HTTP 400 invalid `response_format.text.mime_type` argument;
 - PR #263 — bounded corrective moving the existing JSON schema to GenerateContent `responseMimeType + responseJsonSchema` fields documented by the current API reference;
-- local run v5 after PR #263 — currently in progress; provider accepts the schema, but repeated HTTP 429 rate-limit waits have been observed with 15-second fixed pacing;
-- PR #264 — bounded corrective increasing fixed inter-case pacing to 30 seconds without changing models, schema, semantic contract or retry policy.
+- local run v5 after PR #263 — provider accepted the schema; 3/10 cases completed in 1196.61s, then per-model daily free-tier quota exhaustion on 3.6 dominated cases 5–10; completed semantic subset scored 9/11 exact assertions, 11/11 refs, 2/3 resolutions and zero hard failures;
+- PR #264 — bounded corrective increasing fixed inter-case pacing to 30 seconds;
+- PR #265 — bounded corrective distinguishing daily-quota 429 from short-window 429 and extending bounded diagnostic route to `3.6 → 3.5 → 3.1 Pro`.
 
-The next evidence gate remains completion and review of local run v5. Runtime effect of PR #264 pacing will be measured only if a subsequent run is needed.
+The next evidence gate is local run v6 on merged PR #265. Runtime availability and behavior of `gemini-3.1-pro-preview` in the user's API project remain unverified until that run.
 
 ## 11. Recovery/work rules
 
@@ -275,24 +276,26 @@ Current owner authorization permits the orchestrating assistant to merge subsequ
 
 Implementation-size rule: target <=300 changed implementation lines per PR; 400 is the normal hard limit. Corpus fixture data is not implementation code, but test/implementation code should remain bounded.
 
-## 12. PR #264 validation target
+## 12. PR #265 validation target
 
-Before Ready/merge, PR #264 must verify:
+Before Ready/merge, PR #265 must verify:
 
 - changed paths exactly match Context Gate;
-- branch is based on current `main` head `cf77557a477bd373c72653273cd45ca3d6b12901` and is not behind it;
-- both state files identify PR #264 and `question-engine-security-provider-pacing-30s-v1`;
-- canonical next step remains `question-engine-security-provider-experiment-local-run-v5` because the current run is still the evidence gate;
-- `REQUEST_SPACING_SECONDS` is exactly `30`;
-- primary/fallback remain exactly `gemini-3.6-flash` / `gemini-3.5-flash`;
-- timeout remains 120 seconds, attempt cap remains 4, retryable HTTP codes remain 429/503;
-- 429 remains same-model provider-guided retry and 503/timeout fallback behavior is unchanged;
-- GenerateContent structured-output request remains `responseMimeType=application/json` plus `responseJsonSchema`;
-- prompt, target assertions, corpus selection and strict semantic/evidence scorer are unchanged;
-- retry/error messages do not disclose the API key;
-- output reports remain local and contain no API key;
-- no new dependency, workflow, permission, provider host, production storage, OCR/Android/serverless path or statutory runtime is introduced;
+- branch is based on current `main` head `253e995dbdc528c9ff598e47cb5d0c829523421f` and is not behind it;
+- both state files identify PR #265 and `question-engine-security-provider-quota-pro-fallback-v1`;
+- next step is `question-engine-security-provider-experiment-local-run-v6`;
+- model route is exactly primary `gemini-3.6-flash`, second `gemini-3.5-flash`, third `gemini-3.1-pro-preview` under default configuration;
+- per-model daily quota marker `GenerateRequestsPerDayPerProjectPerModel` triggers immediate next-model routing without sleep;
+- short-window 429 without that marker remains provider-guided same-model retry;
+- 503 and timeout can advance through the bounded three-model route;
+- final-model daily quota fails the case without a long retry loop;
+- timeout remains 120 seconds, attempt cap remains 4, fixed inter-case pacing remains 30 seconds;
+- GenerateContent structured-output request remains `responseMimeType=application/json` plus `responseJsonSchema` for every routed model;
+- prompt, target assertions, corpus selection and strict semantic/evidence scorer remain unchanged;
+- report records the final model used per case and identifies Pro-fallback usage without exposing the API key;
+- output reports remain local;
+- no raw/recoverable user data, dependency, workflow, permission, provider host, production storage, OCR/Android/serverless path or statutory runtime is introduced;
 - focused tests and Python compilation pass on exact final code/test blobs;
 - Markdown/JSON state agree;
 - final security review passes on exact final head;
-- actual reduction in 429 frequency remains unverified until a run uses PR #264.
+- actual Pro availability, cost behavior, latency and semantic quality remain unverified until local run v6.
