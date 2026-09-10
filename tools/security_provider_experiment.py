@@ -31,6 +31,12 @@ DEFAULT_STATE = {
     "presence": "PRESENT", "value": "PROVIDED",
     "evidence": "SUFFICIENT", "source": "CLEAR",
 }
+STATE_VALUES = {
+    "presence": ["PRESENT", "ABSENT", "UNKNOWN"],
+    "value": ["PROVIDED", "OMITTED", "BLANK", "UNKNOWN"],
+    "evidence": ["SUFFICIENT", "HANDWRITING_DEPENDENCY", "MISSING_DEPENDENCY", "UNREADABLE"],
+    "source": ["CLEAR", "AMBIGUOUS", "CONTRADICTORY"],
+}
 
 
 def desktop_dirs():
@@ -58,18 +64,21 @@ def load_key():
     raise RuntimeError("GEMINI_API_KEY not found. Put .env.local on the Desktop.")
 
 
+def target_assertions(case):
+    return [{
+        "question_id": item["question_id"],
+        "mechanism_id": item.get("mechanism_id"),
+        "field": item["field"],
+    } for item in case["assertions"]]
+
+
 def case_input(case):
-    targets = {}
-    for item in case["assertions"]:
-        targets.setdefault(item["question_id"], [])
-        if item["field"] not in targets[item["question_id"]]:
-            targets[item["question_id"]].append(item["field"])
     data = {
         "lifecycle": case["lifecycle"], "clauses": case["clauses"],
         "complete_for": case.get("complete_for", []),
         "documents": case.get("documents", []),
         "redactions": case.get("redactions", []),
-        "target_questions": [{"question_id": q, "fields": f} for q, f in targets.items()],
+        "target_assertions": target_assertions(case),
     }
     if case.get("candidate"):
         data["candidate"] = case["candidate"]
@@ -78,34 +87,105 @@ def case_input(case):
 
 def build_prompt(case):
     return json.dumps({
-        "task": "Read sanitized Hebrew lease evidence and answer only requested security fields.",
+        "task": "Read sanitized Hebrew lease evidence and answer only the requested security assertion slots.",
         "rules": [
             "Use only supplied clauses/package/redaction metadata and declared complete scope.",
             "Do not use outside law and do not give advice.",
             "Never guess handwriting or missing document contents.",
-            "Use only supplied refs. @scope may support absence only for questions in complete_for.",
+            "Return exactly one assertion for every target_assertions item and no others.",
+            "Copy question_id, mechanism_id and field from each target_assertions item exactly; never merge repeated fields across mechanisms.",
             "Keep instruments separate: first security instrument=security_1, second=security_2; first rent cheque=rent_cheque_1.",
-            "Return every requested field exactly once and no unrequested fields.",
+            "Use minimal direct refs for each returned field. Resolution reviewed_refs may include all clauses reviewed for the candidate.",
+            "Use only supplied refs. @scope may support absence only for questions in complete_for.",
+            "Durations and deadlines are integer day counts such as 14, never ISO-8601 strings such as P14D.",
+            "A known boolean false is still a PROVIDED value. state.presence describes whether evidence establishes the requested fact/status, not whether its boolean value is true.",
+            "Use state.value=BLANK only for an explicit blank in the supplied source; return value=null and keep state.presence=PRESENT when that blank is visible.",
+            "If handwriting redaction blocks a requested value, return value=null, state.value=UNKNOWN, state.evidence=HANDWRITING_DEPENDENCY, and cite the source clause plus the relevant redaction ref.",
+            "If a referenced document is marked MISSING and a requested value depends on it, return value=null, state.value=UNKNOWN, state.evidence=MISSING_DEPENDENCY, and cite the source clause plus the package-document ref.",
+            "Use state.presence=ABSENT with state.value=OMITTED only when the declared complete scope establishes that the requested fact is absent.",
+            "Return all four state axes explicitly for every assertion.",
             "If candidate exists, resolve exactly that claim as CONFIRMED, NARROWED or CLEARED.",
             "Normalize annex ג as annex_c and ד as annex_d.",
             "Use canonical values: security_cheque, promissory_note, rent_cheque; any_contract_breach, unpaid_rent_only, unpaid_debt; cumulative, alternative, mixed, unclear.",
         ],
-        "state_values": {
-            "presence": ["PRESENT", "ABSENT", "UNKNOWN"],
-            "value": ["PROVIDED", "OMITTED", "BLANK", "UNKNOWN"],
-            "evidence": ["SUFFICIENT", "HANDWRITING_DEPENDENCY", "MISSING_DEPENDENCY", "UNREADABLE"],
-            "source": ["CLEAR", "AMBIGUOUS", "CONTRADICTORY"],
-        },
-        "output": {
-            "assertions": [{
-                "question_id": "string", "mechanism_id": "string|null",
-                "field": "string", "value": "json|null",
-                "state": DEFAULT_STATE, "refs": ["ref"],
-            }],
-            "resolution": "null or {outcome, reviewed_refs}",
-        },
+        "state_values": STATE_VALUES,
         "input": case_input(case),
     }, ensure_ascii=False, separators=(",", ":"))
+
+
+def response_schema(assertion_count):
+    state_schema = {
+        "type": "object",
+        "properties": {
+            key: {"type": "string", "enum": values}
+            for key, values in STATE_VALUES.items()
+        },
+        "required": list(STATE_VALUES),
+        "additionalProperties": False,
+    }
+    value_schema = {
+        "anyOf": [
+            {"type": "string"},
+            {"type": "number"},
+            {"type": "boolean"},
+            {"type": "array", "items": {"type": "string"}},
+            {"type": "null"},
+        ]
+    }
+    assertion_schema = {
+        "type": "object",
+        "properties": {
+            "question_id": {"type": "string"},
+            "mechanism_id": {"type": ["string", "null"]},
+            "field": {"type": "string"},
+            "value": value_schema,
+            "state": state_schema,
+            "refs": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+        },
+        "required": ["question_id", "mechanism_id", "field", "value", "state", "refs"],
+        "additionalProperties": False,
+    }
+    resolution_schema = {
+        "anyOf": [
+            {"type": "null"},
+            {
+                "type": "object",
+                "properties": {
+                    "outcome": {"type": "string", "enum": ["CONFIRMED", "NARROWED", "CLEARED"]},
+                    "reviewed_refs": {"type": "array", "items": {"type": "string"}},
+                },
+                "required": ["outcome", "reviewed_refs"],
+                "additionalProperties": False,
+            },
+        ]
+    }
+    return {
+        "type": "object",
+        "properties": {
+            "assertions": {
+                "type": "array", "items": assertion_schema,
+                "minItems": assertion_count, "maxItems": assertion_count,
+            },
+            "resolution": resolution_schema,
+        },
+        "required": ["assertions", "resolution"],
+        "additionalProperties": False,
+    }
+
+
+def request_body(prompt, assertion_count):
+    return {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "maxOutputTokens": 3000,
+            "responseFormat": {
+                "text": {
+                    "mimeType": "application/json",
+                    "schema": response_schema(assertion_count),
+                }
+            },
+        },
+    }
 
 
 def parse_provider_text(text):
@@ -146,14 +226,8 @@ def request_for_model(model, key, body):
     )
 
 
-def call_gemini(key, prompt):
-    body = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {
-            "maxOutputTokens": 3000,
-            "responseMimeType": "application/json",
-        },
-    }
+def call_gemini(key, prompt, assertion_count):
+    body = request_body(prompt, assertion_count)
     current_model = MODEL
     for attempt in range(1, MAX_ATTEMPTS + 1):
         req = request_for_model(current_model, key, body)
@@ -313,7 +387,7 @@ def run():
         case = by_id[case_id]
         print(f"[{n}/{len(CASES)}] {case_id}")
         try:
-            actual, model_used = call_gemini(key, build_prompt(case))
+            actual, model_used = call_gemini(key, build_prompt(case), len(case["assertions"]))
             results.append({"case_id": case_id, "status": "OK", "model_used": model_used,
                             "score": score_case(case, actual), "actual": actual})
         except RuntimeError as exc:
