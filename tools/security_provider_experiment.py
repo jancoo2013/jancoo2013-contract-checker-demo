@@ -10,7 +10,9 @@ ROOT = Path(__file__).resolve().parents[1]
 CORPUS = ROOT / "research/question_engine/smart_analysis_corpus_v1.json"
 DEFAULT_MODEL = "gemini-3.6-flash"
 FALLBACK_MODEL = "gemini-3.5-flash"
+PRO_MODEL = "gemini-3.1-pro-preview"
 MODEL = os.environ.get("GEMINI_MODEL", DEFAULT_MODEL)
+MODEL_ROUTE = tuple(dict.fromkeys((MODEL, FALLBACK_MODEL, PRO_MODEL)))
 REQUEST_SPACING_SECONDS = 30
 REQUEST_TIMEOUT_SECONDS = 120
 MAX_ATTEMPTS = 4
@@ -213,6 +215,22 @@ def is_timeout_error(exc):
     return isinstance(reason, TimeoutError) or "timed out" in str(reason).lower()
 
 
+def is_daily_quota_error(detail):
+    normalized = detail.lower().replace("_", "")
+    return (
+        "generaterequestsperdayperprojectpermodel" in normalized
+        or "requestsperdayperprojectpermodel" in normalized
+    )
+
+
+def next_model(current_model):
+    try:
+        index = MODEL_ROUTE.index(current_model)
+    except ValueError:
+        return None
+    return MODEL_ROUTE[index + 1] if index + 1 < len(MODEL_ROUTE) else None
+
+
 def request_for_model(model, key, body):
     return request.Request(
         f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
@@ -224,7 +242,7 @@ def request_for_model(model, key, body):
 
 def call_gemini(key, prompt, assertion_count):
     body = request_body(prompt, assertion_count)
-    current_model = MODEL
+    current_model = MODEL_ROUTE[0]
     for attempt in range(1, MAX_ATTEMPTS + 1):
         req = request_for_model(current_model, key, body)
         try:
@@ -233,9 +251,16 @@ def call_gemini(key, prompt, assertion_count):
             break
         except error.HTTPError as exc:
             detail = exc.read(1200).decode("utf-8", "replace").replace(key, "[REDACTED]")
-            if exc.code == 503 and current_model != FALLBACK_MODEL and attempt < MAX_ATTEMPTS:
-                print(f"Gemini HTTP 503 on {current_model}; switching to {FALLBACK_MODEL}")
-                current_model = FALLBACK_MODEL
+            alternate = next_model(current_model)
+            if exc.code == 429 and is_daily_quota_error(detail):
+                if alternate and attempt < MAX_ATTEMPTS:
+                    print(f"Gemini daily quota exhausted on {current_model}; switching to {alternate}")
+                    current_model = alternate
+                    continue
+                raise RuntimeError(f"Gemini daily quota exhausted on {current_model}") from None
+            if exc.code == 503 and alternate and attempt < MAX_ATTEMPTS:
+                print(f"Gemini HTTP 503 on {current_model}; switching to {alternate}")
+                current_model = alternate
                 continue
             if exc.code in RETRYABLE_HTTP_CODES and attempt < MAX_ATTEMPTS:
                 wait = retry_wait_seconds(detail, exc.headers, attempt)
@@ -245,9 +270,10 @@ def call_gemini(key, prompt, assertion_count):
                 continue
             raise RuntimeError(f"Gemini HTTP {exc.code} on {current_model}: {detail}") from None
         except error.URLError as exc:
-            if is_timeout_error(exc) and current_model != FALLBACK_MODEL and attempt < MAX_ATTEMPTS:
-                print(f"Gemini network timeout on {current_model}; switching to {FALLBACK_MODEL}")
-                current_model = FALLBACK_MODEL
+            alternate = next_model(current_model)
+            if is_timeout_error(exc) and alternate and attempt < MAX_ATTEMPTS:
+                print(f"Gemini network timeout on {current_model}; switching to {alternate}")
+                current_model = alternate
                 continue
             if is_timeout_error(exc) and attempt < MAX_ATTEMPTS:
                 wait = retry_wait_seconds("", None, attempt)
@@ -257,9 +283,10 @@ def call_gemini(key, prompt, assertion_count):
                 continue
             raise RuntimeError(f"Gemini network error on {current_model}: {exc.reason}") from None
         except TimeoutError as exc:
-            if current_model != FALLBACK_MODEL and attempt < MAX_ATTEMPTS:
-                print(f"Gemini read timeout on {current_model}; switching to {FALLBACK_MODEL}")
-                current_model = FALLBACK_MODEL
+            alternate = next_model(current_model)
+            if alternate and attempt < MAX_ATTEMPTS:
+                print(f"Gemini read timeout on {current_model}; switching to {alternate}")
+                current_model = alternate
                 continue
             if attempt < MAX_ATTEMPTS:
                 wait = retry_wait_seconds("", None, attempt)
@@ -348,8 +375,10 @@ def render(report):
     s = report["summary"]
     lines = [
         "Gemini security provider experiment", f"Primary model: {report['model']}",
-        f"Fallback model: {report['fallback_model']}",
+        f"Flash fallback model: {report['fallback_model']}",
+        f"Pro fallback model: {report['pro_model']}",
         f"Fallback cases: {s['fallback_cases']}",
+        f"Pro cases: {s['pro_cases']}",
         f"Cases: {s['cases_completed']}/{s['cases_requested']}",
         f"Exact assertions: {s['assertions_exact']}/{s['assertions_total']}",
         f"Values: {s['value_matches']}/{s['assertions_total']}",
@@ -393,7 +422,8 @@ def run():
     resolution_results = [x for x in results if x["status"] == "OK" and by_id[x["case_id"]].get("resolution")]
     summary = {
         "cases_requested": len(CASES), "cases_completed": len(scored),
-        "fallback_cases": sum(x.get("model_used") == FALLBACK_MODEL for x in results),
+        "fallback_cases": sum(x.get("model_used") not in (None, MODEL) for x in results),
+        "pro_cases": sum(x.get("model_used") == PRO_MODEL for x in results),
         "assertions_exact": sum(x["assertions_exact"] for x in scored),
         "assertions_total": sum(x["assertions_total"] for x in scored),
         "value_matches": sum(x["value_matches"] for x in scored),
@@ -408,7 +438,7 @@ def run():
     stamp = time.strftime("%Y%m%d_%H%M%S")
     json_path = out / f"security_provider_experiment_{stamp}.json"
     report = {"experiment": "question-engine-security-provider-experiment-v1",
-              "model": MODEL, "fallback_model": FALLBACK_MODEL,
+              "model": MODEL, "fallback_model": FALLBACK_MODEL, "pro_model": PRO_MODEL,
               "duration_seconds": round(time.time() - started, 2),
               "summary": summary, "results": results}
     json_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
