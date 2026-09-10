@@ -9,6 +9,7 @@ from urllib import error, request
 ROOT = Path(__file__).resolve().parents[1]
 CORPUS = ROOT / "research/question_engine/smart_analysis_corpus_v1.json"
 DEFAULT_MODEL = "gemini-3.6-flash"
+FALLBACK_MODEL = "gemini-3.5-flash"
 MODEL = os.environ.get("GEMINI_MODEL", DEFAULT_MODEL)
 REQUEST_SPACING_SECONDS = 15
 REQUEST_TIMEOUT_SECONDS = 120
@@ -136,6 +137,15 @@ def is_timeout_error(exc):
     return isinstance(reason, TimeoutError) or "timed out" in str(reason).lower()
 
 
+def request_for_model(model, key, body):
+    return request.Request(
+        f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+        data=json.dumps(body).encode(),
+        headers={"Content-Type": "application/json", "x-goog-api-key": key},
+        method="POST",
+    )
+
+
 def call_gemini(key, prompt):
     body = {
         "contents": [{"parts": [{"text": prompt}]}],
@@ -144,49 +154,59 @@ def call_gemini(key, prompt):
             "responseMimeType": "application/json",
         },
     }
-    req = request.Request(
-        f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent",
-        data=json.dumps(body).encode(),
-        headers={"Content-Type": "application/json", "x-goog-api-key": key},
-        method="POST",
-    )
+    current_model = MODEL
     for attempt in range(1, MAX_ATTEMPTS + 1):
+        req = request_for_model(current_model, key, body)
         try:
             with request.urlopen(req, timeout=REQUEST_TIMEOUT_SECONDS) as response:
                 envelope = json.load(response)
             break
         except error.HTTPError as exc:
             detail = exc.read(1200).decode("utf-8", "replace").replace(key, "[REDACTED]")
+            if exc.code == 503 and current_model != FALLBACK_MODEL and attempt < MAX_ATTEMPTS:
+                print(f"Gemini HTTP 503 on {current_model}; switching to {FALLBACK_MODEL}")
+                current_model = FALLBACK_MODEL
+                continue
             if exc.code in RETRYABLE_HTTP_CODES and attempt < MAX_ATTEMPTS:
                 wait = retry_wait_seconds(detail, exc.headers, attempt)
-                print(f"Gemini HTTP {exc.code}; retrying in {wait:.0f}s "
+                print(f"Gemini HTTP {exc.code} on {current_model}; retrying in {wait:.0f}s "
                       f"({attempt}/{MAX_ATTEMPTS - 1} retries used)")
                 time.sleep(wait)
                 continue
-            raise RuntimeError(f"Gemini HTTP {exc.code}: {detail}") from None
+            raise RuntimeError(f"Gemini HTTP {exc.code} on {current_model}: {detail}") from None
         except error.URLError as exc:
+            if is_timeout_error(exc) and current_model != FALLBACK_MODEL and attempt < MAX_ATTEMPTS:
+                print(f"Gemini network timeout on {current_model}; switching to {FALLBACK_MODEL}")
+                current_model = FALLBACK_MODEL
+                continue
             if is_timeout_error(exc) and attempt < MAX_ATTEMPTS:
                 wait = retry_wait_seconds("", None, attempt)
-                print(f"Gemini network timeout; retrying in {wait:.0f}s "
+                print(f"Gemini network timeout on {current_model}; retrying in {wait:.0f}s "
                       f"({attempt}/{MAX_ATTEMPTS - 1} retries used)")
                 time.sleep(wait)
                 continue
-            raise RuntimeError(f"Gemini network error: {exc.reason}") from None
+            raise RuntimeError(f"Gemini network error on {current_model}: {exc.reason}") from None
         except TimeoutError as exc:
+            if current_model != FALLBACK_MODEL and attempt < MAX_ATTEMPTS:
+                print(f"Gemini read timeout on {current_model}; switching to {FALLBACK_MODEL}")
+                current_model = FALLBACK_MODEL
+                continue
             if attempt < MAX_ATTEMPTS:
                 wait = retry_wait_seconds("", None, attempt)
-                print(f"Gemini read timeout; retrying in {wait:.0f}s "
+                print(f"Gemini read timeout on {current_model}; retrying in {wait:.0f}s "
                       f"({attempt}/{MAX_ATTEMPTS - 1} retries used)")
                 time.sleep(wait)
                 continue
-            raise RuntimeError(f"Gemini timeout after {MAX_ATTEMPTS} attempts: {exc}") from None
+            raise RuntimeError(
+                f"Gemini timeout on {current_model} after {MAX_ATTEMPTS} total attempts: {exc}"
+            ) from None
     else:
         raise RuntimeError("Gemini request retry loop ended unexpectedly")
     try:
         text = "".join(p.get("text", "") for p in envelope["candidates"][0]["content"]["parts"])
     except (KeyError, IndexError, TypeError):
-        raise RuntimeError("Malformed Gemini response envelope") from None
-    return parse_provider_text(text)
+        raise RuntimeError(f"Malformed Gemini response envelope from {current_model}") from None
+    return parse_provider_text(text), current_model
 
 
 def canon(value):
@@ -257,7 +277,9 @@ def score_case(case, actual):
 def render(report):
     s = report["summary"]
     lines = [
-        "Gemini security provider experiment", f"Model: {report['model']}",
+        "Gemini security provider experiment", f"Primary model: {report['model']}",
+        f"Fallback model: {report['fallback_model']}",
+        f"Fallback cases: {s['fallback_cases']}",
         f"Cases: {s['cases_completed']}/{s['cases_requested']}",
         f"Exact assertions: {s['assertions_exact']}/{s['assertions_total']}",
         f"Values: {s['value_matches']}/{s['assertions_total']}",
@@ -272,6 +294,7 @@ def render(report):
         else:
             x = item["score"]
             lines.append(f"- {item['case_id']}: {x['assertions_exact']}/{x['assertions_total']} exact; "
+                         f"model={item['model_used']}; "
                          f"resolution={'OK' if x['resolution_ok'] else 'FAIL'}; hard={len(x['hard_failures'])}")
     return "\n".join(lines) + "\n"
 
@@ -290,8 +313,8 @@ def run():
         case = by_id[case_id]
         print(f"[{n}/{len(CASES)}] {case_id}")
         try:
-            actual = call_gemini(key, build_prompt(case))
-            results.append({"case_id": case_id, "status": "OK",
+            actual, model_used = call_gemini(key, build_prompt(case))
+            results.append({"case_id": case_id, "status": "OK", "model_used": model_used,
                             "score": score_case(case, actual), "actual": actual})
         except RuntimeError as exc:
             results.append({"case_id": case_id, "status": "ERROR",
@@ -300,6 +323,7 @@ def run():
     resolution_results = [x for x in results if x["status"] == "OK" and by_id[x["case_id"]].get("resolution")]
     summary = {
         "cases_requested": len(CASES), "cases_completed": len(scored),
+        "fallback_cases": sum(x.get("model_used") == FALLBACK_MODEL for x in results),
         "assertions_exact": sum(x["assertions_exact"] for x in scored),
         "assertions_total": sum(x["assertions_total"] for x in scored),
         "value_matches": sum(x["value_matches"] for x in scored),
@@ -314,7 +338,8 @@ def run():
     stamp = time.strftime("%Y%m%d_%H%M%S")
     json_path = out / f"security_provider_experiment_{stamp}.json"
     report = {"experiment": "question-engine-security-provider-experiment-v1",
-              "model": MODEL, "duration_seconds": round(time.time() - started, 2),
+              "model": MODEL, "fallback_model": FALLBACK_MODEL,
+              "duration_seconds": round(time.time() - started, 2),
               "summary": summary, "results": results}
     json_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     txt = json_path.with_suffix(".txt")

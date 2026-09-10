@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-10-110",
+  "state_version": "privacy-ocr-2026-09-10-111",
   "active_track": "question-engine-development",
   "next_step_id": "question-engine-security-provider-experiment-local-run-v3",
-  "next_step_summary": "The second local Gemini 3.6 run reached case 7/10 and showed that HTTP 503 retry can recover, but a later read timeout escaped the per-case RuntimeError boundary and aborted the whole experiment before a report was saved. PR #260 is a bounded transport corrective: increase the per-request read timeout from 60 to 120 seconds, treat direct and URL-wrapped timeout errors as transient within the existing maximum 4 attempts, and convert an exhausted timeout into a per-case RuntimeError so later cases still run and the final report can be written. Model, prompts, corpus, semantic scoring, credential handling and Question Engine schema remain unchanged. The next step is local run v3 and review of its generated JSON/TXT before any semantic schema change.",
-  "last_recorded_pr": 260,
-  "last_recorded_change": "question-engine-security-provider-timeout-tolerance-v1",
+  "next_step_summary": "PR #261 keeps gemini-3.6-flash as the primary diagnostic model and adds stable gemini-3.5-flash as a fallback only for transient HTTP 503 or read/network timeout failures. HTTP 429 remains a same-model quota/rate-limit retry. The total attempt cap remains 4 per case, and each successful case records the model that actually answered so semantic results are not mixed invisibly. The next step remains local run v3 and review of its generated JSON/TXT before any semantic schema change.",
+  "last_recorded_pr": 261,
+  "last_recorded_change": "question-engine-security-provider-fallback-35-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-09-10"
