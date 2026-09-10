@@ -61,6 +61,17 @@ class SecurityProviderExperimentTests(unittest.TestCase):
         self.assertEqual(len(experiment.CASES), 10)
         self.assertEqual(len(set(experiment.CASES)), 10)
 
+    def test_default_model_and_retry_policy(self):
+        self.assertEqual(experiment.DEFAULT_MODEL, "gemini-3.6-flash")
+        self.assertEqual(experiment.RETRYABLE_HTTP_CODES, {429, 503})
+        self.assertGreaterEqual(experiment.REQUEST_SPACING_SECONDS, 12)
+        self.assertLessEqual(experiment.MAX_ATTEMPTS, 4)
+
+    def test_retry_wait_uses_provider_hint_and_bounds_it(self):
+        self.assertEqual(experiment.retry_wait_seconds("Please retry in 49.5s.", {}, 1), 50.5)
+        self.assertEqual(experiment.retry_wait_seconds("Please retry in 999s.", {}, 1), 120.0)
+        self.assertEqual(experiment.retry_wait_seconds("temporary overload", {}, 2), 30.0)
+
 
 if __name__ == "__main__":
     unittest.main()

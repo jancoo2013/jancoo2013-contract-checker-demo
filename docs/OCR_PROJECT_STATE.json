@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-09-108",
+  "state_version": "privacy-ocr-2026-09-10-109",
   "active_track": "question-engine-development",
-  "next_step_id": "question-engine-security-provider-experiment-local-run-v1",
-  "next_step_summary": "PR #257 adds a bounded local Gemini provider-experiment harness for 10 synthetic/sanitized security cases. It keeps expected oracle answers out of prompts, scores semantic values, mechanism identity, answer-state axes, evidence refs and candidate resolution, rejects unsupported refs and guessed unavailable values, reads the API key only from the local environment/Desktop .env.local, and provides a Windows double-click launcher. The actual provider run is not claimed by the PR; the next step is the owner's local run and review of the generated JSON before any further LLM↔Python schema change.",
-  "last_recorded_pr": 257,
-  "last_recorded_change": "question-engine-security-provider-experiment-v1",
+  "next_step_id": "question-engine-security-provider-experiment-local-run-v2",
+  "next_step_summary": "The first local run of the PR #257 harness reached the Gemini API but completed 0/10 cases: early requests returned transient HTTP 503 high-demand responses and later requests hit a free-tier HTTP 429 request-rate limit, so it produced no semantic provider evidence. PR #259 is a bounded corrective: default to stable gemini-3.6-flash, remove the deprecated temperature request parameter, space case requests by 15 seconds, and retry only transient 429/503 responses with bounded provider-hint/exponential waits. No Question Engine schema or corpus semantics change. The next step is a second local run and review of its generated JSON/TXT before any LLM↔Python schema change.",
+  "last_recorded_pr": 259,
+  "last_recorded_change": "question-engine-security-provider-36-backoff-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
-  "updated_on": "2026-09-09"
+  "updated_on": "2026-09-10"
 }
