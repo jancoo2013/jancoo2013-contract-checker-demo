@@ -1,14 +1,14 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-09-10, PR #259, `question-engine-security-provider-36-backoff-v1`.
+Последнее обновление: 2026-09-10, PR #260, `question-engine-security-provider-timeout-tolerance-v1`.
 
 Активный трек: `question-engine-development`.
 
-Канонический следующий bounded-шаг: `question-engine-security-provider-experiment-local-run-v2`.
+Канонический следующий bounded-шаг: `question-engine-security-provider-experiment-local-run-v3`.
 
 Этот документ вместе с `docs/OCR_PROJECT_STATE.json` является канонической operational-точкой восстановления проекта. Binding architecture/security/privacy documents задают обязательные границы; текущие `active_track` и `next_step_id` выбираются только state-файлами.
 
-## 1. Current change — PR #259 Gemini 3.6 provider retry corrective
+## 1. Current change — PR #260 provider timeout-tolerance corrective
 
 Ключевая продуктовая рамка не меняется:
 
@@ -18,29 +18,29 @@
 - найденная странность не обязана становиться user-facing finding, если она не меняет существенный механизм;
 - ценность продукта — замечать неочевидные связи, рисковые механизмы, missing evidence и практические последствия, которые легко пропустить при обычном чтении.
 
-Первый локальный запуск harness из PR #257 достиг Gemini API, но не дал semantic provider evidence: `0/10` cases completed. Ранние запросы получили HTTP `503` high-demand responses, затем сработал HTTP `429` free-tier request-rate limit. Поэтому нулевой score этого запуска нельзя трактовать как качество Question Engine или качество модели.
+Первый локальный запуск harness из PR #257 достиг Gemini API, но не дал semantic provider evidence: `0/10` cases completed. Ранние запросы получили HTTP `503` high-demand responses, затем сработал HTTP `429` free-tier request-rate limit.
 
-PR #259 — bounded corrective только транспортного/provider уровня эксперимента:
+PR #259 переключил diagnostic harness на `gemini-3.6-flash`, добавил 15-секундный pacing и bounded retry для HTTP `429/503`.
 
-- default model меняется с `gemini-3.8-flash` на stable `gemini-3.6-flash`;
-- `GEMINI_MODEL` override сохраняется;
-- deprecated для current Gemini API параметр `temperature` удаляется из request body;
-- между отдельными corpus cases добавляется консервативная пауза 15 секунд;
-- только HTTP `429` и `503` получают bounded retry;
-- максимум 4 attempts на один provider request;
-- retry wait сначала уважает `Retry-After`, затем явную provider подсказку `retry in ...s`, иначе использует bounded exponential wait;
-- максимальная одна retry-пауза ограничена 120 секундами;
-- все прежние semantic scoring, evidence refs, instrument identity, missing/handwriting fail-closed checks и local report behavior сохраняются.
+Второй локальный запуск после PR #259 дошёл до case `7/10`. На case `3/10` HTTP `503` был успешно пережит повтором, что подтвердило работоспособность bounded HTTP retry. На case `7/10` после временного `503` следующий request завершился `The read operation timed out`. Этот timeout не был превращён в per-case `RuntimeError`, поэтому вышел за внутреннюю границу одного case и аварийно завершил весь experiment до cases 8–10 и до записи итогового report. Из-за отсутствия сохранённого отчёта этот запуск не используется как semantic quality evidence.
 
-Current Google documentation проверена 2026-09-10: `gemini-3.6-flash` — stable model; shutdown date не объявлена; structured outputs поддерживаются. Release notes также указывают, что sampling parameters `temperature`, `top_p`, `top_k` deprecated для current Gemini API, поэтому experiment больше не передаёт `temperature`.
+PR #260 — bounded corrective только транспортной устойчивости experiment harness:
+
+- default model остаётся `gemini-3.6-flash`;
+- per-request timeout увеличивается с 60 до 120 секунд;
+- прямой read `TimeoutError` считается transient и получает retry в пределах уже существующего лимита;
+- timeout, завернутый в `URLError`, также распознаётся как transient;
+- retry использует тот же bounded backoff и тот же максимум 4 attempts на case request;
+- если timeout исчерпан после всех attempts, он превращается в `RuntimeError` конкретного case, чтобы `run()` записал error и продолжил следующие cases;
+- model choice, prompt, 10-case corpus selection, semantic scoring, evidence refs, instrument identity, handwriting/missing-dependency checks и local report format не меняются.
 
 В PR нет real contracts, raw OCR, recoverable PII, statutory runtime, OCR/Android/serverless изменений, production storage, UI behavior, нового provider, dependency, workflow или production quality claim.
 
 ## 2. Canonical next step
 
-`next_step_id = question-engine-security-provider-experiment-local-run-v2`
+`next_step_id = question-engine-security-provider-experiment-local-run-v3`
 
-Следующий шаг — повторный локальный запуск уже исправленного harness двойным щелчком и разбор generated JSON/TXT.
+Следующий шаг — повторный локальный запуск исправленного harness двойным щелчком и разбор generated JSON/TXT.
 
 После реального успешного provider run нужно разобрать:
 
@@ -146,7 +146,7 @@ FindingResolution(candidate, outcome, reviewed_refs, resolution_summary)
 FindingOutcome = CONFIRMED | NARROWED | CLEARED
 ```
 
-`QuestionSpec` и `QuestionInventory` остаются static question definitions. PR #257 добавил только локальный diagnostic provider harness; PR #259 меняет только model/retry behavior этого experiment harness, не schema.
+`QuestionSpec` и `QuestionInventory` остаются static question definitions. PR #257 добавил локальный diagnostic provider harness; PR #259 и PR #260 меняют только transport/model-call robustness этого experiment harness, не schema.
 
 Corpus oracle v2 является evaluation representation, а не production runtime schema. Он намеренно sparse и описывает только assertions, нужные конкретному testcase.
 
@@ -188,7 +188,7 @@ Maintained baseline предупреждает о 2026 amendment timing для s
 
 Если freshness/applicability/effective date не могут быть безопасно установлены, runtime должен деградировать к contract-only analysis, а не утверждать устаревшую норму.
 
-PR #259 statutory runtime/current-law claims не добавляет и external law в provider prompt не передаёт.
+PR #260 statutory runtime/current-law claims не добавляет и external law в provider prompt не передаёт.
 
 ## 8. Privacy and security invariants
 
@@ -200,7 +200,7 @@ Persistent fixtures/research artifacts должны быть sanitized до comm
 
 Provider experiment отправляет только synthetic/sanitized corpus material. Он не использует real user contracts, raw OCR, user identifiers, signatures, bank/check identifiers или recoverable PII. Local API key читается из environment/Desktop `.env.local`, не входит в prompt/report и scrubbed из HTTP error detail. `.env.local` остаётся вне repository tree и игнорируется `.gitignore`.
 
-PR #259 увеличивает число возможных provider attempts только bounded образом: 4 attempts максимум на один case request, retry только на 429/503, case count остаётся 10, waits ограничены. Это diagnostic local harness, не production retry policy.
+PR #260 не увеличивает количество cases и не снимает bounded retry cap: остаётся максимум 10 cases и максимум 4 attempts на один case request. Он увеличивает один socket/read timeout до 120 секунд и добавляет timeout в уже bounded retry policy. Это diagnostic local harness, не production retry policy.
 
 Repository остаётся pre-production. Production use с real contracts blocked до реализации и проверки applicable consent, authorization, encryption/key lifecycle, Israel-only restricted-data processing, deletion/retention, logging, provider terms, abuse/resource controls и incident response.
 
@@ -235,11 +235,11 @@ Question Engine continuity:
 - PR #256 — corpus oracle v2 semantic correction after narrow corpus audit;
 - PR #257 — bounded local Gemini security provider-experiment harness;
 - first local PR #257 run — API reached, but 0/10 completed because of 503/429 transport/quota failures; no semantic provider conclusion;
-- PR #259 — owner-authorized bounded corrective switching the experiment default to Gemini 3.6 Flash and adding bounded pacing/retries.
+- PR #259 — owner-authorized bounded corrective switching the experiment default to Gemini 3.6 Flash and adding bounded pacing/retries;
+- second local run after PR #259 — reached 7/10, recovered one 503, then aborted on an uncaught read timeout before report persistence;
+- PR #260 — owner-authorized bounded corrective adding timeout tolerance while preserving the same model, corpus and semantic contract.
 
-The narrow post-#255 corpus audit found no reason to broaden the product into generic lease parsing. Its actionable result was to make the evaluation oracle harder and more semantically precise before the provider experiment.
-
-No successful semantic provider run is recorded yet. PR #259 exists only to obtain that evidence reliably without changing Question Engine semantics.
+No successful complete semantic provider report is recorded yet. PR #260 exists only to obtain that evidence reliably without changing Question Engine semantics.
 
 ## 11. Recovery/work rules
 
@@ -261,25 +261,24 @@ Current owner authorization permits the orchestrating assistant to merge subsequ
 
 Implementation-size rule: target <=300 changed implementation lines per PR; 400 is the normal hard limit. Corpus fixture data is not implementation code, but test/implementation code should remain bounded.
 
-## 12. PR #259 validation target
+## 12. PR #260 validation target
 
-Before Ready/merge, PR #259 must verify:
+Before Ready/merge, PR #260 must verify:
 
 - changed paths exactly match Context Gate;
-- branch is based on current `main` head `a8964853bad52584e2101e3580d960030658d6d1` and is not behind it;
-- both state files identify PR #259 and `question-engine-security-provider-36-backoff-v1`;
-- next step is `question-engine-security-provider-experiment-local-run-v2`;
-- default model is exactly `gemini-3.6-flash`, while explicit local `GEMINI_MODEL` override remains possible;
-- request body no longer includes deprecated `temperature`;
-- case spacing is bounded and conservative;
-- retry is limited to HTTP 429/503, with at most 4 attempts and bounded waits;
-- provider retry/error messages do not disclose the API key;
+- branch is based on current `main` head `b6077a996266a36e618f4228655829fb23e902f8` and is not behind it;
+- both state files identify PR #260 and `question-engine-security-provider-timeout-tolerance-v1`;
+- next step is `question-engine-security-provider-experiment-local-run-v3`;
+- default model remains exactly `gemini-3.6-flash`;
+- request timeout is at least 120 seconds;
+- direct and URL-wrapped timeout errors receive bounded retry within the existing maximum 4 attempts;
+- exhausted timeout becomes a per-case `RuntimeError` so the outer experiment loop can continue;
+- retry/error messages do not disclose the API key;
 - experiment selection remains exactly the same 10 security-domain corpus cases;
-- expected oracle values/outcomes remain out of provider input except the explicit candidate claim needed for second-pass resolution;
-- malformed provider JSON, unsupported refs and guessed unavailable values still fail visibly rather than silently passing;
+- prompts, expected oracle isolation, semantic scoring, evidence refs and fail-closed missing/handwriting behavior remain unchanged;
 - output reports remain local and contain no API key;
 - no new dependency, workflow, permission, provider, production storage, OCR/Android/serverless path or statutory runtime is introduced;
 - focused tests and Python compilation pass on exact final code blobs;
 - Markdown/JSON state agree;
 - final security review passes on exact final head;
-- actual Gemini 3.6 behavior, semantic quality and real retry success remain unverified until the product owner performs local run v2.
+- actual Gemini 3.6 behavior, semantic quality and end-to-end timeout recovery remain unverified until the product owner performs local run v3.
