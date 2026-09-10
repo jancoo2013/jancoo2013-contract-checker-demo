@@ -1,14 +1,14 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-09-10, PR #261, `question-engine-security-provider-fallback-35-v1`.
+Последнее обновление: 2026-09-10, PR #262, `question-engine-security-provider-structured-output-v1`.
 
 Активный трек: `question-engine-development`.
 
-Канонический следующий bounded-шаг: `question-engine-security-provider-experiment-local-run-v3`.
+Канонический следующий bounded-шаг: `question-engine-security-provider-experiment-local-run-v4`.
 
 Этот документ вместе с `docs/OCR_PROJECT_STATE.json` является канонической operational-точкой восстановления проекта. Binding architecture/security/privacy documents задают обязательные границы; текущие `active_track` и `next_step_id` выбираются только state-файлами.
 
-## 1. Current change — PR #261 Gemini 3.5 fallback corrective
+## 1. Current change — PR #262 structured provider-output corrective
 
 Ключевая продуктовая рамка не меняется:
 
@@ -18,48 +18,55 @@
 - найденная странность не обязана становиться user-facing finding, если она не меняет существенный механизм;
 - ценность продукта — замечать неочевидные связи, рисковые механизмы, missing evidence и практические последствия, которые легко пропустить при обычном чтении.
 
-Первый локальный запуск harness из PR #257 достиг Gemini API, но не дал semantic provider evidence: `0/10` cases completed. Ранние запросы получили HTTP `503` high-demand responses, затем сработал HTTP `429` free-tier request-rate limit.
+Provider experiment continuity:
 
-PR #259 переключил diagnostic harness на `gemini-3.6-flash`, добавил 15-секундный pacing и bounded retry для HTTP `429/503`.
+- первый локальный запуск harness из PR #257 достиг Gemini API, но не дал semantic provider evidence: `0/10` cases completed из-за HTTP `503`/`429`;
+- PR #259 переключил diagnostic harness на `gemini-3.6-flash`, добавил 15-секундный pacing и bounded retry для HTTP `429/503`;
+- второй локальный запуск после PR #259 дошёл до case `7/10`, затем аварийно завершился на uncaught read timeout;
+- PR #260 увеличил per-request timeout до 120 секунд и сделал timeout bounded per-case retry/failure;
+- PR #261 добавил `gemini-3.5-flash` fallback для transient 503/timeouts и per-case `model_used` provenance;
+- локальный run v3 после PR #261 дал первый usable semantic report: `9/10` cases completed, `12/33` exact assertions, `18/33` value matches, `18/33` state matches, `19/33` ref matches, `5/5` candidate resolutions, `4` hard failures, `1` malformed-JSON case; один successful case был обработан fallback 3.5.
 
-Второй локальный запуск после PR #259 дошёл до case `7/10`. На case `3/10` HTTP `503` был успешно пережит повтором. На case `7/10` после временного `503` следующий request завершился `The read operation timed out`; эксперимент аварийно завершился до cases 8–10 и до записи итогового report.
+Разбор run v3 показал, что значительная часть exact-score потерь относится к контракту ответа между Gemini и Python, а не только к semantic reading:
 
-PR #260 увеличил per-request timeout до 120 секунд и сделал direct/URL-wrapped timeouts bounded per-case retry/failure вместо experiment-wide crash.
+- day counts возвращались как `P14D` вместо integer `14`;
+- повторяющиеся поля разных security instruments агрегировались под `mechanism_id: null` вместо отдельных mechanism-specific assertions;
+- explicit BLANK, HANDWRITING_DEPENDENCY и MISSING_DEPENDENCY иногда получали неправильные state axes или evidence refs;
+- refs иногда были шире минимально нужных direct refs;
+- один case вернул syntactically invalid JSON несмотря на requested JSON MIME type.
 
-PR #261 — owner-authorized bounded corrective только provider-routing уровня diagnostic harness:
+При этом 5/5 candidate-resolution outcomes были правильными, поэтому PR #262 не меняет Question Engine architecture, corpus oracle или finding-resolution semantics. Он только делает provider response contract более точным:
 
-- основной model остаётся `gemini-3.6-flash`;
-- fallback model — stable `gemini-3.5-flash`;
-- HTTP `503` на primary переключает оставшиеся attempts этого case на fallback;
-- direct read timeout или timeout-like `URLError` на primary также переключает оставшиеся attempts на fallback;
-- HTTP `429` не переключает модель и остаётся same-model quota/rate-limit retry;
-- после переключения fallback не происходит автоматического возврата на primary внутри того же case;
-- общий cap остаётся максимум 4 provider attempts на case;
-- successful case сохраняет `model_used`, а report отдельно показывает primary/fallback и число успешно завершённых fallback cases;
-- prompt, 10-case corpus selection, semantic scoring, evidence refs, instrument identity, handwriting/missing-dependency checks и local report destination не меняются.
+- каждый oracle target теперь передаётся как отдельный `(question_id, mechanism_id, field)` slot без expected value/ref;
+- model должна вернуть ровно один assertion на каждый slot и не агрегировать механизмы;
+- prompt задаёт integer day-count convention, minimal direct refs и явную семантику BLANK/HANDWRITING_DEPENDENCY/MISSING_DEPENDENCY;
+- provider request использует current Gemini GenerateContent structured-output shape `generationConfig.responseFormat.text` с JSON schema;
+- schema ограничивает assertion count, обязательные поля, state enums и resolution shape;
+- scorer остаётся strict и oracle answers по-прежнему не передаются модели;
+- primary/fallback остаются `gemini-3.6-flash` / `gemini-3.5-flash`; pacing, retry/failover, key handling и local report destination не меняются.
 
-Current official Google model/deprecation documentation проверена 2026-09-10: `gemini-3.6-flash` и `gemini-3.5-flash` являются stable Gemini API models; shutdown date для них не объявлена.
+Current Google structured-output documentation проверена 2026-09-10: current GenerateContent REST examples используют `generationConfig.responseFormat.text.mimeType=application/json` с `schema`; structured output предназначен для schema-constrained JSON extraction.
 
 В PR нет real contracts, raw OCR, recoverable PII, statutory runtime, OCR/Android/serverless изменений, production storage, UI behavior, нового provider, dependency, workflow или production quality claim.
 
 ## 2. Canonical next step
 
-`next_step_id = question-engine-security-provider-experiment-local-run-v3`
+`next_step_id = question-engine-security-provider-experiment-local-run-v4`
 
-Следующий шаг — повторный локальный запуск исправленного harness двойным щелчком и разбор generated JSON/TXT. При transient `503`/timeout primary 3.6 может автоматически уступить конкретный case fallback 3.5; report должен показать, какая модель реально ответила на каждый successful case.
+Следующий шаг — повторить тот же 10-case local provider experiment двойным щелчком и сравнить новый JSON/TXT с run v3.
 
-После реального успешного provider run нужно разобрать:
+Проверить в run v4:
 
-- какие exact semantic assertions модель поняла правильно;
-- где смешала разные security instruments;
-- где перепутала amount/blank/notice/return properties;
-- где incorrectly linked evidence refs или distractors;
-- различила ли BLANK, MISSING_DEPENDENCY и HANDWRITING_DEPENDENCY;
-- правильно ли выполнила candidate resolution;
+- исчез ли malformed JSON;
+- возвращаются ли durations/deadlines integer day counts;
+- сохраняются ли отдельные mechanism IDs для повторяющихся instrument fields;
+- различаются ли BLANK, MISSING_DEPENDENCY и HANDWRITING_DEPENDENCY с правильными refs;
+- стали ли evidence refs минимальными и точными;
+- сохранились ли 5/5 candidate resolutions;
 - какие cases обработаны primary 3.6, а какие fallback 3.5;
-- были ли hard failures: guessed unavailable value, unsupported ref, duplicate/unrequested assertion или malformed provider output.
+- появились ли новые hard failures или реальные semantic mismatches после устранения format noise.
 
-Только реальные semantic failure modes успешного запуска определят следующий LLM↔Python corrective. Не добавлять confidence, broad typed-value framework, universal ontology или новые schema fields заранее без provider evidence.
+Только реальные failure modes run v4 определят следующий LLM↔Python corrective. Не добавлять confidence, broad typed-value framework, universal ontology или новые production schema fields заранее без provider evidence.
 
 ## 3. Required reading order
 
@@ -153,7 +160,7 @@ FindingResolution(candidate, outcome, reviewed_refs, resolution_summary)
 FindingOutcome = CONFIRMED | NARROWED | CLEARED
 ```
 
-`QuestionSpec` и `QuestionInventory` остаются static question definitions. PR #257 добавил локальный diagnostic provider harness; PR #259–#261 меняют только provider/model-call robustness/routing этого experiment harness, не Question Engine schema.
+`QuestionSpec` и `QuestionInventory` остаются static question definitions. PR #257 добавил локальный diagnostic provider harness; PR #259–#262 меняют только provider/model-call robustness/routing/output-contract этого experiment harness, не Question Engine production schema.
 
 Corpus oracle v2 является evaluation representation, а не production runtime schema. Он намеренно sparse и описывает только assertions, нужные конкретному testcase.
 
@@ -195,7 +202,7 @@ Maintained baseline предупреждает о 2026 amendment timing для s
 
 Если freshness/applicability/effective date не могут быть безопасно установлены, runtime должен деградировать к contract-only analysis, а не утверждать устаревшую норму.
 
-PR #261 statutory runtime/current-law claims не добавляет и external law в provider prompt не передаёт.
+PR #262 statutory runtime/current-law claims не добавляет и external law в provider prompt не передаёт.
 
 ## 8. Privacy and security invariants
 
@@ -207,7 +214,7 @@ Persistent fixtures/research artifacts должны быть sanitized до comm
 
 Provider experiment отправляет только synthetic/sanitized corpus material. Он не использует real user contracts, raw OCR, user identifiers, signatures, bank/check identifiers или recoverable PII. Local API key читается из environment/Desktop `.env.local`, не входит в prompt/report и scrubbed из HTTP error detail. `.env.local` остаётся вне repository tree и игнорируется `.gitignore`.
 
-PR #261 добавляет fallback только между двумя stable model IDs на том же фиксированном Google Gemini API endpoint. Это не разрешение на provider fallback для restricted production material. Diagnostic harness остаётся synthetic/sanitized-only. Case count остаётся 10, общий cap — максимум 4 attempts на case; переход на fallback не увеличивает этот cap. HTTP 429 не используется как основание для model switching.
+PR #262 не меняет provider host, model routing или resource bounds. Case count остаётся 10, общий cap — максимум 4 attempts на case, timeout — 120 секунд, 429/503/fallback policy прежняя. Новый provider-side JSON schema ограничивает только форму ответа и не расширяет передаваемые данные. Target assertion slots содержат только question/field/mechanism identifiers; oracle expected values и refs модели не передаются.
 
 Repository остаётся pre-production. Production use с real contracts blocked до реализации и проверки applicable consent, authorization, encryption/key lifecycle, Israel-only restricted-data processing, deletion/retention, logging, provider terms, abuse/resource controls и incident response.
 
@@ -245,9 +252,11 @@ Question Engine continuity:
 - PR #259 — owner-authorized bounded corrective switching the experiment default to Gemini 3.6 Flash and adding bounded pacing/retries;
 - second local run after PR #259 — reached 7/10, recovered one 503, then aborted on an uncaught read timeout before report persistence;
 - PR #260 — owner-authorized bounded corrective adding timeout tolerance while preserving the same model, corpus and semantic contract;
-- PR #261 — owner-authorized bounded corrective adding `gemini-3.5-flash` fallback for primary 3.6 transient 503/timeouts and explicit per-case model provenance.
+- PR #261 — owner-authorized bounded corrective adding `gemini-3.5-flash` fallback for primary 3.6 transient 503/timeouts and explicit per-case model provenance;
+- local run v3 after PR #261 — first usable semantic provider report: 9/10 cases, 5/5 resolutions, one successful fallback case, one malformed JSON case, and recurrent formatting/state/ref mismatches identified above;
+- PR #262 — owner-authorized bounded corrective adding explicit mechanism-specific target slots and provider-enforced structured output without changing corpus oracle or production schema.
 
-No successful complete semantic provider report is recorded yet. PR #261 exists only to obtain that evidence more reliably without changing Question Engine semantics.
+The next evidence gate is local run v4. No semantic quality claim is promoted to production from run v3 alone.
 
 ## 11. Recovery/work rules
 
@@ -269,26 +278,27 @@ Current owner authorization permits the orchestrating assistant to merge subsequ
 
 Implementation-size rule: target <=300 changed implementation lines per PR; 400 is the normal hard limit. Corpus fixture data is not implementation code, but test/implementation code should remain bounded.
 
-## 12. PR #261 validation target
+## 12. PR #262 validation target
 
-Before Ready/merge, PR #261 must verify:
+Before Ready/merge, PR #262 must verify:
 
 - changed paths exactly match Context Gate;
-- branch is based on current `main` head `63cd47f9e69ce6be2691f412de6becf7f1f5e36e` and is not behind it;
-- both state files identify PR #261 and `question-engine-security-provider-fallback-35-v1`;
-- next step remains `question-engine-security-provider-experiment-local-run-v3`;
-- primary default model remains exactly `gemini-3.6-flash`;
-- fallback model is exactly `gemini-3.5-flash`;
-- primary HTTP 503/direct timeout/timeout-like URLError can switch the remaining case attempts to fallback;
-- HTTP 429 does not trigger model switching;
-- total provider attempts remain capped at 4 per case;
-- successful result records the actual `model_used`, and summary reports fallback usage;
-- retry/error messages do not disclose the API key;
+- branch is based on current `main` head `d0997796c9faf550c1c90ccc91d0074be8b145b5` and is not behind it;
+- both state files identify PR #262 and `question-engine-security-provider-structured-output-v1`;
+- next step is `question-engine-security-provider-experiment-local-run-v4`;
 - experiment selection remains exactly the same 10 security-domain corpus cases;
-- prompts, expected oracle isolation, semantic scoring, evidence refs and fail-closed missing/handwriting behavior remain unchanged;
+- oracle expected values and expected refs remain hidden from provider input;
+- repeated `(question_id, field)` targets with different mechanism IDs remain separate target slots;
+- durations/deadlines are requested as integer day counts;
+- prompt distinguishes explicit BLANK, HANDWRITING_DEPENDENCY, MISSING_DEPENDENCY and complete-scope ABSENT/OMITTED cases;
+- request uses current `generationConfig.responseFormat.text` JSON structured-output shape and bounds assertions to the requested count;
+- state/resolution enum shape is constrained without weakening strict Python scoring;
+- primary/fallback remain exactly `gemini-3.6-flash` / `gemini-3.5-flash`;
+- timeout, pacing, retry/fallback cap and 429 behavior remain unchanged;
+- retry/error messages do not disclose the API key;
 - output reports remain local and contain no API key;
 - no new dependency, workflow, permission, provider host, production storage, OCR/Android/serverless path or statutory runtime is introduced;
 - focused tests and Python compilation pass on exact final code blobs;
 - Markdown/JSON state agree;
 - final security review passes on exact final head;
-- actual Gemini 3.6→3.5 failover, latency, quota interaction and semantic quality remain unverified until the product owner performs local run v3.
+- actual Gemini structured-output acceptance, semantic quality and score improvement remain unverified until local run v4.
