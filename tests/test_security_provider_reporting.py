@@ -59,6 +59,34 @@ class SecurityProviderReportingTests(unittest.TestCase):
         self.assertEqual(len(report["results"]), 1)
         sleep.assert_not_called()
 
+    def test_last_case_route_exhaustion_persists_aborted_status(self):
+        case_id = "c1"
+        case = {"case_id": case_id, "domain": "security", "lifecycle": "EXECUTED",
+                "clauses": [], "assertions": []}
+        quota_payload = json.dumps({"error": {"details": [{
+            "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+            "violations": [{"quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier"}],
+        }]}}).encode("utf-8")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            corpus = root / "corpus.json"
+            corpus.write_text(json.dumps({"cases": [case]}), encoding="utf-8")
+            with patch.object(experiment, "CASES", (case_id,)), patch.object(experiment, "CORPUS", corpus), \
+                 patch.object(experiment, "desktop_dirs", return_value=[root]), \
+                 patch.object(experiment, "load_key", return_value=("key", None)), \
+                 patch.object(experiment.request, "urlopen", side_effect=[
+                     http_error(429, quota_payload), http_error(429, quota_payload)]
+                 ) as urlopen, patch.object(experiment.time, "sleep") as sleep:
+                report, _ = experiment.run()
+            saved = json.loads(next(root.glob("security_provider_experiment_*.json")).read_text(encoding="utf-8"))
+        self.assertEqual(report["status"], "ABORTED_ROUTE_EXHAUSTED")
+        self.assertEqual(saved["status"], "ABORTED_ROUTE_EXHAUSTED")
+        self.assertEqual(urlopen.call_count, 2)
+        self.assertEqual(len(report["attempts"]), 2)
+        self.assertEqual([x["model"] for x in report["attempts"]], list(experiment.MODEL_ROUTE))
+        self.assertTrue(all(x["failure_class"] == "daily_quota" for x in report["attempts"]))
+        sleep.assert_not_called()
+
     def test_global_error_checkpoints_before_propagating(self):
         case_id = "c1"
         case = {"case_id": case_id, "domain": "security", "lifecycle": "EXECUTED",
