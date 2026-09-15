@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-15-119",
+  "state_version": "privacy-ocr-2026-09-15-120",
   "active_track": "question-engine-development",
-  "next_step_id": "question-engine-provider-ledger-reporting-v1",
-  "next_step_summary": "PR #268 is the second bounded provider corrective after PR #266. It adds strict local response-contract validation, bounded HTTP-200 response reads, safe malformed-envelope/model-output fallback, structured quota/RetryInfo parsing, narrow daily-quota detection, finite retry hints, and separate per-model/global attempt caps while preserving the Flash-only route gemini-3.6-flash -> gemini-3.5-flash. The next and final provider-harness corrective before Codex review is attempt ledger, per-model reporting, recursive report redaction, fail-fast exhausted-route lifecycle, and checkpoint consistency. No real Gemini run is permitted before that chain is complete.",
-  "last_recorded_pr": 268,
-  "last_recorded_change": "question-engine-provider-parse-routing-v1",
+  "next_step_id": "question-engine-provider-corrective-codex-review-v1",
+  "next_step_summary": "PR #269 completes the staged provider-harness corrective chain after PR #266 and PR #268. It adds a non-sensitive attempt ledger, per-model provider metrics, recursive secret redaction before report persistence/rendering, fail-fast exhausted-route termination before inter-case sleep, partial checkpoints for terminal failures, and TXT-first/JSON-last terminal publication. The only permitted next step is one combined Codex review of #266 -> #268 -> #269. No real Gemini run is permitted before that review. If the review finds no reproducible HIGH/BLOCKER or binding-governance violation, merge the three PRs sequentially and run local provider experiment v6.",
+  "last_recorded_pr": 269,
+  "last_recorded_change": "question-engine-provider-ledger-reporting-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-09-15"
