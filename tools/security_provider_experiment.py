@@ -704,6 +704,9 @@ def run():
         except RuntimeError as exc:
             results.append({"case_id": case_id, "status": "ERROR", "attempts": attempts[before:],
                             "error": str(exc).replace(key, "[REDACTED]")})
+            if not any(model not in unavailable_models for model in MODEL_ROUTE):
+                status = "ABORTED_ROUTE_EXHAUSTED"
+                break
         except Exception as exc:
             results.append({"case_id": case_id, "status": "ERROR", "attempts": attempts[before:],
                             "error": f"internal_error:{type(exc).__name__}"})
