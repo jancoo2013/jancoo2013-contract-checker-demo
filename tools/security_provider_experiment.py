@@ -42,6 +42,10 @@ STATE_VALUES = {
 }
 
 
+class GlobalProviderError(RuntimeError):
+    pass
+
+
 def desktop_dirs():
     bases = [Path.home()]
     bases += [Path(v) for k in ("USERPROFILE", "OneDrive", "OneDriveConsumer")
@@ -257,6 +261,10 @@ def call_gemini(key, prompt, assertion_count, unavailable_models=None):
         except error.HTTPError as exc:
             detail = exc.read(1200).decode("utf-8", "replace").replace(key, "[REDACTED]")
             alternate = next_model(current_model, unavailable_models)
+            if exc.code in {401, 403}:
+                raise GlobalProviderError(
+                    f"Gemini authentication/permission error HTTP {exc.code}"
+                ) from None
             if exc.code == 429 and is_daily_quota_error(detail):
                 unavailable_models.add(current_model)
                 alternate = next_model(current_model, unavailable_models)
@@ -265,7 +273,7 @@ def call_gemini(key, prompt, assertion_count, unavailable_models=None):
                     current_model = alternate
                     continue
                 raise RuntimeError(f"Gemini daily quota exhausted on {current_model}") from None
-            if exc.code in {403, 404}:
+            if exc.code == 404:
                 unavailable_models.add(current_model)
                 alternate = next_model(current_model, unavailable_models)
                 if alternate and attempt < MAX_ATTEMPTS:
@@ -430,6 +438,8 @@ def run():
                 key, build_prompt(case), len(case["assertions"]), unavailable_models)
             results.append({"case_id": case_id, "status": "OK", "model_used": model_used,
                             "score": score_case(case, actual), "actual": actual})
+        except GlobalProviderError:
+            raise
         except RuntimeError as exc:
             results.append({"case_id": case_id, "status": "ERROR",
                             "error": str(exc).replace(key, "[REDACTED]")})
