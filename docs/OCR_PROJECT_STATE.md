@@ -10,24 +10,25 @@
 
 ## 1. Current change — PR #266 run-scoped Flash model memory
 
-PR #266 — первый из двух owner-authorized bounded corrective шагов после provider batch audit. Реальный Gemini run до завершения второго corrective не выполняется.
+PR #266 — первый из нескольких owner-authorized bounded corrective шагов после provider audit. Реальный Gemini run до завершения последующих corrective не выполняется.
 
 Provider experiment continuity, релевантная текущему исправлению:
 
 - локальный run v5 после PR #263 подтвердил рабочий `responseMimeType + responseJsonSchema`, но завершил только `3/10` cases за `1196.61s`; после case 4 primary 3.6 упёрлась в per-model daily free-tier quota;
 - PR #264 увеличил inter-case pacing до 30 секунд;
 - PR #265 различил daily-quota 429 и short-window 429 и временно добавил `gemini-3.1-pro-preview`;
-- последующий статический batch audit выявил, что daily-exhausted model не запоминается между cases, malformed/provider-shape failures не получают robust fallback, attempt provenance/report persistence недостаточны, а общий retry budget смешивает retry и routing;
+- последующий статический provider audit выявил, что daily-exhausted model не запоминается между cases, malformed/provider-shape failures не получают robust fallback, attempt provenance/report persistence недостаточны, общий retry budget смешивает retry и routing, а `401/403` нельзя трактовать как обычную недоступность одной модели;
 - владелец продукта решил пока не использовать `gemini-3.1-pro-preview` через API из-за отсутствия подтверждённого бесплатного API tier для этого проекта.
 
-PR #266 меняет только route scope и run-scoped model memory:
+PR #266 меняет только route scope, run-scoped model memory и глобальную обработку authentication/permission failures:
 
 - diagnostic route ограничен `gemini-3.6-flash → gemini-3.5-flash`; Pro исключён из runtime route/report;
 - неподдерживаемый `GEMINI_MODEL` override блокируется до provider request;
-- confirmed per-model daily quota и stable `403/404` availability failures запоминаются в общем run-scoped set;
+- confirmed per-model daily quota и stable `404` model-unavailable запоминаются в общем run-scoped set;
 - последующие cases не обращаются повторно к модели, уже признанной недоступной в этом run;
+- HTTP `401/403` теперь считаются global authentication/permission failure: текущий run прекращается без fallback на вторую модель и без повторных provider requests;
 - 503/timeout/short-window 429 поведение, structured-output request, semantic prompt, corpus oracle, strict scorer, 30-second pacing и 120-second timeout остаются без semantic изменений;
-- malformed-output fallback, structured quota/retry parsing, separate retry/routing budgets, attempt ledger и checkpoint persistence намеренно остаются следующим bounded corrective.
+- malformed-output fallback, structured quota/retry parsing, separate retry/routing budgets, attempt ledger, report redaction и checkpoint persistence намеренно остаются следующими bounded corrective.
 
 Provider payload остаётся synthetic/sanitized; real contracts, raw OCR и recoverable PII не используются.
 
@@ -45,7 +46,7 @@ Provider payload остаётся synthetic/sanitized; real contracts, raw OCR �
 - гарантированное сохранение partial report;
 - prompt/corpus/oracle/scorer semantics не менять; Pro не добавлять.
 
-После merge второго corrective evidence gate возвращается к `question-engine-security-provider-experiment-local-run-v6`.
+После завершения corrective chain evidence gate возвращается к `question-engine-security-provider-experiment-local-run-v6`.
 
 ## 3. Current Question Engine architecture
 
@@ -69,7 +70,7 @@ privacy-validated sanitized contract material
 
 ## 4. Provider/privacy invariants
 
-Provider experiment отправляет только synthetic/sanitized corpus material. Local API key читается из environment/Desktop `.env.local`, не входит в prompt/report и scrubbed из HTTP error detail. `.env.local` остаётся вне repository tree и игнорируется `.gitignore`.
+Provider experiment отправляет только synthetic/sanitized corpus material. Local API key читается из environment/Desktop `.env.local`, не входит в prompt и scrubbed из HTTP error detail. `.env.local` остаётся вне repository tree и игнорируется `.gitignore`.
 
 PR #266 сохраняет тот же fixed Google GenerateContent host, case count 10, timeout 120 секунд, attempt cap 4 на case и pacing 30 секунд. Новых dependencies, workflows, permissions, storage, OCR/Android/serverless paths или statutory runtime нет.
 
@@ -77,19 +78,55 @@ Repository остаётся pre-production. Production use с real contracts blo
 
 ## 5. Audit continuity
 
-Provider batch audit после PR #265 дал `FREEZE AFFECTED AREA` только для самого provider experiment до corrective work. Старый опубликованный API key уже был ранее заблокирован Google. Runtime findings требуют убрать повторные обращения к exhausted models, добавить robust malformed-output fallback, attempt provenance и partial-report persistence.
+Последний завершённый Question Engine batch audit, который должен сохраняться как recovery marker:
 
-PR #266 закрывает первую часть: удаляет Pro из API route по решению владельца и добавляет run-scoped memory для daily-quota/403/404 unavailable Flash-моделей.
+- дата: `2026-09-08`;
+- start SHA: `cbbb8e0905c1fda8610260d4046b51952a9f636c`;
+- end SHA: `ee66e0063e270abd5eb7992f2be73c89dbec3a5d`;
+- principal PR range: `#234–#250`;
+- outcome: `CORRECTIVE PR REQUIRED`;
+- privacy/security regression в этом range не был отмечен.
 
-Provider experiment остаётся paused. Следующий implementation gate — `question-engine-provider-robust-fallback-ledger-v1`; только после него local run v6 может расходовать Gemini quota.
+После PR #265 отдельный provider audit остановил только provider experiment до corrective work. Старый опубликованный API key уже был ранее заблокирован Google и не является новым blocker для PR #266. Runtime findings требуют убрать повторные обращения к exhausted models, не маршрутизировать global auth/project failures как model fallback, добавить robust malformed-output fallback, attempt provenance и partial-report persistence.
 
-## 6. Recovery/work rules
+PR #266 закрывает только первую часть: удаляет Pro из API route по решению владельца, добавляет run-scoped memory для daily-quota/404 model-unavailable Flash-моделей и прекращает run на global `401/403` без fallback.
+
+Provider experiment остаётся paused. Следующий implementation gate — `question-engine-provider-robust-fallback-ledger-v1`; только после всей corrective chain local run v6 может расходовать Gemini quota.
+
+## 6. Stable recovery anchors
+
+Current provider-independent schema foundation:
+
+```text
+AnswerState
+  presence: PresenceStatus
+  value: ValueStatus
+  evidence: EvidenceStatus
+  source: SourceStatus
+  lifecycle: DocumentLifecycle
+
+MechanismCollection(domain, mechanisms)
+MechanismInstance(mechanism_id, mechanism_type, properties)
+MechanismProperty(name, value, state)
+
+FindingCandidate(finding_id, domain, subject_refs)
+FindingResolution(candidate, outcome, reviewed_refs, resolution_summary)
+FindingOutcome = CONFIRMED | NARROWED | CLEARED
+```
+
+Current smart CORE families: security/enforcement, early exit/replacement tenant, financial sanctions/overlap, condition/AS-IS/defects/damage evidence, termination/cure/notice, option/renewal. Corpus oracle v2 остаётся evaluation representation, а не production runtime schema.
+
+Statutory recovery anchor: 2017 residential-rental reform effective `2017-09-17`; maintained baseline также учитывает 2026 amendment timing для section `25י`. Если current-law freshness/applicability/effective date не установлены безопасно, runtime должен деградировать к contract-only analysis, а не утверждать устаревшую норму.
+
+Frozen OCR recovery anchor: Surya/cloud OCR infrastructure остаётся frozen research; Tesseract full-page Hebrew OCR на target phone остаётся `NO-GO`; historical Android geometry/preprocessing findings deferred и не блокируют Question Engine development.
+
+## 7. Recovery/work rules
 
 Перед новым PR читать с актуального `main`: `AGENTS.md`, `SECURITY.md`, `docs/ARCHITECTURE.md`, `docs/CUSTOM_OCR_PIPELINE.md`, `docs/SERVERLESS_GPU_OCR_PIPELINE_V1.md`, оба state-файла, `docs/DOCUMENT_STATUS_INDEX.md`, `docs/CODEX_WORKFLOW.md`.
 
 Каждый PR: ровно один Context Gate v1; оба state-файла обновляются; финальные checks относятся к exact final head; actual paths совпадают с Context Gate; mandatory security review; auto-merge запрещён.
 
-## 7. PR #266 validation target
+## 8. PR #266 validation target
 
 Перед Ready/merge проверить:
 
@@ -99,12 +136,12 @@ Provider experiment остаётся paused. Следующий implementation g
 - next step — `question-engine-provider-robust-fallback-ledger-v1`;
 - route ровно `gemini-3.6-flash → gemini-3.5-flash`; Pro model identifier отсутствует в provider runtime/report;
 - unsupported model override fails before provider access;
-- daily quota или 403/404 unavailability remembered across later cases; later cases skip remembered model;
+- daily quota или `404` model unavailability remembered across later cases; later cases skip remembered model;
+- `401/403` abort the run globally with no model fallback;
 - 503, timeout и short-window 429 остаются bounded;
 - timeout 120 секунд, attempt cap 4, pacing 30 секунд;
 - structured-output request, prompt, target assertions, corpus selection и semantic/evidence scorer не меняются;
-- reports остаются local и не содержат API key;
 - focused tests и Python compilation pass на exact final code/test blobs;
 - Markdown/JSON state согласованы;
 - final security review passes;
-- malformed-output fallback, structured quota metadata parsing, attempt ledger и checkpoint persistence остаются deferred только до следующего bounded corrective перед local run v6.
+- malformed-output fallback, structured quota metadata parsing, attempt ledger, report redaction и checkpoint persistence остаются deferred только до следующих bounded corrective перед local run v6.
