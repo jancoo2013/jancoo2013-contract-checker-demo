@@ -10,9 +10,10 @@ ROOT = Path(__file__).resolve().parents[1]
 CORPUS = ROOT / "research/question_engine/smart_analysis_corpus_v1.json"
 DEFAULT_MODEL = "gemini-3.6-flash"
 FALLBACK_MODEL = "gemini-3.5-flash"
-PRO_MODEL = "gemini-3.1-pro-preview"
-MODEL = os.environ.get("GEMINI_MODEL", DEFAULT_MODEL)
-MODEL_ROUTE = tuple(dict.fromkeys((MODEL, FALLBACK_MODEL, PRO_MODEL)))
+MODEL = os.environ.get("GEMINI_MODEL", DEFAULT_MODEL).strip() or DEFAULT_MODEL
+if MODEL not in {DEFAULT_MODEL, FALLBACK_MODEL}:
+    raise RuntimeError("Unsupported GEMINI_MODEL; use gemini-3.6-flash or gemini-3.5-flash")
+MODEL_ROUTE = tuple(dict.fromkeys((MODEL, FALLBACK_MODEL)))
 REQUEST_SPACING_SECONDS = 30
 REQUEST_TIMEOUT_SECONDS = 120
 MAX_ATTEMPTS = 4
@@ -39,6 +40,10 @@ STATE_VALUES = {
     "evidence": ["SUFFICIENT", "HANDWRITING_DEPENDENCY", "MISSING_DEPENDENCY", "UNREADABLE"],
     "source": ["CLEAR", "AMBIGUOUS", "CONTRADICTORY"],
 }
+
+
+class GlobalProviderError(RuntimeError):
+    pass
 
 
 def desktop_dirs():
@@ -223,12 +228,12 @@ def is_daily_quota_error(detail):
     )
 
 
-def next_model(current_model):
+def next_model(current_model, unavailable_models=()):
     try:
         index = MODEL_ROUTE.index(current_model)
     except ValueError:
         return None
-    return MODEL_ROUTE[index + 1] if index + 1 < len(MODEL_ROUTE) else None
+    return next((model for model in MODEL_ROUTE[index + 1:] if model not in unavailable_models), None)
 
 
 def request_for_model(model, key, body):
@@ -240,9 +245,13 @@ def request_for_model(model, key, body):
     )
 
 
-def call_gemini(key, prompt, assertion_count):
+def call_gemini(key, prompt, assertion_count, unavailable_models=None):
+    unavailable_models = unavailable_models if unavailable_models is not None else set()
+    available = [model for model in MODEL_ROUTE if model not in unavailable_models]
+    if not available:
+        raise RuntimeError("No Gemini models available for this run")
     body = request_body(prompt, assertion_count)
-    current_model = MODEL_ROUTE[0]
+    current_model = available[0]
     for attempt in range(1, MAX_ATTEMPTS + 1):
         req = request_for_model(current_model, key, body)
         try:
@@ -251,13 +260,27 @@ def call_gemini(key, prompt, assertion_count):
             break
         except error.HTTPError as exc:
             detail = exc.read(1200).decode("utf-8", "replace").replace(key, "[REDACTED]")
-            alternate = next_model(current_model)
+            alternate = next_model(current_model, unavailable_models)
+            if exc.code in {401, 403}:
+                raise GlobalProviderError(
+                    f"Gemini authentication/permission error HTTP {exc.code}"
+                ) from None
             if exc.code == 429 and is_daily_quota_error(detail):
+                unavailable_models.add(current_model)
+                alternate = next_model(current_model, unavailable_models)
                 if alternate and attempt < MAX_ATTEMPTS:
                     print(f"Gemini daily quota exhausted on {current_model}; switching to {alternate}")
                     current_model = alternate
                     continue
                 raise RuntimeError(f"Gemini daily quota exhausted on {current_model}") from None
+            if exc.code == 404:
+                unavailable_models.add(current_model)
+                alternate = next_model(current_model, unavailable_models)
+                if alternate and attempt < MAX_ATTEMPTS:
+                    print(f"Gemini unavailable on {current_model}; switching to {alternate}")
+                    current_model = alternate
+                    continue
+                raise RuntimeError(f"Gemini unavailable on {current_model}") from None
             if exc.code == 503 and alternate and attempt < MAX_ATTEMPTS:
                 print(f"Gemini HTTP 503 on {current_model}; switching to {alternate}")
                 current_model = alternate
@@ -270,7 +293,7 @@ def call_gemini(key, prompt, assertion_count):
                 continue
             raise RuntimeError(f"Gemini HTTP {exc.code} on {current_model}: {detail}") from None
         except error.URLError as exc:
-            alternate = next_model(current_model)
+            alternate = next_model(current_model, unavailable_models)
             if is_timeout_error(exc) and alternate and attempt < MAX_ATTEMPTS:
                 print(f"Gemini network timeout on {current_model}; switching to {alternate}")
                 current_model = alternate
@@ -283,7 +306,7 @@ def call_gemini(key, prompt, assertion_count):
                 continue
             raise RuntimeError(f"Gemini network error on {current_model}: {exc.reason}") from None
         except TimeoutError as exc:
-            alternate = next_model(current_model)
+            alternate = next_model(current_model, unavailable_models)
             if alternate and attempt < MAX_ATTEMPTS:
                 print(f"Gemini read timeout on {current_model}; switching to {alternate}")
                 current_model = alternate
@@ -375,10 +398,9 @@ def render(report):
     s = report["summary"]
     lines = [
         "Gemini security provider experiment", f"Primary model: {report['model']}",
-        f"Flash fallback model: {report['fallback_model']}",
-        f"Pro fallback model: {report['pro_model']}",
+        f"Fallback model: {report['fallback_model']}",
+        f"Unavailable models: {report['unavailable_models']}",
         f"Fallback cases: {s['fallback_cases']}",
-        f"Pro cases: {s['pro_cases']}",
         f"Cases: {s['cases_completed']}/{s['cases_requested']}",
         f"Exact assertions: {s['assertions_exact']}/{s['assertions_total']}",
         f"Values: {s['value_matches']}/{s['assertions_total']}",
@@ -405,16 +427,19 @@ def run():
     missing = [case_id for case_id in CASES if case_id not in by_id or by_id[case_id].get("domain") != "security"]
     if missing:
         raise RuntimeError(f"Corpus selection invalid: {', '.join(missing)}")
-    results, started = [], time.time()
+    results, started, unavailable_models = [], time.time(), set()
     for n, case_id in enumerate(CASES, 1):
         if n > 1:
             time.sleep(REQUEST_SPACING_SECONDS)
         case = by_id[case_id]
         print(f"[{n}/{len(CASES)}] {case_id}")
         try:
-            actual, model_used = call_gemini(key, build_prompt(case), len(case["assertions"]))
+            actual, model_used = call_gemini(
+                key, build_prompt(case), len(case["assertions"]), unavailable_models)
             results.append({"case_id": case_id, "status": "OK", "model_used": model_used,
                             "score": score_case(case, actual), "actual": actual})
+        except GlobalProviderError:
+            raise
         except RuntimeError as exc:
             results.append({"case_id": case_id, "status": "ERROR",
                             "error": str(exc).replace(key, "[REDACTED]")})
@@ -423,7 +448,6 @@ def run():
     summary = {
         "cases_requested": len(CASES), "cases_completed": len(scored),
         "fallback_cases": sum(x.get("model_used") not in (None, MODEL) for x in results),
-        "pro_cases": sum(x.get("model_used") == PRO_MODEL for x in results),
         "assertions_exact": sum(x["assertions_exact"] for x in scored),
         "assertions_total": sum(x["assertions_total"] for x in scored),
         "value_matches": sum(x["value_matches"] for x in scored),
@@ -438,7 +462,8 @@ def run():
     stamp = time.strftime("%Y%m%d_%H%M%S")
     json_path = out / f"security_provider_experiment_{stamp}.json"
     report = {"experiment": "question-engine-security-provider-experiment-v1",
-              "model": MODEL, "fallback_model": FALLBACK_MODEL, "pro_model": PRO_MODEL,
+              "model": MODEL, "fallback_model": FALLBACK_MODEL,
+              "unavailable_models": sorted(unavailable_models),
               "duration_seconds": round(time.time() - started, 2),
               "summary": summary, "results": results}
     json_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")

@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-10-115",
+  "state_version": "privacy-ocr-2026-09-15-118",
   "active_track": "question-engine-development",
-  "next_step_id": "question-engine-security-provider-experiment-local-run-v6",
-  "next_step_summary": "Local run v5 after PR #263 confirmed provider acceptance of responseMimeType + responseJsonSchema, but completed only 3/10 cases in 1196.61 seconds. The dominant failure after case 4 was HTTP 429 with quotaId GenerateRequestsPerDayPerProjectPerModel-FreeTier for gemini-3.6-flash, showing per-model daily quota exhaustion rather than a short-window rate limit. PR #265 is an owner-authorized bounded routing corrective: distinguish per-model daily-quota 429 from short-window 429, immediately advance on daily exhaustion through gemini-3.6-flash -> gemini-3.5-flash -> gemini-3.1-pro-preview, keep provider-guided same-model waiting for short-window 429, and also allow 503/timeouts to advance through the same bounded route. Keep 30-second pacing, 120-second timeout, four total attempts per case, structured-output schema, prompt, corpus, strict scorer, credentials and local report destination unchanged. Next step is local run v6 to verify routing, Pro availability for the user's API project, latency, and semantic quality.",
-  "last_recorded_pr": 265,
-  "last_recorded_change": "question-engine-security-provider-quota-pro-fallback-v1",
+  "next_step_id": "question-engine-provider-robust-fallback-ledger-v1",
+  "next_step_summary": "PR #266 is the first owner-authorized bounded corrective after the provider audit. It removes gemini-3.1-pro-preview from the API route, leaving gemini-3.6-flash -> gemini-3.5-flash, validates model override before provider access, remembers daily-quota and stable 404 model-unavailable failures across later cases, and treats HTTP 401/403 as global authentication/permission failures that abort the run without model fallback. Malformed-output fallback, structured quota/retry parsing, separate bounded retry/routing budgets, attempt ledger/per-model metrics, report redaction, and guaranteed partial-report persistence remain following bounded corrective work before any new Gemini run.",
+  "last_recorded_pr": 266,
+  "last_recorded_change": "question-engine-provider-resilience-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
-  "updated_on": "2026-09-10"
+  "updated_on": "2026-09-15"
 }
