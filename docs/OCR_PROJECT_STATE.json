@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-15-119",
+  "state_version": "privacy-ocr-2026-09-15-121",
   "active_track": "question-engine-development",
-  "next_step_id": "question-engine-provider-ledger-reporting-v1",
-  "next_step_summary": "PR #268 is the second bounded provider corrective after PR #266. It adds strict local response-contract validation, bounded HTTP-200 response reads, safe malformed-envelope/model-output fallback, structured quota/RetryInfo parsing, narrow daily-quota detection, finite retry hints, and separate per-model/global attempt caps while preserving the Flash-only route gemini-3.6-flash -> gemini-3.5-flash. The next and final provider-harness corrective before Codex review is attempt ledger, per-model reporting, recursive report redaction, fail-fast exhausted-route lifecycle, and checkpoint consistency. No real Gemini run is permitted before that chain is complete.",
-  "last_recorded_pr": 268,
-  "last_recorded_change": "question-engine-provider-parse-routing-v1",
+  "next_step_id": "question-engine-security-provider-experiment-local-run-v6",
+  "next_step_summary": "The provider-harness corrective chain #266 -> #268 -> #269 is complete after fixing the reproduced final-case route-exhaustion report-integrity defect in #269. The product owner explicitly ended the repeat Codex review loop. Before any real provider request, run final local py_compile and focused unit tests on the exact final #269 head, then merge #266, #268 and #269 sequentially. After the merged main is verified, run local provider experiment v6 with the existing Flash-only route and synthetic/sanitized corpus. LOW observations about HTTP-date Retry-After and jitter remain out of scope.",
+  "last_recorded_pr": 269,
+  "last_recorded_change": "question-engine-provider-ledger-reporting-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-09-15"
