@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-15-116",
+  "state_version": "privacy-ocr-2026-09-15-117",
   "active_track": "question-engine-development",
-  "next_step_id": "question-engine-provider-robust-fallback-ledger-v1",
-  "next_step_summary": "PR #266 is the first owner-authorized bounded corrective after the provider batch audit. It removes gemini-3.1-pro-preview from the API route, leaving gemini-3.6-flash -> gemini-3.5-flash, validates model override before provider access, and adds run-scoped memory so daily-quota or stable 403/404-unavailable models are skipped by later cases. Malformed-output fallback, structured quota/retry parsing, separate bounded retry/routing budgets, attempt ledger/per-model metrics, and guaranteed partial-report persistence remain the immediately following corrective before any new Gemini run.",
-  "last_recorded_pr": 266,
-  "last_recorded_change": "question-engine-provider-resilience-v1",
+  "next_step_id": "question-engine-provider-corrective-codex-review-v1",
+  "next_step_summary": "PR #266 and stacked PR #267 are the owner-authorized provider corrective stack after the Gemini batch audit. #266 removes gemini-3.1-pro-preview from the API route, keeps only gemini-3.6-flash -> gemini-3.5-flash, validates model override, and remembers daily-quota/403/404 unavailable models across later cases. #267 adds malformed-envelope/model-output fallback, local response-contract validation before scoring, structured quota/RetryInfo parsing, bounded per-model plus global attempt budgets, attempt provenance/per-model reporting, and atomic checkpoint persistence. No new real Gemini run is permitted yet: the product owner requires a Codex review of both unmerged PRs first.",
+  "last_recorded_pr": 267,
+  "last_recorded_change": "question-engine-provider-robust-fallback-ledger-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-09-15"
