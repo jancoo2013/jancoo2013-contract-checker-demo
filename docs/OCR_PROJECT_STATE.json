@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-15-120",
+  "state_version": "privacy-ocr-2026-09-15-121",
   "active_track": "question-engine-development",
-  "next_step_id": "question-engine-provider-corrective-codex-review-v1",
-  "next_step_summary": "PR #269 completes the staged provider-harness corrective chain after PR #266 and PR #268. It adds a non-sensitive attempt ledger, per-model provider metrics, recursive secret redaction before report persistence/rendering, fail-fast exhausted-route termination before inter-case sleep, partial checkpoints for terminal failures, and TXT-first/JSON-last terminal publication. The only permitted next step is one combined Codex review of #266 -> #268 -> #269. No real Gemini run is permitted before that review. If the review finds no reproducible HIGH/BLOCKER or binding-governance violation, merge the three PRs sequentially and run local provider experiment v6.",
+  "next_step_id": "question-engine-security-provider-experiment-local-run-v6",
+  "next_step_summary": "The provider-harness corrective chain #266 -> #268 -> #269 is complete after fixing the reproduced final-case route-exhaustion report-integrity defect in #269. The product owner explicitly ended the repeat Codex review loop. Before any real provider request, run final local py_compile and focused unit tests on the exact final #269 head, then merge #266, #268 and #269 sequentially. After the merged main is verified, run local provider experiment v6 with the existing Flash-only route and synthetic/sanitized corpus. LOW observations about HTTP-date Retry-After and jitter remain out of scope.",
   "last_recorded_pr": 269,
   "last_recorded_change": "question-engine-provider-ledger-reporting-v1",
   "state_update_required_per_pr": true,
