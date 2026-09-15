@@ -10,14 +10,24 @@ ROOT = Path(__file__).resolve().parents[1]
 CORPUS = ROOT / "research/question_engine/smart_analysis_corpus_v1.json"
 DEFAULT_MODEL = "gemini-3.6-flash"
 FALLBACK_MODEL = "gemini-3.5-flash"
+
+
+def build_model_route(model):
+    model = model.strip()
+    if model not in {DEFAULT_MODEL, FALLBACK_MODEL}:
+        raise RuntimeError("Unsupported GEMINI_MODEL; use gemini-3.6-flash or gemini-3.5-flash")
+    return tuple(dict.fromkeys((model, FALLBACK_MODEL)))
+
+
 MODEL = os.environ.get("GEMINI_MODEL", DEFAULT_MODEL).strip() or DEFAULT_MODEL
-if MODEL not in {DEFAULT_MODEL, FALLBACK_MODEL}:
-    raise RuntimeError("Unsupported GEMINI_MODEL; use gemini-3.6-flash or gemini-3.5-flash")
-MODEL_ROUTE = tuple(dict.fromkeys((MODEL, FALLBACK_MODEL)))
+MODEL_ROUTE = build_model_route(MODEL)
 REQUEST_SPACING_SECONDS = 30
 REQUEST_TIMEOUT_SECONDS = 120
-MAX_ATTEMPTS = 4
+MAX_ATTEMPTS_PER_MODEL = 2
+MAX_TOTAL_ATTEMPTS = 4
 RETRYABLE_HTTP_CODES = {429, 503}
+MODEL_UNAVAILABLE_HTTP_CODES = {403, 404}
+MAX_ERROR_BODY_BYTES = 16384
 CASES = (
     "security_broad_trigger_confirmed",
     "security_broad_trigger_narrowed_by_notice_cure",
@@ -40,6 +50,10 @@ STATE_VALUES = {
     "evidence": ["SUFFICIENT", "HANDWRITING_DEPENDENCY", "MISSING_DEPENDENCY", "UNREADABLE"],
     "source": ["CLEAR", "AMBIGUOUS", "CONTRADICTORY"],
 }
+
+
+class GlobalProviderError(RuntimeError):
+    pass
 
 
 def desktop_dirs():
@@ -128,11 +142,8 @@ def response_schema(assertion_count):
     }
     value_schema = {
         "anyOf": [
-            {"type": "string"},
-            {"type": "number"},
-            {"type": "boolean"},
-            {"type": "array", "items": {"type": "string"}},
-            {"type": "null"},
+            {"type": "string"}, {"type": "number"}, {"type": "boolean"},
+            {"type": "array", "items": {"type": "string"}}, {"type": "null"},
         ]
     }
     assertion_schema = {
@@ -140,8 +151,7 @@ def response_schema(assertion_count):
         "properties": {
             "question_id": {"type": "string"},
             "mechanism_id": {"type": ["string", "null"]},
-            "field": {"type": "string"},
-            "value": value_schema,
+            "field": {"type": "string"}, "value": value_schema,
             "state": state_schema,
             "refs": {"type": "array", "items": {"type": "string"}, "minItems": 1},
         },
@@ -165,10 +175,8 @@ def response_schema(assertion_count):
     return {
         "type": "object",
         "properties": {
-            "assertions": {
-                "type": "array", "items": assertion_schema,
-                "minItems": assertion_count, "maxItems": assertion_count,
-            },
+            "assertions": {"type": "array", "items": assertion_schema,
+                           "minItems": assertion_count, "maxItems": assertion_count},
             "resolution": resolution_schema,
         },
         "required": ["assertions", "resolution"],
@@ -191,13 +199,101 @@ def parse_provider_text(text):
     try:
         parsed = json.loads(text)
     except json.JSONDecodeError:
-        raise RuntimeError("Malformed Gemini JSON: invalid_json") from None
+        raise RuntimeError("invalid_json") from None
     if not isinstance(parsed, dict):
-        raise RuntimeError("Malformed Gemini JSON: root_not_object")
+        raise RuntimeError("root_not_object")
     return parsed
 
 
-def retry_wait_seconds(detail, headers, attempt):
+def validate_provider_output(actual, assertion_count):
+    if not isinstance(actual, dict) or set(actual) != {"assertions", "resolution"}:
+        raise RuntimeError("root_schema")
+    assertions = actual.get("assertions")
+    if not isinstance(assertions, list) or len(assertions) != assertion_count:
+        raise RuntimeError("assertion_count")
+    required = {"question_id", "mechanism_id", "field", "value", "state", "refs"}
+    for item in assertions:
+        if not isinstance(item, dict) or set(item) != required:
+            raise RuntimeError("assertion_schema")
+        if not isinstance(item["question_id"], str) or not isinstance(item["field"], str):
+            raise RuntimeError("assertion_identifiers")
+        if item["mechanism_id"] is not None and not isinstance(item["mechanism_id"], str):
+            raise RuntimeError("mechanism_id")
+        state = item["state"]
+        if not isinstance(state, dict) or set(state) != set(STATE_VALUES):
+            raise RuntimeError("state_schema")
+        if any(state[key] not in STATE_VALUES[key] for key in STATE_VALUES):
+            raise RuntimeError("state_value")
+        if not isinstance(item["refs"], list) or not item["refs"] or not all(isinstance(x, str) for x in item["refs"]):
+            raise RuntimeError("refs_schema")
+        value = item["value"]
+        if not (value is None or isinstance(value, (str, int, float, bool))
+                or (isinstance(value, list) and all(isinstance(x, str) for x in value))):
+            raise RuntimeError("value_schema")
+    resolution = actual["resolution"]
+    if resolution is not None:
+        if not isinstance(resolution, dict) or set(resolution) != {"outcome", "reviewed_refs"}:
+            raise RuntimeError("resolution_schema")
+        if resolution["outcome"] not in {"CONFIRMED", "NARROWED", "CLEARED"}:
+            raise RuntimeError("resolution_outcome")
+        refs = resolution["reviewed_refs"]
+        if not isinstance(refs, list) or not all(isinstance(x, str) for x in refs):
+            raise RuntimeError("resolution_refs")
+    return actual
+
+
+def parse_error_payload(raw):
+    text = raw.decode("utf-8", "replace")
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError:
+        payload = None
+    return text, payload
+
+
+def quota_violations(payload):
+    if not isinstance(payload, dict):
+        return []
+    details = payload.get("error", {}).get("details", [])
+    violations = []
+    for detail in details if isinstance(details, list) else []:
+        if not isinstance(detail, dict) or not str(detail.get("@type", "")).endswith("QuotaFailure"):
+            continue
+        values = detail.get("violations", [])
+        if isinstance(values, list):
+            violations.extend(x for x in values if isinstance(x, dict))
+    return violations
+
+
+def is_daily_quota_error(detail, payload=None):
+    markers = []
+    for violation in quota_violations(payload):
+        markers.extend((str(violation.get("quotaId", "")), str(violation.get("quotaMetric", ""))))
+    markers.append(detail)
+    normalized = " ".join(markers).lower().replace("_", "")
+    return any(token in normalized for token in (
+        "generaterequestsperdayperprojectpermodel",
+        "requestsperdayperprojectpermodel",
+        "tokensperday",
+        "perday",
+    ))
+
+
+def retry_info_seconds(payload):
+    if not isinstance(payload, dict):
+        return None
+    details = payload.get("error", {}).get("details", [])
+    for detail in details if isinstance(details, list) else []:
+        if not isinstance(detail, dict) or not str(detail.get("@type", "")).endswith("RetryInfo"):
+            continue
+        raw = str(detail.get("retryDelay", ""))
+        match = re.fullmatch(r"([0-9]+(?:\.[0-9]+)?)s", raw)
+        if match:
+            return float(match.group(1))
+    return None
+
+
+def retry_wait_seconds(detail, headers, attempt, payload=None):
     if headers:
         raw = headers.get("Retry-After")
         try:
@@ -205,6 +301,9 @@ def retry_wait_seconds(detail, headers, attempt):
                 return min(max(float(raw), 1.0), 120.0)
         except (TypeError, ValueError):
             pass
+    retry_info = retry_info_seconds(payload)
+    if retry_info is not None:
+        return min(max(retry_info + 1.0, 1.0), 120.0)
     match = re.search(r"retry in\s+([0-9]+(?:\.[0-9]+)?)s", detail, re.IGNORECASE)
     if match:
         return min(max(float(match.group(1)) + 1.0, 1.0), 120.0)
@@ -216,22 +315,6 @@ def is_timeout_error(exc):
     return isinstance(reason, TimeoutError) or "timed out" in str(reason).lower()
 
 
-def is_daily_quota_error(detail):
-    normalized = detail.lower().replace("_", "")
-    return (
-        "generaterequestsperdayperprojectpermodel" in normalized
-        or "requestsperdayperprojectpermodel" in normalized
-    )
-
-
-def next_model(current_model, unavailable_models=()):
-    try:
-        index = MODEL_ROUTE.index(current_model)
-    except ValueError:
-        return None
-    return next((model for model in MODEL_ROUTE[index + 1:] if model not in unavailable_models), None)
-
-
 def request_for_model(model, key, body):
     return request.Request(
         f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
@@ -241,84 +324,194 @@ def request_for_model(model, key, body):
     )
 
 
-def call_gemini(key, prompt, assertion_count, unavailable_models=None):
-    unavailable_models = unavailable_models if unavailable_models is not None else set()
-    available = [model for model in MODEL_ROUTE if model not in unavailable_models]
-    if not available:
-        raise RuntimeError("No Gemini models available for this run")
+def new_run_state():
+    return {"unavailable_models": {}, "attempts": []}
+
+
+def available_models(run_state):
+    unavailable = run_state["unavailable_models"]
+    return [model for model in MODEL_ROUTE if model not in unavailable]
+
+
+def record_attempt(run_state, case_id, model, attempt_no, status, started,
+                   failure_class=None, http_code=None, wait_seconds=None):
+    entry = {
+        "case_id": case_id, "model": model, "attempt": attempt_no,
+        "status": status, "duration_ms": round((time.monotonic() - started) * 1000),
+    }
+    if failure_class:
+        entry["failure_class"] = failure_class
+    if http_code is not None:
+        entry["http_code"] = http_code
+    if wait_seconds is not None:
+        entry["wait_seconds"] = round(wait_seconds, 2)
+    run_state["attempts"].append(entry)
+    return entry
+
+
+def next_available_after(model, run_state):
+    route = list(MODEL_ROUTE)
+    try:
+        start = route.index(model) + 1
+    except ValueError:
+        start = 0
+    unavailable = run_state["unavailable_models"]
+    return next((candidate for candidate in route[start:] if candidate not in unavailable), None)
+
+
+def call_gemini(key, prompt, assertion_count, run_state=None, case_id="unknown"):
+    run_state = run_state if run_state is not None else new_run_state()
     body = request_body(prompt, assertion_count)
-    current_model = available[0]
-    for attempt in range(1, MAX_ATTEMPTS + 1):
+    models = available_models(run_state)
+    if not models:
+        raise RuntimeError("no_available_models")
+    current_model = models[0]
+    per_model_attempts = {model: 0 for model in MODEL_ROUTE}
+    total_attempts = 0
+
+    while total_attempts < MAX_TOTAL_ATTEMPTS:
+        if current_model in run_state["unavailable_models"]:
+            current_model = next_available_after(current_model, run_state)
+            if current_model is None:
+                raise RuntimeError("no_available_models")
+        if per_model_attempts[current_model] >= MAX_ATTEMPTS_PER_MODEL:
+            alternate = next_available_after(current_model, run_state)
+            if alternate is None:
+                raise RuntimeError("attempt_budget_exhausted")
+            current_model = alternate
+            continue
+
+        per_model_attempts[current_model] += 1
+        total_attempts += 1
+        attempt_no = total_attempts
+        started = time.monotonic()
         req = request_for_model(current_model, key, body)
         try:
             with request.urlopen(req, timeout=REQUEST_TIMEOUT_SECONDS) as response:
-                envelope = json.load(response)
-            break
+                try:
+                    envelope = json.load(response)
+                except (json.JSONDecodeError, UnicodeDecodeError):
+                    record_attempt(run_state, case_id, current_model, attempt_no, "ERROR", started,
+                                   "provider_envelope_json")
+                    alternate = next_available_after(current_model, run_state)
+                    if alternate:
+                        current_model = alternate
+                        continue
+                    if per_model_attempts[current_model] < MAX_ATTEMPTS_PER_MODEL:
+                        continue
+                    raise RuntimeError("provider_envelope_json") from None
+            try:
+                text = "".join(p.get("text", "") for p in envelope["candidates"][0]["content"]["parts"])
+            except (KeyError, IndexError, TypeError, AttributeError):
+                record_attempt(run_state, case_id, current_model, attempt_no, "ERROR", started,
+                               "provider_envelope_shape")
+                alternate = next_available_after(current_model, run_state)
+                if alternate:
+                    current_model = alternate
+                    continue
+                if per_model_attempts[current_model] < MAX_ATTEMPTS_PER_MODEL:
+                    continue
+                raise RuntimeError("provider_envelope_shape") from None
+            try:
+                actual = validate_provider_output(parse_provider_text(text), assertion_count)
+            except RuntimeError as exc:
+                record_attempt(run_state, case_id, current_model, attempt_no, "ERROR", started,
+                               f"model_output_{exc}")
+                alternate = next_available_after(current_model, run_state)
+                if alternate:
+                    current_model = alternate
+                    continue
+                if per_model_attempts[current_model] < MAX_ATTEMPTS_PER_MODEL:
+                    continue
+                raise RuntimeError(f"model_output_{exc}") from None
+            record_attempt(run_state, case_id, current_model, attempt_no, "OK", started)
+            return actual, current_model, run_state["attempts"][-total_attempts:]
+
         except error.HTTPError as exc:
-            detail = exc.read(1200).decode("utf-8", "replace").replace(key, "[REDACTED]")
-            alternate = next_model(current_model, unavailable_models)
-            if exc.code == 429 and is_daily_quota_error(detail):
-                unavailable_models.add(current_model)
-                alternate = next_model(current_model, unavailable_models)
-                if alternate and attempt < MAX_ATTEMPTS:
+            raw = exc.read(MAX_ERROR_BODY_BYTES)
+            detail, payload = parse_error_payload(raw)
+            detail = detail.replace(key, "[REDACTED]")
+            alternate = next_available_after(current_model, run_state)
+            if exc.code == 429 and is_daily_quota_error(detail, payload):
+                record_attempt(run_state, case_id, current_model, attempt_no, "ERROR", started,
+                               "daily_quota", exc.code)
+                run_state["unavailable_models"][current_model] = "daily_quota"
+                if alternate:
                     print(f"Gemini daily quota exhausted on {current_model}; switching to {alternate}")
                     current_model = alternate
                     continue
-                raise RuntimeError(f"Gemini daily quota exhausted on {current_model}") from None
-            if exc.code in {403, 404}:
-                unavailable_models.add(current_model)
-                alternate = next_model(current_model, unavailable_models)
-                if alternate and attempt < MAX_ATTEMPTS:
-                    print(f"Gemini unavailable on {current_model}; switching to {alternate}")
+                raise RuntimeError(f"daily_quota:{current_model}") from None
+            if exc.code in MODEL_UNAVAILABLE_HTTP_CODES:
+                failure = "model_access_denied" if exc.code == 403 else "model_unavailable"
+                record_attempt(run_state, case_id, current_model, attempt_no, "ERROR", started,
+                               failure, exc.code)
+                run_state["unavailable_models"][current_model] = failure
+                if alternate:
+                    print(f"Gemini {failure} on {current_model}; switching to {alternate}")
                     current_model = alternate
                     continue
-                raise RuntimeError(f"Gemini unavailable on {current_model}") from None
-            if exc.code == 503 and alternate and attempt < MAX_ATTEMPTS:
-                print(f"Gemini HTTP 503 on {current_model}; switching to {alternate}")
-                current_model = alternate
-                continue
-            if exc.code in RETRYABLE_HTTP_CODES and attempt < MAX_ATTEMPTS:
-                wait = retry_wait_seconds(detail, exc.headers, attempt)
-                print(f"Gemini HTTP {exc.code} on {current_model}; retrying in {wait:.0f}s "
-                      f"({attempt}/{MAX_ATTEMPTS - 1} retries used)")
-                time.sleep(wait)
-                continue
-            raise RuntimeError(f"Gemini HTTP {exc.code} on {current_model}: {detail}") from None
+                raise RuntimeError(f"{failure}:{current_model}") from None
+            if exc.code == 400:
+                record_attempt(run_state, case_id, current_model, attempt_no, "ERROR", started,
+                               "provider_config", exc.code)
+                raise GlobalProviderError("provider_config_http_400") from None
+            if exc.code == 503:
+                record_attempt(run_state, case_id, current_model, attempt_no, "ERROR", started,
+                               "provider_overloaded", exc.code)
+                if alternate:
+                    print(f"Gemini HTTP 503 on {current_model}; switching to {alternate}")
+                    current_model = alternate
+                    continue
+                if per_model_attempts[current_model] < MAX_ATTEMPTS_PER_MODEL:
+                    wait = retry_wait_seconds(detail, exc.headers, per_model_attempts[current_model], payload)
+                    run_state["attempts"][-1]["wait_seconds"] = round(wait, 2)
+                    time.sleep(wait)
+                    continue
+                raise RuntimeError(f"provider_overloaded:{current_model}") from None
+            if exc.code == 429:
+                wait = retry_wait_seconds(detail, exc.headers, per_model_attempts[current_model], payload)
+                record_attempt(run_state, case_id, current_model, attempt_no, "ERROR", started,
+                               "rate_limit", exc.code, wait)
+                if per_model_attempts[current_model] < MAX_ATTEMPTS_PER_MODEL:
+                    print(f"Gemini HTTP 429 on {current_model}; retrying in {wait:.0f}s")
+                    time.sleep(wait)
+                    continue
+                if alternate:
+                    current_model = alternate
+                    continue
+                raise RuntimeError(f"rate_limit:{current_model}") from None
+            record_attempt(run_state, case_id, current_model, attempt_no, "ERROR", started,
+                           "http_error", exc.code)
+            raise RuntimeError(f"http_{exc.code}:{current_model}") from None
+
         except error.URLError as exc:
-            alternate = next_model(current_model, unavailable_models)
-            if is_timeout_error(exc) and alternate and attempt < MAX_ATTEMPTS:
+            if not is_timeout_error(exc):
+                record_attempt(run_state, case_id, current_model, attempt_no, "ERROR", started,
+                               "network_error")
+                raise RuntimeError(f"network_error:{current_model}") from None
+            record_attempt(run_state, case_id, current_model, attempt_no, "ERROR", started,
+                           "timeout")
+            alternate = next_available_after(current_model, run_state)
+            if alternate:
                 print(f"Gemini network timeout on {current_model}; switching to {alternate}")
                 current_model = alternate
                 continue
-            if is_timeout_error(exc) and attempt < MAX_ATTEMPTS:
-                wait = retry_wait_seconds("", None, attempt)
-                print(f"Gemini network timeout on {current_model}; retrying in {wait:.0f}s "
-                      f"({attempt}/{MAX_ATTEMPTS - 1} retries used)")
-                time.sleep(wait)
+            if per_model_attempts[current_model] < MAX_ATTEMPTS_PER_MODEL:
                 continue
-            raise RuntimeError(f"Gemini network error on {current_model}: {exc.reason}") from None
-        except TimeoutError as exc:
-            alternate = next_model(current_model, unavailable_models)
-            if alternate and attempt < MAX_ATTEMPTS:
+            raise RuntimeError(f"timeout:{current_model}") from None
+        except TimeoutError:
+            record_attempt(run_state, case_id, current_model, attempt_no, "ERROR", started,
+                           "timeout")
+            alternate = next_available_after(current_model, run_state)
+            if alternate:
                 print(f"Gemini read timeout on {current_model}; switching to {alternate}")
                 current_model = alternate
                 continue
-            if attempt < MAX_ATTEMPTS:
-                wait = retry_wait_seconds("", None, attempt)
-                print(f"Gemini read timeout on {current_model}; retrying in {wait:.0f}s "
-                      f"({attempt}/{MAX_ATTEMPTS - 1} retries used)")
-                time.sleep(wait)
+            if per_model_attempts[current_model] < MAX_ATTEMPTS_PER_MODEL:
                 continue
-            raise RuntimeError(
-                f"Gemini timeout on {current_model} after {MAX_ATTEMPTS} total attempts: {exc}"
-            ) from None
-    else:
-        raise RuntimeError("Gemini request retry loop ended unexpectedly")
-    try:
-        text = "".join(p.get("text", "") for p in envelope["candidates"][0]["content"]["parts"])
-    except (KeyError, IndexError, TypeError):
-        raise RuntimeError(f"Malformed Gemini response envelope from {current_model}") from None
-    return parse_provider_text(text), current_model
+            raise RuntimeError(f"timeout:{current_model}") from None
+
+    raise RuntimeError("global_attempt_cap")
 
 
 def canon(value):
@@ -386,58 +579,22 @@ def score_case(case, actual):
     }
 
 
-def render(report):
-    s = report["summary"]
-    lines = [
-        "Gemini security provider experiment", f"Primary model: {report['model']}",
-        f"Fallback model: {report['fallback_model']}",
-        f"Unavailable models: {report['unavailable_models']}",
-        f"Fallback cases: {s['fallback_cases']}",
-        f"Cases: {s['cases_completed']}/{s['cases_requested']}",
-        f"Exact assertions: {s['assertions_exact']}/{s['assertions_total']}",
-        f"Values: {s['value_matches']}/{s['assertions_total']}",
-        f"States: {s['state_matches']}/{s['assertions_total']}",
-        f"Evidence refs: {s['refs_matches']}/{s['assertions_total']}",
-        f"Resolutions: {s['resolution_matches']}/{s['resolution_cases']}",
-        f"Hard failures: {s['hard_failures']}", "", "Per case:",
-    ]
-    for item in report["results"]:
-        if item["status"] == "ERROR":
-            lines.append(f"- {item['case_id']}: ERROR — {item['error']}")
-        else:
-            x = item["score"]
-            lines.append(f"- {item['case_id']}: {x['assertions_exact']}/{x['assertions_total']} exact; "
-                         f"model={item['model_used']}; "
-                         f"resolution={'OK' if x['resolution_ok'] else 'FAIL'}; hard={len(x['hard_failures'])}")
-    return "\n".join(lines) + "\n"
-
-
-def run():
-    key, key_path = load_key()
-    corpus = json.loads(CORPUS.read_text(encoding="utf-8"))
-    by_id = {x["case_id"]: x for x in corpus["cases"]}
-    missing = [case_id for case_id in CASES if case_id not in by_id or by_id[case_id].get("domain") != "security"]
-    if missing:
-        raise RuntimeError(f"Corpus selection invalid: {', '.join(missing)}")
-    results, started, unavailable_models = [], time.time(), set()
-    for n, case_id in enumerate(CASES, 1):
-        if n > 1:
-            time.sleep(REQUEST_SPACING_SECONDS)
-        case = by_id[case_id]
-        print(f"[{n}/{len(CASES)}] {case_id}")
-        try:
-            actual, model_used = call_gemini(
-                key, build_prompt(case), len(case["assertions"]), unavailable_models)
-            results.append({"case_id": case_id, "status": "OK", "model_used": model_used,
-                            "score": score_case(case, actual), "actual": actual})
-        except RuntimeError as exc:
-            results.append({"case_id": case_id, "status": "ERROR",
-                            "error": str(exc).replace(key, "[REDACTED]")})
+def build_summary(results, by_id, attempts):
     scored = [x["score"] for x in results if x["status"] == "OK"]
     resolution_results = [x for x in results if x["status"] == "OK" and by_id[x["case_id"]].get("resolution")]
-    summary = {
+    attempts_by_model = {model: sum(x["model"] == model for x in attempts) for model in MODEL_ROUTE}
+    successes_by_model = {model: sum(x.get("model_used") == model for x in results) for model in MODEL_ROUTE}
+    failure_classes = {}
+    for item in attempts:
+        failure = item.get("failure_class")
+        if failure:
+            failure_classes[failure] = failure_classes.get(failure, 0) + 1
+    return {
         "cases_requested": len(CASES), "cases_completed": len(scored),
+        "assertions_requested_total": sum(len(by_id[case_id]["assertions"]) for case_id in CASES),
         "fallback_cases": sum(x.get("model_used") not in (None, MODEL) for x in results),
+        "attempts_total": len(attempts), "attempts_by_model": attempts_by_model,
+        "successes_by_model": successes_by_model, "failure_classes": failure_classes,
         "assertions_exact": sum(x["assertions_exact"] for x in scored),
         "assertions_total": sum(x["assertions_total"] for x in scored),
         "value_matches": sum(x["value_matches"] for x in scored),
@@ -447,26 +604,117 @@ def run():
         "resolution_cases": len(resolution_results),
         "hard_failures": sum(len(x["hard_failures"]) for x in scored),
     }
+
+
+def render(report):
+    s = report["summary"]
+    lines = [
+        "Gemini security provider experiment", f"Primary model: {report['model']}",
+        f"Fallback model: {report['fallback_model']}",
+        f"Run status: {report['status']}",
+        f"Unavailable models: {report['unavailable_models']}",
+        f"Provider attempts: {s['attempts_total']} {s['attempts_by_model']}",
+        f"Successful cases by model: {s['successes_by_model']}",
+        f"Provider failure classes: {s['failure_classes']}",
+        f"Cases: {s['cases_completed']}/{s['cases_requested']}",
+        f"Assertion coverage: {s['assertions_total']}/{s['assertions_requested_total']}",
+        f"Exact assertions: {s['assertions_exact']}/{s['assertions_total']}",
+        f"Values: {s['value_matches']}/{s['assertions_total']}",
+        f"States: {s['state_matches']}/{s['assertions_total']}",
+        f"Evidence refs: {s['refs_matches']}/{s['assertions_total']}",
+        f"Resolutions: {s['resolution_matches']}/{s['resolution_cases']}",
+        f"Hard failures: {s['hard_failures']}", "", "Per case:",
+    ]
+    for item in report["results"]:
+        if item["status"] == "ERROR":
+            lines.append(f"- {item['case_id']}: ERROR — {item['error']}; attempts={len(item.get('attempts', []))}")
+        else:
+            x = item["score"]
+            lines.append(f"- {item['case_id']}: {x['assertions_exact']}/{x['assertions_total']} exact; "
+                         f"model={item['model_used']}; attempts={len(item.get('attempts', []))}; "
+                         f"resolution={'OK' if x['resolution_ok'] else 'FAIL'}; hard={len(x['hard_failures'])}")
+    return "\n".join(lines) + "\n"
+
+
+def atomic_write(path, text):
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(text, encoding="utf-8")
+    tmp.replace(path)
+
+
+def make_report(results, by_id, run_state, started, status):
+    return {
+        "experiment": "question-engine-security-provider-experiment-v1",
+        "model": MODEL, "fallback_model": FALLBACK_MODEL, "status": status,
+        "duration_seconds": round(time.time() - started, 2),
+        "unavailable_models": dict(run_state["unavailable_models"]),
+        "summary": build_summary(results, by_id, run_state["attempts"]),
+        "attempts": list(run_state["attempts"]), "results": results,
+    }
+
+
+def persist_report(json_path, results, by_id, run_state, started, status):
+    report = make_report(results, by_id, run_state, started, status)
+    atomic_write(json_path, json.dumps(report, ensure_ascii=False, indent=2))
+    txt = json_path.with_suffix(".txt")
+    atomic_write(txt, render(report))
+    return report, txt
+
+
+def run():
+    key, key_path = load_key()
+    corpus = json.loads(CORPUS.read_text(encoding="utf-8"))
+    by_id = {x["case_id"]: x for x in corpus["cases"]}
+    missing = [case_id for case_id in CASES if case_id not in by_id or by_id[case_id].get("domain") != "security"]
+    if missing:
+        raise RuntimeError(f"Corpus selection invalid: {', '.join(missing)}")
     folders = desktop_dirs()
     out = key_path.parent if key_path else (folders[0] if folders else ROOT)
     stamp = time.strftime("%Y%m%d_%H%M%S")
     json_path = out / f"security_provider_experiment_{stamp}.json"
-    report = {"experiment": "question-engine-security-provider-experiment-v1",
-              "model": MODEL, "fallback_model": FALLBACK_MODEL,
-              "unavailable_models": sorted(unavailable_models),
-              "duration_seconds": round(time.time() - started, 2),
-              "summary": summary, "results": results}
-    json_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
-    txt = json_path.with_suffix(".txt")
-    txt.write_text(render(report), encoding="utf-8")
-    return report, txt
+    results, started, run_state = [], time.time(), new_run_state()
+    persist_report(json_path, results, by_id, run_state, started, "IN_PROGRESS")
+
+    status = "COMPLETED"
+    for n, case_id in enumerate(CASES, 1):
+        if n > 1:
+            time.sleep(REQUEST_SPACING_SECONDS)
+        case = by_id[case_id]
+        print(f"[{n}/{len(CASES)}] {case_id}")
+        before = len(run_state["attempts"])
+        try:
+            actual, model_used, _ = call_gemini(
+                key, build_prompt(case), len(case["assertions"]), run_state, case_id)
+            case_attempts = run_state["attempts"][before:]
+            results.append({"case_id": case_id, "status": "OK", "model_used": model_used,
+                            "attempts": case_attempts, "score": score_case(case, actual), "actual": actual})
+        except GlobalProviderError as exc:
+            results.append({"case_id": case_id, "status": "ERROR",
+                            "attempts": run_state["attempts"][before:], "error": str(exc)})
+            status = "ABORTED_GLOBAL_PROVIDER_ERROR"
+            persist_report(json_path, results, by_id, run_state, started, status)
+            break
+        except RuntimeError as exc:
+            results.append({"case_id": case_id, "status": "ERROR",
+                            "attempts": run_state["attempts"][before:],
+                            "error": str(exc).replace(key, "[REDACTED]")})
+        except Exception as exc:
+            results.append({"case_id": case_id, "status": "ERROR",
+                            "attempts": run_state["attempts"][before:],
+                            "error": f"internal_error:{type(exc).__name__}"})
+            status = "ABORTED_INTERNAL_ERROR"
+            persist_report(json_path, results, by_id, run_state, started, status)
+            break
+        persist_report(json_path, results, by_id, run_state, started, "IN_PROGRESS")
+
+    return persist_report(json_path, results, by_id, run_state, started, status)
 
 
 def main():
     try:
         report, txt = run()
     except (RuntimeError, KeyError, OSError, json.JSONDecodeError) as exc:
-        print(f"Experiment failed: {exc}")
+        print(f"Experiment failed before report initialization: {type(exc).__name__}")
         return 1
     print(render(report))
     if os.name == "nt":
