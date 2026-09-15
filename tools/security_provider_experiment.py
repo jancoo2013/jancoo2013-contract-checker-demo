@@ -366,8 +366,25 @@ def extract_provider_text(envelope):
         raise RuntimeError("provider_envelope_shape") from None
 
 
-def call_gemini(key, prompt, assertion_count, unavailable_models=None):
+def record_attempt(attempts, case_id, model, attempt_no, status, started,
+                   failure_class=None, http_code=None, wait_seconds=None):
+    entry = {
+        "case_id": case_id, "model": model, "attempt": attempt_no,
+        "status": status, "duration_ms": round((time.monotonic() - started) * 1000),
+    }
+    if failure_class:
+        entry["failure_class"] = failure_class
+    if http_code is not None:
+        entry["http_code"] = http_code
+    if wait_seconds is not None:
+        entry["wait_seconds"] = round(wait_seconds, 2)
+    attempts.append(entry)
+    return entry
+
+
+def call_gemini(key, prompt, assertion_count, unavailable_models=None, attempts=None, case_id="unknown"):
     unavailable_models = unavailable_models if unavailable_models is not None else set()
+    attempts = attempts if attempts is not None else []
     available = [model for model in MODEL_ROUTE if model not in unavailable_models]
     if not available:
         raise RuntimeError("no_available_models")
@@ -385,6 +402,8 @@ def call_gemini(key, prompt, assertion_count, unavailable_models=None):
             continue
         per_model_attempts[current_model] += 1
         total_attempts += 1
+        attempt_no = total_attempts
+        started = time.monotonic()
         req = request_for_model(current_model, key, body)
         try:
             with request.urlopen(req, timeout=REQUEST_TIMEOUT_SECONDS) as response:
@@ -393,13 +412,17 @@ def call_gemini(key, prompt, assertion_count, unavailable_models=None):
                     actual = validate_provider_output(
                         parse_provider_text(extract_provider_text(envelope)), assertion_count)
                 except RuntimeError as exc:
+                    code = str(exc)
+                    failure = code if code.startswith("provider_") else f"model_output_{code}"
+                    record_attempt(attempts, case_id, current_model, attempt_no, "ERROR", started, failure)
                     alternate = next_model(current_model, unavailable_models)
                     if alternate:
                         current_model = alternate
                         continue
                     if per_model_attempts[current_model] < MAX_ATTEMPTS_PER_MODEL:
                         continue
-                    raise RuntimeError(str(exc)) from None
+                    raise RuntimeError(code) from None
+            record_attempt(attempts, case_id, current_model, attempt_no, "OK", started)
             return actual, current_model
         except error.HTTPError as exc:
             raw = exc.read(MAX_ERROR_BODY_BYTES)
@@ -407,8 +430,12 @@ def call_gemini(key, prompt, assertion_count, unavailable_models=None):
             detail = detail.replace(key, "[REDACTED]")
             alternate = next_model(current_model, unavailable_models)
             if exc.code in {400, 401, 403}:
+                record_attempt(attempts, case_id, current_model, attempt_no, "ERROR", started,
+                               "global_provider_error", exc.code)
                 raise GlobalProviderError(f"Gemini global provider error HTTP {exc.code}") from None
             if exc.code == 429 and is_daily_quota_error(detail, payload):
+                record_attempt(attempts, case_id, current_model, attempt_no, "ERROR", started,
+                               "daily_quota", exc.code)
                 unavailable_models.add(current_model)
                 alternate = next_model(current_model, unavailable_models)
                 if alternate:
@@ -417,6 +444,8 @@ def call_gemini(key, prompt, assertion_count, unavailable_models=None):
                     continue
                 raise RuntimeError(f"daily_quota:{current_model}") from None
             if exc.code == 404:
+                record_attempt(attempts, case_id, current_model, attempt_no, "ERROR", started,
+                               "model_unavailable", exc.code)
                 unavailable_models.add(current_model)
                 alternate = next_model(current_model, unavailable_models)
                 if alternate:
@@ -425,17 +454,22 @@ def call_gemini(key, prompt, assertion_count, unavailable_models=None):
                     continue
                 raise RuntimeError(f"model_unavailable:{current_model}") from None
             if exc.code == 503:
+                entry = record_attempt(attempts, case_id, current_model, attempt_no, "ERROR", started,
+                                       "provider_overloaded", exc.code)
                 if alternate:
                     print(f"Gemini HTTP 503 on {current_model}; switching to {alternate}")
                     current_model = alternate
                     continue
                 if per_model_attempts[current_model] < MAX_ATTEMPTS_PER_MODEL:
                     wait = retry_wait_seconds(detail, exc.headers, per_model_attempts[current_model], payload)
+                    entry["wait_seconds"] = round(wait, 2)
                     time.sleep(wait)
                     continue
                 raise RuntimeError(f"provider_overloaded:{current_model}") from None
             if exc.code == 429:
                 wait = retry_wait_seconds(detail, exc.headers, per_model_attempts[current_model], payload)
+                record_attempt(attempts, case_id, current_model, attempt_no, "ERROR", started,
+                               "rate_limit", exc.code, wait)
                 if per_model_attempts[current_model] < MAX_ATTEMPTS_PER_MODEL:
                     print(f"Gemini HTTP 429 on {current_model}; retrying in {wait:.0f}s")
                     time.sleep(wait)
@@ -444,10 +478,15 @@ def call_gemini(key, prompt, assertion_count, unavailable_models=None):
                     current_model = alternate
                     continue
                 raise RuntimeError(f"rate_limit:{current_model}") from None
+            record_attempt(attempts, case_id, current_model, attempt_no, "ERROR", started,
+                           "http_error", exc.code)
             raise RuntimeError(f"Gemini HTTP {exc.code} on {current_model}: {detail}") from None
         except error.URLError as exc:
             if not is_timeout_error(exc):
+                record_attempt(attempts, case_id, current_model, attempt_no, "ERROR", started,
+                               "network_error")
                 raise RuntimeError(f"Gemini network error on {current_model}: {exc.reason}") from None
+            record_attempt(attempts, case_id, current_model, attempt_no, "ERROR", started, "timeout")
             alternate = next_model(current_model, unavailable_models)
             if alternate:
                 print(f"Gemini network timeout on {current_model}; switching to {alternate}")
@@ -457,6 +496,7 @@ def call_gemini(key, prompt, assertion_count, unavailable_models=None):
                 continue
             raise RuntimeError(f"timeout:{current_model}") from None
         except TimeoutError:
+            record_attempt(attempts, case_id, current_model, attempt_no, "ERROR", started, "timeout")
             alternate = next_model(current_model, unavailable_models)
             if alternate:
                 print(f"Gemini read timeout on {current_model}; switching to {alternate}")
@@ -466,7 +506,6 @@ def call_gemini(key, prompt, assertion_count, unavailable_models=None):
                 continue
             raise RuntimeError(f"timeout:{current_model}") from None
     raise RuntimeError("global_attempt_cap")
-
 
 def canon(value):
     if isinstance(value, list):
@@ -533,60 +572,21 @@ def score_case(case, actual):
     }
 
 
-def render(report):
-    s = report["summary"]
-    lines = [
-        "Gemini security provider experiment", f"Primary model: {report['model']}",
-        f"Fallback model: {report['fallback_model']}",
-        f"Unavailable models: {report['unavailable_models']}",
-        f"Fallback cases: {s['fallback_cases']}",
-        f"Cases: {s['cases_completed']}/{s['cases_requested']}",
-        f"Exact assertions: {s['assertions_exact']}/{s['assertions_total']}",
-        f"Values: {s['value_matches']}/{s['assertions_total']}",
-        f"States: {s['state_matches']}/{s['assertions_total']}",
-        f"Evidence refs: {s['refs_matches']}/{s['assertions_total']}",
-        f"Resolutions: {s['resolution_matches']}/{s['resolution_cases']}",
-        f"Hard failures: {s['hard_failures']}", "", "Per case:",
-    ]
-    for item in report["results"]:
-        if item["status"] == "ERROR":
-            lines.append(f"- {item['case_id']}: ERROR — {item['error']}")
-        else:
-            x = item["score"]
-            lines.append(f"- {item['case_id']}: {x['assertions_exact']}/{x['assertions_total']} exact; "
-                         f"model={item['model_used']}; "
-                         f"resolution={'OK' if x['resolution_ok'] else 'FAIL'}; hard={len(x['hard_failures'])}")
-    return "\n".join(lines) + "\n"
-
-
-def run():
-    key, key_path = load_key()
-    corpus = json.loads(CORPUS.read_text(encoding="utf-8"))
-    by_id = {x["case_id"]: x for x in corpus["cases"]}
-    missing = [case_id for case_id in CASES if case_id not in by_id or by_id[case_id].get("domain") != "security"]
-    if missing:
-        raise RuntimeError(f"Corpus selection invalid: {', '.join(missing)}")
-    results, started, unavailable_models = [], time.time(), set()
-    for n, case_id in enumerate(CASES, 1):
-        if n > 1:
-            time.sleep(REQUEST_SPACING_SECONDS)
-        case = by_id[case_id]
-        print(f"[{n}/{len(CASES)}] {case_id}")
-        try:
-            actual, model_used = call_gemini(
-                key, build_prompt(case), len(case["assertions"]), unavailable_models)
-            results.append({"case_id": case_id, "status": "OK", "model_used": model_used,
-                            "score": score_case(case, actual), "actual": actual})
-        except GlobalProviderError:
-            raise
-        except RuntimeError as exc:
-            results.append({"case_id": case_id, "status": "ERROR",
-                            "error": str(exc).replace(key, "[REDACTED]")})
+def build_summary(results, by_id, attempts):
     scored = [x["score"] for x in results if x["status"] == "OK"]
     resolution_results = [x for x in results if x["status"] == "OK" and by_id[x["case_id"]].get("resolution")]
-    summary = {
+    attempts_by_model = {model: sum(x["model"] == model for x in attempts) for model in MODEL_ROUTE}
+    successes_by_model = {model: sum(x.get("model_used") == model for x in results) for model in MODEL_ROUTE}
+    failure_classes = {}
+    for item in attempts:
+        if item.get("failure_class"):
+            failure_classes[item["failure_class"]] = failure_classes.get(item["failure_class"], 0) + 1
+    return {
         "cases_requested": len(CASES), "cases_completed": len(scored),
+        "assertions_requested_total": sum(len(by_id[x]["assertions"]) for x in CASES),
         "fallback_cases": sum(x.get("model_used") not in (None, MODEL) for x in results),
+        "attempts_total": len(attempts), "attempts_by_model": attempts_by_model,
+        "successes_by_model": successes_by_model, "failure_classes": failure_classes,
         "assertions_exact": sum(x["assertions_exact"] for x in scored),
         "assertions_total": sum(x["assertions_total"] for x in scored),
         "value_matches": sum(x["value_matches"] for x in scored),
@@ -596,26 +596,129 @@ def run():
         "resolution_cases": len(resolution_results),
         "hard_failures": sum(len(x["hard_failures"]) for x in scored),
     }
+
+
+def redact_secrets(value, secrets):
+    secrets = tuple(x for x in secrets if x)
+    if isinstance(value, dict):
+        return {k: redact_secrets(v, secrets) for k, v in value.items()}
+    if isinstance(value, list):
+        return [redact_secrets(v, secrets) for v in value]
+    if isinstance(value, str):
+        for secret in secrets:
+            value = value.replace(secret, "[REDACTED]")
+    return value
+
+
+def render(report):
+    s = report["summary"]
+    route = " → ".join(report["model_route"])
+    lines = [
+        "Gemini security provider experiment", f"Model route: {route}",
+        f"Run status: {report['status']}", f"Unavailable models: {report['unavailable_models']}",
+        f"Provider attempts: {s['attempts_total']} {s['attempts_by_model']}",
+        f"Successful cases by model: {s['successes_by_model']}",
+        f"Provider failure classes: {s['failure_classes']}",
+        f"Cases: {s['cases_completed']}/{s['cases_requested']}",
+        f"Assertion coverage: {s['assertions_total']}/{s['assertions_requested_total']}",
+        f"Exact assertions: {s['assertions_exact']}/{s['assertions_total']}",
+        f"Values: {s['value_matches']}/{s['assertions_total']}",
+        f"States: {s['state_matches']}/{s['assertions_total']}",
+        f"Evidence refs: {s['refs_matches']}/{s['assertions_total']}",
+        f"Resolutions: {s['resolution_matches']}/{s['resolution_cases']}",
+        f"Hard failures: {s['hard_failures']}", "", "Per case:",
+    ]
+    for item in report["results"]:
+        if item["status"] == "ERROR":
+            lines.append(f"- {item['case_id']}: ERROR — {item['error']}; attempts={len(item.get('attempts', []))}")
+        else:
+            x = item["score"]
+            lines.append(f"- {item['case_id']}: {x['assertions_exact']}/{x['assertions_total']} exact; "
+                         f"model={item['model_used']}; attempts={len(item.get('attempts', []))}; "
+                         f"resolution={'OK' if x['resolution_ok'] else 'FAIL'}; hard={len(x['hard_failures'])}")
+    return "\n".join(lines) + "\n"
+
+
+def make_report(results, by_id, unavailable_models, attempts, started, status):
+    return {
+        "experiment": "question-engine-security-provider-experiment-v1",
+        "model": MODEL, "model_route": list(MODEL_ROUTE),
+        "fallback_model": MODEL_ROUTE[1] if len(MODEL_ROUTE) > 1 else None,
+        "status": status, "duration_seconds": round(time.time() - started, 2),
+        "unavailable_models": sorted(unavailable_models),
+        "summary": build_summary(results, by_id, attempts),
+        "attempts": list(attempts), "results": results,
+    }
+
+
+def persist_report(json_path, results, by_id, unavailable_models, attempts, started, status, key):
+    report = redact_secrets(
+        make_report(results, by_id, unavailable_models, attempts, started, status), (key,))
+    json_text = json.dumps(report, ensure_ascii=False, indent=2, allow_nan=False)
+    txt = json_path.with_suffix(".txt")
+    txt_text = render(report)
+    json_tmp = json_path.with_suffix(json_path.suffix + ".tmp")
+    txt_tmp = txt.with_suffix(txt.suffix + ".tmp")
+    json_tmp.write_text(json_text, encoding="utf-8")
+    txt_tmp.write_text(txt_text, encoding="utf-8")
+    txt_tmp.replace(txt)
+    json_tmp.replace(json_path)
+    return report, txt
+
+
+def run():
+    key, key_path = load_key()
+    corpus = json.loads(CORPUS.read_text(encoding="utf-8"))
+    by_id = {x["case_id"]: x for x in corpus["cases"]}
+    missing = [x for x in CASES if x not in by_id or by_id[x].get("domain") != "security"]
+    if missing:
+        raise RuntimeError(f"Corpus selection invalid: {', '.join(missing)}")
     folders = desktop_dirs()
     out = key_path.parent if key_path else (folders[0] if folders else ROOT)
-    stamp = time.strftime("%Y%m%d_%H%M%S")
-    json_path = out / f"security_provider_experiment_{stamp}.json"
-    report = {"experiment": "question-engine-security-provider-experiment-v1",
-              "model": MODEL, "fallback_model": FALLBACK_MODEL,
-              "unavailable_models": sorted(unavailable_models),
-              "duration_seconds": round(time.time() - started, 2),
-              "summary": summary, "results": results}
-    json_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
-    txt = json_path.with_suffix(".txt")
-    txt.write_text(render(report), encoding="utf-8")
-    return report, txt
+    json_path = out / f"security_provider_experiment_{time.strftime('%Y%m%d_%H%M%S')}.json"
+    results, attempts, unavailable_models, started = [], [], set(), time.time()
+    persist_report(json_path, results, by_id, unavailable_models, attempts, started, "IN_PROGRESS", key)
+    status = "COMPLETED"
+
+    for n, case_id in enumerate(CASES, 1):
+        if not any(model not in unavailable_models for model in MODEL_ROUTE):
+            status = "ABORTED_ROUTE_EXHAUSTED"
+            break
+        if n > 1:
+            time.sleep(REQUEST_SPACING_SECONDS)
+        case = by_id[case_id]
+        print(f"[{n}/{len(CASES)}] {case_id}")
+        before = len(attempts)
+        try:
+            actual, model_used = call_gemini(
+                key, build_prompt(case), len(case["assertions"]), unavailable_models, attempts, case_id)
+            results.append({"case_id": case_id, "status": "OK", "model_used": model_used,
+                            "attempts": attempts[before:], "score": score_case(case, actual), "actual": actual})
+        except GlobalProviderError as exc:
+            results.append({"case_id": case_id, "status": "ERROR", "attempts": attempts[before:],
+                            "error": str(exc)})
+            status = "ABORTED_GLOBAL_PROVIDER_ERROR"
+            persist_report(json_path, results, by_id, unavailable_models, attempts, started, status, key)
+            break
+        except RuntimeError as exc:
+            results.append({"case_id": case_id, "status": "ERROR", "attempts": attempts[before:],
+                            "error": str(exc).replace(key, "[REDACTED]")})
+        except Exception as exc:
+            results.append({"case_id": case_id, "status": "ERROR", "attempts": attempts[before:],
+                            "error": f"internal_error:{type(exc).__name__}"})
+            status = "ABORTED_INTERNAL_ERROR"
+            persist_report(json_path, results, by_id, unavailable_models, attempts, started, status, key)
+            break
+        persist_report(json_path, results, by_id, unavailable_models, attempts, started, "IN_PROGRESS", key)
+
+    return persist_report(json_path, results, by_id, unavailable_models, attempts, started, status, key)
 
 
 def main():
     try:
         report, txt = run()
     except (RuntimeError, KeyError, OSError, json.JSONDecodeError) as exc:
-        print(f"Experiment failed: {exc}")
+        print(f"Experiment failed before report initialization: {type(exc).__name__}")
         return 1
     print(render(report))
     if os.name == "nt":
