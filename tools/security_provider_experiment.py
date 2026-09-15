@@ -675,6 +675,7 @@ def run():
         raise RuntimeError(f"Corpus selection invalid: {', '.join(missing)}")
     folders = desktop_dirs()
     out = key_path.parent if key_path else (folders[0] if folders else ROOT)
+    out.mkdir(parents=True, exist_ok=True)
     json_path = out / f"security_provider_experiment_{time.strftime('%Y%m%d_%H%M%S')}.json"
     results, attempts, unavailable_models, started = [], [], set(), time.time()
     persist_report(json_path, results, by_id, unavailable_models, attempts, started, "IN_PROGRESS", key)
@@ -699,7 +700,7 @@ def run():
                             "error": str(exc)})
             status = "ABORTED_GLOBAL_PROVIDER_ERROR"
             persist_report(json_path, results, by_id, unavailable_models, attempts, started, status, key)
-            break
+            raise
         except RuntimeError as exc:
             results.append({"case_id": case_id, "status": "ERROR", "attempts": attempts[before:],
                             "error": str(exc).replace(key, "[REDACTED]")})
