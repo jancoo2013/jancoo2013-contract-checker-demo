@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-15-121",
+  "state_version": "privacy-ocr-2026-09-15-122",
   "active_track": "question-engine-development",
-  "next_step_id": "question-engine-security-provider-experiment-local-run-v6",
-  "next_step_summary": "The provider-harness corrective chain #266 -> #268 -> #269 is complete after fixing the reproduced final-case route-exhaustion report-integrity defect in #269. The product owner explicitly ended the repeat Codex review loop. Before any real provider request, run final local py_compile and focused unit tests on the exact final #269 head, then merge #266, #268 and #269 sequentially. After the merged main is verified, run local provider experiment v6 with the existing Flash-only route and synthetic/sanitized corpus. LOW observations about HTTP-date Retry-After and jitter remain out of scope.",
-  "last_recorded_pr": 269,
-  "last_recorded_change": "question-engine-provider-ledger-reporting-v1",
+  "next_step_id": "question-engine-security-provider-37-comparison-run-v1",
+  "next_step_summary": "Local provider experiment v6 completed on the ten-case synthetic/sanitized security corpus: 705.02 seconds total, 8/10 cases completed, 14 provider attempts, gemini-3.6-flash succeeded on 8 cases, and gemini-3.5-flash succeeded on 0 of 4 fallback attempts; two 3.6 responses were invalid JSON and four 3.5 attempts returned provider_overloaded. PR #270 adds a bounded local model-selection launcher with gemini-3.6-flash, gemini-3.7-flash, and gemini-3.5-flash as primary choices while keeping at most one fallback, gemini-3.5-flash, and excluding 3.8. After PR #270 validation/merge, run the same ten-case synthetic/sanitized experiment with 3.7 as primary and compare latency, completion rate, provider failures, and semantic score against the v6 3.6 baseline. Real contracts/raw OCR/recoverable PII remain prohibited from this diagnostic harness.",
+  "last_recorded_pr": 270,
+  "last_recorded_change": "question-engine-security-provider-37-menu-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-09-15"
