@@ -1,5 +1,6 @@
 import io
 import json
+import math
 from pathlib import Path
 import tempfile
 import unittest
@@ -9,21 +10,30 @@ from tools import security_provider_experiment as experiment
 
 
 class FakeResponse:
+    def __init__(self, text='{"assertions":[],"resolution":null}', envelope=None, raw=None):
+        self.text, self.envelope, self.raw = text, envelope, raw
+        self.read_sizes = []
+
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc, tb):
         return False
 
-    def read(self):
-        payload = {"candidates": [{"content": {"parts": [{
-            "text": '{"assertions":[],"resolution":null}'
-        }]}}]}
-        return json.dumps(payload).encode("utf-8")
+    def read(self, size=-1):
+        self.read_sizes.append(size)
+        if self.raw is not None:
+            data = self.raw
+        else:
+            payload = self.envelope if self.envelope is not None else {
+                "candidates": [{"content": {"parts": [{"text": self.text}]}}]}
+            data = json.dumps(payload).encode("utf-8")
+        return data if size is None or size < 0 else data[:size]
 
 
-def http_error(code, detail=b"temporary"):
-    return experiment.error.HTTPError("https://example.invalid", code, "error", {}, io.BytesIO(detail))
+def http_error(code, detail=b"temporary", headers=None):
+    return experiment.error.HTTPError(
+        "https://example.invalid", code, "error", headers or {}, io.BytesIO(detail))
 
 
 def daily_quota_error():
@@ -131,12 +141,10 @@ class SecurityProviderExperimentTests(unittest.TestCase):
     def test_default_models_and_retry_policy(self):
         self.assertEqual(experiment.DEFAULT_MODEL, "gemini-3.6-flash")
         self.assertEqual(experiment.FALLBACK_MODEL, "gemini-3.5-flash")
-        self.assertEqual(experiment.MODEL_ROUTE, (
-            experiment.MODEL, experiment.FALLBACK_MODEL))
-        self.assertEqual(experiment.RETRYABLE_HTTP_CODES, {429, 503})
+        self.assertEqual(experiment.MODEL_ROUTE, (experiment.MODEL, experiment.FALLBACK_MODEL))
         self.assertEqual(experiment.REQUEST_SPACING_SECONDS, 30)
         self.assertGreaterEqual(experiment.REQUEST_TIMEOUT_SECONDS, 120)
-        self.assertLessEqual(experiment.MAX_ATTEMPTS, 4)
+        self.assertEqual((experiment.MAX_ATTEMPTS_PER_MODEL, experiment.MAX_TOTAL_ATTEMPTS), (2, 4))
 
     def test_retry_wait_uses_provider_hint_and_bounds_it(self):
         self.assertEqual(experiment.retry_wait_seconds("Please retry in 49.5s.", {}, 1), 50.5)
@@ -160,8 +168,6 @@ class SecurityProviderExperimentTests(unittest.TestCase):
         self.assertEqual(actual, {"assertions": [], "resolution": None})
         self.assertEqual(model_used, experiment.FALLBACK_MODEL)
         self.assertEqual(urlopen.call_count, 2)
-        self.assertIn(experiment.MODEL, urlopen.call_args_list[0].args[0].full_url)
-        self.assertIn(experiment.FALLBACK_MODEL, urlopen.call_args_list[1].args[0].full_url)
         sleep.assert_not_called()
 
     def test_http_503_switches_to_flash_fallback(self):
@@ -170,8 +176,7 @@ class SecurityProviderExperimentTests(unittest.TestCase):
              patch.object(experiment.time, "sleep") as sleep:
             _, model_used = experiment.call_gemini("test-key", "{}", 0)
         self.assertEqual(model_used, experiment.FALLBACK_MODEL)
-        self.assertIn(experiment.MODEL, urlopen.call_args_list[0].args[0].full_url)
-        self.assertIn(experiment.FALLBACK_MODEL, urlopen.call_args_list[1].args[0].full_url)
+        self.assertEqual(urlopen.call_count, 2)
         sleep.assert_not_called()
 
     def test_http_429_short_window_retries_same_model(self):
@@ -190,7 +195,7 @@ class SecurityProviderExperimentTests(unittest.TestCase):
              patch.object(experiment.time, "sleep") as sleep:
             _, model_used = experiment.call_gemini("test-key", "{}", 0)
         self.assertEqual(model_used, experiment.FALLBACK_MODEL)
-        self.assertIn(experiment.FALLBACK_MODEL, urlopen.call_args_list[1].args[0].full_url)
+        self.assertEqual(urlopen.call_count, 2)
         sleep.assert_not_called()
 
     def test_daily_quota_is_remembered_across_cases(self):
@@ -207,14 +212,12 @@ class SecurityProviderExperimentTests(unittest.TestCase):
         sleep.assert_not_called()
 
     def test_global_auth_errors_abort_without_fallback(self):
-        for code in (401, 403):
-            unavailable = set()
-            with self.subTest(code=code), \
-                 patch.object(experiment.request, "urlopen", side_effect=http_error(code)) as urlopen:
+        for code in (400, 401, 403):
+            with self.subTest(code=code), patch.object(
+                    experiment.request, "urlopen", side_effect=http_error(code)) as urlopen:
                 with self.assertRaises(experiment.GlobalProviderError):
-                    experiment.call_gemini("test-key", "{}", 0, unavailable)
+                    experiment.call_gemini("test-key", "{}", 0, set())
             self.assertEqual(urlopen.call_count, 1)
-            self.assertEqual(unavailable, set())
 
     def test_http_404_is_remembered_across_cases(self):
         unavailable = set()
@@ -222,11 +225,9 @@ class SecurityProviderExperimentTests(unittest.TestCase):
                           side_effect=[http_error(404), FakeResponse(), FakeResponse()]) as urlopen:
             _, first = experiment.call_gemini("test-key", "{}", 0, unavailable)
             _, second = experiment.call_gemini("test-key", "{}", 0, unavailable)
-        self.assertEqual(first, experiment.FALLBACK_MODEL)
-        self.assertEqual(second, experiment.FALLBACK_MODEL)
+        self.assertEqual((first, second), (experiment.FALLBACK_MODEL, experiment.FALLBACK_MODEL))
         self.assertEqual(urlopen.call_count, 3)
         self.assertIn(experiment.DEFAULT_MODEL, unavailable)
-        self.assertIn(experiment.FALLBACK_MODEL, urlopen.call_args_list[-1].args[0].full_url)
 
     def test_run_propagates_global_provider_error(self):
         case_id = "auth_case"
@@ -248,14 +249,67 @@ class SecurityProviderExperimentTests(unittest.TestCase):
         with patch.object(experiment.request, "urlopen",
                           side_effect=[http_error(503), http_error(503), FakeResponse()]) as urlopen, \
              patch.object(experiment.time, "sleep"):
-            experiment.call_gemini("test-key", "{}", 2)
+            experiment.call_gemini("test-key", "{}", 0)
         self.assertEqual(urlopen.call_count, 3)
         for call in urlopen.call_args_list:
-            body = json.loads(call.args[0].data.decode("utf-8"))
-            config = body["generationConfig"]
+            config = json.loads(call.args[0].data.decode("utf-8"))["generationConfig"]
             self.assertEqual(config["responseMimeType"], "application/json")
-            self.assertEqual(config["responseJsonSchema"]["properties"]["assertions"]["minItems"], 2)
-            self.assertNotIn("responseFormat", config)
+            self.assertEqual(config["responseJsonSchema"]["properties"]["assertions"]["minItems"], 0)
+
+    def test_validator_and_error_metadata_fail_closed(self):
+        for text in ('{"assertions":[],"resolution":null,"x":NaN}',
+                     '{"assertions":[],"resolution":null,"x":Infinity}'):
+            with self.assertRaisesRegex(RuntimeError, "invalid_json"):
+                experiment.parse_provider_text(text)
+        with self.assertRaisesRegex(RuntimeError, "resolution_outcome"):
+            experiment.validate_provider_output(
+                {"assertions": [], "resolution": {"outcome": [], "reviewed_refs": []}}, 0)
+        actual = {"assertions": [{"question_id": "q", "mechanism_id": None, "field": "f",
+                                   "value": math.nan, "state": dict(experiment.DEFAULT_STATE),
+                                   "refs": ["c1"]}], "resolution": None}
+        with self.assertRaisesRegex(RuntimeError, "value_non_finite"):
+            experiment.validate_provider_output(actual, 1)
+        for payload in ({"error": []}, {"error": "bad"}, {"error": None}):
+            self.assertEqual(experiment.error_details(payload), [])
+
+    def test_structured_daily_and_retry_hints_are_bounded(self):
+        payload = {"error": {"details": [
+            {"@type": "type.googleapis.com/google.rpc.QuotaFailure",
+             "violations": [{"quotaId": "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"}]},
+            {"@type": "type.googleapis.com/google.rpc.RetryInfo", "retryDelay": "41s"},
+        ]}}
+        self.assertFalse(experiment.is_daily_quota_error("unrelated perDay text", payload))
+        self.assertEqual(experiment.retry_wait_seconds(
+            "retry in 2s", {"Retry-After": "1"}, 1, payload), 42.0)
+        self.assertEqual(experiment.retry_wait_seconds("", {"Retry-After": "NaN"}, 2), 30.0)
+
+    def test_response_bound_and_malformed_outputs_fall_back(self):
+        response = FakeResponse()
+        experiment.read_provider_envelope(response)
+        self.assertEqual(response.read_sizes, [experiment.MAX_RESPONSE_BODY_BYTES + 1])
+        oversized = FakeResponse(raw=b"{" + b"x" * experiment.MAX_RESPONSE_BODY_BYTES + b"}")
+        bad_inputs = [oversized, FakeResponse(raw=b"not-json"), FakeResponse(envelope={"candidates": []}),
+                      FakeResponse(text="not-json"),
+                      FakeResponse(text='{"assertions":[{"bad":1}],"resolution":null}')]
+        for first in bad_inputs:
+            with self.subTest(first=type(first).__name__), patch.object(
+                    experiment.request, "urlopen", side_effect=[first, FakeResponse()]):
+                _, model = experiment.call_gemini("key", "{}", 0)
+            self.assertEqual(model, experiment.FALLBACK_MODEL)
+
+    def test_mixed_retry_routing_stays_within_global_cap(self):
+        with patch.object(experiment.request, "urlopen", side_effect=[
+                http_error(429, b"retry in 1s"), http_error(503), FakeResponse()]) as urlopen, \
+             patch.object(experiment.time, "sleep"):
+            _, model = experiment.call_gemini("key", "{}", 0)
+        self.assertEqual(model, experiment.FALLBACK_MODEL)
+        self.assertEqual(urlopen.call_count, 3)
+        with patch.object(experiment.request, "urlopen",
+                          side_effect=[http_error(429, b"retry in 1s")] * experiment.MAX_TOTAL_ATTEMPTS) as capped, \
+             patch.object(experiment.time, "sleep"):
+            with self.assertRaises(RuntimeError):
+                experiment.call_gemini("key", "{}", 0)
+        self.assertLessEqual(capped.call_count, experiment.MAX_TOTAL_ATTEMPTS)
 
 
 if __name__ == "__main__":

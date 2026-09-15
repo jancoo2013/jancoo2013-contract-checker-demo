@@ -1,5 +1,6 @@
 from __future__ import annotations
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -16,8 +17,10 @@ if MODEL not in {DEFAULT_MODEL, FALLBACK_MODEL}:
 MODEL_ROUTE = tuple(dict.fromkeys((MODEL, FALLBACK_MODEL)))
 REQUEST_SPACING_SECONDS = 30
 REQUEST_TIMEOUT_SECONDS = 120
-MAX_ATTEMPTS = 4
-RETRYABLE_HTTP_CODES = {429, 503}
+MAX_ATTEMPTS_PER_MODEL = 2
+MAX_TOTAL_ATTEMPTS = 4
+MAX_ERROR_BODY_BYTES = 16384
+MAX_RESPONSE_BODY_BYTES = 262144
 CASES = (
     "security_broad_trigger_confirmed",
     "security_broad_trigger_narrowed_by_notice_cure",
@@ -123,60 +126,40 @@ def build_prompt(case):
 def response_schema(assertion_count):
     state_schema = {
         "type": "object",
-        "properties": {
-            key: {"type": "string", "enum": values}
-            for key, values in STATE_VALUES.items()
-        },
+        "properties": {key: {"type": "string", "enum": values}
+                       for key, values in STATE_VALUES.items()},
         "required": list(STATE_VALUES),
         "additionalProperties": False,
     }
-    value_schema = {
-        "anyOf": [
-            {"type": "string"},
-            {"type": "number"},
-            {"type": "boolean"},
-            {"type": "array", "items": {"type": "string"}},
-            {"type": "null"},
-        ]
-    }
+    value_schema = {"anyOf": [
+        {"type": "string"}, {"type": "number"}, {"type": "boolean"},
+        {"type": "array", "items": {"type": "string"}}, {"type": "null"},
+    ]}
     assertion_schema = {
         "type": "object",
         "properties": {
-            "question_id": {"type": "string"},
-            "mechanism_id": {"type": ["string", "null"]},
-            "field": {"type": "string"},
-            "value": value_schema,
-            "state": state_schema,
+            "question_id": {"type": "string"}, "mechanism_id": {"type": ["string", "null"]},
+            "field": {"type": "string"}, "value": value_schema, "state": state_schema,
             "refs": {"type": "array", "items": {"type": "string"}, "minItems": 1},
         },
         "required": ["question_id", "mechanism_id", "field", "value", "state", "refs"],
         "additionalProperties": False,
     }
-    resolution_schema = {
-        "anyOf": [
-            {"type": "null"},
-            {
-                "type": "object",
-                "properties": {
-                    "outcome": {"type": "string", "enum": ["CONFIRMED", "NARROWED", "CLEARED"]},
-                    "reviewed_refs": {"type": "array", "items": {"type": "string"}},
-                },
-                "required": ["outcome", "reviewed_refs"],
-                "additionalProperties": False,
-            },
-        ]
-    }
+    resolution_schema = {"anyOf": [
+        {"type": "null"},
+        {"type": "object", "properties": {
+            "outcome": {"type": "string", "enum": ["CONFIRMED", "NARROWED", "CLEARED"]},
+            "reviewed_refs": {"type": "array", "items": {"type": "string"}},
+        }, "required": ["outcome", "reviewed_refs"], "additionalProperties": False},
+    ]}
     return {
         "type": "object",
         "properties": {
-            "assertions": {
-                "type": "array", "items": assertion_schema,
-                "minItems": assertion_count, "maxItems": assertion_count,
-            },
+            "assertions": {"type": "array", "items": assertion_schema,
+                           "minItems": assertion_count, "maxItems": assertion_count},
             "resolution": resolution_schema,
         },
-        "required": ["assertions", "resolution"],
-        "additionalProperties": False,
+        "required": ["assertions", "resolution"], "additionalProperties": False,
     }
 
 
@@ -191,41 +174,144 @@ def request_body(prompt, assertion_count):
     }
 
 
+def _reject_json_constant(value):
+    raise ValueError(f"non-finite JSON constant: {value}")
+
+
 def parse_provider_text(text):
     try:
-        parsed = json.loads(text)
-    except json.JSONDecodeError:
-        raise RuntimeError("Malformed Gemini JSON: invalid_json") from None
+        parsed = json.loads(text, parse_constant=_reject_json_constant)
+    except (json.JSONDecodeError, ValueError):
+        raise RuntimeError("invalid_json") from None
     if not isinstance(parsed, dict):
-        raise RuntimeError("Malformed Gemini JSON: root_not_object")
+        raise RuntimeError("root_not_object")
     return parsed
 
 
-def retry_wait_seconds(detail, headers, attempt):
+def validate_provider_output(actual, assertion_count):
+    if set(actual) != {"assertions", "resolution"}:
+        raise RuntimeError("root_schema")
+    assertions = actual["assertions"]
+    if not isinstance(assertions, list) or len(assertions) != assertion_count:
+        raise RuntimeError("assertion_count")
+    required = {"question_id", "mechanism_id", "field", "value", "state", "refs"}
+    for item in assertions:
+        if not isinstance(item, dict) or set(item) != required:
+            raise RuntimeError("assertion_schema")
+        if not isinstance(item["question_id"], str) or not isinstance(item["field"], str):
+            raise RuntimeError("assertion_identifiers")
+        if item["mechanism_id"] is not None and not isinstance(item["mechanism_id"], str):
+            raise RuntimeError("mechanism_id")
+        state = item["state"]
+        if not isinstance(state, dict) or set(state) != set(STATE_VALUES):
+            raise RuntimeError("state_schema")
+        if any(state[key] not in STATE_VALUES[key] for key in STATE_VALUES):
+            raise RuntimeError("state_value")
+        refs = item["refs"]
+        if not isinstance(refs, list) or not refs or not all(isinstance(x, str) for x in refs):
+            raise RuntimeError("refs_schema")
+        value = item["value"]
+        if isinstance(value, float) and not math.isfinite(value):
+            raise RuntimeError("value_non_finite")
+        if not (value is None or isinstance(value, (str, int, float, bool))
+                or (isinstance(value, list) and all(isinstance(x, str) for x in value))):
+            raise RuntimeError("value_schema")
+    resolution = actual["resolution"]
+    if resolution is not None:
+        if not isinstance(resolution, dict) or set(resolution) != {"outcome", "reviewed_refs"}:
+            raise RuntimeError("resolution_schema")
+        outcome = resolution["outcome"]
+        if not isinstance(outcome, str) or outcome not in {"CONFIRMED", "NARROWED", "CLEARED"}:
+            raise RuntimeError("resolution_outcome")
+        refs = resolution["reviewed_refs"]
+        if not isinstance(refs, list) or not all(isinstance(x, str) for x in refs):
+            raise RuntimeError("resolution_refs")
+    return actual
+
+
+def parse_error_payload(raw):
+    text = raw.decode("utf-8", "replace")
+    try:
+        payload = json.loads(text, parse_constant=_reject_json_constant)
+    except (json.JSONDecodeError, ValueError):
+        payload = None
+    return text, payload
+
+
+def error_details(payload):
+    if not isinstance(payload, dict):
+        return []
+    error_obj = payload.get("error")
+    if not isinstance(error_obj, dict):
+        return []
+    details = error_obj.get("details")
+    return details if isinstance(details, list) else []
+
+
+def quota_violations(payload):
+    violations = []
+    for detail in error_details(payload):
+        if not isinstance(detail, dict) or not str(detail.get("@type", "")).endswith("QuotaFailure"):
+            continue
+        values = detail.get("violations")
+        if isinstance(values, list):
+            violations.extend(x for x in values if isinstance(x, dict))
+    return violations
+
+
+def is_daily_quota_error(detail, payload=None):
+    tokens = (
+        "generaterequestsperdayperprojectpermodel",
+        "requestsperdayperprojectpermodel",
+        "generatetokensperdayperprojectpermodel",
+        "tokensperdayperprojectpermodel",
+    )
+    markers = []
+    for violation in quota_violations(payload):
+        markers += [str(violation.get("quotaId", "")), str(violation.get("quotaMetric", ""))]
+    if any(token in marker.lower().replace("_", "") for marker in markers for token in tokens):
+        return True
+    normalized = detail.lower().replace("_", "")
+    return any(token in normalized for token in tokens)
+
+
+def retry_info_seconds(payload):
+    for detail in error_details(payload):
+        if not isinstance(detail, dict) or not str(detail.get("@type", "")).endswith("RetryInfo"):
+            continue
+        match = re.fullmatch(r"([0-9]+(?:\.[0-9]+)?)s", str(detail.get("retryDelay", "")))
+        if match:
+            value = float(match.group(1))
+            if math.isfinite(value) and value >= 0:
+                return value
+    return None
+
+
+def retry_wait_seconds(detail, headers, attempt, payload=None):
+    hints = []
+    retry_info = retry_info_seconds(payload)
+    if retry_info is not None:
+        hints.append(retry_info + 1.0)
     if headers:
-        raw = headers.get("Retry-After")
         try:
-            if raw:
-                return min(max(float(raw), 1.0), 120.0)
+            value = float(headers.get("Retry-After", ""))
+            if math.isfinite(value) and value >= 0:
+                hints.append(value)
         except (TypeError, ValueError):
             pass
     match = re.search(r"retry in\s+([0-9]+(?:\.[0-9]+)?)s", detail, re.IGNORECASE)
     if match:
-        return min(max(float(match.group(1)) + 1.0, 1.0), 120.0)
+        value = float(match.group(1)) + 1.0
+        if math.isfinite(value):
+            hints.append(value)
+    if hints:
+        return min(max(max(hints), 1.0), 120.0)
     return min(15.0 * (2 ** (attempt - 1)), 60.0)
 
 
 def is_timeout_error(exc):
     reason = getattr(exc, "reason", exc)
     return isinstance(reason, TimeoutError) or "timed out" in str(reason).lower()
-
-
-def is_daily_quota_error(detail):
-    normalized = detail.lower().replace("_", "")
-    return (
-        "generaterequestsperdayperprojectpermodel" in normalized
-        or "requestsperdayperprojectpermodel" in normalized
-    )
 
 
 def next_model(current_model, unavailable_models=()):
@@ -245,88 +331,141 @@ def request_for_model(model, key, body):
     )
 
 
+def read_provider_envelope(response):
+    raw = response.read(MAX_RESPONSE_BODY_BYTES + 1)
+    if len(raw) > MAX_RESPONSE_BODY_BYTES:
+        raise RuntimeError("provider_envelope_size")
+    try:
+        envelope = json.loads(raw.decode("utf-8"), parse_constant=_reject_json_constant)
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError):
+        raise RuntimeError("provider_envelope_json") from None
+    if not isinstance(envelope, dict):
+        raise RuntimeError("provider_envelope_shape")
+    return envelope
+
+
+def extract_provider_text(envelope):
+    try:
+        candidates = envelope["candidates"]
+        if not isinstance(candidates, list) or not candidates:
+            raise TypeError
+        content = candidates[0]["content"]
+        parts = content["parts"]
+        if not isinstance(parts, list) or not parts:
+            raise TypeError
+        texts = []
+        for part in parts:
+            if not isinstance(part, dict) or not isinstance(part.get("text"), str):
+                raise TypeError
+            texts.append(part["text"])
+        text = "".join(texts)
+        if not text:
+            raise TypeError
+        return text
+    except (KeyError, IndexError, TypeError):
+        raise RuntimeError("provider_envelope_shape") from None
+
+
 def call_gemini(key, prompt, assertion_count, unavailable_models=None):
     unavailable_models = unavailable_models if unavailable_models is not None else set()
     available = [model for model in MODEL_ROUTE if model not in unavailable_models]
     if not available:
-        raise RuntimeError("No Gemini models available for this run")
+        raise RuntimeError("no_available_models")
     body = request_body(prompt, assertion_count)
     current_model = available[0]
-    for attempt in range(1, MAX_ATTEMPTS + 1):
+    per_model_attempts = {model: 0 for model in MODEL_ROUTE}
+    total_attempts = 0
+
+    while total_attempts < MAX_TOTAL_ATTEMPTS:
+        if per_model_attempts[current_model] >= MAX_ATTEMPTS_PER_MODEL:
+            alternate = next_model(current_model, unavailable_models)
+            if not alternate:
+                raise RuntimeError("attempt_budget_exhausted")
+            current_model = alternate
+            continue
+        per_model_attempts[current_model] += 1
+        total_attempts += 1
         req = request_for_model(current_model, key, body)
         try:
             with request.urlopen(req, timeout=REQUEST_TIMEOUT_SECONDS) as response:
-                envelope = json.load(response)
-            break
+                try:
+                    envelope = read_provider_envelope(response)
+                    actual = validate_provider_output(
+                        parse_provider_text(extract_provider_text(envelope)), assertion_count)
+                except RuntimeError as exc:
+                    alternate = next_model(current_model, unavailable_models)
+                    if alternate:
+                        current_model = alternate
+                        continue
+                    if per_model_attempts[current_model] < MAX_ATTEMPTS_PER_MODEL:
+                        continue
+                    raise RuntimeError(str(exc)) from None
+            return actual, current_model
         except error.HTTPError as exc:
-            detail = exc.read(1200).decode("utf-8", "replace").replace(key, "[REDACTED]")
+            raw = exc.read(MAX_ERROR_BODY_BYTES)
+            detail, payload = parse_error_payload(raw)
+            detail = detail.replace(key, "[REDACTED]")
             alternate = next_model(current_model, unavailable_models)
-            if exc.code in {401, 403}:
-                raise GlobalProviderError(
-                    f"Gemini authentication/permission error HTTP {exc.code}"
-                ) from None
-            if exc.code == 429 and is_daily_quota_error(detail):
+            if exc.code in {400, 401, 403}:
+                raise GlobalProviderError(f"Gemini global provider error HTTP {exc.code}") from None
+            if exc.code == 429 and is_daily_quota_error(detail, payload):
                 unavailable_models.add(current_model)
                 alternate = next_model(current_model, unavailable_models)
-                if alternate and attempt < MAX_ATTEMPTS:
+                if alternate:
                     print(f"Gemini daily quota exhausted on {current_model}; switching to {alternate}")
                     current_model = alternate
                     continue
-                raise RuntimeError(f"Gemini daily quota exhausted on {current_model}") from None
+                raise RuntimeError(f"daily_quota:{current_model}") from None
             if exc.code == 404:
                 unavailable_models.add(current_model)
                 alternate = next_model(current_model, unavailable_models)
-                if alternate and attempt < MAX_ATTEMPTS:
+                if alternate:
                     print(f"Gemini unavailable on {current_model}; switching to {alternate}")
                     current_model = alternate
                     continue
-                raise RuntimeError(f"Gemini unavailable on {current_model}") from None
-            if exc.code == 503 and alternate and attempt < MAX_ATTEMPTS:
-                print(f"Gemini HTTP 503 on {current_model}; switching to {alternate}")
-                current_model = alternate
-                continue
-            if exc.code in RETRYABLE_HTTP_CODES and attempt < MAX_ATTEMPTS:
-                wait = retry_wait_seconds(detail, exc.headers, attempt)
-                print(f"Gemini HTTP {exc.code} on {current_model}; retrying in {wait:.0f}s "
-                      f"({attempt}/{MAX_ATTEMPTS - 1} retries used)")
-                time.sleep(wait)
-                continue
+                raise RuntimeError(f"model_unavailable:{current_model}") from None
+            if exc.code == 503:
+                if alternate:
+                    print(f"Gemini HTTP 503 on {current_model}; switching to {alternate}")
+                    current_model = alternate
+                    continue
+                if per_model_attempts[current_model] < MAX_ATTEMPTS_PER_MODEL:
+                    wait = retry_wait_seconds(detail, exc.headers, per_model_attempts[current_model], payload)
+                    time.sleep(wait)
+                    continue
+                raise RuntimeError(f"provider_overloaded:{current_model}") from None
+            if exc.code == 429:
+                wait = retry_wait_seconds(detail, exc.headers, per_model_attempts[current_model], payload)
+                if per_model_attempts[current_model] < MAX_ATTEMPTS_PER_MODEL:
+                    print(f"Gemini HTTP 429 on {current_model}; retrying in {wait:.0f}s")
+                    time.sleep(wait)
+                    continue
+                if alternate:
+                    current_model = alternate
+                    continue
+                raise RuntimeError(f"rate_limit:{current_model}") from None
             raise RuntimeError(f"Gemini HTTP {exc.code} on {current_model}: {detail}") from None
         except error.URLError as exc:
+            if not is_timeout_error(exc):
+                raise RuntimeError(f"Gemini network error on {current_model}: {exc.reason}") from None
             alternate = next_model(current_model, unavailable_models)
-            if is_timeout_error(exc) and alternate and attempt < MAX_ATTEMPTS:
+            if alternate:
                 print(f"Gemini network timeout on {current_model}; switching to {alternate}")
                 current_model = alternate
                 continue
-            if is_timeout_error(exc) and attempt < MAX_ATTEMPTS:
-                wait = retry_wait_seconds("", None, attempt)
-                print(f"Gemini network timeout on {current_model}; retrying in {wait:.0f}s "
-                      f"({attempt}/{MAX_ATTEMPTS - 1} retries used)")
-                time.sleep(wait)
+            if per_model_attempts[current_model] < MAX_ATTEMPTS_PER_MODEL:
                 continue
-            raise RuntimeError(f"Gemini network error on {current_model}: {exc.reason}") from None
-        except TimeoutError as exc:
+            raise RuntimeError(f"timeout:{current_model}") from None
+        except TimeoutError:
             alternate = next_model(current_model, unavailable_models)
-            if alternate and attempt < MAX_ATTEMPTS:
+            if alternate:
                 print(f"Gemini read timeout on {current_model}; switching to {alternate}")
                 current_model = alternate
                 continue
-            if attempt < MAX_ATTEMPTS:
-                wait = retry_wait_seconds("", None, attempt)
-                print(f"Gemini read timeout on {current_model}; retrying in {wait:.0f}s "
-                      f"({attempt}/{MAX_ATTEMPTS - 1} retries used)")
-                time.sleep(wait)
+            if per_model_attempts[current_model] < MAX_ATTEMPTS_PER_MODEL:
                 continue
-            raise RuntimeError(
-                f"Gemini timeout on {current_model} after {MAX_ATTEMPTS} total attempts: {exc}"
-            ) from None
-    else:
-        raise RuntimeError("Gemini request retry loop ended unexpectedly")
-    try:
-        text = "".join(p.get("text", "") for p in envelope["candidates"][0]["content"]["parts"])
-    except (KeyError, IndexError, TypeError):
-        raise RuntimeError(f"Malformed Gemini response envelope from {current_model}") from None
-    return parse_provider_text(text), current_model
+            raise RuntimeError(f"timeout:{current_model}") from None
+    raise RuntimeError("global_attempt_cap")
 
 
 def canon(value):
