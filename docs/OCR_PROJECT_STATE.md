@@ -1,52 +1,66 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-09-15, PR #266, `question-engine-provider-resilience-v1`.
+Последнее обновление: 2026-09-15, PR #268, `question-engine-provider-parse-routing-v1`.
 
 Активный трек: `question-engine-development`.
 
-Канонический следующий bounded-шаг: `question-engine-provider-robust-fallback-ledger-v1`.
+Канонический следующий bounded-шаг: `question-engine-provider-ledger-reporting-v1`.
 
 Этот документ вместе с `docs/OCR_PROJECT_STATE.json` является канонической operational-точкой восстановления проекта. Binding architecture/security/privacy documents задают обязательные границы; текущие `active_track` и `next_step_id` выбираются только state-файлами.
 
-## 1. Current change — PR #266 run-scoped Flash model memory
+## 1. Current provider corrective chain
 
-PR #266 — первый из нескольких owner-authorized bounded corrective шагов после provider audit. Реальный Gemini run до завершения последующих corrective не выполняется.
+Provider experiment остаётся paused до завершения corrective chain и единого финального Codex review.
 
-Provider experiment continuity, релевантная текущему исправлению:
+Relevant continuity:
 
-- локальный run v5 после PR #263 подтвердил рабочий `responseMimeType + responseJsonSchema`, но завершил только `3/10` cases за `1196.61s`; после case 4 primary 3.6 упёрлась в per-model daily free-tier quota;
-- PR #264 увеличил inter-case pacing до 30 секунд;
-- PR #265 различил daily-quota 429 и short-window 429 и временно добавил `gemini-3.1-pro-preview`;
-- последующий статический provider audit выявил, что daily-exhausted model не запоминается между cases, malformed/provider-shape failures не получают robust fallback, attempt provenance/report persistence недостаточны, общий retry budget смешивает retry и routing, а `401/403` нельзя трактовать как обычную недоступность одной модели;
-- владелец продукта решил пока не использовать `gemini-3.1-pro-preview` через API из-за отсутствия подтверждённого бесплатного API tier для этого проекта.
+- local run v3 after PR #261 дал первый usable semantic provider report: `9/10` cases, `12/33` exact assertions, `18/33` values, `18/33` states, `19/33` refs, `5/5` resolutions, `4` hard failures;
+- PR #262 попытался включить provider-enforced structured output, но local run v4 получил `10/10` HTTP 400 из-за неправильного request field;
+- PR #263 исправил GenerateContent request на `responseMimeType + responseJsonSchema`;
+- local run v5 после PR #263 подтвердил request shape, но занял `1196.61s` и завершил только `3/10` cases; затем primary 3.6 упёрлась в per-model daily free-tier quota;
+- PR #264 увеличил pacing до 30 секунд;
+- PR #265 различил daily-quota 429 и short-window 429 и временно добавил Pro;
+- provider audit после #265 выявил повторные запросы к exhausted model, неверную обработку auth errors, malformed-output gaps, unbounded response read, overly broad quota detection, retry-hint defects, отсутствие attempt provenance и слабую report/checkpoint integrity;
+- владелец решил не использовать `gemini-3.1-pro-preview` через API до подтверждения бесплатного API tier.
 
-PR #266 меняет только route scope, run-scoped model memory и глобальную обработку authentication/permission failures:
+PR #266 закрыл первую bounded-часть:
 
-- diagnostic route ограничен `gemini-3.6-flash → gemini-3.5-flash`; Pro исключён из runtime route/report;
-- неподдерживаемый `GEMINI_MODEL` override блокируется до provider request;
-- confirmed per-model daily quota и stable `404` model-unavailable запоминаются в общем run-scoped set;
-- последующие cases не обращаются повторно к модели, уже признанной недоступной в этом run;
-- HTTP `401/403` теперь считаются global authentication/permission failure: текущий run прекращается без fallback на вторую модель и без повторных provider requests;
-- 503/timeout/short-window 429 поведение, structured-output request, semantic prompt, corpus oracle, strict scorer, 30-second pacing и 120-second timeout остаются без semantic изменений;
-- malformed-output fallback, structured quota/retry parsing, separate retry/routing budgets, attempt ledger, report redaction и checkpoint persistence намеренно остаются следующими bounded corrective.
+- route только `gemini-3.6-flash → gemini-3.5-flash`;
+- unsupported model override блокируется до provider request;
+- confirmed daily quota и stable HTTP 404 model-unavailable запоминаются на весь run;
+- следующие cases пропускают remembered unavailable model;
+- HTTP 401/403 считаются global auth/permission failure и прекращают run без model fallback;
+- Pro отсутствует в executable route.
 
-Provider payload остаётся synthetic/sanitized; real contracts, raw OCR и recoverable PII не используются.
+PR #268 закрывает вторую bounded-часть:
+
+- HTTP 200 response body читается с hard byte bound до JSON parse;
+- malformed outer JSON/envelope, malformed model JSON и local schema-invalid output не идут в semantic scorer и получают bounded fallback;
+- JSON `NaN/Infinity` отклоняются; finite-number contract проверяется локально;
+- `resolution.outcome` и остальные structured fields валидируются fail-closed без uncaught type errors;
+- malformed nested provider error metadata не может ломать quota/retry parser;
+- structured `QuotaFailure`/`RetryInfo` поддерживаются, daily detector использует узкие daily identifiers вместо generic `perDay`;
+- retry hints принимаются только finite/non-negative и выбирается наиболее консервативная доступная задержка;
+- retry/routing budget разделён на bounded per-model attempts и global hard cap;
+- prompt semantics, selected ten cases, target assertions, corpus oracle и strict semantic scorer не меняются;
+- реальных Gemini requests для проверки PR не выполнялось.
 
 ## 2. Canonical next step
 
-`next_step_id = question-engine-provider-robust-fallback-ledger-v1`
+`next_step_id = question-engine-provider-ledger-reporting-v1`
 
-Следующий bounded шаг до любого нового Gemini run:
+Следующий и последний provider-harness corrective перед финальным Codex review:
 
-- fallback на вторую Flash-модель для malformed HTTP-200 envelope/model JSON/local schema failure;
-- локальная валидация response contract до semantic scorer;
-- structured parsing quota/retry metadata;
-- bounded retry policy, в которой routing не теряется из-за ранних retries;
-- attempt ledger/per-model summary;
-- гарантированное сохранение partial report;
-- prompt/corpus/oracle/scorer semantics не менять; Pro не добавлять.
+- attempt ledger для каждой provider попытки без prompt/contract text;
+- per-model attempts/successes/failure-class reporting отдельно от semantic score;
+- recursive secret redaction перед persistence/rendering либо отказ от unsafe raw output persistence;
+- exhausted route должен завершать run без дальнейших 30-секундных sleeps и не помечаться `COMPLETED`;
+- partial report checkpoint должен переживать case/global failure;
+- JSON/TXT terminal publication должна быть согласована так, чтобы canonical JSON не переходил в terminal status раньше companion TXT;
+- корректный report label при single-model override;
+- no Pro, no semantic prompt/corpus/oracle changes.
 
-После завершения corrective chain evidence gate возвращается к `question-engine-security-provider-experiment-local-run-v6`.
+После этого следующий шаг — один final Codex review цепочки `#266 → #268 → final reporting PR`. Только при отсутствии реального HIGH/BLOCKER можно последовательно merge и запускать local Gemini run v6.
 
 ## 3. Current Question Engine architecture
 
@@ -66,19 +80,21 @@ privacy-validated sanitized contract material
 → Safe Output
 ```
 
-Ключевые invariants сохраняются: не извлекать базовый факт ради полноты; handwriting не угадывать; разные security instruments не сливать; missing/blank dependencies не исправлять молча; candidate finding не считать final finding; user-facing output не выдаёт `safe to sign`, sign/don't-sign advice, court prediction или categorical enforceability claim без отдельно одобренного deterministic rule.
+Core product invariants сохраняются: basic facts не извлекаются ради полноты; handwriting не угадывается; разные security instruments не сливаются; missing/blank dependencies не исправляются молча; candidate finding не является final finding; user-facing output не выдаёт `safe to sign`, sign/don't-sign advice, court prediction или categorical enforceability claim без отдельно одобренного deterministic rule.
 
 ## 4. Provider/privacy invariants
 
-Provider experiment отправляет только synthetic/sanitized corpus material. Local API key читается из environment/Desktop `.env.local`, не входит в prompt и scrubbed из HTTP error detail. `.env.local` остаётся вне repository tree и игнорируется `.gitignore`.
+Provider experiment отправляет только synthetic/sanitized corpus material. Real contracts, raw OCR, names/IDs/signatures/bank identifiers и recoverable PII в Gemini diagnostic harness не передаются.
 
-PR #266 сохраняет тот же fixed Google GenerateContent host, case count 10, timeout 120 секунд, attempt cap 4 на case и pacing 30 секунд. Новых dependencies, workflows, permissions, storage, OCR/Android/serverless paths или statutory runtime нет.
+Local API key читается из environment/Desktop `.env.local`; `.env.local` игнорируется repository. Provider host остаётся fixed Google GenerateContent host. Новых dependencies, workflows, permissions, provider hosts, production storage, OCR/Android/serverless paths или statutory runtime в #268 нет.
+
+Route после #268 остаётся только `gemini-3.6-flash → gemini-3.5-flash`; timeout 120 секунд; pacing 30 секунд; per-model attempt cap 2; global attempt cap 4; response body bounded до local parse.
 
 Repository остаётся pre-production. Production use с real contracts blocked до отдельно проверенных consent, authorization, encryption/key lifecycle, Israel-only restricted-data processing, deletion/retention, logging, provider terms, abuse/resource controls и incident response.
 
 ## 5. Audit continuity
 
-Последний завершённый Question Engine batch audit, который должен сохраняться как recovery marker:
+Последний завершённый Question Engine batch audit recovery marker:
 
 - дата: `2026-09-08`;
 - start SHA: `cbbb8e0905c1fda8610260d4046b51952a9f636c`;
@@ -87,11 +103,7 @@ Repository остаётся pre-production. Production use с real contracts blo
 - outcome: `CORRECTIVE PR REQUIRED`;
 - privacy/security regression в этом range не был отмечен.
 
-После PR #265 отдельный provider audit остановил только provider experiment до corrective work. Старый опубликованный API key уже был ранее заблокирован Google и не является новым blocker для PR #266. Runtime findings требуют убрать повторные обращения к exhausted models, не маршрутизировать global auth/project failures как model fallback, добавить robust malformed-output fallback, attempt provenance и partial-report persistence.
-
-PR #266 закрывает только первую часть: удаляет Pro из API route по решению владельца, добавляет run-scoped memory для daily-quota/404 model-unavailable Flash-моделей и прекращает run на global `401/403` без fallback.
-
-Provider experiment остаётся paused. Следующий implementation gate — `question-engine-provider-robust-fallback-ledger-v1`; только после всей corrective chain local run v6 может расходовать Gemini quota.
+Отдельный provider audit после #265 относится только к provider experiment corrective chain. Старый опубликованный API key уже заблокирован Google и не является новым blocker текущих PR.
 
 ## 6. Stable recovery anchors
 
@@ -114,34 +126,35 @@ FindingResolution(candidate, outcome, reviewed_refs, resolution_summary)
 FindingOutcome = CONFIRMED | NARROWED | CLEARED
 ```
 
-Current smart CORE families: security/enforcement, early exit/replacement tenant, financial sanctions/overlap, condition/AS-IS/defects/damage evidence, termination/cure/notice, option/renewal. Corpus oracle v2 остаётся evaluation representation, а не production runtime schema.
+Current smart CORE families: security/enforcement, early exit/replacement tenant, financial sanctions/overlap, condition/AS-IS/defects/damage evidence, termination/cure/notice, option/renewal. Corpus oracle v2 остаётся evaluation representation, не production runtime schema.
 
-Statutory recovery anchor: 2017 residential-rental reform effective `2017-09-17`; maintained baseline также учитывает 2026 amendment timing для section `25י`. Если current-law freshness/applicability/effective date не установлены безопасно, runtime должен деградировать к contract-only analysis, а не утверждать устаревшую норму.
+Statutory recovery anchor: 2017 residential-rental reform effective `2017-09-17`; maintained baseline учитывает 2026 amendment timing для section `25י`. Если current-law freshness/applicability/effective date не установлены безопасно, runtime деградирует к contract-only analysis.
 
 Frozen OCR recovery anchor: Surya/cloud OCR infrastructure остаётся frozen research; Tesseract full-page Hebrew OCR на target phone остаётся `NO-GO`; historical Android geometry/preprocessing findings deferred и не блокируют Question Engine development.
 
 ## 7. Recovery/work rules
 
-Перед новым PR читать с актуального `main`: `AGENTS.md`, `SECURITY.md`, `docs/ARCHITECTURE.md`, `docs/CUSTOM_OCR_PIPELINE.md`, `docs/SERVERLESS_GPU_OCR_PIPELINE_V1.md`, оба state-файла, `docs/DOCUMENT_STATUS_INDEX.md`, `docs/CODEX_WORKFLOW.md`.
+Перед новым PR читать с актуальной base ветки: `AGENTS.md`, `SECURITY.md`, `docs/ARCHITECTURE.md`, `docs/CUSTOM_OCR_PIPELINE.md`, `docs/SERVERLESS_GPU_OCR_PIPELINE_V1.md`, оба state-файла, `docs/DOCUMENT_STATUS_INDEX.md`, `docs/CODEX_WORKFLOW.md`.
 
-Каждый PR: ровно один Context Gate v1; оба state-файла обновляются; финальные checks относятся к exact final head; actual paths совпадают с Context Gate; mandatory security review; auto-merge запрещён.
+Каждый PR: ровно один Context Gate v1; оба state-файла обновляются; final checks относятся к exact final head; actual paths совпадают с Context Gate; mandatory security review; auto-merge запрещён.
 
-## 8. PR #266 validation target
+## 8. PR #268 validation target
 
 Перед Ready/merge проверить:
 
+- base exact PR #266 final head;
 - changed paths exactly match Context Gate;
-- branch основан на `main` head `00f2ebc7f64ccf28a9a0ad4876591901adc9df71`;
-- state files идентифицируют PR #266 и `question-engine-provider-resilience-v1`;
-- next step — `question-engine-provider-robust-fallback-ledger-v1`;
-- route ровно `gemini-3.6-flash → gemini-3.5-flash`; Pro model identifier отсутствует в provider runtime/report;
-- unsupported model override fails before provider access;
-- daily quota или `404` model unavailability remembered across later cases; later cases skip remembered model;
-- `401/403` abort the run globally with no model fallback;
-- 503, timeout и short-window 429 остаются bounded;
-- timeout 120 секунд, attempt cap 4, pacing 30 секунд;
-- structured-output request, prompt, target assertions, corpus selection и semantic/evidence scorer не меняются;
+- state files идентифицируют PR #268 и `question-engine-provider-parse-routing-v1`;
+- next step — `question-engine-provider-ledger-reporting-v1`;
+- route только `3.6 Flash → 3.5 Flash`, Pro отсутствует;
+- 400/401/403 abort globally; 404/daily quota remain run-scoped unavailable;
+- malformed outer/model/schema output получает bounded fallback и не semantic scoring;
+- HTTP 200 body bounded до parse;
+- daily detector не срабатывает на generic `perDay`/RPM;
+- retry hints finite/bounded и structured RetryInfo не проигрывает меньшему header hint;
+- обе модели получают bounded шанс в пределах per-model/global caps;
+- prompt, target assertions, selected cases, corpus oracle и strict scorer семантически не меняются;
 - focused tests и Python compilation pass на exact final code/test blobs;
 - Markdown/JSON state согласованы;
-- final security review passes;
-- malformed-output fallback, structured quota metadata parsing, attempt ledger, report redaction и checkpoint persistence остаются deferred только до следующих bounded corrective перед local run v6.
+- report/ledger/checkpoint/redaction work остаётся только следующему bounded PR;
+- реальный Gemini run остаётся запрещён до завершения corrective chain и final Codex review.
