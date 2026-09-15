@@ -206,6 +206,44 @@ class SecurityProviderExperimentTests(unittest.TestCase):
         self.assertIn(experiment.DEFAULT_MODEL, unavailable)
         sleep.assert_not_called()
 
+    def test_global_auth_errors_abort_without_fallback(self):
+        for code in (401, 403):
+            unavailable = set()
+            with self.subTest(code=code), \
+                 patch.object(experiment.request, "urlopen", side_effect=http_error(code)) as urlopen:
+                with self.assertRaises(experiment.GlobalProviderError):
+                    experiment.call_gemini("test-key", "{}", 0, unavailable)
+            self.assertEqual(urlopen.call_count, 1)
+            self.assertEqual(unavailable, set())
+
+    def test_http_404_is_remembered_across_cases(self):
+        unavailable = set()
+        with patch.object(experiment.request, "urlopen",
+                          side_effect=[http_error(404), FakeResponse(), FakeResponse()]) as urlopen:
+            _, first = experiment.call_gemini("test-key", "{}", 0, unavailable)
+            _, second = experiment.call_gemini("test-key", "{}", 0, unavailable)
+        self.assertEqual(first, experiment.FALLBACK_MODEL)
+        self.assertEqual(second, experiment.FALLBACK_MODEL)
+        self.assertEqual(urlopen.call_count, 3)
+        self.assertIn(experiment.DEFAULT_MODEL, unavailable)
+        self.assertIn(experiment.FALLBACK_MODEL, urlopen.call_args_list[-1].args[0].full_url)
+
+    def test_run_propagates_global_provider_error(self):
+        case_id = "auth_case"
+        case = {"case_id": case_id, "domain": "security", "lifecycle": "EXECUTED",
+                "clauses": [], "assertions": []}
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            corpus = root / "corpus.json"
+            corpus.write_text(json.dumps({"cases": [case]}), encoding="utf-8")
+            with patch.object(experiment, "CASES", (case_id,)), \
+                 patch.object(experiment, "CORPUS", corpus), \
+                 patch.object(experiment, "load_key", return_value=("test-key", None)), \
+                 patch.object(experiment, "call_gemini",
+                              side_effect=experiment.GlobalProviderError("auth")):
+                with self.assertRaises(experiment.GlobalProviderError):
+                    experiment.run()
+
     def test_structured_output_schema_is_sent_to_all_routed_models(self):
         with patch.object(experiment.request, "urlopen",
                           side_effect=[http_error(503), http_error(503), FakeResponse()]) as urlopen, \
