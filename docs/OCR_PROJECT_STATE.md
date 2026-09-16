@@ -66,8 +66,9 @@ For this first real-contract runner:
 - raw extracted text is not persisted to the report;
 - high-risk header/preamble identity material before the contract-body marker is excluded from cloud handoff;
 - signature/footer material after the signature marker is excluded from cloud handoff;
+- party-name tokens derived locally from header lines around ID fields are removed if they recur in operative clauses;
 - the remaining body is passed through the existing deterministic Hebrew PII redactor;
-- a residual PII gate checks emails, Israeli-looking phones, compact ID values and sensitive field markers;
+- a value-based residual PII gate checks raw email addresses, Israeli-looking phone numbers, compact ID values, IBAN-like values, and any still-unredacted header-derived party-name token;
 - if that gate or contract-text usability validation fails, no Gemini call is made;
 - the persisted report contains only non-sensitive attempt metadata, redaction counts and the structured analysis result; it does not contain the selected source filename or raw/sanitized contract text.
 
