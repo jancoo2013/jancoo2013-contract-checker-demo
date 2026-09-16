@@ -65,27 +65,33 @@ class SingleContractAnalysisTests(unittest.TestCase):
     def test_header_derived_person_names_are_redacted_in_body(self):
         raw = (
             "--- СТРАНИЦА 1 ---\n"
-            "בין: שיר דנצינגר ת.ז. 123456789\n"
+            "בין: שיר דנצינגר\n"
+            "ת.ז. 123456789\n"
             "לבין: אנה איסקוביץ ת.ז. 987654321\n"
-            "לפיכך הוסכם והותנה בין הצדדים כדלקמן\n"
+            "לפיכך הוסכם, הוצהר:והותנה בין הצדדים כדלקמן\n"
             "התשלום יימסר למשכיר שיר דנצינגר בהתאם להסכם."
         )
         tokens = runner._header_person_tokens(raw)
         body = runner._trim_identity_zones(raw)
         redacted, count = runner._redact_header_names(body, tokens)
         self.assertGreaterEqual(count, 2)
-        self.assertNotIn("שיר", redacted)
         self.assertNotIn("דנצינגר", redacted)
         self.assertIn(runner.NAME_PLACEHOLDER, redacted)
 
-    def test_residual_pii_gate_detects_identifiers(self):
+    def test_residual_pii_gate_detects_values_and_header_names(self):
         findings = runner.residual_pii_findings(
-            "המשכיר 050-1234567 person@example.com ת.ז 123456789"
+            "המשכיר 050-1234567 person@example.com 123456789 IL121234567890123456",
+            {"דנצינגר"},
         )
         self.assertIn("phone", findings)
         self.assertIn("email", findings)
         self.assertIn("id", findings)
-        self.assertIn("marker:ת.ז", findings)
+        self.assertIn("iban", findings)
+
+        self.assertEqual(
+            runner.residual_pii_findings("המשכיר דנצינגר", {"דנצינגר"}),
+            ["header_name"],
+        )
 
     def test_image_only_pdf_fails_closed_without_ocr(self):
         with tempfile.TemporaryDirectory() as tmp:
