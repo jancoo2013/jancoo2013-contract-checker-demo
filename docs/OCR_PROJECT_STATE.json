@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-16-124",
+  "state_version": "privacy-ocr-2026-09-16-125",
   "active_track": "question-engine-development",
-  "next_step_id": "question-engine-single-contract-real-rerun-v2",
-  "next_step_summary": "The first real March-August 2025 text-layer contract run completed with gemini-3.6-flash on the first provider attempt in 35.334 seconds and returned a high-completeness structured audit. The run confirmed that the model can read major lease mechanisms but also exposed model-owned prioritization/remediation defects: security-cheque mechanics were underweighted versus amount/market comparisons, broad fundamental-breach wording was not fully reconciled with the contract's specific cure mechanics, AS-IS remained a warning despite related repair protections, the handover defect-remediation procedure was underemphasized, and the report invented generic missing clauses, market norms, and numeric rewrite proposals. PR #272 wires the existing deterministic Question Engine core inventories into the whole-contract prompt, requires cross-clause second-pass resolution, blocks unsupported market/numeric invention, and suppresses ungated model-owned rewrite advice, generic missing-clause wishlists, and market-comparison prose in the local persisted report. Provider route, privacy gate, OCR scope, dependencies and network destinations are unchanged. After PR #272 validation/merge, rerun the same reviewed contract once and compare specifically: complete 20,000 NIS security-cheque mechanism questions; broad breach versus the existing 7-day rent cure; AS-IS versus repair allocation; the 21-day inspection/10-day correction return procedure; absence of generic option/insurance missing warnings; and absence of invented 2-3 month, 14-day, 48-hour, or 2,000-3,000 NIS recommendations.",
-  "last_recorded_pr": 272,
-  "last_recorded_change": "question-engine-real-report-guardrails-v1",
+  "next_step_id": "question-engine-single-contract-real-rerun-v3",
+  "next_step_summary": "After PR #272 merged, the same March-August 2025 contract rerun did not produce a report because the local runner attempted gemini-3.6-flash, gemini-3.7-flash, and gemini-3.5-flash once each and then terminated when all three retryable attempts failed. Product-owner correction: model routing must continue in cycles rather than die after one full pass. PR #273 changes only the local real-contract runner route: retryable GeminiRateLimitError/GeminiResponseError outcomes cycle 3.6 -> 3.7 -> 3.5, wait 30 seconds after a fully failed cycle, then restart at 3.6 until a model succeeds or the user stops with Ctrl+C. Authentication/configuration failures remain terminal. Safe console status exposes only cycle/model/error class/elapsed time; no contract text, key, or provider exception body. Prompt, privacy gate, OCR scope, model list, dependencies and network destinations are unchanged. After PR #273 validation/merge, rerun the same contract and compare the resulting report against the first real run and the manual benchmark.",
+  "last_recorded_pr": 273,
+  "last_recorded_change": "question-engine-provider-cycle-retry-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-09-16"
