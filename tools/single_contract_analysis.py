@@ -30,10 +30,8 @@ MAX_PAGES = 40
 MAX_TEXT_CHARS = 250_000
 MIN_TEXT_CHARS = 500
 
-_START_MARKERS = (
-    "לפיכך הוסכם, הוצהר והותנה בין הצדדים כדלקמן",
-    "לפיכך הוסכם והותנה בין הצדדים כדלקמן",
-    "לפיכך הוסכם בין הצדדים כדלקמן",
+_BODY_START_RE = re.compile(
+    r"לפיכך\s+הוסכם[^\n]{0,50}?והותנה\s+בין\s+הצדדים\s+כדלקמן"
 )
 _END_MARKERS = (
     "ולראיה באו הצדדים על החתום",
@@ -43,11 +41,11 @@ _EMAIL_RE = re.compile(r"(?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b")
 _PHONE_RE = re.compile(r"(?<!\d)(?:\+972[\s-]?|0)(?:5\d|[23489]|7[0-9])[\s-]?\d{3}[\s-]?\d{4}(?!\d)")
 _ID_RE = re.compile(r"(?<![\d/.,₪-])\d{8,9}(?![\d/.,₪-])")
 _ID_LABEL_RE = re.compile(r"ת\.?\s*ז\.?|תז|תעודת\s+זהות")
-_HEBREW_TOKEN_RE = re.compile(r"[\u0590-\u05FF]{2,}")
+_HEBREW_TOKEN_RE = re.compile(r"[\u0590-\u05FF]+(?:['׳״\"][\u0590-\u05FF]+)*")
 _HEADER_NAME_STOPWORDS = {
     "בין", "לבין", "באמצעות", "המשכיר", "המשכירה", "השוכר", "השוכרת",
     "משכיר", "משכירה", "שוכר", "שוכרת", "להלן", "מצד", "אחד", "שני",
-    "יחד", "לחוד", "אשל", "עורך", "דין", "אפוטרופוס", "המרכז", "הישראלי",
+    "יחד", "לחוד", "אשלא", "עורך", "דין", "אפוטרופוס", "המרכז", "הישראלי",
 }
 _SENSITIVE_MARKERS = (
     "ת.ז", "תז", "תעודת זהות", "טלפון", "טל'", "דוא\"ל", "מייל", "אימייל",
@@ -121,23 +119,44 @@ def extract_pdf_text(pdf_path: Path) -> str:
 
 
 def _body_start(text: str) -> tuple[int, str]:
-    positions = [(text.find(marker), marker) for marker in _START_MARKERS if text.find(marker) >= 0]
-    if not positions:
+    match = _BODY_START_RE.search(text)
+    if not match:
         raise RuntimeError("Could not locate the contract-body start marker; refusing cloud handoff")
-    return min(positions, key=lambda item: item[0])
+    return match.start(), match.group(0)
+
+
+def _normalized_hebrew_token(token: str) -> str:
+    return re.sub(r"['׳״\"]", "", token)
+
+
+def _candidate_name_tokens(text: str) -> list[str]:
+    result: list[str] = []
+    for token in _HEBREW_TOKEN_RE.findall(text):
+        hebrew_len = len(re.findall(r"[\u0590-\u05FF]", token))
+        if hebrew_len < 2:
+            continue
+        if _normalized_hebrew_token(token) in _HEADER_NAME_STOPWORDS:
+            continue
+        result.append(token)
+    return result
 
 
 def _header_person_tokens(text: str) -> set[str]:
     start, _ = _body_start(text)
     header = text[:start]
+    lines = [line.strip() for line in header.splitlines() if line.strip()]
     tokens: set[str] = set()
-    for line in header.splitlines():
+    for index, line in enumerate(lines):
         match = _ID_LABEL_RE.search(line)
         if not match:
             continue
-        for token in _HEBREW_TOKEN_RE.findall(line[:match.start()]):
-            if token not in _HEADER_NAME_STOPWORDS and len(token) >= 2:
-                tokens.add(token)
+        candidates = _candidate_name_tokens(line[:match.start()])
+        if not candidates:
+            for previous in range(index - 1, max(-1, index - 4), -1):
+                candidates = _candidate_name_tokens(lines[previous])
+                if candidates:
+                    break
+        tokens.update(candidates)
     return tokens
 
 
