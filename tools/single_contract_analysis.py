@@ -40,6 +40,7 @@ _END_MARKERS = (
 _EMAIL_RE = re.compile(r"(?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b")
 _PHONE_RE = re.compile(r"(?<!\d)(?:\+972[\s-]?|0)(?:5\d|[23489]|7[0-9])[\s-]?\d{3}[\s-]?\d{4}(?!\d)")
 _ID_RE = re.compile(r"(?<![\d/.,₪-])\d{8,9}(?![\d/.,₪-])")
+_IBAN_RE = re.compile(r"\bIL\d{2}[\s-]?(?:\d[\s-]?){10,25}\b", re.IGNORECASE)
 _ID_LABEL_RE = re.compile(r"ת\.?\s*ז\.?|תז|תעודת\s+זהות")
 _HEBREW_TOKEN_RE = re.compile(r"[\u0590-\u05FF]+(?:['׳״\"][\u0590-\u05FF]+)*")
 _HEADER_NAME_STOPWORDS = {
@@ -47,10 +48,6 @@ _HEADER_NAME_STOPWORDS = {
     "משכיר", "משכירה", "שוכר", "שוכרת", "להלן", "מצד", "אחד", "שני",
     "יחד", "לחוד", "אשלא", "עורך", "דין", "אפוטרופוס", "המרכז", "הישראלי",
 }
-_SENSITIVE_MARKERS = (
-    "ת.ז", "תז", "תעודת זהות", "טלפון", "טל'", "דוא\"ל", "מייל", "אימייל",
-    "מספר חשבון", "חשבון בנק", "IBAN", "חתימה", "חתימות", "רח'",
-)
 
 
 def desktop_dirs() -> list[Path]:
@@ -179,7 +176,7 @@ def _trim_identity_zones(text: str) -> str:
     return body.strip()
 
 
-def residual_pii_findings(text: str) -> list[str]:
+def residual_pii_findings(text: str, header_name_tokens: set[str] | None = None) -> list[str]:
     findings: list[str] = []
     if _EMAIL_RE.search(text):
         findings.append("email")
@@ -187,9 +184,13 @@ def residual_pii_findings(text: str) -> list[str]:
         findings.append("phone")
     if _ID_RE.search(text):
         findings.append("id")
-    for marker in _SENSITIVE_MARKERS:
-        if marker.lower() in text.lower():
-            findings.append(f"marker:{marker}")
+    if _IBAN_RE.search(text):
+        findings.append("iban")
+    for token in header_name_tokens or set():
+        pattern = re.compile(rf"(?<![\u0590-\u05FF]){re.escape(token)}(?![\u0590-\u05FF])")
+        if pattern.search(text):
+            findings.append("header_name")
+            break
     return sorted(set(findings))
 
 
@@ -199,7 +200,7 @@ def prepare_sanitized_contract_text(raw_text: str) -> tuple[str, dict[str, int]]
     body, header_name_replacements = _redact_header_names(body, name_tokens)
     redaction = redact_personal_data_with_report(body)
     sanitized = redaction.redacted_text.strip()
-    residual = residual_pii_findings(sanitized)
+    residual = residual_pii_findings(sanitized, name_tokens)
     if residual:
         raise RuntimeError("Privacy gate blocked provider handoff: " + ", ".join(residual))
 
