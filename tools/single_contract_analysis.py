@@ -204,7 +204,6 @@ def write_report(
     result: ContractAuditResult,
 ) -> Path:
     report = {
-        "source_file": pdf_path.name,
         "model_used": model_used,
         "attempts": attempts,
         "redaction_counts": redaction_counts,
