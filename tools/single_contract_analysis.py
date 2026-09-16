@@ -16,7 +16,7 @@ from contract_checker.gemini_engine import (
     GeminiResponseError,
     analyze_contract_with_gemini,
 )
-from contract_checker.redaction import redact_personal_data_with_report
+from contract_checker.redaction import NAME_PLACEHOLDER, redact_personal_data_with_report
 from contract_checker.schemas import ContractAuditResult
 from contract_checker.validator import validate_contract_text
 
@@ -42,6 +42,13 @@ _END_MARKERS = (
 _EMAIL_RE = re.compile(r"(?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b")
 _PHONE_RE = re.compile(r"(?<!\d)(?:\+972[\s-]?|0)(?:5\d|[23489]|7[0-9])[\s-]?\d{3}[\s-]?\d{4}(?!\d)")
 _ID_RE = re.compile(r"(?<![\d/.,₪-])\d{8,9}(?![\d/.,₪-])")
+_ID_LABEL_RE = re.compile(r"ת\.?\s*ז\.?|תז|תעודת\s+זהות")
+_HEBREW_TOKEN_RE = re.compile(r"[\u0590-\u05FF]{2,}")
+_HEADER_NAME_STOPWORDS = {
+    "בין", "לבין", "באמצעות", "המשכיר", "המשכירה", "השוכר", "השוכרת",
+    "משכיר", "משכירה", "שוכר", "שוכרת", "להלן", "מצד", "אחד", "שני",
+    "יחד", "לחוד", "אשל", "עורך", "דין", "אפוטרופוס", "המרכז", "הישראלי",
+}
 _SENSITIVE_MARKERS = (
     "ת.ז", "תז", "תעודת זהות", "טלפון", "טל'", "דוא\"ל", "מייל", "אימייל",
     "מספר חשבון", "חשבון בנק", "IBAN", "חתימה", "חתימות", "רח'",
@@ -113,13 +120,40 @@ def extract_pdf_text(pdf_path: Path) -> str:
     return combined
 
 
-def _trim_identity_zones(text: str) -> str:
-    start_positions = [(text.find(marker), marker) for marker in _START_MARKERS if text.find(marker) >= 0]
-    if not start_positions:
+def _body_start(text: str) -> tuple[int, str]:
+    positions = [(text.find(marker), marker) for marker in _START_MARKERS if text.find(marker) >= 0]
+    if not positions:
         raise RuntimeError("Could not locate the contract-body start marker; refusing cloud handoff")
-    start, marker = min(start_positions, key=lambda item: item[0])
-    body = text[start + len(marker):]
+    return min(positions, key=lambda item: item[0])
 
+
+def _header_person_tokens(text: str) -> set[str]:
+    start, _ = _body_start(text)
+    header = text[:start]
+    tokens: set[str] = set()
+    for line in header.splitlines():
+        match = _ID_LABEL_RE.search(line)
+        if not match:
+            continue
+        for token in _HEBREW_TOKEN_RE.findall(line[:match.start()]):
+            if token not in _HEADER_NAME_STOPWORDS and len(token) >= 2:
+                tokens.add(token)
+    return tokens
+
+
+def _redact_header_names(body: str, tokens: set[str]) -> tuple[str, int]:
+    total = 0
+    redacted = body
+    for token in sorted(tokens, key=len, reverse=True):
+        pattern = re.compile(rf"(?<![\u0590-\u05FF]){re.escape(token)}(?![\u0590-\u05FF])")
+        redacted, count = pattern.subn(NAME_PLACEHOLDER, redacted)
+        total += count
+    return redacted, total
+
+
+def _trim_identity_zones(text: str) -> str:
+    start, marker = _body_start(text)
+    body = text[start + len(marker):]
     end_positions = [body.find(marker) for marker in _END_MARKERS if body.find(marker) >= 0]
     if end_positions:
         body = body[: min(end_positions)]
@@ -141,7 +175,9 @@ def residual_pii_findings(text: str) -> list[str]:
 
 
 def prepare_sanitized_contract_text(raw_text: str) -> tuple[str, dict[str, int]]:
+    name_tokens = _header_person_tokens(raw_text)
     body = _trim_identity_zones(raw_text)
+    body, header_name_replacements = _redact_header_names(body, name_tokens)
     redaction = redact_personal_data_with_report(body)
     sanitized = redaction.redacted_text.strip()
     residual = residual_pii_findings(sanitized)
@@ -159,10 +195,10 @@ def prepare_sanitized_contract_text(raw_text: str) -> tuple[str, dict[str, int]]
         "ids": report.ids,
         "bank_details": report.bank_details,
         "addresses": report.addresses,
-        "names": report.names,
+        "names": report.names + header_name_replacements,
         "signatures": report.signatures,
         "guarantor_details": report.guarantor_details,
-        "total": report.total,
+        "total": report.total + header_name_replacements,
     }
     return sanitized, counts
 
