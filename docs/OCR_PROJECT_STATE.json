@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-16-123",
+  "state_version": "privacy-ocr-2026-09-16-124",
   "active_track": "question-engine-development",
-  "next_step_id": "question-engine-single-contract-real-run-v1",
-  "next_step_summary": "Product owner redirected evaluation from the ten-case synthetic provider comparison to one real rental contract at a time. PR #271 adds a local Windows runner that lets the user choose exactly one PDF and does not expose model selection. For text-layer PDFs, extraction stays local; high-risk identity zones are removed, the existing deterministic text redactor is applied, and a residual-PII/usability gate must pass before any Gemini call. Image-only/scanned PDFs fail closed and require a future approved OCR path. Provider selection is automatic reactive failover gemini-3.6-flash -> gemini-3.7-flash -> gemini-3.5-flash; authentication/configuration failures abort. No 3.8 route is added. After PR #271 validation/merge, run the chosen real text-layer contract once and inspect the sanitized structured report and attempt ledger. Raw PDFs, raw extracted text and recoverable PII remain local and must not be committed or written to the report.",
-  "last_recorded_pr": 271,
-  "last_recorded_change": "question-engine-single-contract-local-pdf-v1",
+  "next_step_id": "question-engine-single-contract-real-rerun-v2",
+  "next_step_summary": "The first real March-August 2025 text-layer contract run completed with gemini-3.6-flash on the first provider attempt in 35.334 seconds and returned a high-completeness structured audit. The run confirmed that the model can read major lease mechanisms but also exposed model-owned prioritization/remediation defects: security-cheque mechanics were underweighted versus amount/market comparisons, broad fundamental-breach wording was not fully reconciled with the contract's specific cure mechanics, AS-IS remained a warning despite related repair protections, the handover defect-remediation procedure was underemphasized, and the report invented generic missing clauses, market norms, and numeric rewrite proposals. PR #272 wires the existing deterministic Question Engine core inventories into the whole-contract prompt, requires cross-clause second-pass resolution, blocks unsupported market/numeric invention, and suppresses ungated model-owned rewrite advice, generic missing-clause wishlists, and market-comparison prose in the local persisted report. Provider route, privacy gate, OCR scope, dependencies and network destinations are unchanged. After PR #272 validation/merge, rerun the same reviewed contract once and compare specifically: complete 20,000 NIS security-cheque mechanism questions; broad breach versus the existing 7-day rent cure; AS-IS versus repair allocation; the 21-day inspection/10-day correction return procedure; absence of generic option/insurance missing warnings; and absence of invented 2-3 month, 14-day, 48-hour, or 2,000-3,000 NIS recommendations.",
+  "last_recorded_pr": 272,
+  "last_recorded_change": "question-engine-real-report-guardrails-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-09-16"
