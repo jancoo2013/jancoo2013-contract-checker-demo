@@ -38,7 +38,7 @@ class PromptScopeLimitTests(unittest.TestCase):
         self.assertIn("missing_clauses — не список желательных улучшений", SYSTEM_PROMPT_RU)
         self.assertIn("Отсутствие опции продления, страховки строения", SYSTEM_PROMPT_RU)
         self.assertIn("Не придумывай числовые лимиты", SYSTEM_PROMPT_RU)
-        self.assertIn("не является риском само по себе", SYSTEM_PROMPT_RU)
+        self.assertIn("не является missing clause или риском", SYSTEM_PROMPT_RU)
         self.assertNotIn(
             "Сравнивай условия отдельно с: (a) типовой структурой договора аренды жилья в Израиле",
             SYSTEM_PROMPT_RU,
