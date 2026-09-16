@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-15-122",
+  "state_version": "privacy-ocr-2026-09-16-123",
   "active_track": "question-engine-development",
-  "next_step_id": "question-engine-security-provider-37-comparison-run-v1",
-  "next_step_summary": "Local provider experiment v6 completed on the ten-case synthetic/sanitized security corpus: 705.02 seconds total, 8/10 cases completed, 14 provider attempts, gemini-3.6-flash succeeded on 8 cases, and gemini-3.5-flash succeeded on 0 of 4 fallback attempts; two 3.6 responses were invalid JSON and four 3.5 attempts returned provider_overloaded. PR #270 adds a bounded local model-selection launcher with gemini-3.6-flash, gemini-3.7-flash, and gemini-3.5-flash as primary choices while keeping at most one fallback, gemini-3.5-flash, and excluding 3.8. After PR #270 validation/merge, run the same ten-case synthetic/sanitized experiment with 3.7 as primary and compare latency, completion rate, provider failures, and semantic score against the v6 3.6 baseline. Real contracts/raw OCR/recoverable PII remain prohibited from this diagnostic harness.",
-  "last_recorded_pr": 270,
-  "last_recorded_change": "question-engine-security-provider-37-menu-v1",
+  "next_step_id": "question-engine-single-contract-real-run-v1",
+  "next_step_summary": "Product owner redirected evaluation from the ten-case synthetic provider comparison to one real rental contract at a time. PR #271 adds a local Windows runner that lets the user choose exactly one PDF and does not expose model selection. For text-layer PDFs, extraction stays local; high-risk identity zones are removed, the existing deterministic text redactor is applied, and a residual-PII/usability gate must pass before any Gemini call. Image-only/scanned PDFs fail closed and require a future approved OCR path. Provider selection is automatic reactive failover gemini-3.6-flash -> gemini-3.7-flash -> gemini-3.5-flash; authentication/configuration failures abort. No 3.8 route is added. After PR #271 validation/merge, run the chosen real text-layer contract once and inspect the sanitized structured report and attempt ledger. Raw PDFs, raw extracted text and recoverable PII remain local and must not be committed or written to the report.",
+  "last_recorded_pr": 271,
+  "last_recorded_change": "question-engine-single-contract-local-pdf-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
-  "updated_on": "2026-09-15"
+  "updated_on": "2026-09-16"
 }
