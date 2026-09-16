@@ -62,6 +62,22 @@ class SingleContractAnalysisTests(unittest.TestCase):
         self.assertNotIn("050-7654321", body)
         self.assertIn("דמי שכירות", body)
 
+    def test_header_derived_person_names_are_redacted_in_body(self):
+        raw = (
+            "--- СТРАНИЦА 1 ---\n"
+            "בין: שיר דנצינגר ת.ז. 123456789\n"
+            "לבין: אנה איסקוביץ ת.ז. 987654321\n"
+            "לפיכך הוסכם והותנה בין הצדדים כדלקמן\n"
+            "התשלום יימסר למשכיר שיר דנצינגר בהתאם להסכם."
+        )
+        tokens = runner._header_person_tokens(raw)
+        body = runner._trim_identity_zones(raw)
+        redacted, count = runner._redact_header_names(body, tokens)
+        self.assertGreaterEqual(count, 2)
+        self.assertNotIn("שיר", redacted)
+        self.assertNotIn("דנצינגר", redacted)
+        self.assertIn(runner.NAME_PLACEHOLDER, redacted)
+
     def test_residual_pii_gate_detects_identifiers(self):
         findings = runner.residual_pii_findings(
             "המשכיר 050-1234567 person@example.com ת.ז 123456789"
@@ -81,11 +97,11 @@ class SingleContractAnalysisTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "OCR is required"):
                 runner.extract_pdf_text(path)
 
-    def test_report_does_not_store_contract_text(self):
+    def test_report_does_not_store_contract_text_or_source_filename(self):
         with tempfile.TemporaryDirectory() as tmp, patch.object(
             runner.time, "strftime", return_value="20260916_220000"
         ):
-            pdf = Path(tmp) / "contract.pdf"
+            pdf = Path(tmp) / "person-name-contract.pdf"
             pdf.write_bytes(b"unused")
             path = runner.write_report(
                 pdf,
@@ -97,6 +113,7 @@ class SingleContractAnalysisTests(unittest.TestCase):
             text = path.read_text(encoding="utf-8")
         self.assertNotIn("sanitized_text", text)
         self.assertNotIn("raw_text", text)
+        self.assertNotIn("person-name-contract.pdf", text)
 
 
 if __name__ == "__main__":
