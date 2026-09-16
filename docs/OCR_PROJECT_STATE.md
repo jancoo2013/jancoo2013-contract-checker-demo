@@ -1,57 +1,93 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-09-15, PR #270, `question-engine-security-provider-37-menu-v1`.
+Последнее обновление: 2026-09-16, PR #271, `question-engine-single-contract-local-pdf-v1`.
 
 Активный трек: `question-engine-development`.
 
-Канонический следующий bounded-шаг: `question-engine-security-provider-37-comparison-run-v1`.
+Канонический следующий bounded-шаг: `question-engine-single-contract-real-run-v1`.
 
 Этот документ вместе с `docs/OCR_PROJECT_STATE.json` является канонической operational-точкой восстановления. Binding architecture/security/privacy documents остаются выше по приоритету; `active_track` и `next_step_id` выбираются state-файлами.
 
-## 1. Provider harness status
+## 1. Provider baseline already established
 
-Corrective chain #266 → #268 → #269 завершена и слита. Она ограничила provider route Flash-моделями, добавила bounded retry/routing, fail-closed parsing/schema validation, response-size bounds, run-scoped unavailable-model memory, attempt ledger, redaction/report integrity и terminal lifecycle. Воспроизводимый HIGH с ложным `COMPLETED` при exhaustion route на последнем case исправлен; LOW observations по HTTP-date `Retry-After` и jitter остаются out of scope.
+Corrective chain #266 → #268 → #269 завершена и слита: bounded retry/routing, fail-closed parsing/schema validation, response-size bounds, run-scoped unavailable-model memory, attempt ledger, redaction/report integrity и terminal lifecycle.
 
-Local provider experiment v6 выполнен на десяти synthetic/sanitized security cases:
+Local provider experiment v6 на 10 synthetic/sanitized security cases дал:
 
-- total duration: `705.02s`;
-- cases completed: `8/10`;
-- provider attempts: `14`;
+- total duration `705.02s`;
+- `8/10` cases completed;
+- `14` provider attempts;
 - `gemini-3.6-flash`: 10 attempts, 8 successful cases;
 - `gemini-3.5-flash`: 4 fallback attempts, 0 successful cases;
-- provider failures: 2 × `model_output_invalid_json` from 3.6, 4 × `provider_overloaded`/HTTP 503 from 3.5;
+- two 3.6 responses were invalid JSON;
+- four 3.5 attempts returned provider overload / HTTP 503;
 - hard failures in completed semantic cases: `0`.
 
-The local JSON/TXT report is runtime evidence only and is not committed to the repository.
+PR #270 added `gemini-3.7-flash` as an available experimental Flash model while excluding 3.8.
 
-## 2. PR #270 bounded model-selection change
+## 2. Product-owner direction change: real contracts one at a time
 
-Product owner explicitly authorized adding Gemini 3.7 for comparison while excluding 3.8.
+The product owner explicitly ended the planned synthetic 3.7 comparison as the immediate next step. Evaluation now moves to the available real rental contracts one contract at a time.
 
-PR #270 adds a local launcher menu with selectable primary models:
+PR #271 adds a dedicated local Windows runner for this purpose.
 
-- `gemini-3.6-flash`;
-- `gemini-3.7-flash`;
-- `gemini-3.5-flash`.
+User flow:
 
-Routing remains bounded to at most two models. For 3.6 or 3.7 primary, the only fallback is existing `gemini-3.5-flash`. Selecting 3.5 produces a single-model route. The underlying provider harness retry logic, schema, scorer, corpus and network destination are unchanged. No 3.8 route is introduced.
+```text
+launch runner
+→ choose exactly one PDF
+→ local text-layer extraction
+→ remove high-risk identity zones
+→ existing deterministic PII redaction
+→ residual-PII + contract-usability gate
+→ automatic Gemini Flash routing
+→ local sanitized structured JSON report
+```
 
-## 3. Canonical next step
+There is no model-selection menu in this flow. The automatic route is:
 
-`next_step_id = question-engine-security-provider-37-comparison-run-v1`
+```text
+gemini-3.6-flash
+→ on provider/rate/response failure: gemini-3.7-flash
+→ on provider/rate/response failure: gemini-3.5-flash
+```
 
-After PR #270 passes focused validation and is merged, run the same ten-case synthetic/sanitized provider experiment with `gemini-3.7-flash` as primary. Compare against the v6 3.6 baseline using:
+This is reactive failover based on actual request success/failure. It is not a claim that Gemini exposes a reliable server-load percentage API. Authentication/configuration failures abort instead of falling through. No 3.8 route is added.
 
-- total latency and per-attempt latency;
-- completed cases;
-- provider failure classes;
-- fallback frequency/success;
-- exact/value/state/ref/resolution semantic metrics;
-- hard failures.
+## 3. Privacy and PDF scope of PR #271
 
-Do not add 3.8 or expand the automatic route beyond one fallback during this comparison.
+Real PDF originals remain local and are never committed.
 
-## 4. Current Question Engine architecture
+For this first real-contract runner:
+
+- only PDFs with a usable embedded text layer are accepted;
+- PDF size, page count and extracted text size are bounded;
+- image-only/scanned PDFs fail closed with an OCR-required message;
+- raw extracted text is not persisted to the report;
+- high-risk header/preamble identity material before the contract-body marker is excluded from cloud handoff;
+- signature/footer material after the signature marker is excluded from cloud handoff;
+- the remaining body is passed through the existing deterministic Hebrew PII redactor;
+- a residual PII gate checks emails, Israeli-looking phones, compact ID values and sensitive field markers;
+- if that gate or contract-text usability validation fails, no Gemini call is made;
+- the persisted report contains only non-sensitive attempt metadata, redaction counts and the structured analysis result; it does not contain the selected source filename or raw/sanitized contract text.
+
+This runner is a local research/evaluation path, not a production privacy certification. Scanned/image PDFs remain blocked until an approved OCR/privacy path is explicitly reopened.
+
+## 4. Canonical next step
+
+`next_step_id = question-engine-single-contract-real-run-v1`
+
+After PR #271 focused validation and merge, run one chosen real text-layer contract with `run_single_contract_analysis.cmd` and inspect:
+
+- whether the local privacy/usability gate passes;
+- which Flash model actually completes the request;
+- attempt latency/failure metadata;
+- the structured whole-contract analysis;
+- whether important cross-clause mechanisms such as security cheque mechanics, early exit/replacement tenant, AS-IS versus repair allocation, cure/termination interaction and handover/holdover are represented coherently.
+
+The first preferred contract is the real March–August 2025 Habastilia/Fox lease because it has an embedded text layer and contains several interacting mechanisms already reviewed manually. Raw source material must remain outside GitHub/CI.
+
+## 5. Current Question Engine architecture
 
 ```text
 privacy-validated sanitized contract material
@@ -69,17 +105,7 @@ privacy-validated sanitized contract material
 → Safe Output
 ```
 
-Core invariants: handwriting не угадывается; different security instruments remain distinct; missing/blank dependencies are explicit; candidate finding is not final finding; user-facing output does not issue sign/don't-sign advice, court predictions, or categorical enforceability claims without a separately approved deterministic rule.
-
-## 5. Provider/privacy invariants
-
-Diagnostic provider experiments may use only synthetic or privacy-validated sanitized material. Real contracts, raw PDF/page images, raw OCR, names, IDs, phones, email, addresses, signatures, bank/check identifiers, guarantor PII and other recoverable PII must not enter Gemini prompts, GitHub, CI, logs or committed fixtures.
-
-The eight newly available real PDF contracts may be used only after local extraction/OCR and privacy validation produce sanitized derivatives. Raw originals stay local and are not committed.
-
-Provider host remains the fixed Google GenerateContent endpoint already used by the harness. Current bounds remain timeout 120 seconds, pacing 30 seconds, attempt cap 2/model and 4/global, bounded HTTP-200 body, fail-closed structured parsing and report secret redaction. PR #270 adds no dependency, workflow, permission, storage path, OCR/Android/serverless path or production data flow.
-
-Repository remains pre-production. Production use with real contracts remains blocked by the binding security/privacy requirements in `SECURITY.md` and architecture documents.
+Core invariants: handwriting is never guessed; different security instruments remain distinct; missing/blank dependencies are explicit; candidate finding is not final finding; user-facing output does not issue sign/don't-sign advice, court predictions, or categorical enforceability claims without a separately approved deterministic rule.
 
 ## 6. Stable recovery anchors
 
