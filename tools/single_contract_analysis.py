@@ -256,6 +256,27 @@ def analyze_with_auto_route(
     raise SafeRunnerError("All configured Gemini Flash models failed for this contract")
 
 
+def apply_real_contract_output_guardrails(result: ContractAuditResult) -> ContractAuditResult:
+    """Remove report layers that are not yet backed by deterministic/statutory gates.
+
+    The model remains the semantic reader for source-grounded clauses, risks,
+    questions and financial facts. Market comparisons, rewrite advice and a
+    generic missing-clause wishlist are suppressed until their dedicated layers
+    are wired into the real-contract path.
+    """
+
+    risks = [item.model_copy(update={"requested_change_ru": None}) for item in result.risks]
+    financial_hints = [item.model_copy(update={"comparison_ru": None}) for item in result.financial_hints]
+    return result.model_copy(
+        update={
+            "risks": risks,
+            "financial_hints": financial_hints,
+            "missing_clauses": [],
+            "proposed_changes": [],
+        }
+    )
+
+
 def write_report(
     pdf_path: Path,
     model_used: str,
@@ -284,6 +305,7 @@ def main() -> int:
         raw_text = extract_pdf_text(pdf_path)
         sanitized_text, redaction_counts = prepare_sanitized_contract_text(raw_text)
         result, model_used, attempts = analyze_with_auto_route(sanitized_text, load_key())
+        result = apply_real_contract_output_guardrails(result)
         report_path = write_report(pdf_path, model_used, attempts, redaction_counts, result)
     except SafeRunnerError as exc:
         print(f"Анализ остановлен: {exc}")
