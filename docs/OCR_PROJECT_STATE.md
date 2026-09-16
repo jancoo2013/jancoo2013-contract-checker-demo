@@ -1,10 +1,10 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-09-16, PR #272, `question-engine-real-report-guardrails-v1`.
+Последнее обновление: 2026-09-16, PR #273, `question-engine-provider-cycle-retry-v1`.
 
 Активный трек: `question-engine-development`.
 
-Канонический следующий bounded-шаг: `question-engine-single-contract-real-rerun-v2`.
+Канонический следующий bounded-шаг: `question-engine-single-contract-real-rerun-v3`.
 
 Этот документ вместе с `docs/OCR_PROJECT_STATE.json` является канонической operational-точкой восстановления. Binding architecture/security/privacy documents остаются выше по приоритету; `active_track` и `next_step_id` выбираются state-файлами.
 
@@ -14,15 +14,18 @@ Corrective chain #266 → #268 → #269 завершена и слита: bounde
 
 Local provider experiment v6 на 10 synthetic/sanitized security cases дал `705.02s`, `8/10` completed, 14 provider attempts; 3.6 succeeded on 8 cases, 3.5 succeeded on 0/4 fallback attempts. PR #270 added 3.7 for experimental Flash routing while excluding 3.8.
 
-Current real-contract automatic route remains:
+Current real-contract automatic route after PR #273 is cyclic:
 
 ```text
 gemini-3.6-flash
-→ on provider/rate/response failure: gemini-3.7-flash
-→ on provider/rate/response failure: gemini-3.5-flash
+→ on retryable provider/rate/response failure: gemini-3.7-flash
+→ on retryable provider/rate/response failure: gemini-3.5-flash
+→ if the full cycle fails: wait 30 seconds
+→ restart at gemini-3.6-flash
+→ repeat until success or user Ctrl+C
 ```
 
-The user does not select a model. Routing is reactive failover based on actual request success/failure, not a server-load percentage API.
+The user does not select a model. Routing is reactive failover based on actual request success/failure, not a server-load percentage API. Authentication/configuration failures remain terminal and do not loop.
 
 ## 2. Real-contract runner and privacy boundary
 
@@ -37,11 +40,11 @@ choose exactly one PDF
 → redact recurring header-derived party names
 → existing deterministic PII redaction
 → residual-PII + contract-usability gate
-→ automatic Gemini Flash routing
+→ cyclic automatic Gemini Flash routing
 → guarded local structured JSON report
 ```
 
-Real PDF originals remain local and are never committed. The persisted report does not contain the source filename or raw/sanitized contract text. Image-only/scanned PDFs remain fail-closed and require a future explicitly approved OCR/privacy path. PR #272 does not reopen OCR.
+Real PDF originals remain local and are never committed. The persisted report does not contain the source filename or raw/sanitized contract text. Image-only/scanned PDFs remain fail-closed and require a future explicitly approved OCR/privacy path. PR #273 does not reopen OCR.
 
 ## 3. First real full-contract run
 
@@ -82,13 +85,35 @@ Prompt guardrails require:
 
 Until dedicated deterministic/statutory/remediation layers are wired into this local real-contract path, the persisted report additionally suppresses model-owned `proposed_changes`, generic `missing_clauses`, per-risk rewrite requests, and market-comparison prose. Source-grounded clause analysis, risks, questions, unclear fragments and financial facts remain.
 
-Provider route, PII gate, PDF scope, dependencies, permissions and network destinations are unchanged.
+Provider route, PII gate, PDF scope, dependencies, permissions and network destinations were unchanged by PR #272.
 
-## 5. Canonical next step
+## 5. Failed same-contract rerun and PR #273 correction
 
-`next_step_id = question-engine-single-contract-real-rerun-v2`
+After PR #272 merged, the same March–August 2025 contract was launched again. The runner attempted the configured Flash route once and then stopped with:
 
-After PR #272 focused validation and merge, rerun the same reviewed March–August 2025 contract once and compare the new report against the first real run. Specifically verify:
+```text
+All configured Gemini Flash models failed for this contract
+```
+
+That behavior does not match the product-owner requirement. A transiently overloaded provider should not terminate the whole user run merely because all three models failed once.
+
+PR #273 changes only retry orchestration in the local real-contract runner:
+
+- retryable `GeminiRateLimitError` and `GeminiResponseError` outcomes move to the next model;
+- after 3.6, 3.7 and 3.5 have all failed, the runner waits 30 seconds and starts again at 3.6;
+- cycles continue until one model returns a valid `ContractAuditResult` or the user stops with Ctrl+C;
+- authentication/configuration failures remain terminal;
+- console status shows only cycle number, model, safe error class and elapsed seconds;
+- the attempt ledger records the cycle for every attempt and is persisted only if a model eventually succeeds;
+- no raw provider exception body, API key or contract text is printed.
+
+Prompt, output guardrails, privacy boundary, OCR scope, model list, dependencies, permissions, endpoint set and network destinations are unchanged.
+
+## 6. Canonical next step
+
+`next_step_id = question-engine-single-contract-real-rerun-v3`
+
+After PR #273 focused validation and merge, rerun the same reviewed March–August 2025 contract and allow cyclic provider retries to continue until one model succeeds or the run is manually stopped. Then compare the new report against the first real run. Specifically verify:
 
 - the 20,000 NIS cheque is discussed through its complete mechanism rather than mainly its size;
 - broad fundamental-breach wording is reconciled with the existing 7-day rent cure;
@@ -99,7 +124,7 @@ After PR #272 focused validation and merge, rerun the same reviewed March–Augu
 
 Do not move to the other real contracts until this same-contract before/after comparison is inspected.
 
-## 6. Current Question Engine architecture
+## 7. Current Question Engine architecture
 
 ```text
 privacy-validated sanitized contract material
@@ -119,7 +144,7 @@ privacy-validated sanitized contract material
 
 Core invariants: handwriting is never guessed; different security instruments remain distinct; missing/blank dependencies are explicit; candidate finding is not final finding; user-facing output does not issue sign/don't-sign advice, court predictions, or categorical enforceability claims without a separately approved deterministic rule.
 
-## 7. Stable recovery anchors
+## 8. Stable recovery anchors
 
 Current smart CORE families: security/enforcement, early exit/replacement tenant, financial sanctions/overlap, condition/AS-IS/defects/damage evidence, termination/cure/notice, option/renewal. Corpus oracle v2 remains an evaluation representation, not production runtime schema.
 
@@ -129,7 +154,7 @@ Frozen OCR anchor: Surya/cloud OCR remains frozen research; Tesseract full-page 
 
 Last completed Question Engine batch audit marker: 2026-09-08, start `cbbb8e0905c1fda8610260d4046b51952a9f636c`, end `ee66e0063e270abd5eb7992f2be73c89dbec3a5d`, principal PR range `#234–#250`, outcome `CORRECTIVE PR REQUIRED`. Provider audit after #265 is separate and its bounded corrective chain is complete.
 
-## 8. Recovery/work rules
+## 9. Recovery/work rules
 
 Before a new PR read from current base: `AGENTS.md`, `SECURITY.md`, `docs/ARCHITECTURE.md`, `docs/CUSTOM_OCR_PIPELINE.md`, `docs/SERVERLESS_GPU_OCR_PIPELINE_V1.md`, both state files, `docs/DOCUMENT_STATUS_INDEX.md`, and `docs/CODEX_WORKFLOW.md`.
 

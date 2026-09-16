@@ -25,6 +25,7 @@ AUTO_MODEL_ROUTE = (
     "gemini-3.7-flash",
     "gemini-3.5-flash",
 )
+RETRY_CYCLE_DELAY_SECONDS = 30.0
 MAX_PDF_BYTES = 25 * 1024 * 1024
 MAX_PAGES = 40
 MAX_TEXT_CHARS = 250_000
@@ -231,29 +232,56 @@ def analyze_with_auto_route(
     sanitized_text: str,
     api_key: str,
     analyze_fn: Callable[..., ContractAuditResult] = analyze_contract_with_gemini,
+    sleep_fn: Callable[[float], None] = time.sleep,
+    status_fn: Callable[[str], None] = print,
 ) -> tuple[ContractAuditResult, str, list[dict[str, object]]]:
+    """Cycle through Flash models until one retryable attempt succeeds.
+
+    Authentication/configuration errors remain terminal. Provider, rate-limit and
+    structured-response failures rotate to the next model; after a full failed
+    cycle the runner waits briefly and starts again from the preferred model.
+    The user can stop an extended retry loop with Ctrl+C.
+    """
+
     attempts: list[dict[str, object]] = []
-    for model in AUTO_MODEL_ROUTE:
-        started = time.monotonic()
-        try:
-            result = analyze_fn(redacted_text=sanitized_text, api_key=api_key, model=model)
-        except (GeminiAuthenticationError, GeminiConfigurationError):
-            raise
-        except (GeminiRateLimitError, GeminiResponseError) as exc:
+    cycle = 1
+    while True:
+        for model in AUTO_MODEL_ROUTE:
+            started = time.monotonic()
+            try:
+                result = analyze_fn(redacted_text=sanitized_text, api_key=api_key, model=model)
+            except (GeminiAuthenticationError, GeminiConfigurationError):
+                raise
+            except (GeminiRateLimitError, GeminiResponseError) as exc:
+                elapsed = round(time.monotonic() - started, 3)
+                attempts.append({
+                    "cycle": cycle,
+                    "model": model,
+                    "status": "FAILED",
+                    "error": type(exc).__name__,
+                    "elapsed_seconds": elapsed,
+                })
+                status_fn(
+                    f"Цикл {cycle}: {model} — {type(exc).__name__} — {elapsed:.1f}s"
+                )
+                continue
+
+            elapsed = round(time.monotonic() - started, 3)
             attempts.append({
+                "cycle": cycle,
                 "model": model,
-                "status": "FAILED",
-                "error": type(exc).__name__,
-                "elapsed_seconds": round(time.monotonic() - started, 3),
+                "status": "OK",
+                "elapsed_seconds": elapsed,
             })
-            continue
-        attempts.append({
-            "model": model,
-            "status": "OK",
-            "elapsed_seconds": round(time.monotonic() - started, 3),
-        })
-        return result, model, attempts
-    raise SafeRunnerError("All configured Gemini Flash models failed for this contract")
+            status_fn(f"Цикл {cycle}: {model} — OK — {elapsed:.1f}s")
+            return result, model, attempts
+
+        status_fn(
+            f"Цикл {cycle}: все модели временно не дали результата. "
+            f"Повтор через {int(RETRY_CYCLE_DELAY_SECONDS)} с. Ctrl+C — остановить."
+        )
+        sleep_fn(RETRY_CYCLE_DELAY_SECONDS)
+        cycle += 1
 
 
 def apply_real_contract_output_guardrails(result: ContractAuditResult) -> ContractAuditResult:
@@ -313,6 +341,9 @@ def main() -> int:
     except (GeminiAuthenticationError, GeminiConfigurationError, GeminiRateLimitError, GeminiResponseError) as exc:
         print(f"Анализ остановлен: {exc}")
         return 1
+    except KeyboardInterrupt:
+        print("Анализ остановлен пользователем.")
+        return 130
     except Exception as exc:
         print(f"Анализ остановлен: {type(exc).__name__}")
         return 1

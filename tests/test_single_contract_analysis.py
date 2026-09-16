@@ -31,22 +31,68 @@ class SingleContractAnalysisTests(unittest.TestCase):
                 raise GeminiResponseError("overloaded")
             return FakeResult()
 
-        result, model, attempts = runner.analyze_with_auto_route("sanitized", "key", analyze_fn)
+        result, model, attempts = runner.analyze_with_auto_route(
+            "sanitized", "key", analyze_fn, status_fn=lambda _message: None
+        )
         self.assertIsInstance(result, FakeResult)
         self.assertEqual(model, "gemini-3.7-flash")
         self.assertEqual(calls, ["gemini-3.6-flash", "gemini-3.7-flash"])
         self.assertEqual([item["status"] for item in attempts], ["FAILED", "OK"])
+        self.assertEqual([item["cycle"] for item in attempts], [1, 1])
+
+    def test_auto_route_repeats_full_cycle_until_success(self):
+        calls = []
+        sleeps = []
+        statuses = []
+
+        def analyze_fn(*, redacted_text, api_key, model):
+            calls.append(model)
+            if len(calls) <= len(runner.AUTO_MODEL_ROUTE):
+                raise GeminiResponseError("temporary")
+            return FakeResult()
+
+        result, model, attempts = runner.analyze_with_auto_route(
+            "sanitized",
+            "key",
+            analyze_fn,
+            sleep_fn=sleeps.append,
+            status_fn=statuses.append,
+        )
+
+        self.assertIsInstance(result, FakeResult)
+        self.assertEqual(model, "gemini-3.6-flash")
+        self.assertEqual(
+            calls,
+            [
+                "gemini-3.6-flash",
+                "gemini-3.7-flash",
+                "gemini-3.5-flash",
+                "gemini-3.6-flash",
+            ],
+        )
+        self.assertEqual(sleeps, [runner.RETRY_CYCLE_DELAY_SECONDS])
+        self.assertEqual([item["cycle"] for item in attempts], [1, 1, 1, 2])
+        self.assertEqual([item["status"] for item in attempts], ["FAILED", "FAILED", "FAILED", "OK"])
+        self.assertTrue(any("Повтор через" in message for message in statuses))
 
     def test_authentication_failure_aborts_without_fallback(self):
         calls = []
+        sleeps = []
 
         def analyze_fn(*, redacted_text, api_key, model):
             calls.append(model)
             raise GeminiAuthenticationError("auth")
 
         with self.assertRaises(GeminiAuthenticationError):
-            runner.analyze_with_auto_route("sanitized", "key", analyze_fn)
+            runner.analyze_with_auto_route(
+                "sanitized",
+                "key",
+                analyze_fn,
+                sleep_fn=sleeps.append,
+                status_fn=lambda _message: None,
+            )
         self.assertEqual(calls, ["gemini-3.6-flash"])
+        self.assertEqual(sleeps, [])
 
     def test_identity_zones_are_removed_before_redaction(self):
         raw = (
