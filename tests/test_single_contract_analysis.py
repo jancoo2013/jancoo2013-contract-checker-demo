@@ -6,6 +6,7 @@ from unittest.mock import patch
 import fitz
 
 from contract_checker.gemini_engine import GeminiAuthenticationError, GeminiResponseError
+from contract_checker.schemas import ContractAuditResult
 from tools import single_contract_analysis as runner
 
 
@@ -102,6 +103,70 @@ class SingleContractAnalysisTests(unittest.TestCase):
             document.close()
             with self.assertRaisesRegex(RuntimeError, "OCR is required"):
                 runner.extract_pdf_text(path)
+
+    def test_real_contract_guardrails_keep_evidence_but_remove_ungated_layers(self):
+        result = ContractAuditResult.model_validate(
+            {
+                "risk_profile": "issues_to_clarify",
+                "risk_profile_summary_ru": "Есть вопросы для уточнения.",
+                "document_quality": {"usable": True, "completeness": "high", "problems": []},
+                "clauses": [],
+                "risks": [
+                    {
+                        "title_ru": "Широкий механизм",
+                        "level": "yellow",
+                        "page": 1,
+                        "source_quote_he": "",
+                        "evidence_block_ids": ["P1-B01"],
+                        "explanation_ru": "Нужно сопоставить связанные пункты.",
+                        "requested_change_ru": "Добавить 14 дней на исправление.",
+                    }
+                ],
+                "financial_hints": [
+                    {
+                        "title_ru": "Обеспечение",
+                        "category": "guarantee",
+                        "page": 1,
+                        "source_quote_he": "",
+                        "evidence_block_ids": ["P1-B01"],
+                        "explanation_ru": "Сумма указана в договоре.",
+                        "checklist_ru": [],
+                        "amount_detected": "20,000 NIS",
+                        "comparison_ru": "Обычно 2-3 месяца аренды.",
+                        "confidence": 0.9,
+                    }
+                ],
+                "missing_clauses": [
+                    {
+                        "title_ru": "Страхование строения",
+                        "explanation_ru": "Желательная оговорка отсутствует.",
+                        "importance": "yellow",
+                        "requested_change_ru": "Добавить страхование.",
+                    }
+                ],
+                "unclear_fragments": [],
+                "questions_to_agent": [],
+                "proposed_changes": [
+                    {
+                        "title_ru": "Новый срок",
+                        "source_quote_he": None,
+                        "evidence_block_ids": ["P1-B01"],
+                        "proposed_text_ru": "Добавить срок 48 часов.",
+                        "priority": "yellow",
+                    }
+                ],
+            }
+        )
+
+        guarded = runner.apply_real_contract_output_guardrails(result)
+
+        self.assertEqual(len(guarded.risks), 1)
+        self.assertEqual(guarded.risks[0].evidence_block_ids, ["P1-B01"])
+        self.assertIsNone(guarded.risks[0].requested_change_ru)
+        self.assertEqual(guarded.financial_hints[0].amount_detected, "20,000 NIS")
+        self.assertIsNone(guarded.financial_hints[0].comparison_ru)
+        self.assertEqual(guarded.missing_clauses, [])
+        self.assertEqual(guarded.proposed_changes, [])
 
     def test_report_does_not_store_contract_text_or_source_filename(self):
         with tempfile.TemporaryDirectory() as tmp, patch.object(
