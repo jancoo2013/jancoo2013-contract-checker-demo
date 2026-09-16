@@ -50,6 +50,10 @@ _HEADER_NAME_STOPWORDS = {
 }
 
 
+class SafeRunnerError(RuntimeError):
+    """Controlled user-facing error that contains no file path, key or contract text."""
+
+
 def desktop_dirs() -> list[Path]:
     bases = [Path.home()]
     bases += [Path(value) for key in ("USERPROFILE", "OneDrive", "OneDriveConsumer")
@@ -70,7 +74,7 @@ def load_key() -> str:
                 value = raw.split("=", 1)[1].strip().strip("\"'")
                 if value:
                     return value
-    raise RuntimeError("GEMINI_API_KEY not found. Put .env.local on the Desktop.")
+    raise SafeRunnerError("GEMINI_API_KEY not found. Put .env.local on the Desktop.")
 
 
 def choose_pdf() -> Path | None:
@@ -87,38 +91,38 @@ def choose_pdf() -> Path | None:
         )
         root.destroy()
     except Exception as exc:
-        raise RuntimeError("Windows PDF picker is unavailable") from exc
+        raise SafeRunnerError("Windows PDF picker is unavailable") from exc
     return Path(selected) if selected else None
 
 
 def extract_pdf_text(pdf_path: Path) -> str:
     if not pdf_path.is_file() or pdf_path.suffix.lower() != ".pdf":
-        raise RuntimeError("Selected file is not a PDF")
+        raise SafeRunnerError("Selected file is not a PDF")
     if pdf_path.stat().st_size > MAX_PDF_BYTES:
-        raise RuntimeError("PDF exceeds local analysis size limit")
+        raise SafeRunnerError("PDF exceeds local analysis size limit")
 
     with fitz.open(pdf_path) as document:
         if document.page_count < 1 or document.page_count > MAX_PAGES:
-            raise RuntimeError("PDF page count is outside local analysis limits")
+            raise SafeRunnerError("PDF page count is outside local analysis limits")
         parts: list[str] = []
         total = 0
         for page_number, page in enumerate(document, 1):
             text = page.get_text("text") or ""
             total += len(text)
             if total > MAX_TEXT_CHARS:
-                raise RuntimeError("Extracted PDF text exceeds local analysis limit")
+                raise SafeRunnerError("Extracted PDF text exceeds local analysis limit")
             parts.append(f"--- СТРАНИЦА {page_number} ---\n{text.strip()}")
 
     combined = "\n\n".join(parts).strip()
     if len(combined) < MIN_TEXT_CHARS:
-        raise RuntimeError("PDF has no usable text layer; OCR is required before this runner can analyze it")
+        raise SafeRunnerError("PDF has no usable text layer; OCR is required before this runner can analyze it")
     return combined
 
 
 def _body_start(text: str) -> tuple[int, str]:
     match = _BODY_START_RE.search(text)
     if not match:
-        raise RuntimeError("Could not locate the contract-body start marker; refusing cloud handoff")
+        raise SafeRunnerError("Could not locate the contract-body start marker; refusing cloud handoff")
     return match.start(), match.group(0)
 
 
@@ -202,11 +206,11 @@ def prepare_sanitized_contract_text(raw_text: str) -> tuple[str, dict[str, int]]
     sanitized = redaction.redacted_text.strip()
     residual = residual_pii_findings(sanitized, name_tokens)
     if residual:
-        raise RuntimeError("Privacy gate blocked provider handoff: " + ", ".join(residual))
+        raise SafeRunnerError("Privacy gate blocked provider handoff: " + ", ".join(residual))
 
     validation = validate_contract_text(sanitized)
     if not validation.usable:
-        raise RuntimeError("Sanitized contract text is not usable for analysis: " + "; ".join(validation.problems))
+        raise SafeRunnerError("Sanitized contract text is not usable for analysis: " + "; ".join(validation.problems))
 
     report = redaction.report
     counts = {
@@ -249,7 +253,7 @@ def analyze_with_auto_route(
             "elapsed_seconds": round(time.monotonic() - started, 3),
         })
         return result, model, attempts
-    raise RuntimeError("All configured Gemini Flash models failed for this contract")
+    raise SafeRunnerError("All configured Gemini Flash models failed for this contract")
 
 
 def write_report(
@@ -281,12 +285,18 @@ def main() -> int:
         sanitized_text, redaction_counts = prepare_sanitized_contract_text(raw_text)
         result, model_used, attempts = analyze_with_auto_route(sanitized_text, load_key())
         report_path = write_report(pdf_path, model_used, attempts, redaction_counts, result)
-    except Exception as exc:
+    except SafeRunnerError as exc:
         print(f"Анализ остановлен: {exc}")
+        return 1
+    except (GeminiAuthenticationError, GeminiConfigurationError, GeminiRateLimitError, GeminiResponseError) as exc:
+        print(f"Анализ остановлен: {exc}")
+        return 1
+    except Exception as exc:
+        print(f"Анализ остановлен: {type(exc).__name__}")
         return 1
 
     print(f"Готово. Использована модель: {model_used}")
-    print(f"Отчёт: {report_path}")
+    print(f"Отчёт сохранён рядом с договором: {report_path.name}")
     if os.name == "nt":
         os.startfile(report_path)  # type: ignore[attr-defined]
     return 0
