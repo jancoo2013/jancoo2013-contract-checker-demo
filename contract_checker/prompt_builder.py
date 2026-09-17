@@ -22,13 +22,28 @@ _CORE_QUESTION_INVENTORIES = (
 )
 
 
+def question_engine_expected_answer_fields() -> dict[str, tuple[str, ...]]:
+    """Return the exact core question IDs and positional answer fields."""
+
+    expected: dict[str, tuple[str, ...]] = {}
+    for inventory in _CORE_QUESTION_INVENTORIES:
+        for question in inventory.questions:
+            if question.question_id in expected:
+                raise ValueError(f"duplicate core question_id: {question.question_id}")
+            expected[question.question_id] = question.answer_fields
+    return expected
+
+
 def _question_engine_review_inventory_text() -> str:
-    """Render the deterministic core inventory as a model review checklist."""
+    """Render the deterministic core inventory as an explicit answer contract."""
 
     lines: list[str] = []
     for inventory in _CORE_QUESTION_INVENTORIES:
         for question in inventory.questions:
-            lines.append(f"- {question.question_id}: {question.purpose}")
+            fields = ", ".join(question.answer_fields)
+            lines.append(
+                f"- {question.question_id} | fields=[{fields}] | purpose={question.purpose}"
+            )
     return "\n".join(lines)
 
 
@@ -70,7 +85,11 @@ SYSTEM_PROMPT_RU = """
 30. missing_clauses — не список желательных улучшений идеального договора. Отсутствие опции продления, страховки строения или другой распространённой оговорки само по себе не является missing clause или риском. Используй missing_clauses только для реально недостающего упомянутого документа/раздела или зависимости, без которой нельзя понять уже существующий механизм.
 31. Не придумывай числовые лимиты, «обычные» суммы, количество месяцев, сроки уведомления, cure period, часы/дни на ремонт или рекомендуемые верхние пределы. Число можно использовать в выводе или предложении только если оно есть в evidence blocks либо передано отдельным проверенным rule/context layer.
 32. Не превращай каждый найденный пункт в риск. В risks и questions_to_agent оставляй только материальные, недублирующиеся механизмы; обычные и понятные условия могут оставаться normal в clauses/financial_hints.
-33. Обязательный Question Engine inventory — это чеклист проверки, а не список проблем. Ответ ABSENT/NOT_FOUND допустим и не повышает риск сам по себе.
+33. Обязательный Question Engine inventory — это чеклист проверки, а не список проблем. Ответ NOT_FOUND допустим и не повышает риск сам по себе.
+34. В поле question_engine_answers верни ровно один объект для каждого question_id из обязательного inventory. Нельзя пропускать вопросы, объединять несколько question_id в один ответ, дублировать question_id или добавлять свои question_id.
+35. Для каждого question_engine_answers.status используй только FOUND, NOT_FOUND, AMBIGUOUS, HANDWRITING_DEPENDENCY или CLAUSE_PRESENT_VALUE_BLANK. NOT_FOUND означает, что соответствующий механизм/факт не найден в предоставленных evidence blocks; это не ошибка анализа.
+36. question_engine_answers.values — компактный внутренний слой извлечения. Количество элементов обязано точно совпадать с количеством fields у данного question_id, а порядок — с порядком fields в inventory. Для отсутствующего/неустановленного значения ставь null. Не добавляй туда советы, рыночные нормы, правовые выводы или длинные объяснения.
+37. Для FOUND, AMBIGUOUS и CLAUSE_PRESENT_VALUE_BLANK указывай реальные evidence_block_ids, на которых основан ответ. Не придумывай evidence ID. Для NOT_FOUND evidence_block_ids может быть пустым.
 
 Заполни общий риск-профиль:
 - high_risk_found: в загруженных материалах найден хотя бы один существенный red-риск или вопрос, который стоит обсудить с лицензированным юристом.
@@ -99,9 +118,10 @@ def build_contract_audit_prompt(redacted_text: str) -> list[dict[str, str]]:
     user_prompt = (
         "Проанализируй следующие обезличенные evidence blocks договора аренды на иврите. "
         "Верни полный структурированный аудит по схеме.\n\n"
-        "ОБЯЗАТЕЛЬНЫЙ QUESTION ENGINE REVIEW INVENTORY:\n"
-        "Проверь внутренне каждый пункт перед финальным ответом. Отсутствие механизма само по себе не является риском; "
-        "не выводи этот список пользователю как отдельный чеклист.\n"
+        "ОБЯЗАТЕЛЬНЫЙ QUESTION ENGINE ANSWER CONTRACT:\n"
+        "Верни в question_engine_answers ровно один структурированный ответ на каждый question_id ниже. "
+        "Для каждого question_id values идут строго в порядке fields; если конкретного значения нет — null. "
+        "Отсутствие механизма само по себе не является риском.\n"
         f"{inventory_text}\n\n"
         "ОБЕЗЛИЧЕННЫЕ EVIDENCE BLOCKS:\n"
         f"{evidence_text}"
