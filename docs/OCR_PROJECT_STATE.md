@@ -1,6 +1,6 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-09-17, PR #278, `single-contract-rate-limit-backoff-v1`.
+Последнее обновление: 2026-09-17, PR #279, `single-contract-quota-aware-retry-v1`.
 
 Активный трек: `question-engine-development`.
 
@@ -14,19 +14,20 @@ Corrective chain #266 → #268 → #269 завершена и слита: bounde
 
 Local provider experiment v6 на 10 synthetic/sanitized security cases дал `705.02s`, `8/10` completed, 14 provider attempts; 3.6 succeeded on 8 cases, 3.5 succeeded on 0/4 fallback attempts. PR #270 added 3.7 for experimental Flash routing while excluding 3.8.
 
-Current real-contract automatic route after PR #278 is cyclic:
+Current real-contract automatic route after PR #279 is bounded rather than an infinite cycle:
 
 ```text
 gemini-3.6-flash
-→ on retryable provider/rate/response failure: gemini-3.7-flash
-→ on retryable provider/rate/response failure: gemini-3.5-flash
-→ if all three attempts are GeminiRateLimitError: wait 300 seconds
-→ otherwise after a fully failed retryable cycle: wait 30 seconds
-→ restart at gemini-3.6-flash
-→ repeat until success or user Ctrl+C
+→ on controlled failure: try gemini-3.7-flash
+→ then gemini-3.5-flash
+→ daily quota: mark that model unavailable for the current run
+→ temporary/unknown 429 with provider Retry-After/retryDelay <= 60s: one bounded retry
+→ missing retry timing or provider delay > 60s: stop instead of guessing/waiting
+→ retryable provider/network failure: at most one short 5-second retry
+→ malformed/schema-invalid model output: no full-cycle retry loop
 ```
 
-The user does not select a model. Routing is reactive failover based on actual request success/failure, not a server-load percentage API. Authentication/configuration failures remain terminal and do not loop.
+For contract analysis the google-genai SDK-owned HTTP retry loop is disabled (`attempts=1`), so one runner attempt maps to one provider request. The user does not select a model. Routing remains reactive failover based on actual request outcomes, not a server-load percentage API. Authentication/configuration failures remain terminal.
 
 ## 2. Real-contract runner and privacy boundary
 
@@ -41,7 +42,7 @@ choose exactly one PDF
 → redact recurring header-derived party names
 → existing deterministic PII redaction
 → residual-PII + contract-usability gate
-→ cyclic automatic Gemini Flash routing
+→ bounded automatic Gemini Flash routing
 → guarded local structured JSON report
 ```
 
@@ -153,7 +154,7 @@ Python validates the extraction before the provider result is accepted. It rejec
 - evidence block IDs that do not exist in the sanitized source evidence set;
 - a `FOUND` answer that contains no actual value.
 
-A rejected extraction becomes the existing controlled `GeminiResponseError`, so the already-merged cyclic provider route can move to the next model without exposing contract text or provider exception bodies.
+A rejected extraction becomes the existing controlled `GeminiResponseError`, so the provider route can move to the next model without exposing contract text or provider exception bodies.
 
 This PR does not yet make the legacy narrative report a full deterministic `FindingResolution` renderer. Its bounded purpose is to ensure the semantic extraction layer cannot silently omit core Question Engine questions or answer fields. The explicit answers are persisted in the local sanitized report and become the input for later deterministic resolution/materiality logic.
 
@@ -181,23 +182,34 @@ Provider routing, retry timing, Question Engine schema/prompt/validation, privac
 
 During the post-#274 same-contract rerun, repeated cycles showed that most attempts were failing almost immediately with `GeminiRateLimitError` rather than spending time on model generation. Repeating the same three-model cycle every 30 seconds therefore became counterproductive quota-gate hammering.
 
-PR #278 keeps the existing model order and retryable-failure routing but changes the delay after a fully failed cycle:
+PR #278 kept the existing model order and retryable-failure routing but introduced a fixed 300-second delay after a full rate-limit cycle. Follow-up discussion identified that this did not solve the actual problem: when provider request quotas are the limiting resource, changing the delay alone does not bound the number of requests or distinguish daily exhaustion from temporary throttling.
 
-- if all three configured models return `GeminiRateLimitError`, wait 300 seconds before retrying from 3.6;
-- if the cycle contains any other retryable failure such as `GeminiResponseError`, retain the existing 30-second delay;
-- authentication/configuration failures remain terminal;
-- user `Ctrl+C` remains the stop mechanism;
-- attempt records and safe console status remain unchanged in structure.
+Provider list, Question Engine schema/prompt/validation, privacy boundary, OCR path, report payload, dependencies, permissions, workflows, endpoints and network destinations were unchanged.
 
-This PR does not attempt to guess whether a 429 represents a minute-level, project-level, or daily provider quota because the current safe exception contract does not expose reliable quota-window metadata. It only prevents the observed rapid repeated retries.
+### 7.4 PR #279 quota-aware bounded retry
 
-Provider list, Question Engine schema/prompt/validation, privacy boundary, OCR path, report payload, dependencies, permissions, workflows, endpoints and network destinations are unchanged.
+PR #279 replaces the fixed 300-second cooldown and the infinite retry cycle with request-count-aware bounded routing.
+
+Key behavior:
+
+- contract-analysis calls disable google-genai SDK-owned automatic HTTP retries, so one runner attempt maps to one provider request rather than one visible attempt hiding several SDK retries;
+- a structured `QuotaFailure` indicating a per-day quota marks only that model unavailable for the current run and it is not retried;
+- provider `Retry-After` or `google.rpc.RetryInfo.retryDelay` is used only for one automatic retry and only when the requested delay is at most 60 seconds;
+- a 429 without reliable retry timing stops instead of inventing a cooldown;
+- a provider delay above 60 seconds stops instead of making the user wait several minutes;
+- retryable 5xx/network failures receive at most one short 5-second retry;
+- malformed JSON, schema/Question-Engine coverage failures and other non-provider response errors may fall through to the next configured model, but do not start another full cycle;
+- authentication/configuration failures remain terminal.
+
+The attempt ledger stores only safe error class plus safe quota scope/retry timing. Raw provider exception bodies, API keys and contract text remain excluded from logs and reports.
+
+This PR does not add another provider, model, dependency, endpoint, permission, workflow or storage path. It does not change Question Engine semantics/schema, the privacy boundary, report payload contract or OCR scope.
 
 ## 8. Canonical next step
 
 `next_step_id = question-engine-single-contract-real-rerun-v4`
 
-After PR #278 validation and merge, rerun the same reviewed March–August 2025 contract. Before broadening to any other contract, inspect the explicit answers for at least:
+After PR #279 validation and merge, rerun the same reviewed March–August 2025 contract. Before broadening to any other contract, inspect the explicit answers for at least:
 
 - `security.completion_authority`;
 - `security.realization_chain`;
