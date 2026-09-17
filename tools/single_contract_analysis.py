@@ -1,13 +1,20 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from pathlib import Path
 import re
 import time
 from typing import Callable
 
-import fitz
+import pymupdf
+
+# The local CLI intentionally runs outside Streamlit and uses no Gemini tools.
+# Keep those two libraries' known bare-mode/AFC advisory loggers out of the
+# operator console while preserving all other warnings and errors.
+logging.getLogger("streamlit.runtime.scriptrunner_utils.script_run_context").setLevel(logging.ERROR)
+logging.getLogger("google.genai.models").setLevel(logging.ERROR)
 
 from contract_checker.gemini_engine import (
     GeminiAuthenticationError,
@@ -102,7 +109,7 @@ def extract_pdf_text(pdf_path: Path) -> str:
     if pdf_path.stat().st_size > MAX_PDF_BYTES:
         raise SafeRunnerError("PDF exceeds local analysis size limit")
 
-    with fitz.open(pdf_path) as document:
+    with pymupdf.open(pdf_path) as document:
         if document.page_count < 1 or document.page_count > MAX_PAGES:
             raise SafeRunnerError("PDF page count is outside local analysis limits")
         parts: list[str] = []

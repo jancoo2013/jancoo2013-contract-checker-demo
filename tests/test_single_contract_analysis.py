@@ -1,9 +1,10 @@
+import logging
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-import fitz
+import pymupdf
 
 from contract_checker.gemini_engine import GeminiAuthenticationError, GeminiResponseError
 from contract_checker.schemas import ContractAuditResult
@@ -21,6 +22,13 @@ class SingleContractAnalysisTests(unittest.TestCase):
             runner.AUTO_MODEL_ROUTE,
             ("gemini-3.6-flash", "gemini-3.7-flash", "gemini-3.5-flash"),
         )
+
+    def test_cli_sets_only_known_advisory_loggers_to_error(self):
+        self.assertEqual(
+            logging.getLogger("streamlit.runtime.scriptrunner_utils.script_run_context").level,
+            logging.ERROR,
+        )
+        self.assertEqual(logging.getLogger("google.genai.models").level, logging.ERROR)
 
     def test_auto_route_falls_from_36_to_37_without_user_choice(self):
         calls = []
@@ -143,7 +151,7 @@ class SingleContractAnalysisTests(unittest.TestCase):
     def test_image_only_pdf_fails_closed_without_ocr(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "scan.pdf"
-            document = fitz.open()
+            document = pymupdf.open()
             document.new_page()
             document.save(path)
             document.close()
