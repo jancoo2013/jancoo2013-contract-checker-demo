@@ -41,7 +41,7 @@ class SingleContractAnalysisTests(unittest.TestCase):
         def analyze_fn(*, redacted_text, api_key, model):
             calls.append(model)
             if model == "gemini-3.6-flash":
-                raise GeminiResponseError("overloaded")
+                raise GeminiResponseError("invalid response")
             return FakeResult()
 
         result, model, attempts = runner.analyze_with_auto_route(
@@ -53,7 +53,27 @@ class SingleContractAnalysisTests(unittest.TestCase):
         self.assertEqual([item["status"] for item in attempts], ["FAILED", "OK"])
         self.assertEqual([item["cycle"] for item in attempts], [1, 1])
 
-    def test_auto_route_repeats_full_cycle_until_success(self):
+    def test_schema_failures_do_not_loop(self):
+        calls = []
+        sleeps = []
+
+        def analyze_fn(*, redacted_text, api_key, model):
+            calls.append(model)
+            raise GeminiResponseError("invalid structured output")
+
+        with self.assertRaisesRegex(runner.SafeRunnerError, "ограниченного набора попыток"):
+            runner.analyze_with_auto_route(
+                "sanitized",
+                "key",
+                analyze_fn,
+                sleep_fn=sleeps.append,
+                status_fn=lambda _message: None,
+            )
+
+        self.assertEqual(calls, list(runner.AUTO_MODEL_ROUTE))
+        self.assertEqual(sleeps, [])
+
+    def test_provider_retry_after_gets_one_short_retry(self):
         calls = []
         sleeps = []
         statuses = []
@@ -61,7 +81,11 @@ class SingleContractAnalysisTests(unittest.TestCase):
         def analyze_fn(*, redacted_text, api_key, model):
             calls.append(model)
             if len(calls) <= len(runner.AUTO_MODEL_ROUTE):
-                raise GeminiResponseError("temporary")
+                raise GeminiRateLimitError(
+                    "rate limit",
+                    quota_scope="temporary_or_unknown",
+                    retry_after_seconds=12.0,
+                )
             return FakeResult()
 
         result, model, attempts = runner.analyze_with_auto_route(
@@ -74,29 +98,79 @@ class SingleContractAnalysisTests(unittest.TestCase):
 
         self.assertIsInstance(result, FakeResult)
         self.assertEqual(model, "gemini-3.6-flash")
-        self.assertEqual(
-            calls,
-            [
-                "gemini-3.6-flash",
-                "gemini-3.7-flash",
-                "gemini-3.5-flash",
-                "gemini-3.6-flash",
-            ],
-        )
-        self.assertEqual(sleeps, [runner.RETRY_CYCLE_DELAY_SECONDS])
+        self.assertEqual(sleeps, [12.0])
         self.assertEqual([item["cycle"] for item in attempts], [1, 1, 1, 2])
-        self.assertEqual([item["status"] for item in attempts], ["FAILED", "FAILED", "FAILED", "OK"])
-        self.assertTrue(any("Повтор через" in message for message in statuses))
+        self.assertTrue(any("один ограниченный повтор" in message for message in statuses))
 
-    def test_full_rate_limit_cycle_uses_long_cooldown(self):
+    def test_unknown_rate_limit_stops_without_sleeping(self):
         calls = []
         sleeps = []
-        statuses = []
+
+        def analyze_fn(*, redacted_text, api_key, model):
+            calls.append(model)
+            raise GeminiRateLimitError("rate limit")
+
+        with self.assertRaisesRegex(runner.SafeRunnerError, "без времени повтора"):
+            runner.analyze_with_auto_route(
+                "sanitized",
+                "key",
+                analyze_fn,
+                sleep_fn=sleeps.append,
+                status_fn=lambda _message: None,
+            )
+
+        self.assertEqual(calls, list(runner.AUTO_MODEL_ROUTE))
+        self.assertEqual(sleeps, [])
+
+    def test_long_provider_retry_after_stops_instead_of_waiting(self):
+        sleeps = []
+
+        def analyze_fn(*, redacted_text, api_key, model):
+            raise GeminiRateLimitError(
+                "rate limit",
+                quota_scope="temporary_or_unknown",
+                retry_after_seconds=300.0,
+            )
+
+        with self.assertRaisesRegex(runner.SafeRunnerError, "ограничено одной минутой"):
+            runner.analyze_with_auto_route(
+                "sanitized",
+                "key",
+                analyze_fn,
+                sleep_fn=sleeps.append,
+                status_fn=lambda _message: None,
+            )
+
+        self.assertEqual(sleeps, [])
+
+    def test_daily_quota_exhaustion_never_retries_same_models(self):
+        calls = []
+        sleeps = []
+
+        def analyze_fn(*, redacted_text, api_key, model):
+            calls.append(model)
+            raise GeminiRateLimitError("quota", quota_scope="daily")
+
+        with self.assertRaisesRegex(runner.SafeRunnerError, "дневная квота"):
+            runner.analyze_with_auto_route(
+                "sanitized",
+                "key",
+                analyze_fn,
+                sleep_fn=sleeps.append,
+                status_fn=lambda _message: None,
+            )
+
+        self.assertEqual(calls, list(runner.AUTO_MODEL_ROUTE))
+        self.assertEqual(sleeps, [])
+
+    def test_retryable_provider_failure_gets_one_short_retry(self):
+        calls = []
+        sleeps = []
 
         def analyze_fn(*, redacted_text, api_key, model):
             calls.append(model)
             if len(calls) <= len(runner.AUTO_MODEL_ROUTE):
-                raise GeminiRateLimitError("rate limit")
+                raise GeminiResponseError("service", retryable_provider=True)
             return FakeResult()
 
         result, model, attempts = runner.analyze_with_auto_route(
@@ -104,15 +178,13 @@ class SingleContractAnalysisTests(unittest.TestCase):
             "key",
             analyze_fn,
             sleep_fn=sleeps.append,
-            status_fn=statuses.append,
+            status_fn=lambda _message: None,
         )
 
         self.assertIsInstance(result, FakeResult)
         self.assertEqual(model, "gemini-3.6-flash")
-        self.assertEqual(sleeps, [runner.RATE_LIMIT_CYCLE_DELAY_SECONDS])
+        self.assertEqual(sleeps, [runner.PROVIDER_RETRY_DELAY_SECONDS])
         self.assertEqual([item["cycle"] for item in attempts], [1, 1, 1, 2])
-        self.assertTrue(any("rate limit" in message for message in statuses))
-        self.assertTrue(any("300" in message for message in statuses))
 
     def test_authentication_failure_aborts_without_fallback(self):
         calls = []
