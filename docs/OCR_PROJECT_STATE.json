@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-16-125",
+  "state_version": "privacy-ocr-2026-09-17-126",
   "active_track": "question-engine-development",
-  "next_step_id": "question-engine-single-contract-real-rerun-v3",
-  "next_step_summary": "After PR #272 merged, the same March-August 2025 contract rerun did not produce a report because the local runner attempted gemini-3.6-flash, gemini-3.7-flash, and gemini-3.5-flash once each and then terminated when all three retryable attempts failed. Product-owner correction: model routing must continue in cycles rather than die after one full pass. PR #273 changes only the local real-contract runner route: retryable GeminiRateLimitError/GeminiResponseError outcomes cycle 3.6 -> 3.7 -> 3.5, wait 30 seconds after a fully failed cycle, then restart at 3.6 until a model succeeds or the user stops with Ctrl+C. Authentication/configuration failures remain terminal. Safe console status exposes only cycle/model/error class/elapsed time; no contract text, key, or provider exception body. Prompt, privacy gate, OCR scope, model list, dependencies and network destinations are unchanged. After PR #273 validation/merge, rerun the same contract and compare the resulting report against the first real run and the manual benchmark.",
-  "last_recorded_pr": 273,
-  "last_recorded_change": "question-engine-provider-cycle-retry-v1",
+  "next_step_id": "question-engine-single-contract-real-rerun-v4",
+  "next_step_summary": "The post-PR #273 rerun of the reviewed March-August 2025 contract eventually succeeded on gemini-3.6-flash in cycle 4 after nine retryable failures. PR #272 materially improved the report: AS-IS was narrowed by repair protections; the 21-day return inspection / 10-day correction process survived alongside holdover; invented market/numeric rewrite advice disappeared; generic missing clauses and proposed changes were suppressed. Two core semantic gaps remained: the 20,000 NIS security-cheque mechanism surfaced only a subset of the required realization questions, and broad fundamental-breach wording was still not fully reconciled with the contract's specific 7-day rent cure/notice mechanics. Product-owner correction: the model may no longer treat the deterministic inventory as an internal checklist. PR #274 adds an explicit `question_engine_answers` extraction layer with exactly one answer per core question_id, positional values matching every declared answer_field, controlled answer states, and evidence-block references. Python rejects missing, duplicate, unknown, structurally incomplete, inconsistent, or source-invalid Question Engine answers before accepting the provider result; the existing cyclic route can then try the next model. No OCR, privacy boundary, provider/model list, dependency, permission, workflow, storage, or endpoint change. After PR #274 merge, rerun the same contract and inspect the explicit answers for `security.realization_chain`, `security.return_mechanics`, `security.completion_authority`, `termination.notice_cure`, and `termination.cross_clause_interaction` before broadening to other contracts.",
+  "last_recorded_pr": 274,
+  "last_recorded_change": "question-engine-explicit-answer-coverage-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
-  "updated_on": "2026-09-16"
+  "updated_on": "2026-09-17"
 }
