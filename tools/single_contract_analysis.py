@@ -34,8 +34,8 @@ AUTO_MODEL_ROUTE = (
     "gemini-3.7-flash",
     "gemini-3.5-flash",
 )
-RETRY_CYCLE_DELAY_SECONDS = 30.0
-RATE_LIMIT_CYCLE_DELAY_SECONDS = 300.0
+MAX_AUTO_RATE_LIMIT_WAIT_SECONDS = 60.0
+PROVIDER_RETRY_DELAY_SECONDS = 5.0
 MAX_PDF_BYTES = 25 * 1024 * 1024
 MAX_PAGES = 40
 MAX_TEXT_CHARS = 250_000
@@ -238,6 +238,26 @@ def prepare_sanitized_contract_text(raw_text: str) -> tuple[str, dict[str, int]]
     return sanitized, counts
 
 
+def _failed_attempt(
+    attempts: list[dict[str, object]],
+    cycle: int,
+    model: str,
+    exc: Exception,
+    elapsed: float,
+) -> None:
+    item: dict[str, object] = {
+        "cycle": cycle,
+        "model": model,
+        "status": "FAILED",
+        "error": type(exc).__name__,
+        "elapsed_seconds": elapsed,
+    }
+    if isinstance(exc, GeminiRateLimitError):
+        item["quota_scope"] = exc.quota_scope
+        item["retry_after_seconds"] = exc.retry_after_seconds
+    attempts.append(item)
+
+
 def analyze_with_auto_route(
     sanitized_text: str,
     api_key: str,
@@ -245,18 +265,38 @@ def analyze_with_auto_route(
     sleep_fn: Callable[[float], None] = time.sleep,
     status_fn: Callable[[str], None] = print,
 ) -> tuple[ContractAuditResult, str, list[dict[str, object]]]:
-    """Cycle through Flash models until one retryable attempt succeeds.
+    """Try configured Gemini models with bounded, provider-informed retries.
 
-    Authentication/configuration errors remain terminal. Retryable failures rotate
-    to the next model. A full rate-limited cycle gets a longer cooldown so the
-    runner does not hammer the same quota gate every 30 seconds.
+    Daily quota is terminal for that model. Temporary 429 responses may trigger
+    one provider-directed retry when a retry delay is supplied and is at most one
+    minute. Provider/network errors may trigger one short extra attempt. Unknown
+    quota windows and long waits stop instead of consuming requests indefinitely.
     """
 
     attempts: list[dict[str, object]] = []
+    daily_exhausted: set[str] = set()
+    rate_limit_wait_used = False
+    provider_retry_used = False
+    retry_models: set[str] | None = None
     cycle = 1
+
     while True:
-        rate_limit_failures = 0
-        for model in AUTO_MODEL_ROUTE:
+        rate_limits: dict[str, float | None] = {}
+        retryable_provider_models: set[str] = set()
+        models = [
+            model
+            for model in AUTO_MODEL_ROUTE
+            if model not in daily_exhausted
+            and (retry_models is None or model in retry_models)
+        ]
+        retry_models = None
+
+        if not models:
+            if daily_exhausted == set(AUTO_MODEL_ROUTE):
+                raise SafeRunnerError("Gemini: дневная квота исчерпана для всех настроенных моделей")
+            raise SafeRunnerError("Gemini: нет модели, которую безопасно повторять сейчас")
+
+        for model in models:
             started = time.monotonic()
             try:
                 result = analyze_fn(redacted_text=sanitized_text, api_key=api_key, model=model)
@@ -264,27 +304,20 @@ def analyze_with_auto_route(
                 raise
             except GeminiRateLimitError as exc:
                 elapsed = round(time.monotonic() - started, 3)
-                rate_limit_failures += 1
-                attempts.append({
-                    "cycle": cycle,
-                    "model": model,
-                    "status": "FAILED",
-                    "error": type(exc).__name__,
-                    "elapsed_seconds": elapsed,
-                })
+                _failed_attempt(attempts, cycle, model, exc, elapsed)
+                if exc.quota_scope == "daily":
+                    daily_exhausted.add(model)
+                else:
+                    rate_limits[model] = exc.retry_after_seconds
                 status_fn(
                     f"Цикл {cycle}: {model} — {type(exc).__name__} — {elapsed:.1f}s"
                 )
                 continue
             except GeminiResponseError as exc:
                 elapsed = round(time.monotonic() - started, 3)
-                attempts.append({
-                    "cycle": cycle,
-                    "model": model,
-                    "status": "FAILED",
-                    "error": type(exc).__name__,
-                    "elapsed_seconds": elapsed,
-                })
+                _failed_attempt(attempts, cycle, model, exc, elapsed)
+                if exc.retryable_provider:
+                    retryable_provider_models.add(model)
                 status_fn(
                     f"Цикл {cycle}: {model} — {type(exc).__name__} — {elapsed:.1f}s"
                 )
@@ -300,20 +333,67 @@ def analyze_with_auto_route(
             status_fn(f"Цикл {cycle}: {model} — OK — {elapsed:.1f}s")
             return result, model, attempts
 
-        if rate_limit_failures == len(AUTO_MODEL_ROUTE):
-            delay = RATE_LIMIT_CYCLE_DELAY_SECONDS
+        if daily_exhausted == set(AUTO_MODEL_ROUTE):
+            raise SafeRunnerError("Gemini: дневная квота исчерпана для всех настроенных моделей")
+
+        if rate_limits:
+            known_delays = {
+                model: delay
+                for model, delay in rate_limits.items()
+                if delay is not None
+            }
+            if known_delays and not rate_limit_wait_used:
+                delay = min(known_delays.values())
+                if delay <= MAX_AUTO_RATE_LIMIT_WAIT_SECONDS:
+                    retry_models = {
+                        model
+                        for model, model_delay in known_delays.items()
+                        if model_delay <= delay + 0.001
+                    }
+                    retry_models.update(retryable_provider_models)
+                    status_fn(
+                        f"Gemini просит повтор через {delay:.0f} с. "
+                        "Делаю один ограниченный повтор."
+                    )
+                    sleep_fn(delay)
+                    rate_limit_wait_used = True
+                    cycle += 1
+                    continue
+
+            if retryable_provider_models and not provider_retry_used:
+                retry_models = retryable_provider_models
+                status_fn(
+                    f"Gemini service error. Один повтор через "
+                    f"{int(PROVIDER_RETRY_DELAY_SECONDS)} с."
+                )
+                sleep_fn(PROVIDER_RETRY_DELAY_SECONDS)
+                provider_retry_used = True
+                cycle += 1
+                continue
+
+            if not known_delays:
+                raise SafeRunnerError(
+                    "Gemini rate limit без времени повтора; остановлено, чтобы не расходовать квоту впустую"
+                )
+            shortest = min(known_delays.values())
+            if shortest > MAX_AUTO_RATE_LIMIT_WAIT_SECONDS:
+                raise SafeRunnerError(
+                    f"Gemini просит ждать {shortest:.0f} с.; автоматическое ожидание ограничено одной минутой"
+                )
+            raise SafeRunnerError("Gemini rate limit сохранился после одного ограниченного повтора")
+
+        if retryable_provider_models and not provider_retry_used:
+            retry_models = retryable_provider_models
             status_fn(
-                f"Цикл {cycle}: все модели вернули rate limit. "
-                f"Повтор через {int(delay)} с. Ctrl+C — остановить."
+                f"Gemini service error. Один повтор через "
+                f"{int(PROVIDER_RETRY_DELAY_SECONDS)} с."
             )
-        else:
-            delay = RETRY_CYCLE_DELAY_SECONDS
-            status_fn(
-                f"Цикл {cycle}: все модели временно не дали результата. "
-                f"Повтор через {int(delay)} с. Ctrl+C — остановить."
-            )
-        sleep_fn(delay)
-        cycle += 1
+            sleep_fn(PROVIDER_RETRY_DELAY_SECONDS)
+            provider_retry_used = True
+            cycle += 1
+            continue
+
+        raise SafeRunnerError("Gemini не вернул пригодный результат после ограниченного набора попыток")
 
 
 def apply_real_contract_output_guardrails(result: ContractAuditResult) -> ContractAuditResult:
