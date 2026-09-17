@@ -8,7 +8,12 @@ import json
 from typing import Any
 
 from .cache_keys import analysis_cache_key
-from .prompt_builder import SYSTEM_PROMPT_RU, build_contract_audit_prompt
+from .evidence_blocks import build_evidence_blocks
+from .prompt_builder import (
+    SYSTEM_PROMPT_RU,
+    build_contract_audit_prompt,
+    question_engine_expected_answer_fields,
+)
 from .schemas import ContractAuditResult
 
 DEFAULT_GEMINI_MODEL = "gemini-3.5-flash"
@@ -314,6 +319,47 @@ def generate_contract_analysis_raw_text(
     return raw_text
 
 
+def _validate_question_engine_answers(
+    result: ContractAuditResult,
+    redacted_text: str,
+) -> ContractAuditResult:
+    """Fail closed unless every deterministic core question is explicitly answered."""
+
+    expected = question_engine_expected_answer_fields()
+    valid_evidence_ids = {block.block_id for block in build_evidence_blocks(redacted_text)}
+    seen: set[str] = set()
+
+    for answer in result.question_engine_answers:
+        question_id = answer.question_id
+        if question_id not in expected or question_id in seen:
+            raise GeminiResponseError("Gemini returned invalid Question Engine coverage")
+        seen.add(question_id)
+
+        if len(answer.values) != len(expected[question_id]):
+            raise GeminiResponseError("Gemini returned incomplete Question Engine values")
+
+        if len(set(answer.evidence_block_ids)) != len(answer.evidence_block_ids):
+            raise GeminiResponseError("Gemini returned invalid Question Engine evidence")
+        if any(block_id not in valid_evidence_ids for block_id in answer.evidence_block_ids):
+            raise GeminiResponseError("Gemini returned invalid Question Engine evidence")
+
+        if answer.status == "NOT_FOUND":
+            if any(value is not None for value in answer.values):
+                raise GeminiResponseError("Gemini returned inconsistent Question Engine state")
+        else:
+            if not answer.evidence_block_ids:
+                raise GeminiResponseError("Gemini returned ungrounded Question Engine answer")
+            if answer.status == "FOUND" and not any(
+                isinstance(value, str) and value.strip() for value in answer.values
+            ):
+                raise GeminiResponseError("Gemini returned empty Question Engine answer")
+
+    if seen != set(expected):
+        raise GeminiResponseError("Gemini omitted mandatory Question Engine answers")
+
+    return result
+
+
 def analyze_contract_with_gemini(
     redacted_text: str,
     api_key: str,
@@ -323,9 +369,10 @@ def analyze_contract_with_gemini(
 
     text = generate_contract_analysis_raw_text(redacted_text=redacted_text, api_key=api_key, model=model)
     try:
-        return ContractAuditResult.model_validate_json(text)
+        result = ContractAuditResult.model_validate_json(text)
     except (ValueError, TypeError, json.JSONDecodeError) as exc:
         raise GeminiResponseError("Gemini returned malformed structured JSON") from exc
+    return _validate_question_engine_answers(result, redacted_text)
 
 
 def analyze_contract_with_gemini_debug(
@@ -338,7 +385,8 @@ def analyze_contract_with_gemini_debug(
     raw_text = generate_contract_analysis_raw_text(redacted_text=redacted_text, api_key=api_key, model=model)
     try:
         parsed = ContractAuditResult.model_validate_json(raw_text)
-    except (ValueError, TypeError, json.JSONDecodeError) as exc:
+        parsed = _validate_question_engine_answers(parsed, redacted_text)
+    except (ValueError, TypeError, json.JSONDecodeError, GeminiResponseError) as exc:
         return GeminiAnalysisDebugResult(
             raw_text=raw_text,
             parsed_result=None,
