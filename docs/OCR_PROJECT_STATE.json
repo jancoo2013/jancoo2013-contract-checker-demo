@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-17-127",
+  "state_version": "privacy-ocr-2026-09-17-128",
   "active_track": "question-engine-development",
   "next_step_id": "question-engine-single-contract-real-rerun-v4",
-  "next_step_summary": "PR #275 is a product-owner-authorized bounded corrective exception during the same-contract rerun. It removes known non-actionable console noise from the local single-contract runner only: the deprecated PyMuPDF `fitz` compatibility import is replaced with `pymupdf`, and the CLI raises only the two known advisory logger thresholds for Streamlit bare-mode ScriptRunContext messages and Google GenAI Models.generate_content AFC guidance. Provider routing, retry cycles, Question Engine extraction/validation, privacy gates, OCR scope, report persistence, model list, dependencies, permissions, workflows, endpoints and network destinations are unchanged. The canonical next step remains `question-engine-single-contract-real-rerun-v4`: after PR #275 merge, rerun the same reviewed March-August 2025 contract and inspect explicit answers for `security.realization_chain`, `security.return_mechanics`, `security.completion_authority`, `termination.notice_cure`, and `termination.cross_clause_interaction` before broadening to other contracts.",
-  "last_recorded_pr": 275,
-  "last_recorded_change": "single-contract-runner-warning-cleanup-v1",
+  "next_step_summary": "PR #276 is a bounded corrective follow-up to PR #275 after a freshly downloaded main still printed Streamlit bare-mode and Google GenAI AFC advisory warnings. Root causes: Streamlit logging initialization occurred after the earlier logger-level assignment, and google-genai actually emits the AFC advisory from logger `google_genai.models`, not `google.genai.models`. PR #276 imports Streamlit before applying CLI-only logger thresholds, sets the Streamlit parent/specific bare-mode logger to ERROR, and targets the actual Google GenAI logger. Provider routing, retry cycles, Question Engine extraction/validation, privacy gates, OCR scope, report persistence, model list, dependencies, permissions, workflows, endpoints and network destinations are unchanged. The canonical next step remains `question-engine-single-contract-real-rerun-v4`: rerun the same reviewed March-August 2025 contract and inspect explicit answers for `security.realization_chain`, `security.return_mechanics`, `security.completion_authority`, `termination.notice_cure`, and `termination.cross_clause_interaction` before broadening to other contracts.",
+  "last_recorded_pr": 276,
+  "last_recorded_change": "single-contract-runner-warning-cleanup-v2",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-09-17"

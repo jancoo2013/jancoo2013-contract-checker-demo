@@ -9,12 +9,14 @@ import time
 from typing import Callable
 
 import pymupdf
+import streamlit  # noqa: F401
 
 # The local CLI intentionally runs outside Streamlit and uses no Gemini tools.
-# Keep those two libraries' known bare-mode/AFC advisory loggers out of the
-# operator console while preserving all other warnings and errors.
+# Import Streamlit first so its logging setup is complete, then suppress only
+# library advisory warnings in this CLI process. Runner status/errors remain.
+logging.getLogger("streamlit").setLevel(logging.ERROR)
 logging.getLogger("streamlit.runtime.scriptrunner_utils.script_run_context").setLevel(logging.ERROR)
-logging.getLogger("google.genai.models").setLevel(logging.ERROR)
+logging.getLogger("google_genai.models").setLevel(logging.ERROR)
 
 from contract_checker.gemini_engine import (
     GeminiAuthenticationError,
