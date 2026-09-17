@@ -17,6 +17,7 @@ from contract_checker.gemini_engine import (
     analyze_contract_with_gemini_debug,
 )
 from contract_checker.output_validator import validate_model_evidence
+from contract_checker.prompt_builder import question_engine_expected_answer_fields
 from contract_checker.schemas import ClauseAnalysis, ContractAuditResult, DocumentQuality, RiskItem
 
 
@@ -29,11 +30,24 @@ REDACTED_CONTRACT = f"""
 """
 
 
+def _complete_question_engine_answers() -> list[dict[str, object]]:
+    return [
+        {
+            "question_id": question_id,
+            "status": "NOT_FOUND",
+            "values": [None] * len(answer_fields),
+            "evidence_block_ids": [],
+        }
+        for question_id, answer_fields in question_engine_expected_answer_fields().items()
+    ]
+
+
 def _sample_result(quote: str = QUOTE) -> ContractAuditResult:
     return ContractAuditResult(
         risk_profile="issues_to_clarify",
         risk_profile_summary_ru="Есть проверяемые условия и вопросы для уточнения.",
         document_quality=DocumentQuality(usable=True, completeness="medium", problems=[]),
+        question_engine_answers=_complete_question_engine_answers(),
         clauses=[
             ClauseAnalysis(
                 clause_id="breach_notice",
@@ -108,13 +122,61 @@ class GeminiEngineTests(unittest.TestCase):
 
         self.assertIsInstance(result, ContractAuditResult)
         self.assertEqual(result.risks[0].source_quote_he, QUOTE)
+        self.assertEqual(
+            len(result.question_engine_answers),
+            len(question_engine_expected_answer_fields()),
+        )
         fake_genai.Client.assert_called_once_with(api_key="test-key")
         call = generate_content.call_args.kwargs
         self.assertEqual(call["model"], DEFAULT_GEMINI_MODEL)
         self.assertIn("ОБЕЗЛИЧЕННЫЕ EVIDENCE BLOCKS", call["contents"])
         self.assertIn("[P1-B04]", call["contents"])
+        self.assertIn("question_engine_answers", call["contents"])
         self.assertEqual(call["config"].kwargs["response_mime_type"], "application/json")
         self.assertIn("response_json_schema", call["config"].kwargs)
+
+    def test_missing_question_engine_answer_is_rejected(self) -> None:
+        payload = _sample_result().model_dump(mode="json")
+        payload["question_engine_answers"] = payload["question_engine_answers"][1:]
+        response = _FakeResponse(ContractAuditResult.model_validate(payload).model_dump_json())
+        fake_genai, fake_types, _generate_content = _fake_modules(response=response)
+
+        with patch.object(gemini_engine, "genai", fake_genai), patch.object(gemini_engine, "_genai_types", fake_types):
+            with self.assertRaisesRegex(GeminiResponseError, "omitted mandatory"):
+                analyze_contract_with_gemini(REDACTED_CONTRACT, "test-key")
+
+    def test_wrong_question_engine_value_count_is_rejected(self) -> None:
+        payload = _sample_result().model_dump(mode="json")
+        payload["question_engine_answers"][0]["values"] = []
+        response = _FakeResponse(ContractAuditResult.model_validate(payload).model_dump_json())
+        fake_genai, fake_types, _generate_content = _fake_modules(response=response)
+
+        with patch.object(gemini_engine, "genai", fake_genai), patch.object(gemini_engine, "_genai_types", fake_types):
+            with self.assertRaisesRegex(GeminiResponseError, "incomplete Question Engine values"):
+                analyze_contract_with_gemini(REDACTED_CONTRACT, "test-key")
+
+    def test_grounded_question_engine_answer_requires_real_evidence_id(self) -> None:
+        payload = _sample_result().model_dump(mode="json")
+        first = payload["question_engine_answers"][0]
+        first["status"] = "FOUND"
+        first["values"] = ["3,500 NIS", "NIS", "monthly"]
+        first["evidence_block_ids"] = ["P99-B99"]
+        response = _FakeResponse(ContractAuditResult.model_validate(payload).model_dump_json())
+        fake_genai, fake_types, _generate_content = _fake_modules(response=response)
+
+        with patch.object(gemini_engine, "genai", fake_genai), patch.object(gemini_engine, "_genai_types", fake_types):
+            with self.assertRaisesRegex(GeminiResponseError, "invalid Question Engine evidence"):
+                analyze_contract_with_gemini(REDACTED_CONTRACT, "test-key")
+
+    def test_duplicate_question_engine_answer_is_rejected(self) -> None:
+        payload = _sample_result().model_dump(mode="json")
+        payload["question_engine_answers"].append(payload["question_engine_answers"][0])
+        response = _FakeResponse(ContractAuditResult.model_validate(payload).model_dump_json())
+        fake_genai, fake_types, _generate_content = _fake_modules(response=response)
+
+        with patch.object(gemini_engine, "genai", fake_genai), patch.object(gemini_engine, "_genai_types", fake_types):
+            with self.assertRaisesRegex(GeminiResponseError, "invalid Question Engine coverage"):
+                analyze_contract_with_gemini(REDACTED_CONTRACT, "test-key")
 
     def test_debug_gemini_analysis_returns_raw_text_and_parsed_result(self) -> None:
         raw_json = _sample_result().model_dump_json()
