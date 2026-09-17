@@ -98,6 +98,21 @@ class _AuthFailure(Exception):
 class _QuotaFailure(Exception):
     status_code = 429
 
+    def __init__(
+        self,
+        message: str,
+        *,
+        details: dict[str, object] | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.details = details or {}
+        self.response = types.SimpleNamespace(status_code=429, headers=headers or {})
+
+
+class _ServiceFailure(Exception):
+    status_code = 503
+
 
 def _fake_modules(response: object | None = None, side_effect: Exception | None = None) -> tuple[Mock, types.SimpleNamespace, Mock]:
     generate_content = Mock(side_effect=side_effect, return_value=response)
@@ -126,7 +141,9 @@ class GeminiEngineTests(unittest.TestCase):
             len(result.question_engine_answers),
             len(question_engine_expected_answer_fields()),
         )
-        fake_genai.Client.assert_called_once_with(api_key="test-key")
+        client_kwargs = fake_genai.Client.call_args.kwargs
+        self.assertEqual(client_kwargs["api_key"], "test-key")
+        self.assertEqual(client_kwargs["http_options"]["retry_options"]["attempts"], 1)
         call = generate_content.call_args.kwargs
         self.assertEqual(call["model"], DEFAULT_GEMINI_MODEL)
         self.assertIn("ОБЕЗЛИЧЕННЫЕ EVIDENCE BLOCKS", call["contents"])
@@ -220,12 +237,57 @@ class GeminiEngineTests(unittest.TestCase):
             with self.assertRaises(GeminiAuthenticationError):
                 analyze_contract_with_gemini(REDACTED_CONTRACT, "bad-key")
 
-    def test_mocked_quota_failure_becomes_gemini_rate_limit_error(self) -> None:
-        fake_genai, fake_types, _generate_content = _fake_modules(side_effect=_QuotaFailure("quota exceeded"))
+    def test_daily_quota_metadata_is_preserved_without_raw_provider_text(self) -> None:
+        details = {
+            "error": {
+                "details": [
+                    {
+                        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+                        "violations": [
+                            {"quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier"}
+                        ],
+                    },
+                    {
+                        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+                        "retryDelay": "42s",
+                    },
+                ]
+            }
+        }
+        fake_genai, fake_types, _generate_content = _fake_modules(
+            side_effect=_QuotaFailure("sensitive provider text", details=details)
+        )
 
         with patch.object(gemini_engine, "genai", fake_genai), patch.object(gemini_engine, "_genai_types", fake_types):
-            with self.assertRaises(GeminiRateLimitError):
+            with self.assertRaises(GeminiRateLimitError) as raised:
                 analyze_contract_with_gemini(REDACTED_CONTRACT, "test-key")
+
+        self.assertEqual(raised.exception.quota_scope, "daily")
+        self.assertEqual(raised.exception.retry_after_seconds, 42.0)
+        self.assertNotIn("sensitive provider text", str(raised.exception))
+
+    def test_temporary_rate_limit_uses_retry_after_header(self) -> None:
+        fake_genai, fake_types, _generate_content = _fake_modules(
+            side_effect=_QuotaFailure("rate", headers={"Retry-After": "12"})
+        )
+
+        with patch.object(gemini_engine, "genai", fake_genai), patch.object(gemini_engine, "_genai_types", fake_types):
+            with self.assertRaises(GeminiRateLimitError) as raised:
+                analyze_contract_with_gemini(REDACTED_CONTRACT, "test-key")
+
+        self.assertEqual(raised.exception.quota_scope, "temporary_or_unknown")
+        self.assertEqual(raised.exception.retry_after_seconds, 12.0)
+
+    def test_service_failure_is_marked_retryable_for_runner(self) -> None:
+        fake_genai, fake_types, _generate_content = _fake_modules(
+            side_effect=_ServiceFailure("unavailable")
+        )
+
+        with patch.object(gemini_engine, "genai", fake_genai), patch.object(gemini_engine, "_genai_types", fake_types):
+            with self.assertRaises(GeminiResponseError) as raised:
+                analyze_contract_with_gemini(REDACTED_CONTRACT, "test-key")
+
+        self.assertTrue(raised.exception.retryable_provider)
 
     def test_gemini_result_passes_through_existing_evidence_validator(self) -> None:
         validated = validate_model_evidence(_sample_result(), REDACTED_CONTRACT)
