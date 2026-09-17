@@ -6,7 +6,11 @@ from unittest.mock import patch
 
 import pymupdf
 
-from contract_checker.gemini_engine import GeminiAuthenticationError, GeminiResponseError
+from contract_checker.gemini_engine import (
+    GeminiAuthenticationError,
+    GeminiRateLimitError,
+    GeminiResponseError,
+)
 from contract_checker.schemas import ContractAuditResult
 from tools import single_contract_analysis as runner
 
@@ -83,6 +87,32 @@ class SingleContractAnalysisTests(unittest.TestCase):
         self.assertEqual([item["cycle"] for item in attempts], [1, 1, 1, 2])
         self.assertEqual([item["status"] for item in attempts], ["FAILED", "FAILED", "FAILED", "OK"])
         self.assertTrue(any("Повтор через" in message for message in statuses))
+
+    def test_full_rate_limit_cycle_uses_long_cooldown(self):
+        calls = []
+        sleeps = []
+        statuses = []
+
+        def analyze_fn(*, redacted_text, api_key, model):
+            calls.append(model)
+            if len(calls) <= len(runner.AUTO_MODEL_ROUTE):
+                raise GeminiRateLimitError("rate limit")
+            return FakeResult()
+
+        result, model, attempts = runner.analyze_with_auto_route(
+            "sanitized",
+            "key",
+            analyze_fn,
+            sleep_fn=sleeps.append,
+            status_fn=statuses.append,
+        )
+
+        self.assertIsInstance(result, FakeResult)
+        self.assertEqual(model, "gemini-3.6-flash")
+        self.assertEqual(sleeps, [runner.RATE_LIMIT_CYCLE_DELAY_SECONDS])
+        self.assertEqual([item["cycle"] for item in attempts], [1, 1, 1, 2])
+        self.assertTrue(any("rate limit" in message for message in statuses))
+        self.assertTrue(any("300" in message for message in statuses))
 
     def test_authentication_failure_aborts_without_fallback(self):
         calls = []
