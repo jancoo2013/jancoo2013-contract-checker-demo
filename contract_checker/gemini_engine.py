@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import importlib.util
 import json
+import re
 from typing import Any
 
 from .cache_keys import analysis_cache_key
@@ -41,11 +42,26 @@ class GeminiAuthenticationError(GeminiError):
 
 
 class GeminiRateLimitError(GeminiError):
-    """Gemini quota or rate limit was reached."""
+    """Gemini quota or rate limit was reached, with safe retry metadata."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        quota_scope: str = "unknown",
+        retry_after_seconds: float | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.quota_scope = quota_scope
+        self.retry_after_seconds = retry_after_seconds
 
 
 class GeminiResponseError(GeminiError):
     """Gemini returned no usable structured response, malformed JSON, or refusal."""
+
+    def __init__(self, message: str, *, retryable_provider: bool = False) -> None:
+        super().__init__(message)
+        self.retryable_provider = retryable_provider
 
 
 @dataclass(frozen=True)
@@ -126,6 +142,95 @@ def _status_code(exc: Exception) -> int | None:
     return value if isinstance(value, int) else None
 
 
+def _error_payload(exc: Exception) -> dict[str, Any]:
+    details = getattr(exc, "details", None)
+    if not isinstance(details, dict):
+        return {}
+    nested = details.get("error")
+    return nested if isinstance(nested, dict) else details
+
+
+def _error_detail_items(exc: Exception) -> list[dict[str, Any]]:
+    items = _error_payload(exc).get("details", [])
+    if not isinstance(items, list):
+        return []
+    return [item for item in items if isinstance(item, dict)]
+
+
+def _parse_retry_delay(value: Any) -> float | None:
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return max(0.0, float(value))
+    if isinstance(value, str):
+        match = re.fullmatch(r"\s*(\d+(?:\.\d+)?)s\s*", value)
+        return float(match.group(1)) if match else None
+    if isinstance(value, dict):
+        seconds = value.get("seconds", 0)
+        nanos = value.get("nanos", 0)
+        try:
+            return max(0.0, float(seconds) + float(nanos) / 1_000_000_000)
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
+def _retry_after_seconds(exc: Exception) -> float | None:
+    for item in _error_detail_items(exc):
+        item_type = str(item.get("@type", "")).lower()
+        if "retryinfo" in item_type:
+            delay = _parse_retry_delay(item.get("retryDelay", item.get("retry_delay")))
+            if delay is not None:
+                return delay
+
+    response = getattr(exc, "response", None)
+    headers = getattr(response, "headers", None)
+    if headers is not None:
+        try:
+            value = headers.get("Retry-After")
+        except Exception:
+            value = None
+        delay = _parse_retry_delay(value)
+        if delay is None and isinstance(value, str):
+            try:
+                delay = max(0.0, float(value.strip()))
+            except ValueError:
+                delay = None
+        if delay is not None:
+            return delay
+    return None
+
+
+def _quota_scope(exc: Exception) -> str:
+    daily_markers = ("perday", "per_day", "per-day", "requestsperday", "requests_per_day", "daily")
+    for item in _error_detail_items(exc):
+        item_type = str(item.get("@type", "")).lower()
+        if "quotafailure" not in item_type:
+            continue
+        violations = item.get("violations", [])
+        if not isinstance(violations, list):
+            continue
+        for violation in violations:
+            if not isinstance(violation, dict):
+                continue
+            safe_fields = {
+                key: violation.get(key)
+                for key in ("quotaId", "quotaMetric", "quotaDimensions", "description")
+            }
+            compact = json.dumps(safe_fields, ensure_ascii=True, sort_keys=True).lower()
+            if any(marker in compact for marker in daily_markers):
+                return "daily"
+    return "temporary_or_unknown"
+
+
+def _analysis_http_options(types_module: Any) -> Any:
+    """Disable SDK-owned retries so the runner controls request amplification."""
+
+    retry_options_type = getattr(types_module, "HttpRetryOptions", None)
+    retry_options = retry_options_type(attempts=1) if retry_options_type else {"attempts": 1}
+    http_options_type = getattr(types_module, "HttpOptions", None)
+    options = {"retry_options": retry_options}
+    return http_options_type(**options) if http_options_type else options
+
+
 def _classify_sdk_error(exc: Exception) -> GeminiError:
     code = _status_code(exc)
     name = type(exc).__name__.lower()
@@ -133,13 +238,23 @@ def _classify_sdk_error(exc: Exception) -> GeminiError:
     if code in {401, 403} or "auth" in name or "permission" in name or "api key" in text:
         return GeminiAuthenticationError(_safe_message("Gemini authentication failed", exc))
     if code == 429 or "ratelimit" in name or "rate_limit" in name or "quota" in name or "quota" in text:
-        return GeminiRateLimitError(_safe_message("Gemini quota or rate limit reached", exc))
+        return GeminiRateLimitError(
+            _safe_message("Gemini quota or rate limit reached", exc),
+            quota_scope=_quota_scope(exc),
+            retry_after_seconds=_retry_after_seconds(exc),
+        )
     if code is not None and 400 <= code < 500:
         return GeminiResponseError(_safe_message("Gemini rejected the request", exc))
     if code is not None and code >= 500:
-        return GeminiResponseError(_safe_message("Gemini service error", exc))
+        return GeminiResponseError(
+            _safe_message("Gemini service error", exc),
+            retryable_provider=True,
+        )
     if any(token in name for token in ("timeout", "connection", "network", "transport")):
-        return GeminiResponseError(_safe_message("Gemini network error", exc))
+        return GeminiResponseError(
+            _safe_message("Gemini network error", exc),
+            retryable_provider=True,
+        )
     return GeminiResponseError(_safe_message("Gemini request failed", exc))
 
 
@@ -307,7 +422,10 @@ def generate_contract_analysis_raw_text(
     config = _build_config(types_module)
 
     try:
-        client = genai_module.Client(api_key=api_key.strip())
+        client = genai_module.Client(
+            api_key=api_key.strip(),
+            http_options=_analysis_http_options(types_module),
+        )
         response = client.models.generate_content(model=selected_model, contents=contents, config=config)
     except GeminiError:
         raise
