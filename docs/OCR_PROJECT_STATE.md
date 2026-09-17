@@ -1,6 +1,6 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-09-17, PR #275, `single-contract-runner-warning-cleanup-v1`.
+Последнее обновление: 2026-09-17, PR #276, `single-contract-runner-warning-cleanup-v2`.
 
 Активный трек: `question-engine-development`.
 
@@ -161,17 +161,26 @@ This PR does not yet make the legacy narrative report a full deterministic `Find
 PR #275 is a product-owner-authorized bounded corrective exception while the same-contract rerun remains the canonical next step. It changes only the local CLI's console hygiene:
 
 - replace deprecated `fitz` compatibility import with `pymupdf` in the runner and its focused PDF test;
-- raise only `streamlit.runtime.scriptrunner_utils.script_run_context` to `ERROR` so the expected bare-mode `missing ScriptRunContext` advisory does not fill the console;
-- raise only `google.genai.models` to `ERROR` so the direct `Models.generate_content` AFC advisory does not fill this no-tools CLI console;
+- raise the known Streamlit bare-mode logger and the intended Google GenAI AFC advisory logger to `ERROR`;
 - keep runner retry status, controlled Gemini errors, authentication/configuration failures and other Python warnings/errors visible.
 
-No provider/model route, retry timing, Question Engine schema/prompt/validation, privacy boundary, OCR path, report payload, dependency, permission, workflow, endpoint or network destination changes in this PR.
+A fresh downloaded `main` showed that only the PyMuPDF warning was actually removed. Streamlit still reinitialized its warning logger after the pre-import assignment, and the Google GenAI logger name used in #275 was incorrect.
+
+### 7.2 PR #276 warning cleanup correction
+
+PR #276 corrects those two concrete causes without changing analysis behavior:
+
+- import Streamlit before applying CLI-only logging thresholds, then set both the `streamlit` parent logger and the specific `streamlit.runtime.scriptrunner_utils.script_run_context` logger to `ERROR`;
+- target the actual google-genai logger name `google_genai.models` for the AFC advisory instead of the incorrect `google.genai.models` name;
+- keep all runner cycle/status output and controlled failures unchanged.
+
+Provider routing, retry timing, Question Engine schema/prompt/validation, privacy boundary, OCR path, report payload, dependency set, permission set, workflows, endpoint set and network destinations are unchanged.
 
 ## 8. Canonical next step
 
 `next_step_id = question-engine-single-contract-real-rerun-v4`
 
-After PR #275 validation and merge, rerun the same reviewed March–August 2025 contract. Before broadening to any other contract, inspect the explicit answers for at least:
+After PR #276 validation and merge, rerun the same reviewed March–August 2025 contract. Before broadening to any other contract, inspect the explicit answers for at least:
 
 - `security.completion_authority`;
 - `security.realization_chain`;
