@@ -128,6 +128,13 @@ OverallRiskProfile = Literal[
     "no_obvious_critical_risk_found",
     "text_unusable",
 ]
+QuestionEngineAnswerStatus = Literal[
+    "FOUND",
+    "NOT_FOUND",
+    "AMBIGUOUS",
+    "HANDWRITING_DEPENDENCY",
+    "CLAUSE_PRESENT_VALUE_BLANK",
+]
 
 
 class StrictModel(BaseModel):
@@ -208,10 +215,20 @@ class ProposedChange(StrictModel):
     priority: Literal["red", "yellow", "normal"] = "yellow"
 
 
+class QuestionEngineAnswer(StrictModel):
+    """Compact explicit answer to one deterministic Question Engine question."""
+
+    question_id: str
+    status: QuestionEngineAnswerStatus
+    values: list[str | None] = Field(default_factory=list)
+    evidence_block_ids: list[str] = Field(default_factory=list)
+
+
 class ContractAuditResult(StrictModel):
     risk_profile: OverallRiskProfile
     risk_profile_summary_ru: str
     document_quality: DocumentQuality
+    question_engine_answers: list[QuestionEngineAnswer] = Field(default_factory=list)
     clauses: list[ClauseAnalysis] = Field(default_factory=list)
     risks: list[RiskItem] = Field(default_factory=list)
     financial_hints: list[FinancialHint] = Field(default_factory=list)
