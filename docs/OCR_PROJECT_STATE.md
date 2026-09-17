@@ -1,10 +1,10 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-09-16, PR #273, `question-engine-provider-cycle-retry-v1`.
+Последнее обновление: 2026-09-17, PR #274, `question-engine-explicit-answer-coverage-v1`.
 
 Активный трек: `question-engine-development`.
 
-Канонический следующий bounded-шаг: `question-engine-single-contract-real-rerun-v3`.
+Канонический следующий bounded-шаг: `question-engine-single-contract-real-rerun-v4`.
 
 Этот документ вместе с `docs/OCR_PROJECT_STATE.json` является канонической operational-точкой восстановления. Binding architecture/security/privacy documents остаются выше по приоритету; `active_track` и `next_step_id` выбираются state-файлами.
 
@@ -44,7 +44,7 @@ choose exactly one PDF
 → guarded local structured JSON report
 ```
 
-Real PDF originals remain local and are never committed. The persisted report does not contain the source filename or raw/sanitized contract text. Image-only/scanned PDFs remain fail-closed and require a future explicitly approved OCR/privacy path. PR #273 does not reopen OCR.
+Real PDF originals remain local and are never committed. The persisted report does not contain the source filename or raw/sanitized contract text. Image-only/scanned PDFs remain fail-closed and require a future explicitly approved OCR/privacy path. PR #274 does not reopen OCR.
 
 ## 3. First real full-contract run
 
@@ -95,9 +95,7 @@ After PR #272 merged, the same March–August 2025 contract was launched again. 
 All configured Gemini Flash models failed for this contract
 ```
 
-That behavior does not match the product-owner requirement. A transiently overloaded provider should not terminate the whole user run merely because all three models failed once.
-
-PR #273 changes only retry orchestration in the local real-contract runner:
+That behavior did not match the product-owner requirement. PR #273 changed only retry orchestration in the local real-contract runner:
 
 - retryable `GeminiRateLimitError` and `GeminiResponseError` outcomes move to the next model;
 - after 3.6, 3.7 and 3.5 have all failed, the runner waits 30 seconds and starts again at 3.6;
@@ -107,31 +105,79 @@ PR #273 changes only retry orchestration in the local real-contract runner:
 - the attempt ledger records the cycle for every attempt and is persisted only if a model eventually succeeds;
 - no raw provider exception body, API key or contract text is printed.
 
-Prompt, output guardrails, privacy boundary, OCR scope, model list, dependencies, permissions, endpoint set and network destinations are unchanged.
+Prompt, output guardrails, privacy boundary, OCR scope, model list, dependencies, permissions, endpoint set and network destinations were unchanged.
 
-## 6. Canonical next step
+## 6. Successful post-#273 rerun and remaining defects
 
-`next_step_id = question-engine-single-contract-real-rerun-v3`
+The same reviewed contract later completed after cyclic routing:
 
-After PR #273 focused validation and merge, rerun the same reviewed March–August 2025 contract and allow cyclic provider retries to continue until one model succeeds or the run is manually stopped. Then compare the new report against the first real run. Specifically verify:
+- cycles 1–3: all three configured Flash models returned retryable `GeminiResponseError` outcomes;
+- cycle 4: `gemini-3.6-flash` completed successfully in `36.599s`;
+- total attempts: `10`;
+- no raw contract material from this run is committed.
 
-- the 20,000 NIS cheque is discussed through its complete mechanism rather than mainly its size;
-- broad fundamental-breach wording is reconciled with the existing 7-day rent cure;
-- AS-IS is narrowed by the related repair/hidden-defect allocation where supported;
-- the 21-day inspection and 10-day correction process survives alongside the holdover sanction;
-- no generic missing warnings for renewal option/building insurance appear;
-- no invented 2–3 month, 14-day, 48-hour, or 2,000–3,000 NIS recommendations appear.
+The #272 guardrails materially improved the semantic result:
 
-Do not move to the other real contracts until this same-contract before/after comparison is inspected.
+- AS-IS was read together with landlord repair/hidden-defect protections and remained `normal`;
+- the 21-day pre-return inspection, 10-day correction window and double-daily holdover mechanism were read together;
+- invented market comparisons and numeric rewrite suggestions disappeared;
+- generic `missing_clauses` and `proposed_changes` were absent;
+- the 20,000 NIS security cheque was recognized as having incomplete realization mechanics rather than being treated mainly as a large amount.
 
-## 7. Current Question Engine architecture
+Two important gaps remained:
+
+1. the 20,000 NIS security-cheque mechanism produced only a subset of the required questions; completion authority, realization grounds/amount basis, cure details and the cheque-specific return mechanism were not all forced into explicit output;
+2. the broad fundamental-breach finding still did not fully reconcile the contract's specific 7-day rent cure/notice mechanics, despite the prompt-only second-pass instruction.
+
+Conclusion: a prompt-only internal inventory is insufficient because a model can silently skip an inventory item or one of its required fields while still returning a schema-valid legacy audit.
+
+## 7. PR #274 explicit Question Engine answer coverage
+
+PR #274 converts the core inventory from an internal checklist into a mandatory structured extraction layer.
+
+Each provider result must now include `question_engine_answers` with:
+
+- exactly one object for every core `question_id`;
+- one controlled status: `FOUND`, `NOT_FOUND`, `AMBIGUOUS`, `HANDWRITING_DEPENDENCY`, or `CLAUSE_PRESENT_VALUE_BLANK`;
+- a compact positional `values` list whose length and order exactly match that question's declared `answer_fields`;
+- source `evidence_block_ids` for non-`NOT_FOUND` answers.
+
+Python validates the extraction before the provider result is accepted. It rejects:
+
+- missing core question IDs;
+- duplicate or unknown question IDs;
+- the wrong number of positional values;
+- `NOT_FOUND` paired with non-null extracted values;
+- non-`NOT_FOUND` answers without evidence;
+- evidence block IDs that do not exist in the sanitized source evidence set;
+- a `FOUND` answer that contains no actual value.
+
+A rejected extraction becomes the existing controlled `GeminiResponseError`, so the already-merged cyclic provider route can move to the next model without exposing contract text or provider exception bodies.
+
+This PR does not yet make the legacy narrative report a full deterministic `FindingResolution` renderer. Its bounded purpose is to ensure the semantic extraction layer cannot silently omit core Question Engine questions or answer fields. The explicit answers are persisted in the local sanitized report and become the input for later deterministic resolution/materiality logic.
+
+## 8. Canonical next step
+
+`next_step_id = question-engine-single-contract-real-rerun-v4`
+
+After PR #274 validation and merge, rerun the same reviewed March–August 2025 contract. Before broadening to any other contract, inspect the explicit answers for at least:
+
+- `security.completion_authority`;
+- `security.realization_chain`;
+- `security.return_mechanics`;
+- `termination.notice_cure`;
+- `termination.cross_clause_interaction`.
+
+The key acceptance question is no longer only whether the narrative sounds better. Verify that every core question ID is present, every declared answer field has a positional value/null, evidence references are grounded, and the security/termination interactions are explicitly extractable for later deterministic `FindingResolution`.
+
+## 9. Current Question Engine architecture
 
 ```text
 privacy-validated sanitized contract material
 → analysis-completeness / document-type gate
 → deterministic smart core question inventory
-→ support/dependency facts only when required
-→ LLM structured semantic extraction
+→ explicit LLM structured answers for every core question_id
+→ Python question/field/evidence coverage validation
 → deterministic conditional follow-ups
 → cross-clause interaction checks
 → bounded novel-issue catch-all
@@ -144,7 +190,7 @@ privacy-validated sanitized contract material
 
 Core invariants: handwriting is never guessed; different security instruments remain distinct; missing/blank dependencies are explicit; candidate finding is not final finding; user-facing output does not issue sign/don't-sign advice, court predictions, or categorical enforceability claims without a separately approved deterministic rule.
 
-## 8. Stable recovery anchors
+## 10. Stable recovery anchors
 
 Current smart CORE families: security/enforcement, early exit/replacement tenant, financial sanctions/overlap, condition/AS-IS/defects/damage evidence, termination/cure/notice, option/renewal. Corpus oracle v2 remains an evaluation representation, not production runtime schema.
 
@@ -154,7 +200,7 @@ Frozen OCR anchor: Surya/cloud OCR remains frozen research; Tesseract full-page 
 
 Last completed Question Engine batch audit marker: 2026-09-08, start `cbbb8e0905c1fda8610260d4046b51952a9f636c`, end `ee66e0063e270abd5eb7992f2be73c89dbec3a5d`, principal PR range `#234–#250`, outcome `CORRECTIVE PR REQUIRED`. Provider audit after #265 is separate and its bounded corrective chain is complete.
 
-## 9. Recovery/work rules
+## 11. Recovery/work rules
 
 Before a new PR read from current base: `AGENTS.md`, `SECURITY.md`, `docs/ARCHITECTURE.md`, `docs/CUSTOM_OCR_PIPELINE.md`, `docs/SERVERLESS_GPU_OCR_PIPELINE_V1.md`, both state files, `docs/DOCUMENT_STATUS_INDEX.md`, and `docs/CODEX_WORKFLOW.md`.
 
