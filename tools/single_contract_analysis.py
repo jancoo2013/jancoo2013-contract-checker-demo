@@ -35,6 +35,7 @@ AUTO_MODEL_ROUTE = (
     "gemini-3.5-flash",
 )
 RETRY_CYCLE_DELAY_SECONDS = 30.0
+RATE_LIMIT_CYCLE_DELAY_SECONDS = 300.0
 MAX_PDF_BYTES = 25 * 1024 * 1024
 MAX_PAGES = 40
 MAX_TEXT_CHARS = 250_000
@@ -246,22 +247,36 @@ def analyze_with_auto_route(
 ) -> tuple[ContractAuditResult, str, list[dict[str, object]]]:
     """Cycle through Flash models until one retryable attempt succeeds.
 
-    Authentication/configuration errors remain terminal. Provider, rate-limit and
-    structured-response failures rotate to the next model; after a full failed
-    cycle the runner waits briefly and starts again from the preferred model.
-    The user can stop an extended retry loop with Ctrl+C.
+    Authentication/configuration errors remain terminal. Retryable failures rotate
+    to the next model. A full rate-limited cycle gets a longer cooldown so the
+    runner does not hammer the same quota gate every 30 seconds.
     """
 
     attempts: list[dict[str, object]] = []
     cycle = 1
     while True:
+        rate_limit_failures = 0
         for model in AUTO_MODEL_ROUTE:
             started = time.monotonic()
             try:
                 result = analyze_fn(redacted_text=sanitized_text, api_key=api_key, model=model)
             except (GeminiAuthenticationError, GeminiConfigurationError):
                 raise
-            except (GeminiRateLimitError, GeminiResponseError) as exc:
+            except GeminiRateLimitError as exc:
+                elapsed = round(time.monotonic() - started, 3)
+                rate_limit_failures += 1
+                attempts.append({
+                    "cycle": cycle,
+                    "model": model,
+                    "status": "FAILED",
+                    "error": type(exc).__name__,
+                    "elapsed_seconds": elapsed,
+                })
+                status_fn(
+                    f"Цикл {cycle}: {model} — {type(exc).__name__} — {elapsed:.1f}s"
+                )
+                continue
+            except GeminiResponseError as exc:
                 elapsed = round(time.monotonic() - started, 3)
                 attempts.append({
                     "cycle": cycle,
@@ -285,11 +300,19 @@ def analyze_with_auto_route(
             status_fn(f"Цикл {cycle}: {model} — OK — {elapsed:.1f}s")
             return result, model, attempts
 
-        status_fn(
-            f"Цикл {cycle}: все модели временно не дали результата. "
-            f"Повтор через {int(RETRY_CYCLE_DELAY_SECONDS)} с. Ctrl+C — остановить."
-        )
-        sleep_fn(RETRY_CYCLE_DELAY_SECONDS)
+        if rate_limit_failures == len(AUTO_MODEL_ROUTE):
+            delay = RATE_LIMIT_CYCLE_DELAY_SECONDS
+            status_fn(
+                f"Цикл {cycle}: все модели вернули rate limit. "
+                f"Повтор через {int(delay)} с. Ctrl+C — остановить."
+            )
+        else:
+            delay = RETRY_CYCLE_DELAY_SECONDS
+            status_fn(
+                f"Цикл {cycle}: все модели временно не дали результата. "
+                f"Повтор через {int(delay)} с. Ctrl+C — остановить."
+            )
+        sleep_fn(delay)
         cycle += 1
 
 
