@@ -1,6 +1,6 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-09-17, PR #276, `single-contract-runner-warning-cleanup-v2`.
+Последнее обновление: 2026-09-17, PR #277, `single-contract-runner-no-web-ui-cache-v1`.
 
 Активный трек: `question-engine-development`.
 
@@ -158,21 +158,23 @@ This PR does not yet make the legacy narrative report a full deterministic `Find
 
 ### 7.1 PR #275 local runner warning cleanup
 
-PR #275 is a product-owner-authorized bounded corrective exception while the same-contract rerun remains the canonical next step. It changes only the local CLI's console hygiene:
+PR #275 was a bounded attempt to clean the command-line console:
 
 - replace deprecated `fitz` compatibility import with `pymupdf` in the runner and its focused PDF test;
-- raise the known Streamlit bare-mode logger and the intended Google GenAI AFC advisory logger to `ERROR`;
+- suppress two known library advisory logger paths;
 - keep runner retry status, controlled Gemini errors, authentication/configuration failures and other Python warnings/errors visible.
 
-A fresh downloaded `main` showed that only the PyMuPDF warning was actually removed. Streamlit still reinitialized its warning logger after the pre-import assignment, and the Google GenAI logger name used in #275 was incorrect.
+A fresh downloaded `main` showed that only the PyMuPDF warning was actually removed. The other two library warning sources remained noisy.
 
 ### 7.2 PR #276 warning cleanup correction
 
-PR #276 corrects those two concrete causes without changing analysis behavior:
+PR #276 tried a second logger-specific correction by initializing the old web UI framework before setting logger thresholds and by targeting the actual Google GenAI logger name. A fresh downloaded `main` still showed warning noise in the local CLI.
 
-- import Streamlit before applying CLI-only logging thresholds, then set both the `streamlit` parent logger and the specific `streamlit.runtime.scriptrunner_utils.script_run_context` logger to `ERROR`;
-- target the actual google-genai logger name `google_genai.models` for the AFC advisory instead of the incorrect `google.genai.models` name;
-- keep all runner cycle/status output and controlled failures unchanged.
+### 7.3 PR #277 remove web-UI warning plumbing from the CLI
+
+PR #277 removes the previous web-UI import and all web-UI logger configuration from `tools/single_contract_analysis.py`.
+
+The local runner now disables Python logging at `WARNING` level for its own process before shared analysis modules are imported. Runner-owned cycle/status/error output uses `print` and controlled exceptions, so it remains visible; logging at `ERROR` and `CRITICAL` remains enabled. This intentionally trades library warning verbosity for a clean operator console in this one command-line tool.
 
 Provider routing, retry timing, Question Engine schema/prompt/validation, privacy boundary, OCR path, report payload, dependency set, permission set, workflows, endpoint set and network destinations are unchanged.
 
@@ -180,7 +182,7 @@ Provider routing, retry timing, Question Engine schema/prompt/validation, privac
 
 `next_step_id = question-engine-single-contract-real-rerun-v4`
 
-After PR #276 validation and merge, rerun the same reviewed March–August 2025 contract. Before broadening to any other contract, inspect the explicit answers for at least:
+After PR #277 validation and merge, rerun the same reviewed March–August 2025 contract. Before broadening to any other contract, inspect the explicit answers for at least:
 
 - `security.completion_authority`;
 - `security.realization_chain`;
