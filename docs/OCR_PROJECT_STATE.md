@@ -1,6 +1,6 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-09-17, PR #276, `single-contract-runner-warning-cleanup-v2`.
+Последнее обновление: 2026-09-17, PR #278, `single-contract-rate-limit-backoff-v1`.
 
 Активный трек: `question-engine-development`.
 
@@ -14,13 +14,14 @@ Corrective chain #266 → #268 → #269 завершена и слита: bounde
 
 Local provider experiment v6 на 10 synthetic/sanitized security cases дал `705.02s`, `8/10` completed, 14 provider attempts; 3.6 succeeded on 8 cases, 3.5 succeeded on 0/4 fallback attempts. PR #270 added 3.7 for experimental Flash routing while excluding 3.8.
 
-Current real-contract automatic route after PR #273 is cyclic:
+Current real-contract automatic route after PR #278 is cyclic:
 
 ```text
 gemini-3.6-flash
 → on retryable provider/rate/response failure: gemini-3.7-flash
 → on retryable provider/rate/response failure: gemini-3.5-flash
-→ if the full cycle fails: wait 30 seconds
+→ if all three attempts are GeminiRateLimitError: wait 300 seconds
+→ otherwise after a fully failed retryable cycle: wait 30 seconds
 → restart at gemini-3.6-flash
 → repeat until success or user Ctrl+C
 ```
@@ -176,11 +177,27 @@ PR #276 corrects those two concrete causes without changing analysis behavior:
 
 Provider routing, retry timing, Question Engine schema/prompt/validation, privacy boundary, OCR path, report payload, dependency set, permission set, workflows, endpoint set and network destinations are unchanged.
 
+### 7.3 PR #278 rate-limit cycle backoff
+
+During the post-#274 same-contract rerun, repeated cycles showed that most attempts were failing almost immediately with `GeminiRateLimitError` rather than spending time on model generation. Repeating the same three-model cycle every 30 seconds therefore became counterproductive quota-gate hammering.
+
+PR #278 keeps the existing model order and retryable-failure routing but changes the delay after a fully failed cycle:
+
+- if all three configured models return `GeminiRateLimitError`, wait 300 seconds before retrying from 3.6;
+- if the cycle contains any other retryable failure such as `GeminiResponseError`, retain the existing 30-second delay;
+- authentication/configuration failures remain terminal;
+- user `Ctrl+C` remains the stop mechanism;
+- attempt records and safe console status remain unchanged in structure.
+
+This PR does not attempt to guess whether a 429 represents a minute-level, project-level, or daily provider quota because the current safe exception contract does not expose reliable quota-window metadata. It only prevents the observed rapid repeated retries.
+
+Provider list, Question Engine schema/prompt/validation, privacy boundary, OCR path, report payload, dependencies, permissions, workflows, endpoints and network destinations are unchanged.
+
 ## 8. Canonical next step
 
 `next_step_id = question-engine-single-contract-real-rerun-v4`
 
-After PR #276 validation and merge, rerun the same reviewed March–August 2025 contract. Before broadening to any other contract, inspect the explicit answers for at least:
+After PR #278 validation and merge, rerun the same reviewed March–August 2025 contract. Before broadening to any other contract, inspect the explicit answers for at least:
 
 - `security.completion_authority`;
 - `security.realization_chain`;
