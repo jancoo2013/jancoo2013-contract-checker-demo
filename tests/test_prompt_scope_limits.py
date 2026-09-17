@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import unittest
 
-from contract_checker.prompt_builder import SYSTEM_PROMPT_RU, build_contract_audit_prompt
+from contract_checker.prompt_builder import (
+    SYSTEM_PROMPT_RU,
+    build_contract_audit_prompt,
+    question_engine_expected_answer_fields,
+)
 
 
 class PromptScopeLimitTests(unittest.TestCase):
@@ -44,21 +48,46 @@ class PromptScopeLimitTests(unittest.TestCase):
             SYSTEM_PROMPT_RU,
         )
 
-    def test_prompt_includes_deterministic_question_engine_review_inventory(self) -> None:
+    def test_prompt_requires_explicit_question_engine_answers(self) -> None:
         messages = build_contract_audit_prompt(
             "--- СТРАНИЦА 1 ---\nהסכם שכירות המשכיר השוכר דמי שכירות תיקונים"
         )
         user_prompt = next(item["content"] for item in messages if item["role"] == "user")
-        self.assertIn("ОБЯЗАТЕЛЬНЫЙ QUESTION ENGINE REVIEW INVENTORY", user_prompt)
-        for question_id in (
-            "security.realization_chain",
-            "early_exit.replacement_route",
-            "financial_sanctions.holdover_compensation",
-            "condition.repair_mechanics",
-            "condition.return_condition",
-            "termination.cross_clause_interaction",
-        ):
-            self.assertIn(question_id, user_prompt)
+        self.assertIn("ОБЯЗАТЕЛЬНЫЙ QUESTION ENGINE ANSWER CONTRACT", user_prompt)
+        self.assertIn("question_engine_answers", user_prompt)
+        self.assertIn("values идут строго в порядке fields", user_prompt)
+        self.assertIn("security.realization_chain", user_prompt)
+        self.assertIn(
+            "fields=[realization_grounds, amount_basis, notice_required, notice_period, cure_available, cure_period]",
+            user_prompt,
+        )
+        self.assertIn("termination.cross_clause_interaction", user_prompt)
+        self.assertIn("ровно один объект для каждого question_id", SYSTEM_PROMPT_RU)
+        self.assertIn("Количество элементов обязано точно совпадать", SYSTEM_PROMPT_RU)
+
+    def test_expected_answer_fields_are_taken_from_core_inventory(self) -> None:
+        expected = question_engine_expected_answer_fields()
+        self.assertEqual(
+            expected["security.realization_chain"],
+            (
+                "realization_grounds",
+                "amount_basis",
+                "notice_required",
+                "notice_period",
+                "cure_available",
+                "cure_period",
+            ),
+        )
+        self.assertEqual(
+            expected["termination.cross_clause_interaction"],
+            (
+                "linked_breach_categories",
+                "linked_notice_cure_rules",
+                "linked_cancellation_rules",
+                "linked_vacancy_rules",
+                "interaction_ambiguity",
+            ),
+        )
 
 
 if __name__ == "__main__":
