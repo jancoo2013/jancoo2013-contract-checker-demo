@@ -1,6 +1,6 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-09-17, PR #274, `question-engine-explicit-answer-coverage-v1`.
+Последнее обновление: 2026-09-17, PR #275, `single-contract-runner-warning-cleanup-v1`.
 
 Активный трек: `question-engine-development`.
 
@@ -156,11 +156,22 @@ A rejected extraction becomes the existing controlled `GeminiResponseError`, so 
 
 This PR does not yet make the legacy narrative report a full deterministic `FindingResolution` renderer. Its bounded purpose is to ensure the semantic extraction layer cannot silently omit core Question Engine questions or answer fields. The explicit answers are persisted in the local sanitized report and become the input for later deterministic resolution/materiality logic.
 
+### 7.1 PR #275 local runner warning cleanup
+
+PR #275 is a product-owner-authorized bounded corrective exception while the same-contract rerun remains the canonical next step. It changes only the local CLI's console hygiene:
+
+- replace deprecated `fitz` compatibility import with `pymupdf` in the runner and its focused PDF test;
+- raise only `streamlit.runtime.scriptrunner_utils.script_run_context` to `ERROR` so the expected bare-mode `missing ScriptRunContext` advisory does not fill the console;
+- raise only `google.genai.models` to `ERROR` so the direct `Models.generate_content` AFC advisory does not fill this no-tools CLI console;
+- keep runner retry status, controlled Gemini errors, authentication/configuration failures and other Python warnings/errors visible.
+
+No provider/model route, retry timing, Question Engine schema/prompt/validation, privacy boundary, OCR path, report payload, dependency, permission, workflow, endpoint or network destination changes in this PR.
+
 ## 8. Canonical next step
 
 `next_step_id = question-engine-single-contract-real-rerun-v4`
 
-After PR #274 validation and merge, rerun the same reviewed March–August 2025 contract. Before broadening to any other contract, inspect the explicit answers for at least:
+After PR #275 validation and merge, rerun the same reviewed March–August 2025 contract. Before broadening to any other contract, inspect the explicit answers for at least:
 
 - `security.completion_authority`;
 - `security.realization_chain`;
