@@ -1,10 +1,10 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-09-17, PR #279, `single-contract-quota-aware-retry-v1`.
+Последнее обновление: 2026-09-21, PR #281, `question-engine-expert-pack-v01`.
 
 Активный трек: `question-engine-development`.
 
-Канонический следующий bounded-шаг: `question-engine-single-contract-real-rerun-v4`.
+Канонический следующий bounded-шаг: `question-engine-expert-pack-same-contract-comparison-v1`.
 
 Этот документ вместе с `docs/OCR_PROJECT_STATE.json` является канонической operational-точкой восстановления. Binding architecture/security/privacy documents остаются выше по приоритету; `active_track` и `next_step_id` выбираются state-файлами.
 
@@ -205,21 +205,48 @@ The attempt ledger stores only safe error class plus safe quota scope/retry timi
 
 This PR does not add another provider, model, dependency, endpoint, permission, workflow or storage path. It does not change Question Engine semantics/schema, the privacy boundary, report payload contract or OCR scope.
 
+## 7.5 PR #281 Expert Pack v0.1 experiment
+
+PR #280 was a design-only Figma review/export merge and did not update the canonical state files. It did not change the Question Engine track, provider route, privacy boundary, or the then-current analysis next step. PR #281 explicitly restores state continuity from current `main` while recording the product-owner-directed change in the next semantic experiment.
+
+PR #281 adds a three-file experimental Expert Pack:
+
+- `docs/question_engine/expert_pack_v0_1/CORE_PROTOCOL.md` — compact always-on reasoning discipline;
+- `docs/question_engine/expert_pack_v0_1/MECHANISM_PLAYBOOK.md` — mechanism-centered expert pattern map;
+- `docs/question_engine/expert_pack_v0_1/EXPERT_EXAMPLES.md` — 15 contrastive WRONG versus EXPERT READING demonstrations distilled into synthetic/sanitized examples.
+
+The experiment changes packaging, not production runtime. No Python prompt builder, provider route, schema, Question Engine inventory, privacy gate, OCR path, dependency, workflow, permission, endpoint, or persistence behavior changes in this PR.
+
+For the next comparison, the legacy Questionnaire/Skeleton is deliberately excluded as a reasoning input. Its future role, if retained, is post-analysis completeness checking rather than the primary mechanism by which the model is taught to read a contract.
+
+The hypothesis under test is narrow: a compact protocol plus mechanism patterns plus contrastive demonstrations may transfer expert cross-clause reading more reliably than a long normative questionnaire. The same already-reviewed contract must be used before broadening the corpus.
+
 ## 8. Canonical next step
 
-`next_step_id = question-engine-single-contract-real-rerun-v4`
+`next_step_id = question-engine-expert-pack-same-contract-comparison-v1`
 
-After PR #279 validation and merge, rerun the same reviewed March–August 2025 contract. Before broadening to any other contract, inspect the explicit answers for at least:
+Run the same already-reviewed March–August 2025 contract as a controlled semantic comparison using only the three-file Expert Pack v0.1 as the expert reasoning packet, plus the same sanitized contract material and the same output request needed for comparison.
 
-- `security.completion_authority`;
-- `security.realization_chain`;
-- `security.return_mechanics`;
-- `termination.notice_cure`;
-- `termination.cross_clause_interaction`.
+Do not supply the legacy Questionnaire/Skeleton as a reasoning input in this experiment. Do not change provider code, production schemas, statutory rules, privacy gates, or OCR behavior merely to run the comparison.
 
-The key acceptance question is no longer only whether the narrative sounds better. Verify that every core question ID is present, every declared answer field has a positional value/null, evidence references are grounded, and the security/termination interactions are explicitly extractable for later deterministic `FindingResolution`.
+Inspect at minimum whether the model now correctly preserves these boundaries without questionnaire-driven field execution:
+
+- one security instrument's return rule is not transferred to another instrument;
+- contract silence about payee/fields is not converted into a claim about the physical cheque;
+- unrelated numeric periods are not migrated between mechanisms;
+- replacement-tenant routes are reconciled with general assignment/subletting restrictions;
+- specific cure periods remain scoped to the correct breach;
+- AS-IS is reconciled with repairs/defects;
+- pre-return inspection/correction is reconciled with holdover without collapsing distinct triggers;
+- option presence is distinguished from unresolved option details;
+- contradictory payment descriptions are preserved rather than normalized;
+- unsupported market norms are absent.
+
+Acceptance is comparative rather than ceremonial: record concrete correct/incorrect readings against the same source and determine whether the Expert Pack materially reduces the reasoning failures that survived the Skeleton approach. If it does not, do not lengthen the Pack reflexively; treat model capability as a live alternative explanation.
 
 ## 9. Current Question Engine architecture
+
+The merged runtime architecture below remains the current implementation baseline. PR #281 does not replace it; the Expert Pack is an experimental model-facing comparison before any later bounded integration decision.
 
 ```text
 privacy-validated sanitized contract material
