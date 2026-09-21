@@ -1,0 +1,76 @@
+{
+  "$schema": "https://design-tokens.github.io/community-group/format/",
+  "meta": {
+    "name": "Israeli Rental Contract Parser - Design System v2",
+    "selectedDirection": "Calm Product - Sky Blue Refinement",
+    "sourceFigma": "https://www.figma.com/design/EJvTC0s3RPv29BFXlM1AwA",
+    "basedOn": "design/figma-v1"
+  },
+  "color": {
+    "background": { "$type": "color", "$value": "#F8F8F4" },
+    "surface": { "$type": "color", "$value": "#FFFFFF" },
+    "textPrimary": { "$type": "color", "$value": "#18242B" },
+    "textSecondary": { "$type": "color", "$value": "#5E6B73" },
+    "divider": { "$type": "color", "$value": "#D6DCE0" },
+    "accentSky": { "$type": "color", "$value": "#4DA3D9" },
+    "actionPrimary": { "$type": "color", "$value": "#2F7EA8" },
+    "actionPressed": { "$type": "color", "$value": "#246487" },
+    "accentSoft": { "$type": "color", "$value": "#EAF4FA" },
+    "disabledFill": { "$type": "color", "$value": "#C8DFEB" },
+    "disabledText": { "$type": "color", "$value": "#6B8796" },
+    "warning": { "$type": "color", "$value": "#C64035" },
+    "warningText": { "$type": "color", "$value": "#91342D" },
+    "progressTrack": { "$type": "color", "$value": "#DDE7EC" }
+  },
+  "font": {
+    "family": { "$type": "fontFamily", "$value": "Noto Sans" },
+    "weight": {
+      "regular": { "$type": "fontWeight", "$value": 400 },
+      "medium": { "$type": "fontWeight", "$value": 500 },
+      "semibold": { "$type": "fontWeight", "$value": 600 }
+    },
+    "size": {
+      "supporting": { "$type": "dimension", "$value": "14px" },
+      "body": { "$type": "dimension", "$value": "17px" },
+      "sectionHeading": { "$type": "dimension", "$value": "20px" },
+      "screenTitleCompact": { "$type": "dimension", "$value": "28px" },
+      "screenTitle": { "$type": "dimension", "$value": "32px" }
+    },
+    "lineHeight": {
+      "supporting": { "$type": "dimension", "$value": "21px" },
+      "body": { "$type": "dimension", "$value": "27px" },
+      "sectionHeading": { "$type": "dimension", "$value": "28px" },
+      "screenTitleCompact": { "$type": "dimension", "$value": "36px" },
+      "screenTitle": { "$type": "dimension", "$value": "40px" }
+    }
+  },
+  "space": {
+    "1": { "$type": "dimension", "$value": "8px" },
+    "1.5": { "$type": "dimension", "$value": "12px" },
+    "2": { "$type": "dimension", "$value": "16px" },
+    "3": { "$type": "dimension", "$value": "24px" },
+    "4": { "$type": "dimension", "$value": "32px" },
+    "6": { "$type": "dimension", "$value": "48px" }
+  },
+  "radius": {
+    "reading": { "$type": "dimension", "$value": "4px" },
+    "presentation": { "$type": "dimension", "$value": "8px" },
+    "control": { "$type": "dimension", "$value": "12px" }
+  },
+  "size": {
+    "androidFrameWidth": { "$type": "dimension", "$value": "360px" },
+    "screenMargin": { "$type": "dimension", "$value": "24px" },
+    "contentWidth": { "$type": "dimension", "$value": "312px" },
+    "minimumTouchTarget": { "$type": "dimension", "$value": "48px" },
+    "buttonHeight": { "$type": "dimension", "$value": "56px" },
+    "topBarHeight": { "$type": "dimension", "$value": "40px" },
+    "accordionPriorityMarker": { "$type": "dimension", "$value": "2px" },
+    "riskMarker": { "$type": "dimension", "$value": "5px" },
+    "divider": { "$type": "dimension", "$value": "1px" }
+  },
+  "direction": {
+    "ui": "ltr",
+    "contractQuote": "rtl"
+  }
+}
+
