@@ -119,7 +119,7 @@ class ExpertMemoryProvenanceTests(unittest.TestCase):
 
     def test_no_obvious_pii_in_seed(self) -> None:
         serialized = json.dumps(self.dataset, ensure_ascii=False)
-        self.assertIsNone(re.search(r"\\b\\d{9}\\b", serialized))
+        self.assertIsNone(re.search(r"\b\d{9}\b", serialized))
         self.assertNotIn("@example.com", serialized)
 
 
