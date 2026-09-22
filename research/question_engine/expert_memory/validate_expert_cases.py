@@ -7,10 +7,13 @@ import hashlib
 import json
 from pathlib import Path
 import re
-
-from contract_checker.question_engine.inventory import ECONOMIC_CORE_INVENTORY_V1
+import sys
 
 ROOT = Path(__file__).resolve().parents[3]
+if __package__ in (None, ""):
+    sys.path.insert(0, str(ROOT))
+
+from contract_checker.question_engine.inventory import ECONOMIC_CORE_INVENTORY_V1
 SOURCE_PATH = "research/question_engine/smart_analysis_corpus_v1.json"
 SEED_PATH = Path(__file__).with_name("expert_cases_v1.json")
 QUESTIONS = {q.question_id: q for q in ECONOMIC_CORE_INVENTORY_V1.questions}
