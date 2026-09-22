@@ -1,0 +1,633 @@
+{
+  "schema_version": 1,
+  "source_corpus_path": "research/question_engine/smart_analysis_corpus_v1.json",
+  "source_git_blob_sha": "15bb98267d1baf3b380e7a9f1e5e7bfaa6d7d23a",
+  "cases": [
+    {
+      "case_id": "em_security_broad_trigger_confirmed",
+      "source_case_id": "security_broad_trigger_confirmed",
+      "source_basis": "synthetic_from_observed_pattern",
+      "error_origin": "CONSTRUCTED_WRONG_READING",
+      "template_family": "broad_realization",
+      "split": "train",
+      "review": {
+        "status": "UNVERIFIED",
+        "reviewer_ref": null,
+        "review_evidence_refs": []
+      },
+      "spans": [
+        {
+          "ref": "c1",
+          "text_he": "המשכיר רשאי לממש את שיק הביטחון במקרה של כל הפרה של ההסכם."
+        },
+        {
+          "ref": "c6",
+          "text_he": "השוכר ישמור על ניקיון המושכר במשך תקופת השכירות."
+        }
+      ],
+      "mechanisms": [
+        {
+          "mechanism_id": "security_1",
+          "anchor_ref": "c1"
+        }
+      ],
+      "facts": [
+        {
+          "question_id": "security.realization_chain",
+          "field": "realization_grounds",
+          "expected": "any_contract_breach",
+          "refs": [
+            "c1"
+          ],
+          "mechanism_id": "security_1"
+        },
+        {
+          "question_id": "security.realization_chain",
+          "field": "notice_required",
+          "expected": false,
+          "refs": [
+            "@scope"
+          ],
+          "mechanism_id": "security_1"
+        },
+        {
+          "question_id": "security.realization_chain",
+          "field": "cure_available",
+          "expected": false,
+          "refs": [
+            "@scope"
+          ],
+          "mechanism_id": "security_1"
+        }
+      ],
+      "links": [],
+      "wrong_reading": {
+        "text": "The cheque is restricted to unpaid rent only.",
+        "refs": [
+          "c1"
+        ]
+      },
+      "corrected_reading": {
+        "text": "The synthetic clause allows realization for any breach; within the declared complete scope no notice or cure is stated.",
+        "refs": [
+          "c1",
+          "@scope"
+        ]
+      },
+      "discriminator": {
+        "text": "The all-breaches wording and declared complete realization-chain scope.",
+        "refs": [
+          "c1",
+          "@scope"
+        ]
+      }
+    },
+    {
+      "case_id": "em_security_broad_trigger_narrowed_by_notice_cure",
+      "source_case_id": "security_broad_trigger_narrowed_by_notice_cure",
+      "source_basis": "synthetic_from_observed_pattern",
+      "error_origin": "CONSTRUCTED_WRONG_READING",
+      "template_family": "broad_realization",
+      "split": "train",
+      "review": {
+        "status": "UNVERIFIED",
+        "reviewer_ref": null,
+        "review_evidence_refs": []
+      },
+      "spans": [
+        {
+          "ref": "c1",
+          "text_he": "המשכיר רשאי לממש את שיק הביטחון במקרה של כל הפרה של ההסכם."
+        },
+        {
+          "ref": "c6",
+          "text_he": "השוכר ישמור על ניקיון המושכר במשך תקופת השכירות."
+        },
+        {
+          "ref": "c9",
+          "text_he": "מימוש שיק הביטחון ייעשה רק לאחר התראה בכתב של 14 ימים ומתן אפשרות לשוכר לתקן את ההפרה בתוך אותה תקופה."
+        }
+      ],
+      "mechanisms": [
+        {
+          "mechanism_id": "security_1",
+          "anchor_ref": "c1"
+        }
+      ],
+      "facts": [
+        {
+          "question_id": "security.realization_chain",
+          "field": "realization_grounds",
+          "expected": "any_contract_breach",
+          "refs": [
+            "c1"
+          ],
+          "mechanism_id": "security_1"
+        },
+        {
+          "question_id": "security.realization_chain",
+          "field": "notice_required",
+          "expected": true,
+          "refs": [
+            "c9"
+          ],
+          "mechanism_id": "security_1"
+        },
+        {
+          "question_id": "security.realization_chain",
+          "field": "notice_period",
+          "expected": 14,
+          "refs": [
+            "c9"
+          ],
+          "mechanism_id": "security_1"
+        },
+        {
+          "question_id": "security.realization_chain",
+          "field": "cure_available",
+          "expected": true,
+          "refs": [
+            "c9"
+          ],
+          "mechanism_id": "security_1"
+        },
+        {
+          "question_id": "security.realization_chain",
+          "field": "cure_period",
+          "expected": 14,
+          "refs": [
+            "c9"
+          ],
+          "mechanism_id": "security_1"
+        }
+      ],
+      "links": [
+        {
+          "mechanism_id": "security_1",
+          "from_ref": "c1",
+          "to_ref": "c9",
+          "kind": "QUALIFIES"
+        }
+      ],
+      "wrong_reading": {
+        "text": "The cheque can be realized immediately for any breach.",
+        "refs": [
+          "c1"
+        ]
+      },
+      "corrected_reading": {
+        "text": "The broad trigger is subject to written 14-day notice and an opportunity to cure in c9.",
+        "refs": [
+          "c1",
+          "c9"
+        ]
+      },
+      "discriminator": {
+        "text": "The later clause expressly attaches both safeguards to this same cheque.",
+        "refs": [
+          "c1",
+          "c9"
+        ]
+      }
+    },
+    {
+      "case_id": "em_security_generic_trigger_cleared_by_specific_limit",
+      "source_case_id": "security_generic_trigger_cleared_by_specific_limit",
+      "source_basis": "synthetic_boundary_case",
+      "error_origin": "CONSTRUCTED_WRONG_READING",
+      "template_family": "broad_realization",
+      "split": "train",
+      "review": {
+        "status": "UNVERIFIED",
+        "reviewer_ref": null,
+        "review_evidence_refs": []
+      },
+      "spans": [
+        {
+          "ref": "c1",
+          "text_he": "המשכיר רשאי לממש את הבטוחה במקרה של כל הפרה של ההסכם."
+        },
+        {
+          "ref": "c8",
+          "text_he": "השוכר יודיע למשכיר על תקלה דחופה ללא דיחוי."
+        },
+        {
+          "ref": "c12",
+          "text_he": "למרות האמור לעיל, ניתן לממש את הבטוחה רק בגין דמי שכירות שלא שולמו ולאחר התראה בכתב של 14 ימים."
+        }
+      ],
+      "mechanisms": [
+        {
+          "mechanism_id": "security_1",
+          "anchor_ref": "c1"
+        }
+      ],
+      "facts": [
+        {
+          "question_id": "security.realization_chain",
+          "field": "realization_grounds",
+          "expected": "unpaid_rent_only",
+          "refs": [
+            "c12"
+          ],
+          "mechanism_id": "security_1"
+        },
+        {
+          "question_id": "security.realization_chain",
+          "field": "notice_required",
+          "expected": true,
+          "refs": [
+            "c12"
+          ],
+          "mechanism_id": "security_1"
+        },
+        {
+          "question_id": "security.realization_chain",
+          "field": "notice_period",
+          "expected": 14,
+          "refs": [
+            "c12"
+          ],
+          "mechanism_id": "security_1"
+        }
+      ],
+      "links": [
+        {
+          "mechanism_id": "security_1",
+          "from_ref": "c1",
+          "to_ref": "c12",
+          "kind": "QUALIFIES"
+        }
+      ],
+      "wrong_reading": {
+        "text": "The general clause permits realization for every breach.",
+        "refs": [
+          "c1"
+        ]
+      },
+      "corrected_reading": {
+        "text": "The specific exception limits realization to unpaid rent after 14 days' written notice.",
+        "refs": [
+          "c1",
+          "c12"
+        ]
+      },
+      "discriminator": {
+        "text": "The explicit notwithstanding exception narrows the generic trigger.",
+        "refs": [
+          "c1",
+          "c12"
+        ]
+      }
+    },
+    {
+      "case_id": "em_multiple_security_instruments_keep_identity",
+      "source_case_id": "multiple_security_instruments_keep_identity",
+      "source_basis": "synthetic_from_observed_pattern",
+      "error_origin": "CONSTRUCTED_WRONG_READING",
+      "template_family": "multiple_instruments",
+      "split": "evaluation",
+      "review": {
+        "status": "UNVERIFIED",
+        "reviewer_ref": null,
+        "review_evidence_refs": []
+      },
+      "spans": [
+        {
+          "ref": "c3",
+          "text_he": "השוכר ימסור שיק ביטחון על סך 10,000 ש״ח ללא תאריך."
+        },
+        {
+          "ref": "c4",
+          "text_he": "בנוסף יימסר שטר חוב על סך 30,000 ש״ח שמועדו 01.01.2027."
+        },
+        {
+          "ref": "c20",
+          "text_he": "המשכיר יהיה רשאי להיכנס למושכר בתיאום מראש."
+        }
+      ],
+      "mechanisms": [
+        {
+          "mechanism_id": "security_1",
+          "anchor_ref": "c3"
+        },
+        {
+          "mechanism_id": "security_2",
+          "anchor_ref": "c4"
+        }
+      ],
+      "facts": [
+        {
+          "question_id": "security.instrument_inventory",
+          "field": "instrument_types",
+          "expected": "security_cheque",
+          "refs": [
+            "c3"
+          ],
+          "mechanism_id": "security_1"
+        },
+        {
+          "question_id": "security.instrument_inventory",
+          "field": "instrument_types",
+          "expected": "promissory_note",
+          "refs": [
+            "c4"
+          ],
+          "mechanism_id": "security_2"
+        },
+        {
+          "question_id": "security.instrument_inventory",
+          "field": "instrument_count",
+          "expected": 2,
+          "refs": [
+            "c3",
+            "c4"
+          ]
+        },
+        {
+          "question_id": "security.instrument_relationship",
+          "field": "simultaneous_instruments",
+          "expected": [
+            "security_1",
+            "security_2"
+          ],
+          "refs": [
+            "c3",
+            "c4"
+          ]
+        },
+        {
+          "question_id": "security.instrument_amounts",
+          "field": "instrument_amounts",
+          "expected": 10000,
+          "refs": [
+            "c3"
+          ],
+          "mechanism_id": "security_1"
+        },
+        {
+          "question_id": "security.instrument_amounts",
+          "field": "instrument_amounts",
+          "expected": 30000,
+          "refs": [
+            "c4"
+          ],
+          "mechanism_id": "security_2"
+        },
+        {
+          "question_id": "security.instrument_blanks",
+          "field": "blank_date_instruments",
+          "expected": true,
+          "refs": [
+            "c3"
+          ],
+          "mechanism_id": "security_1"
+        },
+        {
+          "question_id": "security.instrument_blanks",
+          "field": "blank_date_instruments",
+          "expected": false,
+          "refs": [
+            "c4"
+          ],
+          "mechanism_id": "security_2"
+        }
+      ],
+      "links": [],
+      "wrong_reading": {
+        "text": "Both security instruments are dated and each is for 30,000 NIS.",
+        "refs": [
+          "c3",
+          "c4"
+        ]
+      },
+      "corrected_reading": {
+        "text": "The cheque is 10,000 NIS without a date; the separate promissory note is 30,000 NIS and dated.",
+        "refs": [
+          "c3",
+          "c4"
+        ]
+      },
+      "discriminator": {
+        "text": "Two instrument-specific amount and date statements must never be merged.",
+        "refs": [
+          "c3",
+          "c4"
+        ]
+      }
+    },
+    {
+      "case_id": "em_security_mechanism_split_with_distractors",
+      "source_case_id": "security_mechanism_split_with_distractors",
+      "source_basis": "synthetic_from_observed_pattern",
+      "error_origin": "CONSTRUCTED_WRONG_READING",
+      "template_family": "multiple_instruments",
+      "split": "evaluation",
+      "review": {
+        "status": "UNVERIFIED",
+        "reviewer_ref": null,
+        "review_evidence_refs": []
+      },
+      "spans": [
+        {
+          "ref": "c2",
+          "text_he": "השוכר ימסור שיק ביטחון על סך 9,000 ש״ח."
+        },
+        {
+          "ref": "c5",
+          "text_he": "השוכר ישלם את חשבון החשמל במועדו."
+        },
+        {
+          "ref": "c8",
+          "text_he": "השוכר ימסור גם שטר חוב על סך 25,000 ש״ח."
+        },
+        {
+          "ref": "c14",
+          "text_he": "מימוש שיק הביטחון בגין חוב שלא שולם ייעשה לאחר התראה של 7 ימים."
+        },
+        {
+          "ref": "c16",
+          "text_he": "את שטר החוב ניתן לממש בגין חוב שלא שולם ללא צורך בהתראה נוספת."
+        },
+        {
+          "ref": "c18",
+          "text_he": "השוכר אחראי לנזק שגרם במושכר."
+        },
+        {
+          "ref": "c27",
+          "text_he": "שיק הביטחון יוחזר בתוך 30 ימים לאחר פינוי המושכר וסילוק החובות."
+        },
+        {
+          "ref": "c31",
+          "text_he": "שטר החוב יוחזר בתוך 60 ימים לאחר פינוי המושכר וסילוק החובות."
+        },
+        {
+          "ref": "c34",
+          "text_he": "ביקור במושכר יתואם מראש עם השוכר."
+        }
+      ],
+      "mechanisms": [
+        {
+          "mechanism_id": "security_1",
+          "anchor_ref": "c2"
+        },
+        {
+          "mechanism_id": "security_2",
+          "anchor_ref": "c8"
+        }
+      ],
+      "facts": [
+        {
+          "question_id": "security.instrument_inventory",
+          "field": "instrument_types",
+          "expected": "security_cheque",
+          "refs": [
+            "c2"
+          ],
+          "mechanism_id": "security_1"
+        },
+        {
+          "question_id": "security.instrument_inventory",
+          "field": "instrument_types",
+          "expected": "promissory_note",
+          "refs": [
+            "c8"
+          ],
+          "mechanism_id": "security_2"
+        },
+        {
+          "question_id": "security.instrument_amounts",
+          "field": "instrument_amounts",
+          "expected": 9000,
+          "refs": [
+            "c2"
+          ],
+          "mechanism_id": "security_1"
+        },
+        {
+          "question_id": "security.instrument_amounts",
+          "field": "instrument_amounts",
+          "expected": 25000,
+          "refs": [
+            "c8"
+          ],
+          "mechanism_id": "security_2"
+        },
+        {
+          "question_id": "security.realization_chain",
+          "field": "realization_grounds",
+          "expected": "unpaid_debt",
+          "refs": [
+            "c14"
+          ],
+          "mechanism_id": "security_1"
+        },
+        {
+          "question_id": "security.realization_chain",
+          "field": "notice_required",
+          "expected": true,
+          "refs": [
+            "c14"
+          ],
+          "mechanism_id": "security_1"
+        },
+        {
+          "question_id": "security.realization_chain",
+          "field": "notice_period",
+          "expected": 7,
+          "refs": [
+            "c14"
+          ],
+          "mechanism_id": "security_1"
+        },
+        {
+          "question_id": "security.realization_chain",
+          "field": "realization_grounds",
+          "expected": "unpaid_debt",
+          "refs": [
+            "c16"
+          ],
+          "mechanism_id": "security_2"
+        },
+        {
+          "question_id": "security.realization_chain",
+          "field": "notice_required",
+          "expected": false,
+          "refs": [
+            "c16"
+          ],
+          "mechanism_id": "security_2"
+        },
+        {
+          "question_id": "security.return_mechanics",
+          "field": "return_deadline",
+          "expected": 30,
+          "refs": [
+            "c27"
+          ],
+          "mechanism_id": "security_1"
+        },
+        {
+          "question_id": "security.return_mechanics",
+          "field": "return_deadline",
+          "expected": 60,
+          "refs": [
+            "c31"
+          ],
+          "mechanism_id": "security_2"
+        }
+      ],
+      "links": [
+        {
+          "mechanism_id": "security_1",
+          "from_ref": "c2",
+          "to_ref": "c14",
+          "kind": "PROCEDURAL_STEP"
+        },
+        {
+          "mechanism_id": "security_1",
+          "from_ref": "c2",
+          "to_ref": "c27",
+          "kind": "RETURN_RULE"
+        },
+        {
+          "mechanism_id": "security_2",
+          "from_ref": "c8",
+          "to_ref": "c16",
+          "kind": "PROCEDURAL_STEP"
+        },
+        {
+          "mechanism_id": "security_2",
+          "from_ref": "c8",
+          "to_ref": "c31",
+          "kind": "RETURN_RULE"
+        }
+      ],
+      "wrong_reading": {
+        "text": "The 7-day notice and 30-day return apply to both instruments.",
+        "refs": [
+          "c14",
+          "c27"
+        ]
+      },
+      "corrected_reading": {
+        "text": "The cheque has 7-day notice and 30-day return; the note needs no further notice and has a 60-day return.",
+        "refs": [
+          "c14",
+          "c16",
+          "c27",
+          "c31"
+        ]
+      },
+      "discriminator": {
+        "text": "Each separated notice and return clause expressly names its own instrument; distractors are not evidence.",
+        "refs": [
+          "c14",
+          "c16",
+          "c27",
+          "c31"
+        ]
+      }
+    }
+  ]
+}
