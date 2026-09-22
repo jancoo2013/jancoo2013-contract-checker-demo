@@ -1,10 +1,12 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-09-17, PR #279, `single-contract-quota-aware-retry-v1`.
+Последнее обновление: 2026-09-22, PR #282, `codex-scope-guard-v1`.
 
 Активный трек: `question-engine-development`.
 
 Канонический следующий bounded-шаг: `question-engine-single-contract-real-rerun-v4`.
+
+PR #282 — governance-only exception: `AGENTS.md` уточняет контроль объёма задач Codex, сохранность тестов и обязательную проверку итогового diff. Активный трек, следующий шаг, код и границы приватности не изменены.
 
 Этот документ вместе с `docs/OCR_PROJECT_STATE.json` является канонической operational-точкой восстановления. Binding architecture/security/privacy documents остаются выше по приоритету; `active_track` и `next_step_id` выбираются state-файлами.
 
