@@ -32,7 +32,9 @@
         "support_for_amount",
         "defect_notice_and_evidence"
       ],
-      "limits": "Specific 2018 tenancy, 2024 lower-court judgment and evidence; not a general cap calculation, bank presentment rule, or automated result for other leases."
+      "limits": "Specific 2018 tenancy, 2024 lower-court judgment and evidence; not a general cap calculation, bank presentment rule, or automated result for other leases.",
+      "error_origin": "HYPOTHESIZED_FROM_COURT_FACT_PATTERN_NOT_OBSERVED_MODEL_FAILURE",
+      "review_status": "NEEDS_ORIGINAL_AND_SPECIALIST_REVIEW"
     },
     {
       "id": "il_rental_security_yaakov_2021",
@@ -61,7 +63,9 @@
         "instrument_versus_contract_cause",
         "damage_proof"
       ],
-      "limits": "Only web-indexed excerpts were accessible; final amount, all findings and official court original still require direct verification."
+      "limits": "Only web-indexed excerpts were accessible; final amount, all findings and official court original still require direct verification.",
+      "error_origin": "HYPOTHESIZED_FROM_COURT_FACT_PATTERN_NOT_OBSERVED_MODEL_FAILURE",
+      "review_status": "NEEDS_ORIGINAL_AND_SPECIALIST_REVIEW"
     },
     {
       "id": "il_rental_security_porat_2015",
@@ -91,7 +95,9 @@
         "damage_evidence",
         "unproven_charges"
       ],
-      "limits": "2015 pre-2017 decision, indexed transcript only because full mirrored page was unavailable; original judgment and any appeal not independently retrieved."
+      "limits": "2015 pre-2017 decision, indexed transcript only because full mirrored page was unavailable; original judgment and any appeal not independently retrieved.",
+      "error_origin": "HYPOTHESIZED_FROM_COURT_FACT_PATTERN_NOT_OBSERVED_MODEL_FAILURE",
+      "review_status": "NEEDS_ORIGINAL_AND_SPECIALIST_REVIEW"
     },
     {
       "id": "il_rental_security_ben_oz_2013",
@@ -120,7 +126,9 @@
         "scope_across_clauses",
         "claim_ground"
       ],
-      "limits": "Only beginning and selected reasoning of mirrored judgment visible; the overall result cannot be reported from this source; predates 2017 rental reform."
+      "limits": "Only beginning and selected reasoning of mirrored judgment visible; the overall result cannot be reported from this source; predates 2017 rental reform.",
+      "error_origin": "HYPOTHESIZED_FROM_COURT_FACT_PATTERN_NOT_OBSERVED_MODEL_FAILURE",
+      "review_status": "NEEDS_ORIGINAL_AND_SPECIALIST_REVIEW"
     },
     {
       "id": "il_rental_security_doga_2011",
@@ -150,12 +158,16 @@
         "reletting_timeline",
         "secured_debt"
       ],
-      "limits": "2011 pre-2017 fact-specific magistrates decision; not an automatic interpretation of present-day §25י."
+      "limits": "2011 pre-2017 fact-specific magistrates decision; not an automatic interpretation of present-day §25י.",
+      "error_origin": "HYPOTHESIZED_FROM_COURT_FACT_PATTERN_NOT_OBSERVED_MODEL_FAILURE",
+      "review_status": "NEEDS_ORIGINAL_AND_SPECIALIST_REVIEW"
     }
   ],
   "gaps": [
     "Official judiciary-hosted complete originals and later appeal history not checked for any of the five cases.",
     "One judgment's final disposition not accessible; two outcomes documented in search-index transcripts requiring original verification.",
     "Do not copy mirrored judgments into a public fixture or convert these observations into expert-verified rules; preserve train/evaluation isolation."
-  ]
+  ],
+  "training_eligible": false,
+  "gold_eligible": false
 }
