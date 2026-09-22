@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-22-133",
+  "state_version": "privacy-ocr-2026-09-22-134",
   "active_track": "expert-memory-development",
   "next_step_id": "expert-memory-source-audit-packet-v1",
-  "next_step_summary": "PR #283 adds offline ExpertCase v1 schema, pinned synthetic provenance, five constructed error/correction records (three broad-trigger train and two multi-instrument evaluation), deterministic ref/Question-Engine/instrument/link/review/split validator and tests. Evaluation seeds are synthetic dev fixtures, not independent legal Gold; expert verification is not claimed. Keep real-contract/provider runs paused. Next bounded step: collect a small independently traceable, dated primary-source audit packet for the security mechanisms before arranging independent Gold review; no invented sources, paid specialist verification requirement, runtime, OCR, databases, embeddings, or external API calls.",
+  "next_step_summary": "CI-only PR #284 has merged and supplies offline GitHub Actions checks for sanitized Expert Memory. PR #283 adds local ExpertCase schema, five pinned synthetic records, deterministic provenance, evidence and instrument validator plus regression tests. These development fixtures are not independently verified legal Gold. Real-contract and provider runs remain paused. Next bounded task after #283: expert-memory-source-audit-packet-v1, collecting dated independently traceable primary sources with explicit unsupported/needs-specialist-review claims; no paid specialist verification prerequisite, runtime change, OCR, databases, embeddings or external API calls.",
   "last_recorded_pr": 283,
   "last_recorded_change": "expert-memory-provenance-schema-v1",
   "state_update_required_per_pr": true,
