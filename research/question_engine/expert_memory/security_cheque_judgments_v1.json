@@ -1,0 +1,161 @@
+{
+  "schema_version": 1,
+  "reviewed_on": "2026-09-22",
+  "status": "MIRRORED_CASE_LAW_RESEARCH_NOT_OFFICIAL_NOT_GOLD",
+  "purpose": "Five documented residential-lease security-cheque court cases with access-level and judicial-finding boundaries; no automatic rules or fixture answers.",
+  "cases": [
+    {
+      "id": "il_rental_security_hazan_2024",
+      "docket": "35226-02-20",
+      "judgment_date": "2024-02-21",
+      "court": "Jerusalem Magistrates Court",
+      "source_url": "https://he.afiklaw.com/caselaw/16227",
+      "access": "PUBLIC_FULL_JUDGMENT_MIRROR",
+      "statutory_era": "POST_2017",
+      "instrument": "blank_security_cheque",
+      "judicial_evidence": [
+        {
+          "locator": "paras 3, 6, 34, 43-47",
+          "finding": "Landlord completed a signed security cheque for ILS 146,000. Court found the completion exceeded the contractually authorized security scope and failed the good-faith requirement."
+        },
+        {
+          "locator": "paras 50-51, 57-65, 72-74",
+          "finding": "Evidence about reported defects and disputed renovations was examined separately; the security-note enforcement claim was dismissed."
+        }
+      ],
+      "disposition": "SECURITY_NOTE_CLAIM_DISMISSED",
+      "possible_model_error": "Treat a blank signed security cheque as an unlimited authorization or pool every alleged landlord loss into the cheque.",
+      "required_cross_checks": [
+        "contractual_security_scope",
+        "completion_authority",
+        "instrument_identity",
+        "support_for_amount",
+        "defect_notice_and_evidence"
+      ],
+      "limits": "Specific 2018 tenancy, 2024 lower-court judgment and evidence; not a general cap calculation, bank presentment rule, or automated result for other leases."
+    },
+    {
+      "id": "il_rental_security_yaakov_2021",
+      "docket": "8191-03-20",
+      "judgment_date": "2021-06-18",
+      "court": "Kiryat Shmona Magistrates Court",
+      "source_url": "https://lawbuzz.co.il/court-decisions/%D7%AA%D7%90%D7%9E-8191-03-20-%D7%9E%D7%A8%D7%99-%D7%99%D7%A2%D7%A7%D7%91-%D7%A0-%D7%97%D7%A0%D7%90%D7%9C-%D7%90%D7%95%D7%90%D7%A0%D7%95%D7%A0%D7%95/",
+      "access": "SEARCH_INDEX_JUDGMENT_EXCERPTS",
+      "statutory_era": "POST_2017",
+      "instrument": "security_cheque",
+      "judicial_evidence": [
+        {
+          "locator": "paras 2-4, 17-18",
+          "finding": "A security cheque for ILS 4,000 led to objection and a substantially larger amended contractual damages claim. The displayed reasoning says the landlord then had to prove the contractual claim rather than rely on the cheque's evidentiary presumptions."
+        },
+        {
+          "locator": "paras 20-25",
+          "finding": "The court's displayed reasoning accepted the tenant's account that handwritten no-pets conditions were added after signing; party testimony and messages were assessed."
+        }
+      ],
+      "disposition": "SMALL_PART_OF_AMENDED_CLAIM_ALLOWED_EXACT_AMOUNT_NOT_READ",
+      "possible_model_error": "Treat later handwritten text as part of the signed agreement without checking authenticity, or transfer bill-of-exchange proof advantages to a later amended contract lawsuit.",
+      "required_cross_checks": [
+        "signed_version_and_later_handwriting",
+        "notice_and_correspondence",
+        "instrument_versus_contract_cause",
+        "damage_proof"
+      ],
+      "limits": "Only web-indexed excerpts were accessible; final amount, all findings and official court original still require direct verification."
+    },
+    {
+      "id": "il_rental_security_porat_2015",
+      "docket": "52670-10-12",
+      "judgment_date": "2015-06-09",
+      "court": "Petah Tikva Magistrates Court",
+      "source_url": "https://judgments.org.il/judgments/%D7%AA%D7%90%D7%9E-%D7%A4%D7%AA%D7%97-%D7%AA%D7%A7%D7%95%D7%95%D7%94-52670-10-12-%D7%A9%D7%9C%D7%9E%D7%94-%D7%A4%D7%95%D7%A8%D7%AA-%D7%A0-%D7%93%D7%95%D7%93-%D7%9E%D7%96%D7%A8%D7%97%D7%99/",
+      "access": "SEARCH_INDEX_JUDGMENT_TRANSCRIPT",
+      "statutory_era": "PRE_2017",
+      "instrument": "third_party_security_cheque",
+      "judicial_evidence": [
+        {
+          "locator": "paras 6-9 in indexed transcript",
+          "finding": "Court read the third-party cheque's wording alongside landlord-tenant conduct during successive renewals; it rejected the claimed rent-and-tax-only restriction and found a wider agreed security scope."
+        },
+        {
+          "locator": "paras 9-13 in indexed transcript",
+          "finding": "Damage assessment, expert evidence and unsupported utility amounts were treated separately. Indexed disposition reports a partly allowed claim of ILS 27,244."
+        }
+      ],
+      "disposition": "PARTLY_ALLOWED_27244_ILS_INDEXED",
+      "possible_model_error": "Infer a third-party security cheque expires after the original term or covers only taxes from the 'non-negotiable' note, without inspecting renewals and correspondence.",
+      "required_cross_checks": [
+        "actual_drawer_vs_tenant",
+        "instrument_wording",
+        "renewal_conduct",
+        "damage_evidence",
+        "unproven_charges"
+      ],
+      "limits": "2015 pre-2017 decision, indexed transcript only because full mirrored page was unavailable; original judgment and any appeal not independently retrieved."
+    },
+    {
+      "id": "il_rental_security_ben_oz_2013",
+      "docket": "18162-02-13",
+      "judgment_date": "2013-10-31",
+      "court": "Haifa Magistrates Court",
+      "source_url": "https://www.psakdin.co.il/Court/%D7%91%D7%9F-%D7%A2%D7%95%D7%96-%D7%A0%27-%D7%98%D7%9C%D7%A0%D7%A7%D7%A8",
+      "access": "PUBLIC_PARTIAL_JUDGMENT_MIRROR",
+      "statutory_era": "PRE_2017",
+      "instrument": "security_cheque_only_of_three_promised",
+      "judicial_evidence": [
+        {
+          "locator": "paras 1-2, 5-7 visible",
+          "finding": "The lease contemplated a promissory note, guaranty and security cheque, but only the security cheque was actually delivered. The court expressly rejected the argument that the 'security cheque' inscription itself invalidated the cheque as a bill of exchange."
+        },
+        {
+          "locator": "paras 6-7 visible",
+          "finding": "The court read the instrument alongside broader lease sections instead of accepting a taxes-only interpretation merely from one phrase."
+        }
+      ],
+      "disposition": "FINAL_DISPOSITION_NOT_VISIBLE",
+      "possible_model_error": "Treat 'security cheque' inscription as a bank or bill-of-exchange block, or invent extra security instruments promised but never delivered.",
+      "required_cross_checks": [
+        "actual_instrument_delivery",
+        "instrument_annotation",
+        "scope_across_clauses",
+        "claim_ground"
+      ],
+      "limits": "Only beginning and selected reasoning of mirrored judgment visible; the overall result cannot be reported from this source; predates 2017 rental reform."
+    },
+    {
+      "id": "il_rental_security_doga_2011",
+      "docket": "5433-09",
+      "judgment_date": "2011-09-07",
+      "court": "Jerusalem Magistrates Court",
+      "source_url": "https://www.psakdin.co.il/Court/%D7%93%D7%95%D7%92%D7%94-%D7%95%D7%90%D7%97%27-%D7%A0%27-%D7%91%D7%A8%D7%95%D7%A9-%D7%95%D7%90%D7%97%27",
+      "access": "PUBLIC_FULL_JUDGMENT_MIRROR",
+      "statutory_era": "PRE_2017",
+      "instrument": "blank_security_cheque_later_filled",
+      "judicial_evidence": [
+        {
+          "locator": "intro; reasoning on termination and mitigation; disposition",
+          "finding": "A blank security cheque was later filled for three months' alleged unpaid rent. Court accepted evidence of an early impediment to residing in the dwelling and the tenant's termination; conditions to complete and collect the security cheque were not met."
+        },
+        {
+          "locator": "final paragraphs",
+          "finding": "Court dismissed both claims, ordered the cheque execution file closed, and also considered the landlord's four-month delay in re-letting."
+        }
+      ],
+      "disposition": "BOTH_CLAIMS_DISMISSED_EXECUTION_FILE_CLOSED",
+      "possible_model_error": "Treat the completion or dishonour of a blank cheque as proof the underlying secured obligation became due; ignore early termination and mitigation evidence.",
+      "required_cross_checks": [
+        "blank_field_completion",
+        "lease_termination_basis",
+        "ability_to_use_property",
+        "reletting_timeline",
+        "secured_debt"
+      ],
+      "limits": "2011 pre-2017 fact-specific magistrates decision; not an automatic interpretation of present-day §25י."
+    }
+  ],
+  "gaps": [
+    "Official judiciary-hosted complete originals and later appeal history not checked for any of the five cases.",
+    "One judgment's final disposition not accessible; two outcomes documented in search-index transcripts requiring original verification.",
+    "Do not copy mirrored judgments into a public fixture or convert these observations into expert-verified rules; preserve train/evaluation isolation."
+  ]
+}
