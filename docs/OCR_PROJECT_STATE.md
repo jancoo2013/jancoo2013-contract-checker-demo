@@ -1,12 +1,14 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-09-22, PR #283, `expert-memory-provenance-schema-v1` (после слитого CI PR #284).
+Последнее обновление: 2026-09-22, PR #285, `expert-memory-source-audit-packet-v1` (после #283 и #284).
 
 Активный трек: `expert-memory-development`.
 
 Канонический следующий bounded-шаг: `expert-memory-source-audit-packet-v1`.
 
 Решение владельца от 2026-09-22: реальные анализы договоров и повторные full-contract прогоны временно приостановлены до создания и независимой проверки качественной базы экспертных знаний. Разрешены локальные синтетические/обезличенные fixture-тесты без внешнего API. PR #281 добавляет экспериментальный Expert Pack v0.1: CORE_PROTOCOL, MECHANISM_PLAYBOOK и 15 синтетических контрастных примеров; эти материалы не являются верифицированной юридической базой. Сохранён уже слитый PR #282 и все его требования контроля Codex. Область OCR, privacy/security, runtime и провайдеров не изменена.
+
+PR #285 — небольшой пакет первоисточников для Expert Memory: шесть официальных источников/указателей с указанием реально прочитанного уровня (исходный закон 2017 года, каталог текущей редакции, явно не действующее само по себе предложение 2026 года, процедура взыскания и два сервиса службы исполнения), восемь строго ограниченных утверждений, ссылки на все пять синтетических ExpertCase и четыре открытых вопроса. Только текст исторической публикации 2017 года непосредственно прочитан полностью по затронутым разделам; индексы других материалов и каталог не считаются проверкой действующего законодательства. Добавлены локальные проверки происхождения, запрета необоснованного статуса экспертной верификации и целостности ссылок в существующий CI. Реальные договоры и внешние модели по-прежнему заморожены.
 
 PR #283 — локальный ExpertCase v1: фиксированная схема, проверка подлинности синтетического источника, механизма и ссылок, пять экспериментальных случаев и регрессионные тесты. Три связанных случая broad realization находятся только в train, два отдельных multi-instrument — только в evaluation. Это внутренний синтетический набор, а не независимый юридический Gold Set; ExpertCase не подключён к runtime или провайдерам. Правило остановки анализов реальных договоров не изменено.
 
@@ -213,19 +215,19 @@ The attempt ledger stores only safe error class plus safe quota scope/retry timi
 
 This PR does not add another provider, model, dependency, endpoint, permission, workflow or storage path. It does not change Question Engine semantics/schema, the privacy boundary, report payload contract or OCR scope.
 
-## 8. Canonical next step — auditable sources before independent Gold
+## 8. Canonical next step — verify exact current primary texts
 
-`next_step_id = expert-memory-source-audit-packet-v1`
+`next_step_id = expert-memory-primary-text-verification-v1`
 
-**Freeze remains:** no new real-contract analyses or repeat provider/LLM runs on real leases until a separately reviewed expert-memory baseline and omission/linkage evaluation gate exist. Historical reports and the existing local CLI remain unchanged. Offline synthetic/sanitized tests only.
+**Freeze remains:** no new real-contract analyses or repeat LLM/provider runs on real leases until an independently reviewed Gold cohort and an omission/linkage evaluation gate exist. Synthetic, sanitized and offline-only tests remain permitted.
 
-**PR #283 delivered:** a versioned local ExpertCase v1 schema, five synthetic non-authoritative seed cases projected from the pinned smart-analysis corpus, and a deterministic offline validator for reference provenance, exact assertion values, per-instrument identity, cross-clause links, review-status restrictions and grouped train/evaluation isolation. The five cases are constructed counterexamples, **not** new observed model failures or verified legal positions; the synthetic evaluation split is not an independent Gold Set.
+**PR #285 delivered:** a six-record primary-source discovery packet, eight bounded propositions with explicit `does_not_support` boundaries, five ExpertCase reference links and four unresolved verification issues. It distinguishes historical enacted original text from proposed amendments, current-law catalogue metadata and search-index extracts. The packet does **not** claim that proposed 2026 bill language is enacted text or that indexed Authority procedure text has been reviewed in full. No verified case-law holding or expert-verified legal Gold is included.
 
-**Next bounded PR:** `expert-memory-source-audit-packet-v1`. Build a small independently traceable source packet for those security mechanisms: exact primary-source identifiers, dates/versions, the concrete proposition each source can actually support, and an explicit unresolved/needs-specialist-review marker for interpretation beyond the source. Do not invent citations, upgrade synthetic cases to verified, scrape real user contracts, or make payment for legal review a prerequisite for collecting the packet. That is source discovery/audit preparation, **not** legal verification itself.
+**Next bounded PR:** `expert-memory-primary-text-verification-v1`. Independently retrieve and inspect the enacted 2026 Sefer HaHukim 3510 text and effective-date clauses relevant to §25י, plus the complete *currently valid* Enforcement Authority cheque/note opening procedure. Record precise publication/version/page or item locators and direct text, correct or explicitly withhold each affected packet claim, and preserve a dated evidence trail. Prioritize distinguishing a bank-presented cheque from eligibility to open an execution case and legal grounds for security realization. If original primary documents remain inaccessible, leave claims unresolved rather than promote them.
 
-**Unfreeze gate:** independently review a genuinely held-out Gold cohort and demonstrate detection of material omissions and cross-clause mislinks before the owner explicitly resumes real-contract analysis. No train/evaluation overlap or automatic expert certification.
+**Later gates:** find and review applicable published judicial decisions for those mechanisms; use the disputed interpretations and contradictions as a concrete packet for specialist review; only then create a genuinely independent held-out Gold set. Legal truth is never proven by the current synthetic regression tests.
 
-**Out of scope:** new databases, RAG retrieval, embeddings, external model/provider calls, OCR, real-contract analyses, legal verdicts or runtime changes.
+**Out of scope:** real-contract/provider calls, RAG, databases, embeddings, OCR, runtime changes, automatic legal verdicts or claiming expert verification.
 
 ## 9. Frozen runtime Question Engine architecture
 
