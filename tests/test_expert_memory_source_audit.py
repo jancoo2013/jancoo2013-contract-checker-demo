@@ -18,16 +18,17 @@ class SourceAuditPacketTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.packet = read(BASE / "source_audit_packet_v1.json")
         cls.cases = read(BASE / "expert_cases_v1.json")
+        cls.overlay = read(BASE.parents[2] / "docs/statutory/ISRAEL_RENTAL_AND_LOAN_AMENDMENT_2026_V1.json")
 
     def rejects(self, edit, message: str) -> None:
         data = deepcopy(self.packet)
         edit(data)
         with self.assertRaisesRegex(ValueError, message):
-            validate(data, self.cases)
+            validate(data, self.cases, self.overlay)
 
-    def test_six_leads_and_five_unverified_cases_validate(self) -> None:
-        validate(self.packet, self.cases)
-        self.assertEqual(len(self.packet["sources"]), 6)
+    def test_seven_leads_and_five_unverified_cases_validate(self) -> None:
+        validate(self.packet, self.cases, self.overlay)
+        self.assertEqual(len(self.packet["sources"]), 7)
         self.assertEqual(len(self.packet["case_links"]), 5)
         self.assertTrue(all(x["review"] ==
             "NEEDS_PRIMARY_SOURCE_AND_SPECIALIST_REVIEW"
@@ -58,7 +59,7 @@ class SourceAuditPacketTests(unittest.TestCase):
             case_id=d["case_links"][0]["case_id"]), "duplicate case link")
 
     def test_search_index_snippet_cannot_become_full_primary_text(self) -> None:
-        self.rejects(lambda d: d["sources"][3].update(
+        self.rejects(lambda d: d["sources"][4].update(
             access_level="PRIMARY_TEXT_READ"), "source authority/access mismatch")
 
     def test_government_proposal_cannot_become_enacted_law(self) -> None:
@@ -90,6 +91,47 @@ class SourceAuditPacketTests(unittest.TestCase):
     def test_future_publication_is_rejected(self) -> None:
         self.rejects(lambda d: d["sources"][0].update(
             source_date="2027-01-01"), "publication date is in the future")
+
+    def test_enacted_amendment_has_separate_future_effective_date(self) -> None:
+        self.assertEqual(self.overlay["amending_law"]["publication_date"],
+                         "2026-03-31")
+        self.assertEqual(self.overlay["commencement"]["effective_from"],
+                         "2026-09-30")
+        self.assertFalse(self.overlay["usage"]["production_runtime_wired"])
+
+    def test_future_amendment_not_treated_as_operative_case_authority(self) -> None:
+        self.rejects(lambda d: d["case_links"][0]["claim_ids"].append(
+            "enacted_2026_other_guarantee_providers"),
+                     "cannot treat metadata or proposal as case authority")
+
+    def test_enacted_source_cannot_be_promoted_to_original_read(self) -> None:
+        self.rejects(lambda d: d["sources"][3].update(
+            access_level="PRIMARY_TEXT_READ"),
+                     "source authority/access mismatch")
+
+    def test_enacted_claim_cannot_be_relabelled_historical(self) -> None:
+        self.rejects(lambda d: d["claims"][5].update(
+            support="DIRECT_HISTORICAL_TEXT"),
+                     "unsupported source authority or review level")
+
+    def test_forged_commencement_date_is_rejected(self) -> None:
+        bad = deepcopy(self.overlay)
+        bad["commencement"]["effective_from"] = "2026-03-31"
+        with self.assertRaisesRegex(ValueError, "effective-date mismatch"):
+            validate(self.packet, self.cases, bad)
+
+    def test_original_official_download_cannot_be_claimed_without_evidence(self) -> None:
+        bad = deepcopy(self.overlay)
+        bad["amending_law"]["original_official_pdf_fetch"] = "VERIFIED_BYTES"
+        with self.assertRaisesRegex(ValueError, "Gazette locator or access"):
+            validate(self.packet, self.cases, bad)
+
+    def test_mismatched_official_pdf_is_rejected(self) -> None:
+        bad = deepcopy(self.overlay)
+        bad["amending_law"]["official_publication_pdf"] = (
+            "https://fs.knesset.gov.il/not-the-enacted-law.pdf")
+        with self.assertRaisesRegex(ValueError, "provenance mismatch"):
+            validate(self.packet, self.cases, bad)
 
     def test_duplicate_json_keys_are_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
