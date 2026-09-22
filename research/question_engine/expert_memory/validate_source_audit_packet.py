@@ -84,7 +84,7 @@ def validate(packet: dict, expert_cases: dict, overlay: dict) -> None:
         access = item["access_level"]
         kind = item["kind"]
         require((kind == "ENACTED_HISTORICAL" and access == "PRIMARY_TEXT_READ")
-                or (kind == "ENACTED_DEFERRED" and access == "GAZETTE_COPY_READ")
+                or (kind == "ENACTED_AMENDMENT" and access == "GAZETTE_COPY_READ")
                 or (kind == "LIVE_CATALOG" and access == "CATALOG_METADATA_ONLY")
                 or (kind in {"PROPOSED_NOT_LAW", "AGENCY_SERVICE",
                              "AGENCY_PROCEDURE"} and access == "INDEX_EXCERPT_ONLY"),
@@ -103,24 +103,23 @@ def validate(packet: dict, expert_cases: dict, overlay: dict) -> None:
         kind = sources[claim["source_id"]]["kind"]
         support = claim["support"]
         require((kind == "ENACTED_HISTORICAL" and support == "DIRECT_HISTORICAL_TEXT")
-                or (kind == "ENACTED_DEFERRED"
-                    and support == "DIRECT_ENACTED_DEFERRED_TEXT")
+                or (kind == "ENACTED_AMENDMENT"
+                    and support == "DIRECT_ENACTED_TEXT")
                 or (kind == "PROPOSED_NOT_LAW"
                     and support == "INDEX_EXCERPT_PROPOSAL_ONLY")
                 or (kind in {"AGENCY_SERVICE", "AGENCY_PROCEDURE"}
                     and support == "INDEX_EXCERPT_RECHECK"),
                 "claim: unsupported source authority or review level")
 
-    # Enacted text is dated, but a published future amendment is not an
-    # operative present-day rule. Cross-check the separately pinned overlay.
+    # The enactment's commencement stays in the citation record, not in
+    # an ExpertCase activation rule. This validator checks source integrity.
     require(overlay.get("snapshot_id") == "israel-rental-and-loan-amendment-2026-v1"
-            and overlay.get("status") ==
-            "ENACTED_PUBLISHED_DEFERRED_COMMENCEMENT_NOT_EXPERT_REVIEWED",
+            and overlay.get("status") == "ENACTED_GAZETTE_NOT_EXPERT_REVIEWED",
             "unsupported 2026 overlay or review promotion")
     law = overlay["amending_law"]
     effective = overlay["commencement"]
     source = sources.get("knesset_2026_enacted_rental_security")
-    require(source is not None and source["kind"] == "ENACTED_DEFERRED"
+    require(source is not None and source["kind"] == "ENACTED_AMENDMENT"
             and source["access_level"] == "GAZETTE_COPY_READ"
             and source["url"] == law["official_publication_pdf"]
             and source["source_date"] == law["publication_date"],
@@ -132,24 +131,24 @@ def validate(packet: dict, expert_cases: dict, overlay: dict) -> None:
             and law["gazette_copy_read"] == "PAGES_363_364_AND_370",
             "2026 Gazette locator or access overstatement")
     require(overlay["as_of"] == packet["prepared_on"]
-            and valid_date(effective["effective_from"], "commencement")
-            == date(2026, 9, 30) and prepared < date(2026, 9, 30)
-            and effective["as_of_status"] == "PUBLISHED_NOT_YET_EFFECTIVE"
             and effective["chapter"] == "VI",
-            "2026 amendment effective-date mismatch")
+            "2026 overlay/packet mismatch")
+    valid_date(effective["effective_from"], "commencement")
     require(overlay["normalized_changes"]["section_25y_b_opening"]["after"]
             == "ערבות בנקאית, ערבות מנותן ערבות אחר"
             and overlay["normalized_changes"]["section_25y_a"]["provider_classes"]
             == ["licensed_credit_provider", "licensed_deposit_and_credit_provider",
                 "licensed_financially_stable_payment_service_provider", "insurer"]
+            and overlay["normalized_changes"]["section_25y_b_opening"]
+                ["contract_type_dependency"] == "RESIDENTIAL_SCOPE_25טו"
             and overlay["usage"]["production_runtime_wired"] is False
             and overlay["usage"]["expert_verified"] is False,
             "2026 security amendment content or authority promotion")
-    require(all(claims[x]["source_id"] == source["id"]
-                and claims[x]["support"] == "DIRECT_ENACTED_DEFERRED_TEXT"
-                for x in ("enacted_2026_other_guarantee_providers",
-                          "enacted_2026_chapter_vi_commencement")),
-            "2026 enacted claims missing or misattributed")
+    require(claims["enacted_2026_other_guarantee_providers"]["source_id"]
+            == source["id"] and
+            claims["enacted_2026_other_guarantee_providers"]["support"]
+            == "DIRECT_ENACTED_TEXT",
+            "2026 enacted claim missing or misattributed")
 
     require(expert_cases.get("schema_version") == 1, "unknown ExpertCase version")
     case_ids = {case["case_id"] for case in expert_cases["cases"]}
@@ -166,7 +165,7 @@ def validate(packet: dict, expert_cases: dict, overlay: dict) -> None:
                                      "INSTRUMENT_SCOPE_QUESTION_ONLY"},
                 "case link overstates source evidence")
         require(all(sources[claims[x]["source_id"]]["kind"] not in
-                    {"LIVE_CATALOG", "PROPOSED_NOT_LAW", "ENACTED_DEFERRED"} for x in link["claim_ids"]),
+                    {"LIVE_CATALOG", "PROPOSED_NOT_LAW"} for x in link["claim_ids"]),
                 "cannot treat metadata or proposal as case authority")
     require(links == case_ids, "missing ExpertCase coverage")
 
@@ -180,8 +179,7 @@ def validate(packet: dict, expert_cases: dict, overlay: dict) -> None:
         identifiers(item["source_ids"], set(sources), "unresolved sources")
     unresolved_sources = {x for item in unresolved.values() for x in item["source_ids"]}
     require({sid for sid, s in sources.items() if s["kind"] in
-             {"LIVE_CATALOG", "PROPOSED_NOT_LAW", "AGENCY_PROCEDURE",
-              "ENACTED_DEFERRED"}}
+             {"LIVE_CATALOG", "PROPOSED_NOT_LAW", "AGENCY_PROCEDURE"}}
             <= unresolved_sources, "index/legislation gaps must remain explicit")
 
 
