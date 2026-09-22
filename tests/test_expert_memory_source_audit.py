@@ -9,7 +9,7 @@ import tempfile
 import unittest
 
 from research.question_engine.expert_memory.validate_source_audit_packet import (
-    BASE, read, validate,
+    BASE, read, validate, validate_procedure_edition,
 )
 
 
@@ -18,6 +18,7 @@ class SourceAuditPacketTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.packet = read(BASE / "source_audit_packet_v1.json")
         cls.cases = read(BASE / "expert_cases_v1.json")
+        cls.procedure = read(BASE / "authority_cheque_procedure_2025_06_29_v1.json")
         cls.overlay = read(BASE.parents[2] / "docs/statutory/ISRAEL_RENTAL_AND_LOAN_AMENDMENT_2026_V1.json")
 
     def rejects(self, edit, message: str) -> None:
