@@ -217,6 +217,8 @@ This PR does not add another provider, model, dependency, endpoint, permission, 
 
 **One bounded next PR:** define a versioned local `ExpertCase` schema and deterministic validator reusing Question Engine IDs and evidence refs; represent original claim, mechanism identity, directly supporting sanitized spans, cross-clause links, observed wrong reading, corrected reading, discriminator/counterexample, provenance, review status, and train/eval split. Include 5 representative sanitized security fixtures drawn from existing 16 corpus cases, clearly marked synthetic and not legally verified. Add focused tests that reject invented refs, cross-instrument value migration, duplicate IDs, missing evidence, unsupported `verified` promotion, and training/evaluation leakage. Keep the new implementation <=300 changed lines where possible. Real expert review remains a separate gate before any legal case is promoted.
 
+**Unfreeze gate:** independently review a held-out Gold cohort, demonstrate that omission and cross-clause-link errors are detected against it, and explicitly approve resuming real-contract analysis. A memory store or a plausible LLM report alone is not sufficient.
+
 **Out of scope for this step:** external API calls; real-contract analysis; a new database, embeddings, Neo4j, pgvector, or provider; OCR changes; new persistence of original text/PII; report or Question Engine runtime rewrites. After the local schema/evidence gate is tested, independently verify a small Gold cohort and then compare baseline vs structured-memory vs hybrid retrieval using omission recall as the leading metric.
 
 ## 9. Frozen runtime Question Engine architecture
