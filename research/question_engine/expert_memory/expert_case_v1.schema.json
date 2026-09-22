@@ -1,0 +1,276 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jancoo2013/jancoo2013-contract-checker-demo/blob/main/research/question_engine/expert_memory/expert_case_v1.schema.json",
+  "title": "Experimental ExpertCase collection v1",
+  "description": "Schema for traceable synthetic contract-reading counterexamples; not a Gold Set or legal authority. The dependency-free Python validator enforces source content, Question Engine identity and split rules.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source_corpus_path",
+    "source_git_blob_sha",
+    "cases"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "source_corpus_path": {
+      "const": "research/question_engine/smart_analysis_corpus_v1.json"
+    },
+    "source_git_blob_sha": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{40}$"
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 256,
+      "items": {
+        "$ref": "#/$defs/case"
+      }
+    }
+  },
+  "$defs": {
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "case_id",
+        "source_case_id",
+        "source_basis",
+        "error_origin",
+        "template_family",
+        "split",
+        "review",
+        "spans",
+        "mechanisms",
+        "facts",
+        "links",
+        "wrong_reading",
+        "corrected_reading",
+        "discriminator"
+      ],
+      "properties": {
+        "case_id": {
+          "type": "string",
+          "pattern": "^em_[a-z0-9_]+$"
+        },
+        "source_case_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_basis": {
+          "enum": [
+            "synthetic_from_observed_pattern",
+            "synthetic_boundary_case"
+          ]
+        },
+        "error_origin": {
+          "const": "CONSTRUCTED_WRONG_READING"
+        },
+        "template_family": {
+          "type": "string",
+          "minLength": 1
+        },
+        "split": {
+          "enum": [
+            "train",
+            "evaluation"
+          ]
+        },
+        "review": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "reviewer_ref",
+            "review_evidence_refs"
+          ],
+          "properties": {
+            "status": {
+              "enum": [
+                "UNVERIFIED",
+                "EXPERT_VERIFIED"
+              ]
+            },
+            "reviewer_ref": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "review_evidence_refs": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "spans": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/span"
+          }
+        },
+        "mechanisms": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/mechanism"
+          }
+        },
+        "facts": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/fact"
+          }
+        },
+        "links": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/link"
+          }
+        },
+        "wrong_reading": {
+          "$ref": "#/$defs/reading"
+        },
+        "corrected_reading": {
+          "$ref": "#/$defs/reading"
+        },
+        "discriminator": {
+          "$ref": "#/$defs/reading"
+        }
+      }
+    },
+    "span": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ref",
+        "text_he"
+      ],
+      "properties": {
+        "ref": {
+          "type": "string",
+          "pattern": "^c[0-9]+$"
+        },
+        "text_he": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "mechanism": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mechanism_id",
+        "anchor_ref"
+      ],
+      "properties": {
+        "mechanism_id": {
+          "type": "string",
+          "pattern": "^security_[0-9]+$"
+        },
+        "anchor_ref": {
+          "type": "string",
+          "pattern": "^c[0-9]+$"
+        }
+      }
+    },
+    "fact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "question_id",
+        "field",
+        "expected",
+        "refs"
+      ],
+      "properties": {
+        "question_id": {
+          "type": "string",
+          "pattern": "^[a-z_]+\\.[a-z_]+$"
+        },
+        "field": {
+          "type": "string",
+          "pattern": "^[a-z_]+$"
+        },
+        "expected": {},
+        "refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^(c[0-9]+|@scope)$"
+          }
+        },
+        "mechanism_id": {
+          "type": "string",
+          "pattern": "^security_[0-9]+$"
+        }
+      }
+    },
+    "link": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mechanism_id",
+        "from_ref",
+        "to_ref",
+        "kind"
+      ],
+      "properties": {
+        "mechanism_id": {
+          "type": "string",
+          "pattern": "^security_[0-9]+$"
+        },
+        "from_ref": {
+          "type": "string",
+          "pattern": "^c[0-9]+$"
+        },
+        "to_ref": {
+          "type": "string",
+          "pattern": "^c[0-9]+$"
+        },
+        "kind": {
+          "enum": [
+            "QUALIFIES",
+            "PROCEDURAL_STEP",
+            "RETURN_RULE"
+          ]
+        }
+      }
+    },
+    "reading": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text",
+        "refs"
+      ],
+      "properties": {
+        "text": {
+          "type": "string",
+          "minLength": 1
+        },
+        "refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^(c[0-9]+|@scope)$"
+          }
+        }
+      }
+    }
+  }
+}
