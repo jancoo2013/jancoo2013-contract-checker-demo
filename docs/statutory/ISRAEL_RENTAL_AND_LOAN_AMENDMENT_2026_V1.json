@@ -3,7 +3,7 @@
   "snapshot_id": "israel-rental-and-loan-amendment-2026-v1",
   "jurisdiction": "IL",
   "as_of": "2026-09-22",
-  "status": "ENACTED_PUBLISHED_DEFERRED_COMMENCEMENT_NOT_EXPERT_REVIEWED",
+  "status": "ENACTED_GAZETTE_NOT_EXPERT_REVIEWED",
   "principal_law": {
     "name_he": "חוק השכירות והשאילה, התשל״א-1971",
     "knesset_law_item_id": "2000596",
@@ -33,8 +33,7 @@
   "commencement": {
     "chapter": "VI",
     "rule": "Six calendar months after the amending law commenced on publication (31 March 2026)",
-    "effective_from": "2026-09-30",
-    "as_of_status": "PUBLISHED_NOT_YET_EFFECTIVE"
+    "effective_from": "2026-09-30"
   },
   "normalized_changes": {
     "section_25y_a": {
@@ -60,7 +59,7 @@
       "before": "ערבות בנקאית",
       "after": "ערבות בנקאית, ערבות מנותן ערבות אחר",
       "summary": "Extends the listed financial-outlay security example to guarantees from other statutorily defined licensed providers in addition to bank guarantees.",
-      "contract_type_dependency": "RESIDENTIAL_SCOPE_25טו_AND_EFFECTIVE_DATE"
+      "contract_type_dependency": "RESIDENTIAL_SCOPE_25טו"
     },
     "not_changed_by_amending_section": [
       "25י(c): enumerated realization grounds",
