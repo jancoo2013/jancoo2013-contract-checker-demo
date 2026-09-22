@@ -146,10 +146,10 @@
     {
       "id": "raa_security_check_procedure",
       "source_id": "raa_2025_check_procedure",
-      "locator": "PDF items 1-4, especially item 3",
-      "proposition": "The official procedure index excerpt distinguishes merely holding a security check from circumstances after bank presentation and dishonor when opening an execution file.",
+      "locator": "Official indexed headings: מי רשאי לפתוח תיק; מתי ניתן לפתוח תיק. Exact PDF page not retrieved.",
+      "proposition": "The indexed description concerns a holder of an unpaid cheque or note; the indexed filing conditions mention maturity and dishonour of a cheque. The full conditions for a security cheque remain unverified.",
       "support": "INDEX_EXCERPT_RECHECK",
-      "does_not_support": "That the wording on a cheque prevents bank presentation, or that execution is lawful in a particular rental dispute.",
+      "does_not_support": "Any full-text exception, entitlement to present or enforce a security cheque, or the latest procedure version.",
       "review": "NEEDS_PRIMARY_SOURCE_AND_SPECIALIST_REVIEW"
     },
     {
@@ -229,7 +229,7 @@
     },
     {
       "id": "security_check_bank_execution_split",
-      "question": "Confirm the currently effective complete Authority opening policy and separately test bank presentment versus lawfulness of security realization.",
+      "question": "The 2025-06-29 working edition is indexed-only. Obtain the complete original to confirm its date, numbered sections, exceptions, and currentness. Keep presentment, file opening, and substantive realization separate.",
       "source_ids": [
         "raa_2025_check_procedure",
         "raa_opening_service",
