@@ -43,13 +43,13 @@
       "id": "knesset_2026_enacted_rental_security",
       "title": "חוק התוכנית הכלכלית (תיקוני חקיקה ליישום המדיניות הכלכלית לשנת התקציב 2026), התשפ״ו-2026; ספר החוקים 3510",
       "publisher": "Knesset official Gazette, text reviewed in public reproduction",
-      "kind": "ENACTED_DEFERRED",
+      "kind": "ENACTED_AMENDMENT",
       "url": "https://fs.knesset.gov.il/25/law/25_lsr_12846788.pdf",
       "source_date": "2026-03-31",
       "checked_on": "2026-09-22",
       "access_level": "GAZETTE_COPY_READ",
       "locator": "§24 (amendment No. 3 to Rental and Loan Law §25י), pp. 363–364; §37 (chapter VI commencement), p. 370",
-      "limit": "Enacted law published, but chapter VI not effective until 2026-09-30. Exact Gazette pages reviewed through a publicly available copy; original official PDF host could not be independently fetched, and byte equality is unverified. Statutory applicability, subsequent amendments, and expert legal interpretation remain separate."
+      "limit": "The publication and its chapter-VI commencement are both recorded in the source overlay. This research-only packet does not activate or block runtime rules by date. Pages read in a public Gazette reproduction; original PDF byte equality unverified. Provider licenses, applicability and expert interpretation not established."
     },
     {
       "id": "raa_2025_check_procedure",
@@ -139,17 +139,8 @@
       "source_id": "knesset_2026_enacted_rental_security",
       "locator": "§24(1)–(2), Gazette pp. 363–364",
       "proposition": "The enacted amendment replaces §25י(a) with definitions including other licensed guarantee providers and amends the opening of §25י(b) to include guarantees from those providers alongside bank guarantees.",
-      "support": "DIRECT_ENACTED_DEFERRED_TEXT",
-      "does_not_support": "That the changes are in force before 2026-09-30, that every security cheque or note falls under the financial-outlay cap, that a specific provider holds a license, or that the new provision governs an individual lease.",
-      "review": "NEEDS_PRIMARY_SOURCE_AND_SPECIALIST_REVIEW"
-    },
-    {
-      "id": "enacted_2026_chapter_vi_commencement",
-      "source_id": "knesset_2026_enacted_rental_security",
-      "locator": "§37, Gazette p. 370; publication 2026-03-31",
-      "proposition": "Chapter VI, which includes §24, commences six calendar months after 2026-03-31 (2026-09-30); on the packet preparation date 2026-09-22 its provisions are published but not yet effective.",
-      "support": "DIRECT_ENACTED_DEFERRED_TEXT",
-      "does_not_support": "General enactment date of other chapters, any effect on a lease before the applicable date, or whether later legislation changes the rule.",
+      "support": "DIRECT_ENACTED_TEXT",
+      "does_not_support": "Which statutory version governs a particular lease, whether a particular provider is licensed, or whether a security cheque or note is subject to the financial-outlay cap.",
       "review": "NEEDS_PRIMARY_SOURCE_AND_SPECIALIST_REVIEW"
     },
     {
@@ -227,7 +218,7 @@
   "unresolved": [
     {
       "id": "current_2026_25y",
-      "question": "Enacted 2026 §24 and chapter-VI §37 wording is located and read in a public Gazette copy; original official file still needs independent byte-level confirmation. Check later consolidated amendments and precise applicability before any live legal claim. The government's January proposal remains legislative history, not governing law.",
+      "question": "The enacted Gazette text is read in a public reproduction; independently confirm the original official publication and later consolidated changes. Commencement is retained in statute metadata, not used as an Expert Memory case-link gate.",
       "source_ids": [
         "knesset_current_law_index",
         "gov_2026_proposal",
