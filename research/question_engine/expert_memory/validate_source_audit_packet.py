@@ -56,7 +56,7 @@ def valid_date(value: object, label: str) -> date:
         raise ValueError(f"{label}: invalid date") from exc
 
 
-def validate(packet: dict, expert_cases: dict) -> None:
+def validate(packet: dict, expert_cases: dict, overlay: dict) -> None:
     fields(packet, {"schema_version", "prepared_on", "status", "sources",
                     "claims", "case_links", "unresolved"}, "packet")
     require(type(packet["schema_version"]) is int and packet["schema_version"] == 1,
@@ -65,7 +65,7 @@ def validate(packet: dict, expert_cases: dict) -> None:
             "source packet must not be promoted")
     prepared = valid_date(packet["prepared_on"], "prepared_on")
     sources = unique(packet["sources"], "sources")
-    require(4 <= len(sources) <= 6, "expected a bounded 4-6 source packet")
+    require(4 <= len(sources) <= 7, "expected a bounded 4-7 source packet")
     for item in sources.values():
         fields(item, FIELDS["source"], "source")
         for key in ("title", "publisher", "locator", "limit"):
@@ -84,6 +84,7 @@ def validate(packet: dict, expert_cases: dict) -> None:
         access = item["access_level"]
         kind = item["kind"]
         require((kind == "ENACTED_HISTORICAL" and access == "PRIMARY_TEXT_READ")
+                or (kind == "ENACTED_DEFERRED" and access == "GAZETTE_COPY_READ")
                 or (kind == "LIVE_CATALOG" and access == "CATALOG_METADATA_ONLY")
                 or (kind in {"PROPOSED_NOT_LAW", "AGENCY_SERVICE",
                              "AGENCY_PROCEDURE"} and access == "INDEX_EXCERPT_ONLY"),
@@ -102,11 +103,53 @@ def validate(packet: dict, expert_cases: dict) -> None:
         kind = sources[claim["source_id"]]["kind"]
         support = claim["support"]
         require((kind == "ENACTED_HISTORICAL" and support == "DIRECT_HISTORICAL_TEXT")
+                or (kind == "ENACTED_DEFERRED"
+                    and support == "DIRECT_ENACTED_DEFERRED_TEXT")
                 or (kind == "PROPOSED_NOT_LAW"
                     and support == "INDEX_EXCERPT_PROPOSAL_ONLY")
                 or (kind in {"AGENCY_SERVICE", "AGENCY_PROCEDURE"}
                     and support == "INDEX_EXCERPT_RECHECK"),
                 "claim: unsupported source authority or review level")
+
+    # Enacted text is dated, but a published future amendment is not an
+    # operative present-day rule. Cross-check the separately pinned overlay.
+    require(overlay.get("snapshot_id") == "israel-rental-and-loan-amendment-2026-v1"
+            and overlay.get("status") ==
+            "ENACTED_PUBLISHED_DEFERRED_COMMENCEMENT_NOT_EXPERT_REVIEWED",
+            "unsupported 2026 overlay or review promotion")
+    law = overlay["amending_law"]
+    effective = overlay["commencement"]
+    source = sources.get("knesset_2026_enacted_rental_security")
+    require(source is not None and source["kind"] == "ENACTED_DEFERRED"
+            and source["access_level"] == "GAZETTE_COPY_READ"
+            and source["url"] == law["official_publication_pdf"]
+            and source["source_date"] == law["publication_date"],
+            "2026 overlay/source provenance mismatch")
+    require(law["publication_issue"] == 3510 and law["amending_section"] == 24
+            and law["commencement_section"] == 37
+            and law["published_pages"] == [363, 364, 370]
+            and law["original_official_pdf_fetch"] == "UNAVAILABLE_DURING_THIS_REVIEW"
+            and law["gazette_copy_read"] == "PAGES_363_364_AND_370",
+            "2026 Gazette locator or access overstatement")
+    require(overlay["as_of"] == packet["prepared_on"]
+            and valid_date(effective["effective_from"], "commencement")
+            == date(2026, 9, 30) and prepared < date(2026, 9, 30)
+            and effective["as_of_status"] == "PUBLISHED_NOT_YET_EFFECTIVE"
+            and effective["chapter"] == "VI",
+            "2026 amendment effective-date mismatch")
+    require(overlay["normalized_changes"]["section_25y_b_opening"]["after"]
+            == "ערבות בנקאית, ערבות מנותן ערבות אחר"
+            and overlay["normalized_changes"]["section_25y_a"]["provider_classes"]
+            == ["licensed_credit_provider", "licensed_deposit_and_credit_provider",
+                "licensed_financially_stable_payment_service_provider", "insurer"]
+            and overlay["usage"]["production_runtime_wired"] is False
+            and overlay["usage"]["expert_verified"] is False,
+            "2026 security amendment content or authority promotion")
+    require(all(claims[x]["source_id"] == source["id"]
+                and claims[x]["support"] == "DIRECT_ENACTED_DEFERRED_TEXT"
+                for x in ("enacted_2026_other_guarantee_providers",
+                          "enacted_2026_chapter_vi_commencement")),
+            "2026 enacted claims missing or misattributed")
 
     require(expert_cases.get("schema_version") == 1, "unknown ExpertCase version")
     case_ids = {case["case_id"] for case in expert_cases["cases"]}
@@ -123,7 +166,7 @@ def validate(packet: dict, expert_cases: dict) -> None:
                                      "INSTRUMENT_SCOPE_QUESTION_ONLY"},
                 "case link overstates source evidence")
         require(all(sources[claims[x]["source_id"]]["kind"] not in
-                    {"LIVE_CATALOG", "PROPOSED_NOT_LAW"} for x in link["claim_ids"]),
+                    {"LIVE_CATALOG", "PROPOSED_NOT_LAW", "ENACTED_DEFERRED"} for x in link["claim_ids"]),
                 "cannot treat metadata or proposal as case authority")
     require(links == case_ids, "missing ExpertCase coverage")
 
@@ -137,7 +180,8 @@ def validate(packet: dict, expert_cases: dict) -> None:
         identifiers(item["source_ids"], set(sources), "unresolved sources")
     unresolved_sources = {x for item in unresolved.values() for x in item["source_ids"]}
     require({sid for sid, s in sources.items() if s["kind"] in
-             {"LIVE_CATALOG", "PROPOSED_NOT_LAW", "AGENCY_PROCEDURE"}}
+             {"LIVE_CATALOG", "PROPOSED_NOT_LAW", "AGENCY_PROCEDURE",
+              "ENACTED_DEFERRED"}}
             <= unresolved_sources, "index/legislation gaps must remain explicit")
 
 
@@ -158,7 +202,8 @@ def read(path: Path) -> dict:
 if __name__ == "__main__":
     packet = read(BASE / "source_audit_packet_v1.json")
     expert_cases = read(BASE / "expert_cases_v1.json")
-    validate(packet, expert_cases)
+    overlay = read(ROOT / "docs/statutory/ISRAEL_RENTAL_AND_LOAN_AMENDMENT_2026_V1.json")
+    validate(packet, expert_cases, overlay)
     print(f"Source audit: {len(packet['sources'])} leads, "
           f"{len(packet['claims'])} limited propositions, "
           f"{len(packet['case_links'])} case links; NOT legally verified.")
