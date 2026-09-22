@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-22-136",
+  "state_version": "privacy-ocr-2026-09-22-137",
   "active_track": "expert-memory-development",
   "next_step_id": "expert-memory-cheque-procedure-primary-text-v1",
-  "next_step_summary": "PR #286 records enacted 2026 Economic Programme Law §24 (Rental and Loan Law amendment No. 3 to §25י) as a versioned research source with §37 commencement preserved as bibliographic metadata, not a new ExpertCase date gate. Seven source leads, nine limited claims, five synthetic case links and tests preserve proposal/enactment distinction, source provenance, provider classes, original-PDF access caveats and non-authoritative review status. The public Gazette reproduction was read; official Knesset-hosted PDF bytes and later consolidated text remain unverified. Existing ExpertCase seeds remain UNVERIFIED and real-contract/provider runs remain paused. Next bounded task: independently inspect the full current Enforcement Authority cheque/note execution-file procedure, separating bank presentment, execution eligibility and lawful security realization. No OCR, providers, databases/RAG, runtime change or paid legal review.",
-  "last_recorded_pr": 286,
-  "last_recorded_change": "expert-memory-enacted-amendment-2026-v1",
+  "next_step_summary": "PR #287 records the owner-selected June 2025 procedure as indexed-only. Full PDF, edition date and currentness are not independently verified. Full-text source retrieval remains the next step. Real-contract and provider analyses remain paused.",
+  "last_recorded_pr": 287,
+  "last_recorded_change": "expert-memory-cheque-procedure-2025-06-29-index-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-09-22"

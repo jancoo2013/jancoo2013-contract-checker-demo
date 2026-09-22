@@ -183,6 +183,60 @@ def validate(packet: dict, expert_cases: dict, overlay: dict) -> None:
             <= unresolved_sources, "index/legislation gaps must remain explicit")
 
 
+
+def validate_procedure_edition(edition: dict, packet: dict) -> None:
+    """Reject a guessed full text or unjustified promotion of indexed evidence."""
+    required = {"schema_version", "document_id", "source_id", "authority",
+                "title_he", "official_pdf_url", "edition_label",
+                "edition_date_basis", "reviewed_on", "evidence_level",
+                "full_pdf_retrieved", "original_pdf_sha256",
+                "current_revision_independently_confirmed", "expert_verified",
+                "editorial_use", "index_supported_points", "unverified_questions",
+                "review_boundary"}
+    fields(edition, required, "procedure edition")
+    source = next((x for x in packet["sources"]
+                   if x["id"] == "raa_2025_check_procedure"), None)
+    require(source is not None and edition["source_id"] == source["id"]
+            and edition["official_pdf_url"] == source["url"]
+            and source["access_level"] == "INDEX_EXCERPT_ONLY"
+            and source["source_date"] is None,
+            "procedure source or access-level mismatch")
+    require(edition["schema_version"] == 1
+            and edition["document_id"] == "raa_cheque_and_note_opening_2025_06_29"
+            and edition["edition_label"] == "2025-06-29"
+            and edition["edition_date_basis"] == "OFFICIAL_PDF_FILENAME_ONLY"
+            and edition["reviewed_on"] == packet["prepared_on"]
+            and edition["evidence_level"] == "OFFICIAL_SEARCH_INDEX_EXCERPTS_ONLY"
+            and edition["full_pdf_retrieved"] is False
+            and edition["original_pdf_sha256"] is None
+            and edition["current_revision_independently_confirmed"] is False
+            and edition["expert_verified"] is False
+            and edition["editorial_use"] == "PROVISIONAL_RESEARCH_ONLY",
+            "unverified procedure promoted beyond indexed-only evidence")
+    points = unique(edition["index_supported_points"], "indexed points")
+    require(set(points) == {"purpose", "eligible_holder", "timing"},
+            "unexpected indexed coverage")
+    for point in points.values():
+        fields(point, {"id", "official_index_heading_he", "paraphrase",
+                       "source_basis", "exact_pdf_page"}, "indexed point")
+        require(point["source_basis"] == "INDEXED_PDF_SNIPPET"
+                and point["exact_pdf_page"] is None
+                and all(isinstance(point[k], str) and point[k].strip()
+                        for k in ("official_index_heading_he", "paraphrase")),
+                "indexed excerpt falsely claims primary text")
+    questions = unique(edition["unverified_questions"], "procedure gaps")
+    require(set(questions) == {"security_cheque_specific_rules",
+                              "version_currentness", "procedural_vs_substantive"}
+            and all(x["status"] in {"NEEDS_FULL_PRIMARY_TEXT",
+                                    "NEEDS_CURRENT_VERSION_CONFIRMATION",
+                                    "NEEDS_INDEPENDENT_LEGAL_SOURCES"}
+                    and isinstance(x["question"], str) and x["question"].strip()
+                    for x in questions.values())
+            and isinstance(edition["review_boundary"], str)
+            and bool(edition["review_boundary"].strip()),
+            "procedure gaps or review boundary missing")
+
+
 def read(path: Path) -> dict:
     require(path.is_file() and not path.is_symlink()
             and path.stat().st_size < 300_000, "unsafe or oversized JSON")
@@ -202,6 +256,8 @@ if __name__ == "__main__":
     expert_cases = read(BASE / "expert_cases_v1.json")
     overlay = read(ROOT / "docs/statutory/ISRAEL_RENTAL_AND_LOAN_AMENDMENT_2026_V1.json")
     validate(packet, expert_cases, overlay)
+    procedure = read(BASE / "authority_cheque_procedure_2025_06_29_v1.json")
+    validate_procedure_edition(procedure, packet)
     print(f"Source audit: {len(packet['sources'])} leads, "
           f"{len(packet['claims'])} limited propositions, "
           f"{len(packet['case_links'])} case links; NOT legally verified.")
