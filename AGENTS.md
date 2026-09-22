@@ -116,6 +116,19 @@ Exact Hebrew **source evidence** must come from sanitized source material or det
 - Do not commit build directories, binaries, APKs, model weights, workflow artifacts, local logs, caches, IDE metadata, temporary scripts/workflows, or lock-file changes without a dependency change unless explicitly required.
 - Never accept an executor's claim of completion without inspecting the actual final diff and validation evidence.
 
+
+### 6.1 Codex scope guard and test integrity
+
+Apply this guard to every bounded implementation, corrective, and documentation task. It supplements the Context Gate and does not relax any binding rule above.
+
+- Before editing, identify the concrete defect or requested outcome, its evidence, the smallest plausible change, the approved paths, forbidden changes, and the focused acceptance check. For an unexpected failure, diagnose its cause before changing code. Do not treat a passing test alone as proof that the requested defect was fixed.
+- Change only what is necessary for that outcome, including directly related regression tests and mandatory state files. Do not opportunistically reformat, rename, refactor, upgrade dependencies, rewrite documentation, or fix adjacent issues. Record unrelated discoveries separately without implementing them.
+- If a necessary fix exceeds approved paths or scope, requires a new dependency or subsystem, changes a contract/schema, alters privacy/security/product behavior, or exceeds the normal PR size limit, **stop before the out-of-scope edit**. Give the owner the specific evidence, proposed additional paths, risk, and revised validation plan; resume only after explicit approval. Do not infer approval from silence.
+- Preserve test and evidence integrity: never delete, skip, weaken, relabel, or rewrite a failing test, golden answer, fixture, snapshot, validation threshold, or security gate merely to make checks pass. Add a focused regression test for the original defect when feasible. A genuinely changed expected behavior needs explicit task approval, source evidence, and a documented before/after rationale; do not silently redefine success.
+- Before Ready, inspect the actual **final diff** and compare its complete path set with the PR Context Gate; remove only changes introduced by this task, never discard unrelated pre-existing user work. Check for unintended dependency, lockfile, workflow, artifact, credential, fixture, and privacy changes. Rerun relevant validation on the final head SHA and report exact commands, failures, skipped checks, and unverified behavior.
+- Stop once the agreed completion criteria are met. Do not broaden the task because further improvements are possible. A blocked or partially validated task must be reported as such, not declared complete.
+
+
 ## 7. Validation
 
 Use validation proportionately to the changed component.
