@@ -212,7 +212,9 @@ Critical Question Engine rule:
 
 > Do not apply the three-month cap mechanically to every instrument called “security”. Distinguish a bank guarantee / cash-type security from a security cheque, promissory note, guarantor obligation, and other instruments, then determine whether the statutory cap applies to that instrument.
 
-Also flag effective-date versioning: the 2026 amendment to `25י` contains wording effective `2026-09-30` concerning additional guarantee providers.
+**Enacted 2026 amendment No. 3 (dated overlay):** the 2026 Economic Programme Law, Chapter VI, §24, replaces the definitions in §25י(a) and adds **a guarantee from another statutorily defined licensed provider** alongside bank guarantees in the opening of §25י(b). The provider categories named in the enacted text are licensed credit providers, licensed deposit-and-credit providers, licensed financially stable payment providers, and insurers. The §37 commencement date is recorded as 2026-09-30 in the source metadata. The §24 amendment itself does not replace §25י(c)–(e). Source: `ספר החוקים 3510`, pp. 363–364 and 370; [official Gazette PDF](https://fs.knesset.gov.il/25/law/25_lsr_12846788.pdf). The official-domain PDF bytes could not be fetched during this review; the printed pages were read in a [public Gazette reproduction](https://www.law.co.il/media/computer-law/economic_plan_law_2026.pdf#page=14). Versioned overlay: `docs/statutory/ISRAEL_RENTAL_AND_LOAN_AMENDMENT_2026_V1.json`.
+
+**Research scope:** this overlay documents an enacted change; it does not activate production rules or decide applicability to a particular lease. Any later production implementation must check the current statute, provider licensing and §25טו exceptions. Nothing in §24 alone justifies applying the statutory cap mechanically to every `שיק ביטחון` or `שטר חוב`. The January government bill is legislative history, not the enacted statute.
 
 ### Section 25יב — extension / option
 

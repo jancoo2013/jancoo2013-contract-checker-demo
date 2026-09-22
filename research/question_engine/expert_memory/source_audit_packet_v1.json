@@ -40,6 +40,18 @@
       "limit": "A government bill is not an enacted amendment; verify Sefer HaHukim 3510 and actual commencement separately."
     },
     {
+      "id": "knesset_2026_enacted_rental_security",
+      "title": "חוק התוכנית הכלכלית (תיקוני חקיקה ליישום המדיניות הכלכלית לשנת התקציב 2026), התשפ״ו-2026; ספר החוקים 3510",
+      "publisher": "Knesset official Gazette, text reviewed in public reproduction",
+      "kind": "ENACTED_AMENDMENT",
+      "url": "https://fs.knesset.gov.il/25/law/25_lsr_12846788.pdf",
+      "source_date": "2026-03-31",
+      "checked_on": "2026-09-22",
+      "access_level": "GAZETTE_COPY_READ",
+      "locator": "§24 (amendment No. 3 to Rental and Loan Law §25י), pp. 363–364; §37 (chapter VI commencement), p. 370",
+      "limit": "The publication and its chapter-VI commencement are both recorded in the source overlay. This research-only packet does not activate or block runtime rules by date. Pages read in a public Gazette reproduction; original PDF byte equality unverified. Provider licenses, applicability and expert interpretation not established."
+    },
+    {
       "id": "raa_2025_check_procedure",
       "title": "מקרים בהם לא יפתח התיק — פתיחת תיק שטרות והמחאות",
       "publisher": "Enforcement and Collection Authority",
@@ -123,6 +135,15 @@
       "review": "NEEDS_PRIMARY_SOURCE_AND_SPECIALIST_REVIEW"
     },
     {
+      "id": "enacted_2026_other_guarantee_providers",
+      "source_id": "knesset_2026_enacted_rental_security",
+      "locator": "§24(1)–(2), Gazette pp. 363–364",
+      "proposition": "The enacted amendment replaces §25י(a) with definitions including other licensed guarantee providers and amends the opening of §25י(b) to include guarantees from those providers alongside bank guarantees.",
+      "support": "DIRECT_ENACTED_TEXT",
+      "does_not_support": "Which statutory version governs a particular lease, whether a particular provider is licensed, or whether a security cheque or note is subject to the financial-outlay cap.",
+      "review": "NEEDS_PRIMARY_SOURCE_AND_SPECIALIST_REVIEW"
+    },
+    {
       "id": "raa_security_check_procedure",
       "source_id": "raa_2025_check_procedure",
       "locator": "PDF items 1-4, especially item 3",
@@ -197,11 +218,12 @@
   "unresolved": [
     {
       "id": "current_2026_25y",
-      "question": "Obtain enacted 2026 Sefer HaHukim 3510 text and commencement, then reconcile the 2017 and current §25י wording.",
+      "question": "The enacted Gazette text is read in a public reproduction; independently confirm the original official publication and later consolidated changes. Commencement is retained in statute metadata, not used as an Expert Memory case-link gate.",
       "source_ids": [
         "knesset_current_law_index",
         "gov_2026_proposal",
-        "knesset_2017_amendment"
+        "knesset_2017_amendment",
+        "knesset_2026_enacted_rental_security"
       ],
       "needs_specialist_review": true
     },
@@ -220,7 +242,8 @@
       "question": "Determine in which fact patterns §25י caps, notice, realization and return govern each cheque, note, bank guarantee or cash deposit; do not infer merely from instrument name.",
       "source_ids": [
         "knesset_2017_amendment",
-        "knesset_current_law_index"
+        "knesset_current_law_index",
+        "knesset_2026_enacted_rental_security"
       ],
       "needs_specialist_review": true
     },

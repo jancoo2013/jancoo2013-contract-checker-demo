@@ -1,12 +1,14 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-09-22, PR #285, `expert-memory-source-audit-packet-v1` (после #283 и #284).
+Последнее обновление: 2026-09-22, PR #286, `expert-memory-enacted-amendment-2026-v1` (после слитого #285).
 
 Активный трек: `expert-memory-development`.
 
-Канонический следующий bounded-шаг: `expert-memory-primary-text-verification-v1`.
+Канонический следующий bounded-шаг: `expert-memory-cheque-procedure-primary-text-v1`.
 
 Решение владельца от 2026-09-22: реальные анализы договоров и повторные full-contract прогоны временно приостановлены до создания и независимой проверки качественной базы экспертных знаний. Разрешены локальные синтетические/обезличенные fixture-тесты без внешнего API. PR #281 добавляет экспериментальный Expert Pack v0.1: CORE_PROTOCOL, MECHANISM_PLAYBOOK и 15 синтетических контрастных примеров; эти материалы не являются верифицированной юридической базой. Сохранён уже слитый PR #282 и все его требования контроля Codex. Область OCR, privacy/security, runtime и провайдеров не изменена.
+
+PR #286 — принятую поправку № 3 к §25י сохранили отдельным версионированным источником с точным указанием §24 и §37, а дату вступления оставили реквизитом первоисточника, без отдельного временного предохранителя или запрета связей с ExpertCase. Пакет содержит семь источников, девять ограниченных утверждений и пять неизменённых синтетических кейсов. Источник не включён в runtime и не считается экспертно верифицированным; подлинные байты PDF с сервера Кнессета ещё не сверены с прочитанной репродукцией. Реальные договоры и внешние модели по-прежнему заморожены.
 
 PR #285 — небольшой пакет первоисточников для Expert Memory: шесть официальных источников/указателей с указанием реально прочитанного уровня (исходный закон 2017 года, каталог текущей редакции, явно не действующее само по себе предложение 2026 года, процедура взыскания и два сервиса службы исполнения), восемь строго ограниченных утверждений, ссылки на все пять синтетических ExpertCase и четыре открытых вопроса. Только текст исторической публикации 2017 года непосредственно прочитан полностью по затронутым разделам; индексы других материалов и каталог не считаются проверкой действующего законодательства. Добавлены локальные проверки происхождения, запрета необоснованного статуса экспертной верификации и целостности ссылок в существующий CI. Реальные договоры и внешние модели по-прежнему заморожены.
 
@@ -215,19 +217,19 @@ The attempt ledger stores only safe error class plus safe quota scope/retry timi
 
 This PR does not add another provider, model, dependency, endpoint, permission, workflow or storage path. It does not change Question Engine semantics/schema, the privacy boundary, report payload contract or OCR scope.
 
-## 8. Canonical next step — verify exact current primary texts
+## 8. Canonical next step — verify the current cheque-enforcement procedure
 
-`next_step_id = expert-memory-primary-text-verification-v1`
+`next_step_id = expert-memory-cheque-procedure-primary-text-v1`
 
-**Freeze remains:** no new real-contract analyses or repeat LLM/provider runs on real leases until an independently reviewed Gold cohort and an omission/linkage evaluation gate exist. Synthetic, sanitized and offline-only tests remain permitted.
+**Freeze remains:** no new real-contract analyses or external LLM/provider runs on real leases until an independently reviewed Gold cohort and omission/linkage gate exist. Offline synthetic validation remains allowed.
 
-**PR #285 delivered:** a six-record primary-source discovery packet, eight bounded propositions with explicit `does_not_support` boundaries, five ExpertCase reference links and four unresolved verification issues. It distinguishes historical enacted original text from proposed amendments, current-law catalogue metadata and search-index extracts. The packet does **not** claim that proposed 2026 bill language is enacted text or that indexed Authority procedure text has been reviewed in full. No verified case-law holding or expert-verified legal Gold is included.
+**PR #286:** the enacted 2026 §25י amendment is recorded in a separate source-anchored research overlay, with §37's commencement date retained as publication metadata rather than a new ExpertCase date gate. One new bounded enactment claim can be attached as non-authoritative context; the five synthetic cases remain unverified. The January government proposal remains distinct from the enacted law. Original Knesset-hosted PDF bytes and later consolidated wording remain unverified; the relevant Gazette pages were read in a public reproduction.
 
-**Next bounded PR:** `expert-memory-primary-text-verification-v1`. Independently retrieve and inspect the enacted 2026 Sefer HaHukim 3510 text and effective-date clauses relevant to §25י, plus the complete *currently valid* Enforcement Authority cheque/note opening procedure. Record precise publication/version/page or item locators and direct text, correct or explicitly withhold each affected packet claim, and preserve a dated evidence trail. Prioritize distinguishing a bank-presented cheque from eligibility to open an execution case and legal grounds for security realization. If original primary documents remain inaccessible, leave claims unresolved rather than promote them.
+**Next bounded PR:** `expert-memory-cheque-procedure-primary-text-v1`. Retrieve and inspect the **full currently applicable** Enforcement and Collection Authority procedure for cheque/note execution files. Record exact procedure identifiers, dates and clauses, and distinguish bank presentment, execution-file eligibility and substantive grounds for using a security instrument. If full primary text cannot be retrieved, record an unresolved question rather than extrapolate from indexed excerpts.
 
-**Later gates:** find and review applicable published judicial decisions for those mechanisms; use the disputed interpretations and contradictions as a concrete packet for specialist review; only then create a genuinely independent held-out Gold set. Legal truth is never proven by the current synthetic regression tests.
+**Later gates:** published judicial decisions, a focused specialist-review packet and an independently reviewed held-out Gold cohort. Provenance checks alone do not establish legal correctness.
 
-**Out of scope:** real-contract/provider calls, RAG, databases, embeddings, OCR, runtime changes, automatic legal verdicts or claiming expert verification.
+**Out of scope:** real-contract/provider runs, runtime changes, OCR, RAG, embeddings, new databases, or automated legal verdicts.
 
 ## 9. Frozen runtime Question Engine architecture
 

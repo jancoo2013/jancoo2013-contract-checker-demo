@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "snapshot_id": "israel-rental-and-loan-amendment-2026-v1",
+  "jurisdiction": "IL",
+  "as_of": "2026-09-22",
+  "status": "ENACTED_GAZETTE_NOT_EXPERT_REVIEWED",
+  "principal_law": {
+    "name_he": "חוק השכירות והשאילה, התשל״א-1971",
+    "knesset_law_item_id": "2000596",
+    "affected_section": "25י"
+  },
+  "amending_law": {
+    "name_he": "חוק התוכנית הכלכלית (תיקוני חקיקה ליישום המדיניות הכלכלית לשנת התקציב 2026), התשפ״ו-2026",
+    "amendment_number": 3,
+    "knesset_law_item_id": "2242329",
+    "publication_series": "ספר החוקים",
+    "publication_issue": 3510,
+    "publication_date": "2026-03-31",
+    "enactment_date": "2026-03-30",
+    "published_pages": [
+      363,
+      364,
+      370
+    ],
+    "amending_section": 24,
+    "commencement_section": 37,
+    "official_publication_pdf": "https://fs.knesset.gov.il/25/law/25_lsr_12846788.pdf",
+    "readable_gazette_copy": "https://www.law.co.il/media/computer-law/economic_plan_law_2026.pdf",
+    "original_official_pdf_fetch": "UNAVAILABLE_DURING_THIS_REVIEW",
+    "gazette_copy_read": "PAGES_363_364_AND_370",
+    "copy_byte_identical_to_official": "NOT_ESTABLISHED"
+  },
+  "commencement": {
+    "chapter": "VI",
+    "rule": "Six calendar months after the amending law commenced on publication (31 March 2026)",
+    "effective_from": "2026-09-30"
+  },
+  "normalized_changes": {
+    "section_25y_a": {
+      "action": "replace_subsection",
+      "definitions": [
+        "other_guarantee_provider",
+        "financially_stable_payment_service_provider",
+        "insurer",
+        "licensed_credit_provider",
+        "licensed_deposit_and_credit_provider",
+        "security_for_residential_tenant_obligations"
+      ],
+      "provider_classes": [
+        "licensed_credit_provider",
+        "licensed_deposit_and_credit_provider",
+        "licensed_financially_stable_payment_service_provider",
+        "insurer"
+      ],
+      "provider_license_check_required": true
+    },
+    "section_25y_b_opening": {
+      "action": "replace_phrase",
+      "before": "ערבות בנקאית",
+      "after": "ערבות בנקאית, ערבות מנותן ערבות אחר",
+      "summary": "Extends the listed financial-outlay security example to guarantees from other statutorily defined licensed providers in addition to bank guarantees.",
+      "contract_type_dependency": "RESIDENTIAL_SCOPE_25טו"
+    },
+    "not_changed_by_amending_section": [
+      "25י(c): enumerated realization grounds",
+      "25י(d): advance notice and cure",
+      "25י(e): security return"
+    ],
+    "not_established": [
+      "application of the security amount cap to every cheque or promissory note",
+      "verification of a specific provider's license",
+      "legal outcome in any tenant-landlord dispute",
+      "whether later enacted amendments alter the published 2026 text"
+    ]
+  },
+  "usage": {
+    "scope": "research_statutory_overlay_only",
+    "production_runtime_wired": false,
+    "expert_verified": false,
+    "safe_as_current_law_without_date_and_applicability_gate": false,
+    "pending": "Verify any subsequent changes in the official consolidated statute before production use; independently check current Enforcement Authority procedure and specialist interpretations."
+  }
+}
