@@ -116,7 +116,6 @@ Exact Hebrew **source evidence** must come from sanitized source material or det
 - Do not commit build directories, binaries, APKs, model weights, workflow artifacts, local logs, caches, IDE metadata, temporary scripts/workflows, or lock-file changes without a dependency change unless explicitly required.
 - Never accept an executor's claim of completion without inspecting the actual final diff and validation evidence.
 
-
 ### 6.1 Codex scope guard and test integrity
 
 Apply this guard to every bounded implementation, corrective, and documentation task. It supplements the Context Gate and does not relax any binding rule above.
@@ -127,7 +126,6 @@ Apply this guard to every bounded implementation, corrective, and documentation 
 - Preserve test and evidence integrity: never delete, skip, weaken, relabel, or rewrite a failing test, golden answer, fixture, snapshot, validation threshold, or security gate merely to make checks pass. Add a focused regression test for the original defect when feasible. A genuinely changed expected behavior needs explicit task approval, source evidence, and a documented before/after rationale; do not silently redefine success.
 - Before Ready, inspect the actual **final diff** and compare its complete path set with the PR Context Gate; remove only changes introduced by this task, never discard unrelated pre-existing user work. Check for unintended dependency, lockfile, workflow, artifact, credential, fixture, and privacy changes. Rerun relevant validation on the final head SHA and report exact commands, failures, skipped checks, and unverified behavior.
 - Stop once the agreed completion criteria are met. Do not broaden the task because further improvements are possible. A blocked or partially validated task must be reported as such, not declared complete.
-
 
 ## 7. Validation
 
