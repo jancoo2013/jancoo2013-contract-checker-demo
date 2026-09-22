@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "document_id": "raa_cheque_and_note_opening_2025_06_29",
+  "source_id": "raa_2025_check_procedure",
+  "authority": "Israel Enforcement and Collection Authority",
+  "title_he": "פתיחת תיק מסוג שטרות והמחאות",
+  "official_pdf_url": "https://www.gov.il/BlobFolder/policy/opening-notes-and-checks-file-regulation/he/opening-notes-and-checks-file-29-06-2025.pdf",
+  "edition_label": "2025-06-29",
+  "edition_date_basis": "OFFICIAL_PDF_FILENAME_ONLY",
+  "reviewed_on": "2026-09-22",
+  "evidence_level": "OFFICIAL_SEARCH_INDEX_EXCERPTS_ONLY",
+  "full_pdf_retrieved": false,
+  "original_pdf_sha256": null,
+  "current_revision_independently_confirmed": false,
+  "expert_verified": false,
+  "editorial_use": "PROVISIONAL_RESEARCH_ONLY",
+  "index_supported_points": [
+    {
+      "id": "purpose",
+      "official_index_heading_he": "מהו תיק שטרות והמחאות",
+      "paraphrase": "The official indexed description addresses collection of an unpaid cheque, bill of exchange or promissory note.",
+      "source_basis": "INDEXED_PDF_SNIPPET",
+      "exact_pdf_page": null
+    },
+    {
+      "id": "eligible_holder",
+      "official_index_heading_he": "מי רשאי לפתוח תיק",
+      "paraphrase": "The indexed procedure describes a creditor holding an unpaid cheque, bill of exchange or promissory note as the applicant.",
+      "source_basis": "INDEXED_PDF_SNIPPET",
+      "exact_pdf_page": null
+    },
+    {
+      "id": "timing",
+      "official_index_heading_he": "מתי ניתן לפתוח תיק",
+      "paraphrase": "The indexed procedure distinguishes maturity of an instrument, bank dishonour of a cheque and a creditor's demand to a promissory-note debtor.",
+      "source_basis": "INDEXED_PDF_SNIPPET",
+      "exact_pdf_page": null
+    }
+  ],
+  "unverified_questions": [
+    {
+      "id": "security_cheque_specific_rules",
+      "question": "The complete procedure's treatment of security cheques and its list of refusal/exception cases have not been directly read.",
+      "status": "NEEDS_FULL_PRIMARY_TEXT"
+    },
+    {
+      "id": "version_currentness",
+      "question": "No complete current-version catalogue or supersession record has been checked; 2025-06-29 is the selected working edition, not a verified latest edition.",
+      "status": "NEEDS_CURRENT_VERSION_CONFIRMATION"
+    },
+    {
+      "id": "procedural_vs_substantive",
+      "question": "File-opening requirements do not determine bank presentment or the substantive lawfulness of a landlord's realization of security.",
+      "status": "NEEDS_INDEPENDENT_LEGAL_SOURCES"
+    }
+  ],
+  "review_boundary": "No full-PDF text, exhaustive section numbering, exact quotations, bank behaviour, case-law holding, filing deadline or legal verdict is established by this record."
+}
