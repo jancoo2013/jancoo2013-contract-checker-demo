@@ -1,0 +1,66 @@
+name: Expert Memory offline tests
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited, ready_for_review]
+    paths:
+      - ".github/workflows/expert-memory-ci.yml"
+      - "research/question_engine/expert_memory/**"
+      - "tests/test_expert_memory_provenance.py"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: expert-memory-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Existing sanitized corpus regression
+        run: python -m unittest tests.test_question_engine_smart_analysis_corpus
+
+      - name: ExpertCase syntax, provenance and regression
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          validator="research/question_engine/expert_memory/validate_expert_cases.py"
+          test_file="tests/test_expert_memory_provenance.py"
+          dataset="research/question_engine/expert_memory/expert_cases_v1.json"
+          schema="research/question_engine/expert_memory/expert_case_v1.schema.json"
+
+          if [[ ! -f "$validator" ]]; then
+            # The standalone CI bootstrap PR precedes ExpertCase PR #283.
+            # Do not allow missing ExpertCase code on PRs modifying any
+            # other path: deletions and incomplete migrations fail closed.
+            changes="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")"
+            while IFS= read -r path; do
+              case "$path" in
+                ".github/workflows/expert-memory-ci.yml"|"docs/OCR_PROJECT_STATE.md"|"docs/OCR_PROJECT_STATE.json") ;;
+                *) echo "ExpertCase code missing with non-bootstrap edit: $path" >&2; exit 1 ;;
+              esac
+            done <<< "$changes"
+            echo "CI bootstrap verified. ExpertCase regression awaits PR #283."
+            exit 0
+          fi
+
+          for path in "$validator" "$test_file" "$dataset" "$schema"; do
+            [[ -f "$path" ]] || { echo "Missing ExpertCase file: $path" >&2; exit 1; }
+          done
+          python -m py_compile "$validator" "$test_file"
+          python -m unittest tests.test_expert_memory_provenance
+          python "$validator"
