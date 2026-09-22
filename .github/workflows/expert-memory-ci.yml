@@ -64,3 +64,13 @@ jobs:
           python -m py_compile "$validator" "$test_file"
           python -m unittest tests.test_expert_memory_provenance
           python "$validator"
+
+          audit_validator="research/question_engine/expert_memory/validate_source_audit_packet.py"
+          audit_test="tests/test_expert_memory_source_audit.py"
+          audit_data="research/question_engine/expert_memory/source_audit_packet_v1.json"
+          for path in "$audit_validator" "$audit_test" "$audit_data"; do
+            [[ -f "$path" ]] || { echo "Missing source audit file: $path" >&2; exit 1; }
+          done
+          python -m py_compile "$audit_validator" "$audit_test"
+          python -m unittest tests.test_expert_memory_source_audit
+          python "$audit_validator"

@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-22-134",
+  "state_version": "privacy-ocr-2026-09-22-135",
   "active_track": "expert-memory-development",
-  "next_step_id": "expert-memory-source-audit-packet-v1",
-  "next_step_summary": "CI-only PR #284 has merged and supplies offline GitHub Actions checks for sanitized Expert Memory. PR #283 adds local ExpertCase schema, five pinned synthetic records, deterministic provenance, evidence and instrument validator plus regression tests. These development fixtures are not independently verified legal Gold. Real-contract and provider runs remain paused. Next bounded task after #283: expert-memory-source-audit-packet-v1, collecting dated independently traceable primary sources with explicit unsupported/needs-specialist-review claims; no paid specialist verification prerequisite, runtime change, OCR, databases, embeddings or external API calls.",
-  "last_recorded_pr": 283,
-  "last_recorded_change": "expert-memory-provenance-schema-v1",
+  "next_step_id": "expert-memory-primary-text-verification-v1",
+  "next_step_summary": "PR #285 builds a small, bounded, non-authoritative packet of six official source leads, eight provenance-scoped propositions, links to all five synthetic ExpertCase records, explicit access levels and four unresolved questions. Only the 2017 Knesset publication was directly read; current statute, 2026 proposal details, Authority procedure and service summaries require additional source verification and are not legal Gold. An offline stdlib validator and negative tests run in the existing Expert Memory CI workflow. Keep real-contract/provider analyses paused. Next bounded task: independently retrieve enacted 2026 Sefer HaHukim 3510 and current full Authority cheque-opening procedure, verify effective dates and exact relevant text, then revisit unsupported claims without silently promoting expert review; no runtime/RAG/database/OCR/model changes.",
+  "last_recorded_pr": 285,
+  "last_recorded_change": "expert-memory-source-audit-packet-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-09-22"
