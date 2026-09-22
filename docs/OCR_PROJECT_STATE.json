@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-22-132",
+  "state_version": "privacy-ocr-2026-09-22-133",
   "active_track": "expert-memory-development",
-  "next_step_id": "expert-memory-provenance-schema-v1",
-  "next_step_summary": "Product owner paused new real-contract/provider analyses until a source-reviewed Expert Memory baseline exists. PR #281 adds experimental Expert Pack v0.1 (protocol, mechanism playbook, 15 synthetic contrastive examples), preserving merged PR #282 Codex scope guard. Next bounded step: versioned local ExpertCase schema and deterministic provenance/evidence/link validator reusing Question Engine IDs; convert 5 existing sanitized synthetic security cases to non-authoritative seeds with explicit review state, cross-clause links, mistakes/corrections and held-out split; test missing refs, cross-instrument drift, unsupported verified promotion and train/eval leakage. Do not run real contracts or provider calls; no database, embeddings, infrastructure, new dependencies, OCR or runtime changes until this gate passes.",
-  "last_recorded_pr": 281,
-  "last_recorded_change": "question-engine-expert-pack-v01",
+  "next_step_id": "expert-memory-source-audit-packet-v1",
+  "next_step_summary": "PR #283 adds offline ExpertCase v1 schema, pinned synthetic provenance, five constructed error/correction records (three broad-trigger train and two multi-instrument evaluation), deterministic ref/Question-Engine/instrument/link/review/split validator and tests. Evaluation seeds are synthetic dev fixtures, not independent legal Gold; expert verification is not claimed. Keep real-contract/provider runs paused. Next bounded step: collect a small independently traceable, dated primary-source audit packet for the security mechanisms before arranging independent Gold review; no invented sources, paid specialist verification requirement, runtime, OCR, databases, embeddings, or external API calls.",
+  "last_recorded_pr": 283,
+  "last_recorded_change": "expert-memory-provenance-schema-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-09-22"
