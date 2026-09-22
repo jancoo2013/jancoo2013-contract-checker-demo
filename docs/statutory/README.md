@@ -28,6 +28,19 @@ Official source metadata:
 
 The JSON intentionally stores normalized rule data rather than a copied full-text statute. That makes the snapshot directly usable by Python and avoids confusing a historical 2017 text with the current consolidated law after later amendments.
 
+## 2026 enacted rental-security amendment — deferred commencement
+
+`ISRAEL_RENTAL_AND_LOAN_AMENDMENT_2026_V1.json` is a **separate versioned overlay**, not a silent replacement of the 2017 historical baseline. It records Amendment No. 3 to the Rental and Loan Law within the enacted 2026 Economic Programme Law (Chapter VI, §24). The change replaces §25י(a) definitions, adds guarantees from defined licensed non-bank providers to the opening of §25י(b), and **does not** directly rewrite §25י(c)–(e) in the amending §24.
+
+- Publication: `ספר החוקים 3510`, 2026-03-31, printed pages 363–364 (§24) and 370 (§37).
+- [Official Knesset publication](https://fs.knesset.gov.il/25/law/25_lsr_12846788.pdf); [readable reproduction of the official Gazette](https://www.law.co.il/media/computer-law/economic_plan_law_2026.pdf#page=14).
+- Commencement: §37 makes Chapter VI effective **six calendar months after publication**, recorded as `2026-09-30`. On the snapshot's `2026-09-22` review date this enacted text was **not yet operative**.
+- Provenance caveat: the official Knesset PDF URL was identified, but direct fetching of those official-domain bytes failed during this review; pp. 363–364 and 370 were read in the publicly available Gazette reproduction and checked against an independently indexed publication transcript. **Byte identity of the reproduction and official-domain PDF is not established.**
+- Keep the January 2026 **government bill** as a distinct legislative-history record; do not cite its proposed §40 as the enacted amendment.
+- The overlay is **not wired to runtime** and cannot by itself establish a particular guarantee provider's license, lease applicability, judicial interpretation, or that a security cheque automatically falls under the cash/bank-guarantee cap.
+
+The offline Expert Memory audit validator cross-checks the overlay against the separate enacted-source entry and its deferred-effect claims. Future edits require a new review record; do not rewrite the source-anchored 2017 snapshot.
+
 ## Maintenance rule
 
 When a later amendment changes a project-relevant section, add a new dated snapshot or overlay. Do not silently edit an older snapshot to make it look current. Historical snapshots should remain stable once merged.
