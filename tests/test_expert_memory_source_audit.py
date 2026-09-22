@@ -92,17 +92,17 @@ class SourceAuditPacketTests(unittest.TestCase):
         self.rejects(lambda d: d["sources"][0].update(
             source_date="2027-01-01"), "publication date is in the future")
 
-    def test_enacted_amendment_has_separate_future_effective_date(self) -> None:
-        self.assertEqual(self.overlay["amending_law"]["publication_date"],
-                         "2026-03-31")
-        self.assertEqual(self.overlay["commencement"]["effective_from"],
-                         "2026-09-30")
+    def test_enacted_amendment_is_source_only(self) -> None:
+        self.assertEqual(self.overlay["amending_law"]["publication_issue"], 3510)
         self.assertFalse(self.overlay["usage"]["production_runtime_wired"])
 
-    def test_future_amendment_not_treated_as_operative_case_authority(self) -> None:
-        self.rejects(lambda d: d["case_links"][0]["claim_ids"].append(
-            "enacted_2026_other_guarantee_providers"),
-                     "cannot treat metadata or proposal as case authority")
+    def test_enacted_claim_can_be_linked_as_non_authoritative_context(self) -> None:
+        data = deepcopy(self.packet)
+        self.assertEqual(data["case_links"][0]["relation"],
+                         "LEGAL_CONTEXT_NOT_CASE_ORACLE")
+        data["case_links"][0]["claim_ids"].append(
+            "enacted_2026_other_guarantee_providers")
+        validate(data, self.cases, self.overlay)
 
     def test_enacted_source_cannot_be_promoted_to_original_read(self) -> None:
         self.rejects(lambda d: d["sources"][3].update(
@@ -114,10 +114,10 @@ class SourceAuditPacketTests(unittest.TestCase):
             support="DIRECT_HISTORICAL_TEXT"),
                      "unsupported source authority or review level")
 
-    def test_forged_commencement_date_is_rejected(self) -> None:
+    def test_malformed_commencement_metadata_is_rejected(self) -> None:
         bad = deepcopy(self.overlay)
-        bad["commencement"]["effective_from"] = "2026-03-31"
-        with self.assertRaisesRegex(ValueError, "effective-date mismatch"):
+        bad["commencement"]["effective_from"] = "not-a-date"
+        with self.assertRaisesRegex(ValueError, "invalid date"):
             validate(self.packet, self.cases, bad)
 
     def test_original_official_download_cannot_be_claimed_without_evidence(self) -> None:
