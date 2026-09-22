@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-22-133",
+  "state_version": "privacy-ocr-2026-09-22-134",
   "active_track": "expert-memory-development",
-  "next_step_id": "expert-memory-provenance-schema-v1",
-  "next_step_summary": "Owner-authorized CI-only process exception PR #284 adds an offline GitHub Actions regression workflow for sanitized Smart Analysis Corpus tests and ExpertCase v1 validation when the #283 code is present. No real contracts, model/API calls, new dependencies or runtime modifications. The canonical next step remains expert-memory-provenance-schema-v1 until PR #283 is validated and merged. If #284 merges first, reconcile #283 branch state against the new main before Ready; real-contract/provider runs remain paused.",
-  "last_recorded_pr": 284,
-  "last_recorded_change": "ci-expert-memory-offline-tests-v1",
+  "next_step_id": "expert-memory-source-audit-packet-v1",
+  "next_step_summary": "CI-only PR #284 has merged and supplies offline GitHub Actions checks for sanitized Expert Memory. PR #283 adds local ExpertCase schema, five pinned synthetic records, deterministic provenance, evidence and instrument validator plus regression tests. These development fixtures are not independently verified legal Gold. Real-contract and provider runs remain paused. Next bounded task after #283: expert-memory-source-audit-packet-v1, collecting dated independently traceable primary sources with explicit unsupported/needs-specialist-review claims; no paid specialist verification prerequisite, runtime change, OCR, databases, embeddings or external API calls.",
+  "last_recorded_pr": 283,
+  "last_recorded_change": "expert-memory-provenance-schema-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-09-22"

@@ -1,14 +1,18 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-09-22, PR #284, `ci-expert-memory-offline-tests-v1` (CI-only исключение перед #283).
+Последнее обновление: 2026-09-22, PR #283, `expert-memory-provenance-schema-v1` (после слитого CI PR #284).
 
 Активный трек: `expert-memory-development`.
 
-Канонический следующий bounded-шаг: `expert-memory-provenance-schema-v1`.
+Канонический следующий bounded-шаг: `expert-memory-source-audit-packet-v1`.
 
 Решение владельца от 2026-09-22: реальные анализы договоров и повторные full-contract прогоны временно приостановлены до создания и независимой проверки качественной базы экспертных знаний. Разрешены локальные синтетические/обезличенные fixture-тесты без внешнего API. PR #281 добавляет экспериментальный Expert Pack v0.1: CORE_PROTOCOL, MECHANISM_PLAYBOOK и 15 синтетических контрастных примеров; эти материалы не являются верифицированной юридической базой. Сохранён уже слитый PR #282 и все его требования контроля Codex. Область OCR, privacy/security, runtime и провайдеров не изменена.
 
-PR #284 — согласованное владельцем CI-only исключение: добавлен ограниченный GitHub Actions workflow для автоматических тестов обезличенного Smart Analysis Corpus и, при наличии файлов PR #283, синтаксической и регрессионной проверки ExpertCase. Пока код #283 не вошёл в main, собственный PR #284 запускает базовый тест и допускает отсутствие ExpertCase только при изменениях workflow и двух state-файлов; в PR, затрагивающих ExpertCase, отсутствие нужных файлов блокирует проверку. Следующий канонический шаг остаётся `expert-memory-provenance-schema-v1`; анализ реальных договоров не возобновляется. Если #284 сольётся первым, state в #283 требуется согласовать с обновлённым main до Ready.\n\nPR #282 — governance-only exception: `AGENTS.md` уточняет контроль объёма задач Codex, сохранность тестов и обязательную проверку итогового diff. Активный трек, следующий шаг, код и границы приватности не изменены.
+PR #283 — локальный ExpertCase v1: фиксированная схема, проверка подлинности синтетического источника, механизма и ссылок, пять экспериментальных случаев и регрессионные тесты. Три связанных случая broad realization находятся только в train, два отдельных multi-instrument — только в evaluation. Это внутренний синтетический набор, а не независимый юридический Gold Set; ExpertCase не подключён к runtime или провайдерам. Правило остановки анализов реальных договоров не изменено.
+
+PR #284 — слитое CI-only исключение от 2026-09-22: офлайн-проверки Smart Analysis Corpus и ExpertCase через GitHub Actions, без реальных договоров, провайдеров и новых зависимостей. PR #283 включает это изменение из актуального main; его собственные Python-тесты выполняются в CI отдельно от bootstrap-проверок #284. Трек и запрет реальных анализов не изменены.
+
+PR #282 — governance-only exception: `AGENTS.md` уточняет контроль объёма задач Codex, сохранность тестов и обязательную проверку итогового diff. Активный трек, следующий шаг, код и границы приватности не изменены.
 
 Этот документ вместе с `docs/OCR_PROJECT_STATE.json` является канонической operational-точкой восстановления. Binding architecture/security/privacy documents остаются выше по приоритету; `active_track` и `next_step_id` выбираются state-файлами.
 
@@ -209,17 +213,19 @@ The attempt ledger stores only safe error class plus safe quota scope/retry timi
 
 This PR does not add another provider, model, dependency, endpoint, permission, workflow or storage path. It does not change Question Engine semantics/schema, the privacy boundary, report payload contract or OCR scope.
 
-## 8. Canonical next step — expert memory before real-contract runs
+## 8. Canonical next step — auditable sources before independent Gold
 
-`next_step_id = expert-memory-provenance-schema-v1`
+`next_step_id = expert-memory-source-audit-packet-v1`
 
-**Freeze:** no new real-contract analysis or repeat provider/LLM runs on real leases until the expert knowledge base has a reviewed baseline and an omission/linkage evaluation gate. Keep the existing runner and historical results for later A/B/C comparison; do not delete or rewrite them. Synthetic/sanitized offline validation remains allowed. This is a development-priority freeze, not a claim that a previously installed local CLI is technically disabled.
+**Freeze remains:** no new real-contract analyses or repeat provider/LLM runs on real leases until a separately reviewed expert-memory baseline and omission/linkage evaluation gate exist. Historical reports and the existing local CLI remain unchanged. Offline synthetic/sanitized tests only.
 
-**One bounded next PR:** define a versioned local `ExpertCase` schema and deterministic validator reusing Question Engine IDs and evidence refs; represent original claim, mechanism identity, directly supporting sanitized spans, cross-clause links, observed wrong reading, corrected reading, discriminator/counterexample, provenance, review status, and train/eval split. Include 5 representative sanitized security fixtures drawn from existing 16 corpus cases, clearly marked synthetic and not legally verified. Add focused tests that reject invented refs, cross-instrument value migration, duplicate IDs, missing evidence, unsupported `verified` promotion, and training/evaluation leakage. Keep the new implementation <=300 changed lines where possible. Real expert review remains a separate gate before any legal case is promoted.
+**PR #283 delivered:** a versioned local ExpertCase v1 schema, five synthetic non-authoritative seed cases projected from the pinned smart-analysis corpus, and a deterministic offline validator for reference provenance, exact assertion values, per-instrument identity, cross-clause links, review-status restrictions and grouped train/evaluation isolation. The five cases are constructed counterexamples, **not** new observed model failures or verified legal positions; the synthetic evaluation split is not an independent Gold Set.
 
-**Unfreeze gate:** independently review a held-out Gold cohort, demonstrate that omission and cross-clause-link errors are detected against it, and explicitly approve resuming real-contract analysis. A memory store or a plausible LLM report alone is not sufficient.
+**Next bounded PR:** `expert-memory-source-audit-packet-v1`. Build a small independently traceable source packet for those security mechanisms: exact primary-source identifiers, dates/versions, the concrete proposition each source can actually support, and an explicit unresolved/needs-specialist-review marker for interpretation beyond the source. Do not invent citations, upgrade synthetic cases to verified, scrape real user contracts, or make payment for legal review a prerequisite for collecting the packet. That is source discovery/audit preparation, **not** legal verification itself.
 
-**Out of scope for this step:** external API calls; real-contract analysis; a new database, embeddings, Neo4j, pgvector, or provider; OCR changes; new persistence of original text/PII; report or Question Engine runtime rewrites. After the local schema/evidence gate is tested, independently verify a small Gold cohort and then compare baseline vs structured-memory vs hybrid retrieval using omission recall as the leading metric.
+**Unfreeze gate:** independently review a genuinely held-out Gold cohort and demonstrate detection of material omissions and cross-clause mislinks before the owner explicitly resumes real-contract analysis. No train/evaluation overlap or automatic expert certification.
+
+**Out of scope:** new databases, RAG retrieval, embeddings, external model/provider calls, OCR, real-contract analyses, legal verdicts or runtime changes.
 
 ## 9. Frozen runtime Question Engine architecture
 
