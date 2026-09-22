@@ -1,12 +1,14 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-09-22, PR #285, `expert-memory-source-audit-packet-v1` (после #283 и #284).
+Последнее обновление: 2026-09-22, PR #286, `expert-memory-enacted-amendment-2026-v1` (после слитого #285).
 
 Активный трек: `expert-memory-development`.
 
-Канонический следующий bounded-шаг: `expert-memory-primary-text-verification-v1`.
+Канонический следующий bounded-шаг: `expert-memory-cheque-procedure-primary-text-v1`.
 
 Решение владельца от 2026-09-22: реальные анализы договоров и повторные full-contract прогоны временно приостановлены до создания и независимой проверки качественной базы экспертных знаний. Разрешены локальные синтетические/обезличенные fixture-тесты без внешнего API. PR #281 добавляет экспериментальный Expert Pack v0.1: CORE_PROTOCOL, MECHANISM_PLAYBOOK и 15 синтетических контрастных примеров; эти материалы не являются верифицированной юридической базой. Сохранён уже слитый PR #282 и все его требования контроля Codex. Область OCR, privacy/security, runtime и провайдеров не изменена.
+
+PR #286 — принятую поправку №3 к §25י (Сефер ха-хуким 3510, §24, стр. 363–364) и её отдельный срок вступления в силу (§37, стр. 370: 2026-09-30) зафиксировали в версионированном, **не подключённом к runtime** overlay. Текст соответствующих страниц прочитан в общедоступной репродукции официального выпуска; прямая загрузка байтов с официального хоста Кнессета не удалась и не объявляется проверенной. Законопроект января 2026 г. остался отдельной исторической записью, а расширенная категория небанковских гарантий до даты вступления в силу не применяется. Пакет теперь содержит семь источников/указателей и десять ограниченных утверждений с тестами проверки происхождения, статуса и сроков. Анализы реальных договоров остаются заморожены.
 
 PR #285 — небольшой пакет первоисточников для Expert Memory: шесть официальных источников/указателей с указанием реально прочитанного уровня (исходный закон 2017 года, каталог текущей редакции, явно не действующее само по себе предложение 2026 года, процедура взыскания и два сервиса службы исполнения), восемь строго ограниченных утверждений, ссылки на все пять синтетических ExpertCase и четыре открытых вопроса. Только текст исторической публикации 2017 года непосредственно прочитан полностью по затронутым разделам; индексы других материалов и каталог не считаются проверкой действующего законодательства. Добавлены локальные проверки происхождения, запрета необоснованного статуса экспертной верификации и целостности ссылок в существующий CI. Реальные договоры и внешние модели по-прежнему заморожены.
 
@@ -215,19 +217,19 @@ The attempt ledger stores only safe error class plus safe quota scope/retry timi
 
 This PR does not add another provider, model, dependency, endpoint, permission, workflow or storage path. It does not change Question Engine semantics/schema, the privacy boundary, report payload contract or OCR scope.
 
-## 8. Canonical next step — verify exact current primary texts
+## 8. Canonical next step — complete cheque-procedure primary-source audit
 
-`next_step_id = expert-memory-primary-text-verification-v1`
+`next_step_id = expert-memory-cheque-procedure-primary-text-v1`
 
-**Freeze remains:** no new real-contract analyses or repeat LLM/provider runs on real leases until an independently reviewed Gold cohort and an omission/linkage evaluation gate exist. Synthetic, sanitized and offline-only tests remain permitted.
+**Freeze remains:** no new real-contract analyses or LLM/provider runs on real leases until an independently reviewed Gold cohort and omission/linkage gate exist. Sanitized synthetic offline validation only.
 
-**PR #285 delivered:** a six-record primary-source discovery packet, eight bounded propositions with explicit `does_not_support` boundaries, five ExpertCase reference links and four unresolved verification issues. It distinguishes historical enacted original text from proposed amendments, current-law catalogue metadata and search-index extracts. The packet does **not** claim that proposed 2026 bill language is enacted text or that indexed Authority procedure text has been reviewed in full. No verified case-law holding or expert-verified legal Gold is included.
+**PR #286 delivered:** enacted 2026 Economic Programme Law Chapter VI §24 (Rental and Loan Law Amendment No. 3, §25י(a)–(b)), published in `ספר החוקים 3510`, 31 March 2026, pp. 363–364. Chapter VI §37, p. 370, delays effect for six calendar months to **30 September 2026**; as of this source-review date, the additional permitted categories of *licensed non-bank guarantee providers* are published but not yet effective. The text was read in a publicly available copy of the official Gazette; byte identity with the inaccessible official-host PDF remains **unverified**. The Jan 2026 government bill remains a distinct proposed historical source, not the enacted text. A separately versioned, offline-only statutory overlay and negative source/date/review-state tests make the boundary explicit; no existing ExpertCase is promoted to verified legal Gold and no automatic legal verdict is enabled.
 
-**Next bounded PR:** `expert-memory-primary-text-verification-v1`. Independently retrieve and inspect the enacted 2026 Sefer HaHukim 3510 text and effective-date clauses relevant to §25י, plus the complete *currently valid* Enforcement Authority cheque/note opening procedure. Record precise publication/version/page or item locators and direct text, correct or explicitly withhold each affected packet claim, and preserve a dated evidence trail. Prioritize distinguishing a bank-presented cheque from eligibility to open an execution case and legal grounds for security realization. If original primary documents remain inaccessible, leave claims unresolved rather than promote them.
+**Next bounded PR:** `expert-memory-cheque-procedure-primary-text-v1`. Independently retrieve and inspect the **full current** Enforcement and Collection Authority procedure for opening cheque/note execution files. Record the issuer, version, date, exact sections, requirements for dishonoured security cheques, relevant objections and exceptions. Keep bank presentment, execution-file eligibility and substantive landlord realization rights as *three distinct questions*; if the primary document is inaccessible, retain the unknown status rather than extrapolate from snippets. Separately refresh the current consolidated §25י and any subsequent legislation before using the new wording in runtime after its effective date.
 
-**Later gates:** find and review applicable published judicial decisions for those mechanisms; use the disputed interpretations and contradictions as a concrete packet for specialist review; only then create a genuinely independent held-out Gold set. Legal truth is never proven by the current synthetic regression tests.
+**Later gates:** relevant dated, published judicial decisions, then a specific specialist-review packet and independently reviewed held-out Gold cases. Tests of source-reference structure do not certify legal truth.
 
-**Out of scope:** real-contract/provider calls, RAG, databases, embeddings, OCR, runtime changes, automatic legal verdicts or claiming expert verification.
+**Out of scope:** real contracts/provider calls, OCR, RAG or embeddings, new databases, changed runtime, automatic legal judgments or claims of expert verification.
 
 ## 9. Frozen runtime Question Engine architecture
 
