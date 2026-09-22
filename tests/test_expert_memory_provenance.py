@@ -67,6 +67,10 @@ class ExpertMemoryProvenanceTests(unittest.TestCase):
             cheque["refs"] = ["c4"]
         self.invalid(mutate, "fact value, mechanism or source refs differ")
 
+    def test_boolean_provenance_cannot_be_replaced_by_zero(self) -> None:
+        self.invalid(lambda d: d["cases"][0]["facts"][1].update(expected=0),
+                     "fact value, mechanism or source refs differ")
+
     def test_cross_instrument_return_rule_link_is_rejected(self) -> None:
         def mutate(d):
             link = next(l for l in d["cases"][4]["links"]
