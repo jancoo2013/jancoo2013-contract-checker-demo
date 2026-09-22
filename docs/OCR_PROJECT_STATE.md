@@ -1,12 +1,14 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-09-22, PR #287, `expert-memory-cheque-procedure-2025-06-29-index-v1` (после слитого #286).
+Последнее обновление: 2026-09-22, PR #288, `expert-memory-five-security-cheque-judgments-v1` (после слитого #287).
 
 Активный трек: `expert-memory-development`.
 
-Канонический следующий bounded-шаг: `expert-memory-cheque-procedure-primary-text-v1`.
+Канонический следующий bounded-шаг: `expert-memory-case-law-original-verification-v1`.
 
 Решение владельца от 2026-09-22: реальные анализы договоров и повторные full-contract прогоны временно приостановлены до создания и независимой проверки качественной базы экспертных знаний. Разрешены локальные синтетические/обезличенные fixture-тесты без внешнего API. PR #281 добавляет экспериментальный Expert Pack v0.1: CORE_PROTOCOL, MECHANISM_PLAYBOOK и 15 синтетических контрастных примеров; эти материалы не являются верифицированной юридической базой. Сохранён уже слитый PR #282 и все его требования контроля Codex. Область OCR, privacy/security, runtime и провайдеров не изменена.
+
+PR #288 — одобренное владельцем исключение из очереди задач: собраны пять различных судебных дел по обеспечительным чекам, с номером дела, датой, ссылкой на доступный текст/индекс, степенью доступности, краткими выводами и возможными ошибками модели (гипотезами, не наблюдёнными сбоями). Два решения вынесены после реформы аренды 2017 года, три — до неё. Оригиналы в судебном реестре и сведения об обжаловании не подтверждены; по одному делу итог не виден в открытом фрагменте. Никакие кейсы не стали юридически проверенными, ни один не подключён к обучению, evaluation или runtime. Полный текст процедуры службы взыскания 2025 года остаётся отдельным неразрешённым вопросом. Заморозка реальных договоров сохраняется.
 
 PR #287 — редакция процедуры взыскания от 29.06.2025 принята как предварительная база по официально индексированным фрагментам. Полный PDF не получен; точная дата подтверждена только именем файла, актуальность и специальные положения для чек-битахон ещё не проверены. Реальные договоры по-прежнему заморожены.
 
@@ -219,19 +221,21 @@ The attempt ledger stores only safe error class plus safe quota scope/retry timi
 
 This PR does not add another provider, model, dependency, endpoint, permission, workflow or storage path. It does not change Question Engine semantics/schema, the privacy boundary, report payload contract or OCR scope.
 
-## 8. Canonical next step — verify the current cheque-enforcement procedure
+## 8. Canonical next step — independently verify five court originals
 
-`next_step_id = expert-memory-cheque-procedure-primary-text-v1`
+`next_step_id = expert-memory-case-law-original-verification-v1`
 
-**Freeze remains:** no new real-contract analyses or external LLM/provider runs on real leases until an independently reviewed Gold cohort and omission/linkage gate exist. Offline synthetic validation remains allowed.
+**Freeze remains:** no new real-contract analyses or LLM/provider runs on real leases until an independently reviewed Gold cohort and omission/linkage evaluation gate exist. Sanitized synthetic/offline validation only.
 
-**PR #286:** the enacted 2026 §25י amendment is recorded in a separate source-anchored research overlay, with §37's commencement date retained as publication metadata rather than a new ExpertCase date gate. One new bounded enactment claim can be attached as non-authoritative context; the five synthetic cases remain unverified. The January government proposal remains distinct from the enacted law. Original Knesset-hosted PDF bytes and later consolidated wording remain unverified; the relevant Gazette pages were read in a public reproduction.
+**PR #288 (owner-approved bounded exception):** five identified lower-court residential-lease security-cheque decisions are captured as research leads, with precise dockets/dates and evidence locators from available public judicial-text mirrors or search-index excerpts. Two judgments are post-2017 and three predate the residential reform; source access and missing dispositions are explicit. Extracted possible model mistakes are **hypotheses**, not observed failures. Original court files, appeals and expert legal interpretations are not verified. The five existing synthetic ExpertCase train/evaluation fixtures are unchanged; the new cases are neither Gold nor training/evaluation labels.
 
-**Next bounded PR:** `expert-memory-cheque-procedure-primary-text-v1`. Retrieve and inspect the **full currently applicable** Enforcement and Collection Authority procedure for cheque/note execution files. Record exact procedure identifiers, dates and clauses, and distinguish bank presentment, execution-file eligibility and substantive grounds for using a security instrument. If full primary text cannot be retrieved, record an unresolved question rather than extrapolate from indexed excerpts.
+**Next bounded PR:** `expert-memory-case-law-original-verification-v1`. Obtain authoritative, complete judiciary-hosted originals for each of the five dockets where obtainable; validate the decision date, operative facts, quoted sections, judicial holdings and disposition against the actual pages; check whether appeal or reversal is documented. Maintain source-level uncertainty where originals are unavailable. Identify specific disputed inference questions that warrant independent specialist review, without claiming automatic legal conclusions.
 
-**Later gates:** published judicial decisions, a focused specialist-review packet and an independently reviewed held-out Gold cohort. Provenance checks alone do not establish legal correctness.
+**Still-open parallel source gap:** the 2025-06-29 Enforcement and Collection Authority cheque/note procedure remains indexed-only. Retrieving its complete current original and separating bank presentation from file-opening eligibility and substantive landlord security realization is not superseded by case-law collection.
 
-**Out of scope:** real-contract/provider runs, runtime changes, OCR, RAG, embeddings, new databases, or automated legal verdicts.
+**Later gates:** a separately reviewed specialist packet, then a genuinely independent held-out Gold cohort testing material omissions and cross-clause instrument confusion before the owner reopens real-contract analysis.
+
+**Out of scope:** new OCR, provider calls, runtime changes, databases/RAG/embeddings, fabricated judgments, or automatic legal verdicts.
 
 ## 9. Frozen runtime Question Engine architecture
 
