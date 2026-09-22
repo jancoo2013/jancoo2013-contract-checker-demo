@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-22-132",
+  "state_version": "privacy-ocr-2026-09-22-133",
   "active_track": "expert-memory-development",
   "next_step_id": "expert-memory-provenance-schema-v1",
-  "next_step_summary": "Product owner paused new real-contract/provider analyses until a source-reviewed Expert Memory baseline exists. PR #281 adds experimental Expert Pack v0.1 (protocol, mechanism playbook, 15 synthetic contrastive examples), preserving merged PR #282 Codex scope guard. Next bounded step: versioned local ExpertCase schema and deterministic provenance/evidence/link validator reusing Question Engine IDs; convert 5 existing sanitized synthetic security cases to non-authoritative seeds with explicit review state, cross-clause links, mistakes/corrections and held-out split; test missing refs, cross-instrument drift, unsupported verified promotion and train/eval leakage. Do not run real contracts or provider calls; no database, embeddings, infrastructure, new dependencies, OCR or runtime changes until this gate passes.",
-  "last_recorded_pr": 281,
-  "last_recorded_change": "question-engine-expert-pack-v01",
+  "next_step_summary": "Owner-authorized CI-only process exception PR #284 adds an offline GitHub Actions regression workflow for sanitized Smart Analysis Corpus tests and ExpertCase v1 validation when the #283 code is present. No real contracts, model/API calls, new dependencies or runtime modifications. The canonical next step remains expert-memory-provenance-schema-v1 until PR #283 is validated and merged. If #284 merges first, reconcile #283 branch state against the new main before Ready; real-contract/provider runs remain paused.",
+  "last_recorded_pr": 284,
+  "last_recorded_change": "ci-expert-memory-offline-tests-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-09-22"
