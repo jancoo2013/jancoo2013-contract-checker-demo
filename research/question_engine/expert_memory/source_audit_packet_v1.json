@@ -1,0 +1,237 @@
+{
+  "schema_version": 1,
+  "prepared_on": "2026-09-22",
+  "status": "SOURCE_DISCOVERY_NOT_EXPERT_VERIFIED",
+  "sources": [
+    {
+      "id": "knesset_2017_amendment",
+      "title": "חוק השכירות והשאילה (תיקון), התשע״ז-2017; ספר החוקים 2649",
+      "publisher": "Knesset",
+      "kind": "ENACTED_HISTORICAL",
+      "url": "https://fs.knesset.gov.il/20/law/20_lsr_389390.pdf",
+      "source_date": "2017-07-19",
+      "checked_on": "2026-09-22",
+      "access_level": "PRIMARY_TEXT_READ",
+      "locator": "§25י(b)-(e), §25טו; law text in Sefer HaHukim 2649 pp. 1028-1036",
+      "limit": "2017 enactment only; no assertion that each provision remains unchanged in 2026."
+    },
+    {
+      "id": "knesset_current_law_index",
+      "title": "חוק השכירות והשאילה, התשל״א-1971",
+      "publisher": "Knesset",
+      "kind": "LIVE_CATALOG",
+      "url": "https://main.knesset.gov.il/Activity/Legislation/Laws/pages/lawprimary.aspx?lawitemid=2000596&st=lawlaws&t=lawlaws",
+      "source_date": null,
+      "checked_on": "2026-09-22",
+      "access_level": "CATALOG_METADATA_ONLY",
+      "locator": "National Legislation Database lawitemid=2000596",
+      "limit": "Current consolidated provision text was not retrievable in this pass; do not assert its wording from this link."
+    },
+    {
+      "id": "gov_2026_proposal",
+      "title": "הצעת חוק התוכנית הכלכלית, התשפ״ו-2026; הצעות חוק הממשלה 1924",
+      "publisher": "Government legislative proposal",
+      "kind": "PROPOSED_NOT_LAW",
+      "url": "https://www.gov.il/BlobFolder/legalinfo/state-budget-economic-plan-proposal-2026/he/state-budget_2026_Files_state-budget-economic-plan-proposal-2026.pdf",
+      "source_date": "2026-01-19",
+      "checked_on": "2026-09-22",
+      "access_level": "INDEX_EXCERPT_ONLY",
+      "locator": "Proposed §40: amendment of Rental and Loan Law §25י",
+      "limit": "A government bill is not an enacted amendment; verify Sefer HaHukim 3510 and actual commencement separately."
+    },
+    {
+      "id": "raa_2025_check_procedure",
+      "title": "מקרים בהם לא יפתח התיק — פתיחת תיק שטרות והמחאות",
+      "publisher": "Enforcement and Collection Authority",
+      "kind": "AGENCY_PROCEDURE",
+      "url": "https://www.gov.il/BlobFolder/policy/opening-notes-and-checks-file-regulation/he/opening-notes-and-checks-file-29-06-2025.pdf",
+      "source_date": null,
+      "checked_on": "2026-09-22",
+      "access_level": "INDEX_EXCERPT_ONLY",
+      "locator": "Items 1-4; PDF filename indicates 2025-06-29",
+      "limit": "Search-index extract only: recheck the current complete procedure and exceptions before treating this as operationally current."
+    },
+    {
+      "id": "raa_opening_service",
+      "title": "פתיחת תיק שטרות והמחאות (צ׳קים) בהוצאה לפועל",
+      "publisher": "Enforcement and Collection Authority",
+      "kind": "AGENCY_SERVICE",
+      "url": "https://www.gov.il/he/service/opening_promissory_notes_and_checks_file",
+      "source_date": null,
+      "checked_on": "2026-09-22",
+      "access_level": "INDEX_EXCERPT_ONLY",
+      "locator": "Official service description: unpaid checks, bills of exchange and promissory notes",
+      "limit": "Service eligibility description, not a finding that a specific security instrument is enforceable."
+    },
+    {
+      "id": "raa_objection_service",
+      "title": "בקשה להתנגדות לביצוע שטר בהוצאה לפועל",
+      "publisher": "Enforcement and Collection Authority",
+      "kind": "AGENCY_SERVICE",
+      "url": "https://www.gov.il/he/service/objection_iou_repayment",
+      "source_date": null,
+      "checked_on": "2026-09-22",
+      "access_level": "INDEX_EXCERPT_ONLY",
+      "locator": "Official service description: opposition to all or part of a note/check execution debt",
+      "limit": "A procedural route, not an outcome forecast, automatic stay or statement of a particular deadline."
+    }
+  ],
+  "claims": [
+    {
+      "id": "historical_25y_limited_grounds",
+      "source_id": "knesset_2017_amendment",
+      "locator": "§25י(c)",
+      "proposition": "The 2017 residential-rental amendment sets out enumerated grounds and bounded amounts for realization of tenant security.",
+      "support": "DIRECT_HISTORICAL_TEXT",
+      "does_not_support": "Whether a particular tenancy meets applicability rules, whether unchanged 2026 law controls, or whether an individual cheque can be paid by a bank.",
+      "review": "NEEDS_PRIMARY_SOURCE_AND_SPECIALIST_REVIEW"
+    },
+    {
+      "id": "historical_25y_notice_cure",
+      "source_id": "knesset_2017_amendment",
+      "locator": "§25י(d)",
+      "proposition": "The enacted 2017 wording requires reasonable advance notice before realization and reasonable opportunity to remedy.",
+      "support": "DIRECT_HISTORICAL_TEXT",
+      "does_not_support": "A universal fixed 7-day or 14-day period; legal correctness of any synthetic contract notice period.",
+      "review": "NEEDS_PRIMARY_SOURCE_AND_SPECIALIST_REVIEW"
+    },
+    {
+      "id": "historical_25y_return",
+      "source_id": "knesset_2017_amendment",
+      "locator": "§25י(e)",
+      "proposition": "The enacted 2017 wording specifies a security-return mechanism tied to apartment return or clearing covered tenant debts.",
+      "support": "DIRECT_HISTORICAL_TEXT",
+      "does_not_support": "That different instruments in synthetic cases have identical contractual return dates or that the provision governs every agreement.",
+      "review": "NEEDS_PRIMARY_SOURCE_AND_SPECIALIST_REVIEW"
+    },
+    {
+      "id": "historical_25y_outlay_cap",
+      "source_id": "knesset_2017_amendment",
+      "locator": "§25י(b) and §25טו",
+      "proposition": "The 2017 amount-cap wording concerns security involving tenant financial outlay; applicability exclusions are separately specified.",
+      "support": "DIRECT_HISTORICAL_TEXT",
+      "does_not_support": "A mechanical three-month cap on every security cheque or a verified statement of present-day applicability.",
+      "review": "NEEDS_PRIMARY_SOURCE_AND_SPECIALIST_REVIEW"
+    },
+    {
+      "id": "proposed_2026_guarantors",
+      "source_id": "gov_2026_proposal",
+      "locator": "proposed §40 amending §25י",
+      "proposition": "The January 2026 government proposal discusses adding non-bank guarantee providers to the statutory definition.",
+      "support": "INDEX_EXCERPT_PROPOSAL_ONLY",
+      "does_not_support": "That the proposal text was enacted verbatim, that it is effective on 2026-09-22, or that any specific supplier qualifies.",
+      "review": "NEEDS_PRIMARY_SOURCE_AND_SPECIALIST_REVIEW"
+    },
+    {
+      "id": "raa_security_check_procedure",
+      "source_id": "raa_2025_check_procedure",
+      "locator": "PDF items 1-4, especially item 3",
+      "proposition": "The official procedure index excerpt distinguishes merely holding a security check from circumstances after bank presentation and dishonor when opening an execution file.",
+      "support": "INDEX_EXCERPT_RECHECK",
+      "does_not_support": "That the wording on a cheque prevents bank presentation, or that execution is lawful in a particular rental dispute.",
+      "review": "NEEDS_PRIMARY_SOURCE_AND_SPECIALIST_REVIEW"
+    },
+    {
+      "id": "raa_instruments_opening",
+      "source_id": "raa_opening_service",
+      "locator": "official service description",
+      "proposition": "The authority publishes an execution-file opening route for unpaid checks and promissory notes.",
+      "support": "INDEX_EXCERPT_RECHECK",
+      "does_not_support": "That the two instruments merge, share an amount, or are collectible in any particular case.",
+      "review": "NEEDS_PRIMARY_SOURCE_AND_SPECIALIST_REVIEW"
+    },
+    {
+      "id": "raa_instruments_opposition",
+      "source_id": "raa_objection_service",
+      "locator": "official service description",
+      "proposition": "The authority publishes an opposition route for debtors facing check/promissory-note execution for all or part of the claim.",
+      "support": "INDEX_EXCERPT_RECHECK",
+      "does_not_support": "Whether an objection succeeds, whether a claim is valid, or a filing deadline absent verified rules.",
+      "review": "NEEDS_PRIMARY_SOURCE_AND_SPECIALIST_REVIEW"
+    }
+  ],
+  "case_links": [
+    {
+      "case_id": "em_security_broad_trigger_confirmed",
+      "claim_ids": [
+        "historical_25y_limited_grounds",
+        "historical_25y_notice_cure"
+      ],
+      "relation": "LEGAL_CONTEXT_NOT_CASE_ORACLE"
+    },
+    {
+      "case_id": "em_security_broad_trigger_narrowed_by_notice_cure",
+      "claim_ids": [
+        "historical_25y_notice_cure",
+        "historical_25y_limited_grounds"
+      ],
+      "relation": "LEGAL_CONTEXT_NOT_CASE_ORACLE"
+    },
+    {
+      "case_id": "em_security_generic_trigger_cleared_by_specific_limit",
+      "claim_ids": [
+        "historical_25y_limited_grounds",
+        "historical_25y_notice_cure"
+      ],
+      "relation": "LEGAL_CONTEXT_NOT_CASE_ORACLE"
+    },
+    {
+      "case_id": "em_multiple_security_instruments_keep_identity",
+      "claim_ids": [
+        "historical_25y_outlay_cap",
+        "raa_instruments_opening",
+        "raa_security_check_procedure"
+      ],
+      "relation": "INSTRUMENT_SCOPE_QUESTION_ONLY"
+    },
+    {
+      "case_id": "em_security_mechanism_split_with_distractors",
+      "claim_ids": [
+        "historical_25y_return",
+        "raa_instruments_opening",
+        "raa_instruments_opposition"
+      ],
+      "relation": "INSTRUMENT_SCOPE_QUESTION_ONLY"
+    }
+  ],
+  "unresolved": [
+    {
+      "id": "current_2026_25y",
+      "question": "Obtain enacted 2026 Sefer HaHukim 3510 text and commencement, then reconcile the 2017 and current §25י wording.",
+      "source_ids": [
+        "knesset_current_law_index",
+        "gov_2026_proposal",
+        "knesset_2017_amendment"
+      ],
+      "needs_specialist_review": true
+    },
+    {
+      "id": "security_check_bank_execution_split",
+      "question": "Confirm the currently effective complete Authority opening policy and separately test bank presentment versus lawfulness of security realization.",
+      "source_ids": [
+        "raa_2025_check_procedure",
+        "raa_opening_service",
+        "knesset_2017_amendment"
+      ],
+      "needs_specialist_review": true
+    },
+    {
+      "id": "instrument_by_instrument_scope",
+      "question": "Determine in which fact patterns §25י caps, notice, realization and return govern each cheque, note, bank guarantee or cash deposit; do not infer merely from instrument name.",
+      "source_ids": [
+        "knesset_2017_amendment",
+        "knesset_current_law_index"
+      ],
+      "needs_specialist_review": true
+    },
+    {
+      "id": "case_law_gap",
+      "question": "Find and independently check applicable dated published judicial decisions; none are claimed or invented in this first packet.",
+      "source_ids": [
+        "knesset_2017_amendment",
+        "raa_opening_service"
+      ],
+      "needs_specialist_review": true
+    }
+  ]
+}
