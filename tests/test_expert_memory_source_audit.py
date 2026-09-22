@@ -143,6 +143,12 @@ class SourceAuditPacketTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_procedure_edition(value, self.packet)
 
+    def test_procedure_gaps_must_remain(self) -> None:
+        value = deepcopy(self.procedure)
+        value["unverified_questions"].pop()
+        with self.assertRaises(ValueError):
+            validate_procedure_edition(value, self.packet)
+
     def test_duplicate_json_keys_are_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             path = Path(temp) / "dup.json"
