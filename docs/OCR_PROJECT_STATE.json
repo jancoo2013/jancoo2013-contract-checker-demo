@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-21-131",
-  "active_track": "question-engine-development",
-  "next_step_id": "question-engine-expert-pack-same-contract-comparison-v1",
-  "next_step_summary": "PR #281 adds Expert Pack v0.1 as a three-file experimental reasoning packet: compact core protocol, mechanism playbook, and 15 contrastive expert examples. It records that merged PR #280 was design-only and did not update canonical state or change the Question Engine track. No runtime/provider/schema/privacy/OCR/dependency behavior changes in #281. The next bounded step is to run the same already-reviewed March-August 2025 contract with the Expert Pack as the expert reasoning input and without the legacy Questionnaire/Skeleton, then compare concrete reading errors before changing production runtime or broadening to other contracts.",
+  "state_version": "privacy-ocr-2026-09-22-132",
+  "active_track": "expert-memory-development",
+  "next_step_id": "expert-memory-provenance-schema-v1",
+  "next_step_summary": "Product owner paused new real-contract/provider analyses until a source-reviewed Expert Memory baseline exists. PR #281 adds experimental Expert Pack v0.1 (protocol, mechanism playbook, 15 synthetic contrastive examples), preserving merged PR #282 Codex scope guard. Next bounded step: versioned local ExpertCase schema and deterministic provenance/evidence/link validator reusing Question Engine IDs; convert 5 existing sanitized synthetic security cases to non-authoritative seeds with explicit review state, cross-clause links, mistakes/corrections and held-out split; test missing refs, cross-instrument drift, unsupported verified promotion and train/eval leakage. Do not run real contracts or provider calls; no database, embeddings, infrastructure, new dependencies, OCR or runtime changes until this gate passes.",
   "last_recorded_pr": 281,
   "last_recorded_change": "question-engine-expert-pack-v01",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
-  "updated_on": "2026-09-21"
+  "updated_on": "2026-09-22"
 }

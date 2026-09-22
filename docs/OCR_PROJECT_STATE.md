@@ -1,10 +1,14 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-09-21, PR #281, `question-engine-expert-pack-v01`.
+Последнее обновление: 2026-09-22, PR #281, `question-engine-expert-pack-v01` (после #282).
 
-Активный трек: `question-engine-development`.
+Активный трек: `expert-memory-development`.
 
-Канонический следующий bounded-шаг: `question-engine-expert-pack-same-contract-comparison-v1`.
+Канонический следующий bounded-шаг: `expert-memory-provenance-schema-v1`.
+
+Решение владельца от 2026-09-22: реальные анализы договоров и повторные full-contract прогоны временно приостановлены до создания и независимой проверки качественной базы экспертных знаний. Разрешены локальные синтетические/обезличенные fixture-тесты без внешнего API. PR #281 добавляет экспериментальный Expert Pack v0.1: CORE_PROTOCOL, MECHANISM_PLAYBOOK и 15 синтетических контрастных примеров; эти материалы не являются верифицированной юридической базой. Сохранён уже слитый PR #282 и все его требования контроля Codex. Область OCR, privacy/security, runtime и провайдеров не изменена.
+
+PR #282 — governance-only exception: `AGENTS.md` уточняет контроль объёма задач Codex, сохранность тестов и обязательную проверку итогового diff. Активный трек, следующий шаг, код и границы приватности не изменены.
 
 Этот документ вместе с `docs/OCR_PROJECT_STATE.json` является канонической operational-точкой восстановления. Binding architecture/security/privacy documents остаются выше по приоритету; `active_track` и `next_step_id` выбираются state-файлами.
 
@@ -205,48 +209,17 @@ The attempt ledger stores only safe error class plus safe quota scope/retry timi
 
 This PR does not add another provider, model, dependency, endpoint, permission, workflow or storage path. It does not change Question Engine semantics/schema, the privacy boundary, report payload contract or OCR scope.
 
-## 7.5 PR #281 Expert Pack v0.1 experiment
+## 8. Canonical next step — expert memory before real-contract runs
 
-PR #280 was a design-only Figma review/export merge and did not update the canonical state files. It did not change the Question Engine track, provider route, privacy boundary, or the then-current analysis next step. PR #281 explicitly restores state continuity from current `main` while recording the product-owner-directed change in the next semantic experiment.
+`next_step_id = expert-memory-provenance-schema-v1`
 
-PR #281 adds a three-file experimental Expert Pack:
+**Freeze:** no new real-contract analysis or repeat provider/LLM runs on real leases until the expert knowledge base has a reviewed baseline and an omission/linkage evaluation gate. Keep the existing runner and historical results for later A/B/C comparison; do not delete or rewrite them. Synthetic/sanitized offline validation remains allowed. This is a development-priority freeze, not a claim that a previously installed local CLI is technically disabled.
 
-- `docs/question_engine/expert_pack_v0_1/CORE_PROTOCOL.md` — compact always-on reasoning discipline;
-- `docs/question_engine/expert_pack_v0_1/MECHANISM_PLAYBOOK.md` — mechanism-centered expert pattern map;
-- `docs/question_engine/expert_pack_v0_1/EXPERT_EXAMPLES.md` — 15 contrastive WRONG versus EXPERT READING demonstrations distilled into synthetic/sanitized examples.
+**One bounded next PR:** define a versioned local `ExpertCase` schema and deterministic validator reusing Question Engine IDs and evidence refs; represent original claim, mechanism identity, directly supporting sanitized spans, cross-clause links, observed wrong reading, corrected reading, discriminator/counterexample, provenance, review status, and train/eval split. Include 5 representative sanitized security fixtures drawn from existing 16 corpus cases, clearly marked synthetic and not legally verified. Add focused tests that reject invented refs, cross-instrument value migration, duplicate IDs, missing evidence, unsupported `verified` promotion, and training/evaluation leakage. Keep the new implementation <=300 changed lines where possible. Real expert review remains a separate gate before any legal case is promoted.
 
-The experiment changes packaging, not production runtime. No Python prompt builder, provider route, schema, Question Engine inventory, privacy gate, OCR path, dependency, workflow, permission, endpoint, or persistence behavior changes in this PR.
+**Out of scope for this step:** external API calls; real-contract analysis; a new database, embeddings, Neo4j, pgvector, or provider; OCR changes; new persistence of original text/PII; report or Question Engine runtime rewrites. After the local schema/evidence gate is tested, independently verify a small Gold cohort and then compare baseline vs structured-memory vs hybrid retrieval using omission recall as the leading metric.
 
-For the next comparison, the legacy Questionnaire/Skeleton is deliberately excluded as a reasoning input. Its future role, if retained, is post-analysis completeness checking rather than the primary mechanism by which the model is taught to read a contract.
-
-The hypothesis under test is narrow: a compact protocol plus mechanism patterns plus contrastive demonstrations may transfer expert cross-clause reading more reliably than a long normative questionnaire. The same already-reviewed contract must be used before broadening the corpus.
-
-## 8. Canonical next step
-
-`next_step_id = question-engine-expert-pack-same-contract-comparison-v1`
-
-Run the same already-reviewed March–August 2025 contract as a controlled semantic comparison using only the three-file Expert Pack v0.1 as the expert reasoning packet, plus the same sanitized contract material and the same output request needed for comparison.
-
-Do not supply the legacy Questionnaire/Skeleton as a reasoning input in this experiment. Do not change provider code, production schemas, statutory rules, privacy gates, or OCR behavior merely to run the comparison.
-
-Inspect at minimum whether the model now correctly preserves these boundaries without questionnaire-driven field execution:
-
-- one security instrument's return rule is not transferred to another instrument;
-- contract silence about payee/fields is not converted into a claim about the physical cheque;
-- unrelated numeric periods are not migrated between mechanisms;
-- replacement-tenant routes are reconciled with general assignment/subletting restrictions;
-- specific cure periods remain scoped to the correct breach;
-- AS-IS is reconciled with repairs/defects;
-- pre-return inspection/correction is reconciled with holdover without collapsing distinct triggers;
-- option presence is distinguished from unresolved option details;
-- contradictory payment descriptions are preserved rather than normalized;
-- unsupported market norms are absent.
-
-Acceptance is comparative rather than ceremonial: record concrete correct/incorrect readings against the same source and determine whether the Expert Pack materially reduces the reasoning failures that survived the Skeleton approach. If it does not, do not lengthen the Pack reflexively; treat model capability as a live alternative explanation.
-
-## 9. Current Question Engine architecture
-
-The merged runtime architecture below remains the current implementation baseline. PR #281 does not replace it; the Expert Pack is an experimental model-facing comparison before any later bounded integration decision.
+## 9. Frozen runtime Question Engine architecture
 
 ```text
 privacy-validated sanitized contract material
