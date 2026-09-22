@@ -31,3 +31,7 @@ The registry cross-links all **five** existing `em_*` seed IDs to bounded source
 The enacted 2026 Gazette amendment and its source metadata are captured through a public reproduction; the original official-domain PDF bytes still need independent confirmation. Before any claim can be promoted, inspect the **full** currently applicable Authority procedure; check the effective-date transition and later consolidated law; establish instrument-by-instrument scope with dated, applicable published judgments; then submit disputed inferences and source passages for specialist review. The present packet contains **no verified case-law holding** and no legal Gold cohort. Source integrity tests prevent reference/review-state mistakes; they cannot certify the legal propositions.
 
 Run: `python -m unittest tests.test_expert_memory_source_audit` and `python research/question_engine/expert_memory/validate_source_audit_packet.py`. The existing Expert Memory CI workflow now runs both checks offline. No real-contract, provider, OCR, RAG or database operations are introduced.
+
+## Working June 2025 procedure
+
+The owner's selected 2025-06-29 edition is represented in `authority_cheque_procedure_2025_06_29_v1.json` as indexed excerpts only. The complete PDF, section numbering and currentness remain unverified.
