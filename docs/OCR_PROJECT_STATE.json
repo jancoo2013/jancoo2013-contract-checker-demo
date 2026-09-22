@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-22-135",
+  "state_version": "privacy-ocr-2026-09-22-136",
   "active_track": "expert-memory-development",
-  "next_step_id": "expert-memory-primary-text-verification-v1",
-  "next_step_summary": "PR #285 builds a small, bounded, non-authoritative packet of six official source leads, eight provenance-scoped propositions, links to all five synthetic ExpertCase records, explicit access levels and four unresolved questions. Only the 2017 Knesset publication was directly read; current statute, 2026 proposal details, Authority procedure and service summaries require additional source verification and are not legal Gold. An offline stdlib validator and negative tests run in the existing Expert Memory CI workflow. Keep real-contract/provider analyses paused. Next bounded task: independently retrieve enacted 2026 Sefer HaHukim 3510 and current full Authority cheque-opening procedure, verify effective dates and exact relevant text, then revisit unsupported claims without silently promoting expert review; no runtime/RAG/database/OCR/model changes.",
-  "last_recorded_pr": 285,
-  "last_recorded_change": "expert-memory-source-audit-packet-v1",
+  "next_step_id": "expert-memory-cheque-procedure-primary-text-v1",
+  "next_step_summary": "PR #286 pins the enacted Economic Programme Law 2026 §24 amendment No. 3 to Rental and Loan Law §25י, and chapter-VI §37 deferred commencement (2026-09-30): a dated read-only statutory overlay, seven provenance-ranked source leads and ten bounded claims. The public Gazette reproduction was read at pp. 363-364/370; original Knesset-hosted PDF bytes were unavailable, so exact-byte provenance and later consolidated amendments remain unresolved. January proposal stays separate from the enacted law. Offline cross-source/overlay tests validate no premature effect, invented statutory authority or synthetic case promotion. Existing five ExpertCase fixtures remain UNVERIFIED and real-contract/provider runs remain paused. Next bounded step: retrieve and inspect the full currently valid Enforcement Authority cheque/note execution-file procedure; distinguish bank presentment/dishonor, opening eligibility and legal grounds of security realization. No OCR, new provider, database/RAG, runtime or paid legal review yet.",
+  "last_recorded_pr": 286,
+  "last_recorded_change": "expert-memory-enacted-amendment-2026-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-09-22"
