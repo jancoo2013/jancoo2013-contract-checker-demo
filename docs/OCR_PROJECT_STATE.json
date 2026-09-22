@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-22-131",
-  "active_track": "question-engine-development",
-  "next_step_id": "question-engine-single-contract-real-rerun-v4",
-  "next_step_summary": "PR #279 replaces the fixed 300-second rate-limit cooldown with bounded quota-aware routing for the local real-contract runner. Contract-analysis calls disable google-genai SDK-owned automatic retries so one runner attempt maps to one provider request. Gemini 429 responses now carry safe structured metadata: daily quota is terminal for that model, Retry-After/google.rpc.RetryInfo is used only for one automatic retry when the requested delay is at most 60 seconds, unknown retry timing stops immediately instead of guessing, and longer waits stop instead of blocking the user. Retryable provider/network failures get at most one short 5-second retry; malformed/schema-invalid model responses do not loop. Provider list, Question Engine semantics/schema, privacy gates, OCR scope, report persistence, dependencies, permissions, workflows, endpoints and network destinations are unchanged. The canonical next step remains question-engine-single-contract-real-rerun-v4: rerun the same reviewed March-August 2025 contract and inspect explicit answers for security.realization_chain, security.return_mechanics, security.completion_authority, termination.notice_cure and termination.cross_clause_interaction before broadening to other contracts.",
-  "last_recorded_pr": 282,
-  "last_recorded_change": "codex-scope-guard-v1",
+  "state_version": "privacy-ocr-2026-09-22-132",
+  "active_track": "expert-memory-development",
+  "next_step_id": "expert-memory-provenance-schema-v1",
+  "next_step_summary": "Product owner paused new real-contract/provider analyses until a source-reviewed Expert Memory baseline exists. PR #281 adds experimental Expert Pack v0.1 (protocol, mechanism playbook, 15 synthetic contrastive examples), preserving merged PR #282 Codex scope guard. Next bounded step: versioned local ExpertCase schema and deterministic provenance/evidence/link validator reusing Question Engine IDs; convert 5 existing sanitized synthetic security cases to non-authoritative seeds with explicit review state, cross-clause links, mistakes/corrections and held-out split; test missing refs, cross-instrument drift, unsupported verified promotion and train/eval leakage. Do not run real contracts or provider calls; no database, embeddings, infrastructure, new dependencies, OCR or runtime changes until this gate passes.",
+  "last_recorded_pr": 281,
+  "last_recorded_change": "question-engine-expert-pack-v01",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-09-22"

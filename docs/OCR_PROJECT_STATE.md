@@ -1,10 +1,12 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-09-22, PR #282, `codex-scope-guard-v1`.
+Последнее обновление: 2026-09-22, PR #281, `question-engine-expert-pack-v01` (после #282).
 
-Активный трек: `question-engine-development`.
+Активный трек: `expert-memory-development`.
 
-Канонический следующий bounded-шаг: `question-engine-single-contract-real-rerun-v4`.
+Канонический следующий bounded-шаг: `expert-memory-provenance-schema-v1`.
+
+Решение владельца от 2026-09-22: реальные анализы договоров и повторные full-contract прогоны временно приостановлены до создания и независимой проверки качественной базы экспертных знаний. Разрешены локальные синтетические/обезличенные fixture-тесты без внешнего API. PR #281 добавляет экспериментальный Expert Pack v0.1: CORE_PROTOCOL, MECHANISM_PLAYBOOK и 15 синтетических контрастных примеров; эти материалы не являются верифицированной юридической базой. Сохранён уже слитый PR #282 и все его требования контроля Codex. Область OCR, privacy/security, runtime и провайдеров не изменена.
 
 PR #282 — governance-only exception: `AGENTS.md` уточняет контроль объёма задач Codex, сохранность тестов и обязательную проверку итогового diff. Активный трек, следующий шаг, код и границы приватности не изменены.
 
@@ -207,21 +209,19 @@ The attempt ledger stores only safe error class plus safe quota scope/retry timi
 
 This PR does not add another provider, model, dependency, endpoint, permission, workflow or storage path. It does not change Question Engine semantics/schema, the privacy boundary, report payload contract or OCR scope.
 
-## 8. Canonical next step
+## 8. Canonical next step — expert memory before real-contract runs
 
-`next_step_id = question-engine-single-contract-real-rerun-v4`
+`next_step_id = expert-memory-provenance-schema-v1`
 
-After PR #279 validation and merge, rerun the same reviewed March–August 2025 contract. Before broadening to any other contract, inspect the explicit answers for at least:
+**Freeze:** no new real-contract analysis or repeat provider/LLM runs on real leases until the expert knowledge base has a reviewed baseline and an omission/linkage evaluation gate. Keep the existing runner and historical results for later A/B/C comparison; do not delete or rewrite them. Synthetic/sanitized offline validation remains allowed. This is a development-priority freeze, not a claim that a previously installed local CLI is technically disabled.
 
-- `security.completion_authority`;
-- `security.realization_chain`;
-- `security.return_mechanics`;
-- `termination.notice_cure`;
-- `termination.cross_clause_interaction`.
+**One bounded next PR:** define a versioned local `ExpertCase` schema and deterministic validator reusing Question Engine IDs and evidence refs; represent original claim, mechanism identity, directly supporting sanitized spans, cross-clause links, observed wrong reading, corrected reading, discriminator/counterexample, provenance, review status, and train/eval split. Include 5 representative sanitized security fixtures drawn from existing 16 corpus cases, clearly marked synthetic and not legally verified. Add focused tests that reject invented refs, cross-instrument value migration, duplicate IDs, missing evidence, unsupported `verified` promotion, and training/evaluation leakage. Keep the new implementation <=300 changed lines where possible. Real expert review remains a separate gate before any legal case is promoted.
 
-The key acceptance question is no longer only whether the narrative sounds better. Verify that every core question ID is present, every declared answer field has a positional value/null, evidence references are grounded, and the security/termination interactions are explicitly extractable for later deterministic `FindingResolution`.
+**Unfreeze gate:** independently review a held-out Gold cohort, demonstrate that omission and cross-clause-link errors are detected against it, and explicitly approve resuming real-contract analysis. A memory store or a plausible LLM report alone is not sufficient.
 
-## 9. Current Question Engine architecture
+**Out of scope for this step:** external API calls; real-contract analysis; a new database, embeddings, Neo4j, pgvector, or provider; OCR changes; new persistence of original text/PII; report or Question Engine runtime rewrites. After the local schema/evidence gate is tested, independently verify a small Gold cohort and then compare baseline vs structured-memory vs hybrid retrieval using omission recall as the leading metric.
+
+## 9. Frozen runtime Question Engine architecture
 
 ```text
 privacy-validated sanitized contract material
