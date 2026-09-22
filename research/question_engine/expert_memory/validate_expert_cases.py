@@ -146,7 +146,8 @@ def validate(dataset: dict, source: dict, raw_source: bytes) -> None:
                   "invented or duplicate fact")
             fact_keys.add(key)
             source_fact = source_facts[key]
-            check(fact == {k: source_fact[k] for k in source_fact},
+            check(json.dumps(fact, sort_keys=True, ensure_ascii=False) ==
+                  json.dumps(source_fact, sort_keys=True, ensure_ascii=False),
                   "fact value, mechanism or source refs differ from oracle")
             cited = refs(fact["refs"], clause_refs,
                          allow_scope=question_id in src.get("complete_for", []))
