@@ -137,6 +137,12 @@ class SourceAuditPacketTests(unittest.TestCase):
     def test_procedure_index_only(self) -> None:
         validate_procedure_edition(self.procedure, self.packet)
 
+    def test_procedure_is_not_full_text(self) -> None:
+        value = deepcopy(self.procedure)
+        value["full_pdf_retrieved"] = True
+        with self.assertRaises(ValueError):
+            validate_procedure_edition(value, self.packet)
+
     def test_duplicate_json_keys_are_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             path = Path(temp) / "dup.json"
