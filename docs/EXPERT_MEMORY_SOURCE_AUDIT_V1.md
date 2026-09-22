@@ -22,7 +22,7 @@ Status: **source discovery only, NOT independent legal verification**. Prepared 
 
 The 2017 publication can anchor the *historical wording* concerning permitted realization grounds, advance notice and opportunity to remedy, financial-outlay security caps, return, and scope exclusions. Whether those rules govern any given cheque or promissory note, and which effective-date version applies, remains an explicit legal question. A contractual 7- or 14-day notice period in a **synthetic** fixture is not established as the statutory period by this source.
 
-The Authority's 2025 indexed procedure differentiates a security cheque merely being held from a cheque presented and dishonoured. The official opening and objection service summaries establish that distinct procedural routes exist. None proves that a bank will reject a cheque marked `לביטחון`, that a landlord's presentation is justified, that two instruments represent one debt, or that an objection succeeds.
+The June 2025 indexed procedure describes an unpaid instrument and maturity/dishonour requirements; security-cheque-specific exceptions await the full original. The official opening and objection service summaries establish that distinct procedural routes exist. None proves that a bank will reject a cheque marked `לביטחון`, that a landlord's presentation is justified, that two instruments represent one debt, or that an objection succeeds.
 
 ## ExpertCase alignment and unresolved work
 
