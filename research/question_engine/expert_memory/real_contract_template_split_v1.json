@@ -81,12 +81,12 @@
   ],
   "privacy": {
     "original_filenames_committed": false,
-    "source_ids_committed": false,
     "byte_hashes_committed": false,
     "original_page_images_committed": false,
     "raw_OCR_committed": false,
-    "private_pairwise_identifiers_committed": false,
     "external_contract_provider_runs": false,
-    "existing_fixture_modified": false
+    "existing_fixture_modified": false,
+    "original_library_ids_committed": false,
+    "source_identity_map_committed": false
   }
 }
