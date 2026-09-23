@@ -11,6 +11,9 @@ import unittest
 from research.question_engine.expert_memory.validate_source_audit_packet import (
     BASE, read, validate, validate_procedure_edition,
 )
+from research.question_engine.expert_memory.validate_security_cheque_judgments import (
+    read as read_case_law, validate as validate_case_law,
+)
 
 
 class SourceAuditPacketTests(unittest.TestCase):
@@ -155,6 +158,65 @@ class SourceAuditPacketTests(unittest.TestCase):
             path.write_text('{"schema_version": 1, "schema_version": 2}')
             with self.assertRaisesRegex(ValueError, "duplicate JSON field"):
                 read(path)
+
+
+class FiveJudgmentResearchTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.cohort = read_case_law()
+
+    def rejects(self, edit, message: str) -> None:
+        data = deepcopy(self.cohort)
+        edit(data)
+        with self.assertRaisesRegex(ValueError, message):
+            validate_case_law(data)
+
+    def test_five_real_dockets_with_boundaries(self) -> None:
+        validate_case_law(self.cohort)
+        self.assertEqual(len(self.cohort["cases"]), 5)
+        self.assertEqual(sum(c["statutory_era"] == "POST_2017"
+                             for c in self.cohort["cases"]), 2)
+        self.assertFalse(self.cohort["gold_eligible"])
+
+    def test_no_train_or_gold_upgrade(self) -> None:
+        self.rejects(lambda d: d.update(training_eligible=True),
+                     "promoted beyond research")
+        self.rejects(lambda d: d.update(gold_eligible=True),
+                     "promoted beyond research")
+
+    def test_partial_judgment_cannot_acquire_an_invented_final_result(self) -> None:
+        self.rejects(lambda d: d["cases"][3].update(
+            disposition="SECURITY_NOTE_CLAIM_DISMISSED"),
+            "unseen disposition promoted")
+
+    def test_search_excerpt_cannot_be_relabelled_official_full_text(self) -> None:
+        self.rejects(lambda d: d["cases"][1].update(
+            access="OFFICIAL_FULL_COURT_FILE"),
+            "source access or unseen disposition promoted")
+
+    def test_historical_case_not_post_reform(self) -> None:
+        self.rejects(lambda d: d["cases"][4].update(
+            statutory_era="POST_2017"), "statutory-era mismatch")
+
+    def test_court_facts_are_not_observed_model_failures(self) -> None:
+        self.rejects(lambda d: d["cases"][0].update(
+            error_origin="OBSERVED_MODEL_FAILURE"), "origin overstated")
+
+    def test_unofficial_mirror_must_stay_on_pinned_host(self) -> None:
+        self.rejects(lambda d: d["cases"][0].update(
+            source_url="https://example.com/court.pdf"),
+            "unapproved or malformed case-law mirror")
+
+    def test_cannot_omit_original_court_file_review_gap(self) -> None:
+        self.rejects(lambda d: d.update(gaps=[]), "gaps must be explicit")
+
+    def test_no_unattributed_legal_holding(self) -> None:
+        self.rejects(lambda d: d["cases"][0]["judicial_evidence"][0].update(
+            locator=""), "missing traceable judicial evidence")
+
+    def test_cannot_silently_replace_one_judgment(self) -> None:
+        self.rejects(lambda d: d["cases"][4].update(
+            docket="35226-02-20"), "duplicate/unknown docket")
 
 
 if __name__ == "__main__":

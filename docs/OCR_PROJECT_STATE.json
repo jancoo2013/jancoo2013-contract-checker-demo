@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-22-137",
+  "state_version": "privacy-ocr-2026-09-22-138",
   "active_track": "expert-memory-development",
-  "next_step_id": "expert-memory-cheque-procedure-primary-text-v1",
-  "next_step_summary": "PR #287 records the owner-selected June 2025 procedure as indexed-only. Full PDF, edition date and currentness are not independently verified. Full-text source retrieval remains the next step. Real-contract and provider analyses remain paused.",
-  "last_recorded_pr": 287,
-  "last_recorded_change": "expert-memory-cheque-procedure-2025-06-29-index-v1",
+  "next_step_id": "expert-memory-case-law-original-verification-v1",
+  "next_step_summary": "Owner-authorized bounded exception PR #288 collects five independently identifiable rental-security cheque judicial decisions with dates, dockets, public court-text mirrors or index extracts, source-quality limits and case-specific possible model-error hypotheses. Two decisions follow the 2017 residential rental reform; three predate it. Full original judiciary files, any appellate history and portions of two outcomes have not been independently checked. These are NOT observed model errors, expert-reviewed legal Gold or eligible training/evaluation labels; the existing five synthetic ExpertCase records remain unchanged. Next: retrieve original complete judgments, check appeals and independently verify each reported holding, then develop a separate specialist-review and omission/linkage challenge packet. PR #287 full/current Enforcement Authority cheque procedure remains unavailable and explicitly open for later verification. Real-contract/provider analyses remain frozen; no OCR, RAG/database or runtime changes.",
+  "last_recorded_pr": 288,
+  "last_recorded_change": "expert-memory-five-security-cheque-judgments-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-09-22"
