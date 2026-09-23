@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-23-140",
+  "state_version": "privacy-ocr-2026-09-23-141",
   "active_track": "expert-memory-development",
-  "next_step_id": "expert-memory-real-contract-template-split-v1",
-  "next_step_summary": "PR #290 maps all 13 prior two-contract research mechanism families against the existing three-page sanitized Golden Fixture: 10 have printed clause locators, 3 are NOT_ESTABLISHED in this fixture (not absent from any original). Seven source-anchored cross-clause expert-reading challenges record required rereads and forbidden shortcuts. Neither the Golden Fixture nor two-contract aggregate matrix is proven to match any of the seven anonymous RC01–RC07 private PDF groups; all private coverage, template families and cohort assignments remain UNKNOWN/UNVERIFIED/UNASSIGNED. Source provenance and negative regression checks are offline-only. Next: privately verify duplicate editions and source identity and build a family-disjoint development/holdout split only where the correspondence is proven; leave unresolved groups unassigned. Original-five-judgment verification and the full 2025 Authority cheque procedure remain parallel open gaps; no full real-contract provider/OCR, no RAG/runtime and no legal Gold promotion.",
-  "last_recorded_pr": 290,
-  "last_recorded_change": "expert-memory-real-contract-coverage-v1",
+  "next_step_id": "expert-memory-contract-001-deep-review-v1",
+  "next_step_summary": "PR #291 privately compared the eight supplied PDFs offline without OCR/providers: seven distinct byte groups plus one exact duplicate form four confirmed anonymous template families. TF_A (RC01/RC04, same executed agreement in different captures) and TF_B (RC02/RC03/RC05, shared template across editions) are development; distinct singleton TF_C (RC06) and TF_D (RC07) are reserved independent test. Every capture/edition of one template stays in one cohort. No original is positively linked to sanitized contract_001; RC07 is excluded as a direct match, other links and both originals behind the prior aggregate remain UNKNOWN. contract_001 is selected for the next offline deep expert review but is blocked from training/cohort scoring pending private family linkage. No filenames, IDs, hashes, images, raw OCR, original text or sidecar report evidence is published. Next: clause-located human-style review of the existing sanitized fixture only; no provider/OCR, runtime, RAG or legal Gold promotion.",
+  "last_recorded_pr": 291,
+  "last_recorded_change": "expert-memory-real-contract-template-split-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-09-23"
