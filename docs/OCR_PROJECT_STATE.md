@@ -1,12 +1,14 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-09-22, PR #288, `expert-memory-five-security-cheque-judgments-v1` (после слитого #287).
+Последнее обновление: 2026-09-23, PR #289, `expert-memory-real-contract-inventory-v1` (после слитого #288).
 
 Активный трек: `expert-memory-development`.
 
-Канонический следующий bounded-шаг: `expert-memory-case-law-original-verification-v1`.
+Канонический следующий bounded-шаг: `expert-memory-real-contract-coverage-v1`.
 
 Решение владельца от 2026-09-22: реальные анализы договоров и повторные full-contract прогоны временно приостановлены до создания и независимой проверки качественной базы экспертных знаний. Разрешены локальные синтетические/обезличенные fixture-тесты без внешнего API. PR #281 добавляет экспериментальный Expert Pack v0.1: CORE_PROTOCOL, MECHANISM_PLAYBOOK и 15 синтетических контрастных примеров; эти материалы не являются верифицированной юридической базой. Сохранён уже слитый PR #282 и все его требования контроля Codex. Область OCR, privacy/security, runtime и провайдеров не изменена.
+
+PR #289 — по решению владельца выполнен первый небольшой этап инвентаризации наших реальных договоров. В доступной личной Library обнаружены 14 PDF-записей семи вероятных групп; восемь оригиналов удалось проверить локально по байтам — семь различных и одна идентичная копия. Совпадения других имён/размеров ещё не гарантируют тождество содержания. В GitHub добавлены исключительно обезличенные ID, число страниц и наличие цифрового текстового слоя; оригиналы, названия с персональными сведениями, идентификаторы Library и хеши остаются вне репозитория. Соответствие семи PDF уже имеющемуся Golden Fixture и матрице двух обезличенных договоров ещё не подтверждено. Реальные договоры через внешние модели не прогонялись.
 
 PR #288 — одобренное владельцем исключение из очереди задач: собраны пять различных судебных дел по обеспечительным чекам, с номером дела, датой, ссылкой на доступный текст/индекс, степенью доступности, краткими выводами и возможными ошибками модели (гипотезами, не наблюдёнными сбоями). Два решения вынесены после реформы аренды 2017 года, три — до неё. Оригиналы в судебном реестре и сведения об обжаловании не подтверждены; по одному делу итог не виден в открытом фрагменте. Никакие кейсы не стали юридически проверенными, ни один не подключён к обучению, evaluation или runtime. Полный текст процедуры службы взыскания 2025 года остаётся отдельным неразрешённым вопросом. Заморозка реальных договоров сохраняется.
 
@@ -221,21 +223,19 @@ The attempt ledger stores only safe error class plus safe quota scope/retry timi
 
 This PR does not add another provider, model, dependency, endpoint, permission, workflow or storage path. It does not change Question Engine semantics/schema, the privacy boundary, report payload contract or OCR scope.
 
-## 8. Canonical next step — independently verify five court originals
+## 8. Canonical next step — sanitize and map real-contract mechanism coverage
 
-`next_step_id = expert-memory-case-law-original-verification-v1`
+`next_step_id = expert-memory-real-contract-coverage-v1`
 
-**Freeze remains:** no new real-contract analyses or LLM/provider runs on real leases until an independently reviewed Gold cohort and omission/linkage evaluation gate exist. Sanitized synthetic/offline validation only.
+**Freeze remains:** no new raw real-contract external-LLM/OCR/provider runs; original scans and personal data remain in the user's private Library. Only privacy-reviewed sanitized artifacts may enter GitHub or CI. The five original ExpertCase seeds and the five litigation leads are not expert-verified Gold.
 
-**PR #288 (owner-approved bounded exception):** five identified lower-court residential-lease security-cheque decisions are captured as research leads, with precise dockets/dates and evidence locators from available public judicial-text mirrors or search-index excerpts. Two judgments are post-2017 and three predate the residential reform; source access and missing dispositions are explicit. Extracted possible model mistakes are **hypotheses**, not observed failures. Original court files, appeals and expert legal interpretations are not verified. The five existing synthetic ExpertCase train/evaluation fixtures are unchanged; the new cases are neither Gold nor training/evaluation labels.
+**PR #289 (owner-authorized reprioritization):** fourteen discovered Library PDF records are organized as seven distinct locally sampled source-byte groups with one verified identical duplicate. Other same-name/same-size copies are only duplicate candidates. This is an anonymous metadata inventory, not a semantic analysis or proof of independent template families. The already committed three-page sanitized `contract_001` and two-contract sanitized comparison matrix have not been matched to any private PDF group.
 
-**Next bounded PR:** `expert-memory-case-law-original-verification-v1`. Obtain authoritative, complete judiciary-hosted originals for each of the five dockets where obtainable; validate the decision date, operative facts, quoted sections, judicial holdings and disposition against the actual pages; check whether appeal or reversal is documented. Maintain source-level uncertainty where originals are unavailable. Identify specific disputed inference questions that warrant independent specialist review, without claiming automatic legal conclusions.
+**Next small PR:** `expert-memory-real-contract-coverage-v1`. From the two existing sanitized research contracts and Golden Fixture, define a source-scoped mechanism-coverage table with evidence status, material cross-clause questions and UNKNOWN for unmapped originals. Do not guess coverage of unread scans. Privately check family overlap and source provenance before assigning any development/held-out split. Then pick one sanitized real contract for deep manual expert mapping and leave at least one unrelated template family for later independent evaluation.
 
-**Still-open parallel source gap:** the 2025-06-29 Enforcement and Collection Authority cheque/note procedure remains indexed-only. Retrieving its complete current original and separating bank presentation from file-opening eligibility and substantive landlord security realization is not superseded by case-law collection.
+**Parallel research gaps:** the five court decisions require official original/appeal verification; the 2025-06-29 Authority procedure is indexed-only, and its full current version still needs retrieval. Neither gap becomes verified by this PR.
 
-**Later gates:** a separately reviewed specialist packet, then a genuinely independent held-out Gold cohort testing material omissions and cross-clause instrument confusion before the owner reopens real-contract analysis.
-
-**Out of scope:** new OCR, provider calls, runtime changes, databases/RAG/embeddings, fabricated judgments, or automatic legal verdicts.
+**Out of scope:** real-contract provider calls, new raw OCR, runtime or RAG/database changes, fabricated expert Gold and sharing of original PDF filenames or identifiable fields.
 
 ## 9. Frozen runtime Question Engine architecture
 
