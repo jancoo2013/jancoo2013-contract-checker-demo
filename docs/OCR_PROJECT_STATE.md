@@ -1,12 +1,14 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-09-23, PR #291, `expert-memory-real-contract-template-split-v1` (draft, не сливать автоматически).
+Последнее обновление: 2026-09-23, PR #292, `expert-memory-contract-001-deep-review-v1` (второй критический проход после слитого #291).
 
 Активный трек: `expert-memory-development`.
 
-Канонический следующий bounded-шаг: `expert-memory-contract-001-deep-review-v1`.
+Канонический следующий bounded-шаг: `expert-memory-contract-001-source-family-verification-v1`.
 
 Решение владельца от 2026-09-22: реальные анализы договоров и повторные full-contract прогоны временно приостановлены до создания и независимой проверки качественной базы экспертных знаний. Разрешены локальные синтетические/обезличенные fixture-тесты без внешнего API. PR #281 добавляет экспериментальный Expert Pack v0.1: CORE_PROTOCOL, MECHANISM_PLAYBOOK и 15 синтетических контрастных примеров; эти материалы не являются верифицированной юридической базой. Сохранён уже слитый PR #282 и все его требования контроля Codex. Область OCR, privacy/security, runtime и провайдеров не изменена.
+
+PR #292 — второй критический проход по уже обезличенному печатному `contract_001`: пятнадцать взаимосвязанных механизмов с 55 короткими дословными опорами и отдельная проверка последовательности `8.א` → `9.א`. Добавлены опись/возврат вещей (§§3, 9, 12, 14), срок уведомления по арноне от даты подписания (§§3, 5, 6) и совместное чтение общего запрета на проживающих со специальным §24. Ранний выезд (§8), задержка освобождения (§17) и реализация обеспечительного чека (§11) разведены; зачет ремонта (§9б) ограничен неисправностями в ответственности арендодателя, обращением арендатора и неисполнением в разумный срок. Отсутствие `8.ב` не восполняется и может быть особенностью бланка. Это направленная владельцем корректировка, но НЕ юридически проверенный Gold и НЕ обучающие/контрольные метки; семейство оригинала всё еще UNKNOWN, а все ограничения приватности и заморозки внешних моделей остаются.
 
 PR #291 — восемь локально предоставленных PDF проверены без OCR и внешних сервисов: семь разных byte-групп и одна дополнительная точная копия. Подтверждены четыре обезличенных семейства: TF_A объединяет RC01/RC04 как разные захваты одного исполненного договора; TF_B объединяет RC02/RC03/RC05 как редакции одного печатного шаблона; RC06 и RC07 образуют отдельные singleton-семейства TF_C и TF_D. Development закреплён за TF_A/TF_B, независимый test зарезервирован за TF_C/TF_D; все экземпляры одного шаблона остаются в одном cohort. `contract_001` выбран для следующего глубокого экспертного разбора, но его положительное соответствие частной RC-группе остаётся UNKNOWN, поэтому training/cohort use заблокирован до приватного сопоставления. Оригиналы двух прежних обезличенных исследований также остались UNKNOWN. Имена, ID, хеши, страницы, OCR и текст оригиналов не опубликованы.
 
@@ -227,21 +229,21 @@ The attempt ledger stores only safe error class plus safe quota scope/retry timi
 
 This PR does not add another provider, model, dependency, endpoint, permission, workflow or storage path. It does not change Question Engine semantics/schema, the privacy boundary, report payload contract or OCR scope.
 
-## 8. Canonical next step — deep expert review of the sanitized Golden Fixture
+## 8. Canonical next step — private source and family verification
 
-`next_step_id = expert-memory-contract-001-deep-review-v1`
+`next_step_id = expert-memory-contract-001-source-family-verification-v1`
 
-**Freeze remains:** no raw real-lease external OCR/LLM/provider calls. The already-sanitized printed Golden Fixture, prior two-contract research summary and the private original Library belong to separate evidence layers; no unreviewed source text, recoverable PII, original PDFs or hashes enter GitHub/CI. Five existing ExpertCase seeds and five mirrored court-case leads remain legally unverified.
+**Freeze remains:** no new full real-contract external-LLM/OCR/provider calls. No raw private originals, recoverable PII, signed names/IDs, page images, original source names or hashes in GitHub, CI, logs or RAG. Only the already-sanitized three-page printed `contract_001` is available for this step.
 
-**PR #291 delivered:** the owner-supplied private packet was compared locally and contains eight PDFs, seven distinct byte groups and one additional exact copy. Four template families are confirmed: TF_A = RC01/RC04 (same executed agreement, different captures), TF_B = RC02/RC03/RC05 (shared printed template, different agreement editions), TF_C = RC06 and TF_D = RC07. TF_A/TF_B are development; TF_C/TF_D are reserved independent test. Duplicate captures and all editions of one template never cross the boundary. Mechanism coverage remains UNKNOWN because this step compared identity/structure, not contract semantics.
+**PR #292 delivered:** a second, owner-directed critical pass containing **15** cross-clause mechanisms backed by **55** exact short Hebrew quotes from the sanitized printed source, plus a clause-sequence integrity check. It adds the unverified property inventory, the signature-date trigger for arnona notice, and the special agreed-occupant term; separates early exit, post-term holdover and security realization; and narrows repair set-off to all three written preconditions. `8.ב` is not reconstructed. This research is not an observation of a model failure, an original-court holding or reviewed legal Gold.
 
-**Remaining linkage limits:** no supplied PDF is positively linked to `contract_001`; RC07 is excluded as a direct match and all other links remain UNKNOWN. The original groups behind the prior two-contract aggregate cannot be reconstructed from trustworthy repository evidence. `contract_001` is selected for the next deep expert review because it is already sanitized, but it is not eligible for training or cohort scoring until its family link is resolved. Owner text-level review remains pending.
+**Unresolved:** the original behind the three-page sanitized Golden Fixture is not positively mapped to a private RC group or template family (RC07 alone is excluded as a direct source). The product owner has not verified its full printed transcription. Appendix B, handwritten fields and signatures were excluded from the source record, so their original contents and any amendments are not known. Existing TF_A/TF_B development and TF_C/TF_D reserved independent-test families from #291 remain unchanged; the unlinked Golden Fixture is NOT eligible for training or cohort scoring.
 
-**Next small PR:** `expert-memory-contract-001-deep-review-v1`. Perform an offline, clause-located, human-style mechanism and cross-clause analysis of the existing sanitized `contract_001` only. Preserve contradictions, missing Appendix B and handwriting exclusions; do not infer its private family, activate it for training/evaluation, call providers/OCR, or promote legal conclusions.
+**Next bounded step:** `expert-memory-contract-001-source-family-verification-v1`. In a separately approved private/local workflow, verify the sanitized transcription and the `8.א` → `9.א` sequence against the source, and try to map the fixture to a confirmed template family without publishing names, IDs, hashes or source text. If the source family remains unknown, keep training/evaluation blocked. Subsequent expert-case generation and legal-source verification are separate tasks.
 
-**Parallel unverified research:** full official original/appeal checks for the five court decisions; full current Enforcement Authority 2025 cheque/note opening procedure. Neither is promoted by this coverage work.
+**Parallel unverified research:** original and appellate checks for the five court decisions; full/current 2025 Enforcement Authority cheque procedure. They cannot be promoted merely because this contract analysis mentions a related mechanism.
 
-**Out of scope:** new real-contract provider or OCR analysis, new RAG/database/embeddings, changes to Question Engine runtime, legal verdicts or automatic Gold promotion.
+**Out of scope:** original PDF upload to repository, provider/model tests on the real contract, new OCR/RAG/database, runtime behavior, legal enforceability verdicts or automatically using this first pass as model Gold.
 
 ## 9. Frozen runtime Question Engine architecture
 
