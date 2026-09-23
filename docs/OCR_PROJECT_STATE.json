@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-23-139",
+  "state_version": "privacy-ocr-2026-09-23-140",
   "active_track": "expert-memory-development",
-  "next_step_id": "expert-memory-real-contract-coverage-v1",
-  "next_step_summary": "PR #289 is the owner-authorized first small real-lease inventory step. Fourteen discovered private Library PDF records represent seven sampled distinct-byte groups; eight readable originals include one verified duplicate, other matching-name/size duplicates remain candidates. Only anonymous group IDs, page counts and PDF text-layer presence are committed: original names, IDs, hashes, photos and contract text stay private. Existing three-page sanitized Golden Fixture contract_001 and the two-contract sanitized mechanism matrix are confirmed repository artifacts but not independently mapped to these Library groups. Next small task: build a sanitized mechanism-coverage matrix from existing permitted material, explicitly mark source and template-family unknowns, then privately validate group matching and select non-overlapping development vs holdout families. Five court originals and full/current 2025 cheque procedure remain parallel research gaps. No new real-lease provider calls, OCR, RAG, runtime, or legal Gold promotion.",
-  "last_recorded_pr": 289,
-  "last_recorded_change": "expert-memory-real-contract-inventory-v1",
+  "next_step_id": "expert-memory-real-contract-template-split-v1",
+  "next_step_summary": "PR #290 maps all 13 prior two-contract research mechanism families against the existing three-page sanitized Golden Fixture: 10 have printed clause locators, 3 are NOT_ESTABLISHED in this fixture (not absent from any original). Seven source-anchored cross-clause expert-reading challenges record required rereads and forbidden shortcuts. Neither the Golden Fixture nor two-contract aggregate matrix is proven to match any of the seven anonymous RC01–RC07 private PDF groups; all private coverage, template families and cohort assignments remain UNKNOWN/UNVERIFIED/UNASSIGNED. Source provenance and negative regression checks are offline-only. Next: privately verify duplicate editions and source identity and build a family-disjoint development/holdout split only where the correspondence is proven; leave unresolved groups unassigned. Original-five-judgment verification and the full 2025 Authority cheque procedure remain parallel open gaps; no full real-contract provider/OCR, no RAG/runtime and no legal Gold promotion.",
+  "last_recorded_pr": 290,
+  "last_recorded_change": "expert-memory-real-contract-coverage-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-09-23"
