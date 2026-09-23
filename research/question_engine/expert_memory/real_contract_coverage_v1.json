@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "prepared_on": "2026-09-23",
+  "status": "SANITIZED_SOURCE_SCOPED_RESEARCH_NOT_GOLD",
+  "sources": {"golden_fixture":"research/question_engine/golden_contracts/contract_001_he.txt","golden_metadata":"research/question_engine/golden_contracts/contract_001.meta.json","golden_review":"ASSISTANT_TWO_PASS_OWNER_REVIEW_PENDING","aggregate_matrix":"research/question_engine/dispute_practice/cross_contract_mechanism_matrix_v1.json","aggregate_evidence":"TWO_CONTRACT_RESEARCH_CLASSIFICATION_NOT_PER_DOCUMENT_ORACLE","private_inventory":"research/question_engine/expert_memory/real_contract_inventory_v1.json"},
+  "linkage": {"golden_to_inventory":"NOT_ESTABLISHED","aggregate_to_inventory":"NOT_ESTABLISHED","golden_to_aggregate":"NOT_ESTABLISHED"},
+  "mechanisms": [
+    {"id":"security_and_enforcement","classification":"CORE","aggregate_seen":2,"aggregate_total":2,"golden_status":"EVIDENCED_IN_SANITIZED_FIXTURE","golden_clause_ids":["4","11"],"note":"Advance rent cheques and a security cheque are distinct; the security-return sentence also names a bank guarantee."},
+    {"id":"early_exit_and_replacement_tenant","classification":"CORE","aggregate_seen":2,"aggregate_total":2,"golden_status":"EVIDENCED_IN_SANITIZED_FIXTURE","golden_clause_ids":["7","8"],"note":"Assignment consent must be read with full-term rent after early vacancy."},
+    {"id":"financial_sanctions_and_overlap","classification":"CORE","aggregate_seen":2,"aggregate_total":2,"golden_status":"EVIDENCED_IN_SANITIZED_FIXTURE","golden_clause_ids":["4","9","17"],"note":"Late interest, repair loss and daily holdover are separate heads; no automatic cumulative award."},
+    {"id":"condition_as_is_defects_damage","classification":"CORE","aggregate_seen":2,"aggregate_total":2,"golden_status":"EVIDENCED_IN_SANITIZED_FIXTURE","golden_clause_ids":["9","12"],"note":"Repair allocation and normal wear interact with a broad condition waiver and referenced Appendix B."},
+    {"id":"termination_cure_notice_eviction","classification":"CORE","aggregate_seen":2,"aggregate_total":2,"golden_status":"EVIDENCED_IN_SANITIZED_FIXTURE","golden_clause_ids":["4","19","21"],"note":"Payment-breach cancellation, generic cancellation and postal delivery rule are different mechanisms."},
+    {"id":"option_and_renewal","classification":"CORE","aggregate_seen":2,"aggregate_total":2,"golden_status":"EVIDENCED_IN_SANITIZED_FIXTURE","golden_clause_ids":["3","4","11"],"note":"Printed term/date range, blank option notice, consent condition and security return interact."},
+    {"id":"utilities_and_occupancy_charges","classification":"CORE_FACTS_CONDITIONAL_PRACTICE","aggregate_seen":2,"aggregate_total":2,"golden_status":"EVIDENCED_IN_SANITIZED_FIXTURE","golden_clause_ids":["5","6"],"note":"Routine utility and municipal-tax allocation; shared-meter accounting is not established."},
+    {"id":"broad_no_setoff","classification":"CONDITIONAL","aggregate_seen":1,"aggregate_total":2,"golden_status":"NOT_ESTABLISHED_IN_SANITIZED_FIXTURE","golden_clause_ids":[],"note":"Aggregate source does not identify this golden fixture; §9 contains a limited repair-setoff route."},
+    {"id":"shared_meter_accounting","classification":"CONDITIONAL","aggregate_seen":1,"aggregate_total":2,"golden_status":"NOT_ESTABLISHED_IN_SANITIZED_FIXTURE","golden_clause_ids":[],"note":"Routine utility allocation in §§5-6 does not itself establish a shared-meter formula."},
+    {"id":"landlord_access","classification":"CONDITIONAL","aggregate_seen":2,"aggregate_total":2,"golden_status":"EVIDENCED_IN_SANITIZED_FIXTURE","golden_clause_ids":["15"],"note":"Reasonable-time entry and advance coordination qualifiers are printed."},
+    {"id":"alterations_and_restoration","classification":"CONDITIONAL","aggregate_seen":2,"aggregate_total":2,"golden_status":"EVIDENCED_IN_SANITIZED_FIXTURE","golden_clause_ids":["9","14","16"],"note":"Drilling, written permission and ownership of improvements require joint reading."},
+    {"id":"third_party_indemnity","classification":"CONDITIONAL","aggregate_seen":1,"aggregate_total":2,"golden_status":"EVIDENCED_IN_SANITIZED_FIXTURE","golden_clause_ids":["9"],"note":"Tenant third-party damage reimbursement is distinct from ordinary condition/repair duties."},
+    {"id":"inventory_handwriting_dependency","classification":"CONDITIONAL","aggregate_seen":1,"aggregate_total":2,"golden_status":"NOT_ESTABLISHED_IN_SANITIZED_FIXTURE","golden_clause_ids":[],"note":"Handwriting was excluded from the sanitized fixture; no handwriting-dependent fact may be inferred."}
+  ],
+  "golden_cross_clause_checks": [
+    {"id":"term_and_option","clauses":["3","4","11"],"question":"Do stated duration, calendar dates, option timing, landlord consent and security-return timing describe one coherent mechanism?","must_not_assume":"That an apparent date discrepancy is a proven operative term without later signed material."},
+    {"id":"instrument_identity_and_return","clauses":["4","11"],"question":"Which instruments pay rent and which secure obligations; does the bank-guarantee return reference concern the deposited cheque or a separate instrument?","must_not_assume":"That all cheque/guarantee references describe the same instrument."},
+    {"id":"exit_and_assignment","clauses":["7","8"],"question":"How do assignment consent and the tenant's remaining-term rent obligation interact if the tenant leaves early?","must_not_assume":"A documented alternative exit right or a predicted legal outcome."},
+    {"id":"condition_repairs_and_appendix","clauses":["9","12"],"question":"How do wear and repair allocation qualify the condition waiver, and is referenced Appendix B actually present?","must_not_assume":"Contents of an unseen defects appendix or enforceability of any waiver."},
+    {"id":"cancellation_and_notice","clauses":["4","19","21"],"question":"Distinguish payment-default trigger, general breach cancellation, any actual cure provision and postal delivery from physical eviction.","must_not_assume":"That a notice delivery rule is a cure period or an immediate physical eviction power."},
+    {"id":"overlapping_money_heads","clauses":["4","9","11","17"],"question":"Separate late interest, damage reimbursement, holdover amount and security realization by triggering event and underlying loss.","must_not_assume":"That separate monetary clauses automatically stack or cancel one another."},
+    {"id":"third_party_and_repair","clauses":["9","12"],"question":"Does third-party damage reimbursement reach the same events as tenant repair duties or a condition acknowledgment?","must_not_assume":"That any contractual indemnity conclusively establishes responsibility."}
+  ],
+  "private_groups": [
+    {"id":"RC01","coverage":"UNKNOWN_NOT_REVIEWED","template_family":"UNVERIFIED","cohort":"UNASSIGNED"},
+    {"id":"RC02","coverage":"UNKNOWN_NOT_REVIEWED","template_family":"UNVERIFIED","cohort":"UNASSIGNED"},
+    {"id":"RC03","coverage":"UNKNOWN_NOT_REVIEWED","template_family":"UNVERIFIED","cohort":"UNASSIGNED"},
+    {"id":"RC04","coverage":"UNKNOWN_NOT_REVIEWED","template_family":"UNVERIFIED","cohort":"UNASSIGNED"},
+    {"id":"RC05","coverage":"UNKNOWN_NOT_REVIEWED","template_family":"UNVERIFIED","cohort":"UNASSIGNED"},
+    {"id":"RC06","coverage":"UNKNOWN_NOT_REVIEWED","template_family":"UNVERIFIED","cohort":"UNASSIGNED"},
+    {"id":"RC07","coverage":"UNKNOWN_NOT_REVIEWED","template_family":"UNVERIFIED","cohort":"UNASSIGNED"}
+  ],
+  "policy": {"no_negative_inference_from_unmentioned_clause":true,"do_not_infer_handwriting":true,"eligible_gold":false,"training_or_evaluation_assignment":"PENDING_PRIVATE_TEMPLATE_COMPARISON","real_contract_provider_runs":false}
+}
