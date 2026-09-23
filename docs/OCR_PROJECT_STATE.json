@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-23-141",
+  "state_version": "privacy-ocr-2026-09-23-142",
   "active_track": "expert-memory-development",
-  "next_step_id": "expert-memory-contract-001-deep-review-v1",
-  "next_step_summary": "PR #291 privately compared the eight supplied PDFs offline without OCR/providers: seven distinct byte groups plus one exact duplicate form four confirmed anonymous template families. TF_A (RC01/RC04, same executed agreement in different captures) and TF_B (RC02/RC03/RC05, shared template across editions) are development; distinct singleton TF_C (RC06) and TF_D (RC07) are reserved independent test. Every capture/edition of one template stays in one cohort. No original is positively linked to sanitized contract_001; RC07 is excluded as a direct match, other links and both originals behind the prior aggregate remain UNKNOWN. contract_001 is selected for the next offline deep expert review but is blocked from training/cohort scoring pending private family linkage. No filenames, IDs, hashes, images, raw OCR, original text or sidecar report evidence is published. Next: clause-located human-style review of the existing sanitized fixture only; no provider/OCR, runtime, RAG or legal Gold promotion.",
-  "last_recorded_pr": 291,
-  "last_recorded_change": "expert-memory-real-contract-template-split-v1",
+  "next_step_id": "expert-memory-contract-001-owner-review-v1",
+  "next_step_summary": "PR #292 records the assistant's first independent human-style offline review of the existing three-page sanitized printed contract_001: 12 cross-clause mechanisms, 44 short direct source quotes, candidate first readings, corrective rereads, explicit uncertainties, and only conditional questions requiring unresolved answers. New checks include individual payer versus collective tenant obligations (clause 24), missing indexation basis (4d), express limited repair set-off (9b), different liability heads (9c, 12, 22), written versus advance permission for alterations, and postal delivery versus cure. This is an assistant first pass and NOT owner-reviewed text, independently verified legal Gold or evaluation/training data. Existing RC07 exclusion and all other original-family matches stay UNKNOWN; no raw originals, external providers, OCR, RAG, database or runtime changes. Next bounded step: owner review of exact sanitized printed source and mechanism/exception maps, then independently check legal source claims and selectively transform verified disagreements into contrastive ExpertCase tests. Original judgments and full Authority cheque procedure remain separately open.",
+  "last_recorded_pr": 292,
+  "last_recorded_change": "expert-memory-contract-001-deep-review-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-09-23"
