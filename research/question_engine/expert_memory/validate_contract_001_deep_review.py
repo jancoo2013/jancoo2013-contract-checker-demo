@@ -39,7 +39,7 @@ ESSENTIAL = {
     "individual_payer_collective_tenant": {"4", "11", "24"},
     "alterations_drilling_and_ownership": {"9", "14", "16"},
     "entry_coordination_qualifier": {"15"},
-    "tenant_goods_and_third_party_loss": {"9", "22"},
+    "tenant_goods_and_third_party_loss": {"9", "12", "22"},
     "documents_notice_and_precedence": {"12", "21", "23"},
     "property_inventory_handover_return": {"3", "9", "12", "14"},
     "arnona_signature_deadline": {"3", "5", "6"},
@@ -163,6 +163,7 @@ def validate(review: dict, printed_text: str,
         for q in quotes:
             require(set(q) == {"clause", "quote"}
                     and q["clause"] in cls and 4 <= len(q["quote"]) <= 140
+                    and re.fullmatch(r"\[[A-Z0-9_]+\]", q["quote"]) is None
                     and q["quote"] in sections[q["clause"]],
                     "fabricated or misattributed Hebrew source quote")
         total_quotes += len(quotes)

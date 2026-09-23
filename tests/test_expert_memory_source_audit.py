@@ -458,11 +458,25 @@ class Contract001DeepReviewTests(unittest.TestCase):
         self.rejects(lambda d: d["mechanisms"][0]["quotes"][0].update(
             clause="17"), "fabricated or misattributed Hebrew")
 
+    def test_reject_editorial_blank_marker_as_quote(self) -> None:
+        self.rejects(lambda d: d["mechanisms"][0]["quotes"][0].update(
+            quote="[BLANK_OR_MISSING_VALUE_IN_SOURCE]"),
+            "fabricated or misattributed Hebrew")
+
     def test_reject_omitted_party_payment_mechanism(self) -> None:
         self.rejects(lambda d: d["mechanisms"].__setitem__(
             slice(None), [x for x in d["mechanisms"]
                           if x["id"] != "individual_payer_collective_tenant"]),
             "missing or duplicate human-style")
+
+    def test_liability_mechanism_requires_flat_defect_clause(self) -> None:
+        def remove_clause_12(data: dict) -> None:
+            item = next(x for x in data["mechanisms"]
+                        if x["id"] == "tenant_goods_and_third_party_loss")
+            item["clauses"].remove("12")
+            item["quotes"] = [q for q in item["quotes"]
+                              if q["clause"] != "12"]
+        self.rejects(remove_clause_12, "invalid clause links")
 
     def test_reject_premature_golden_family_link(self) -> None:
         self.rejects(lambda d: d.update(
