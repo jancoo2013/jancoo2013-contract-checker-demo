@@ -11,6 +11,9 @@ import unittest
 from research.question_engine.expert_memory.validate_source_audit_packet import (
     BASE, read, validate, validate_procedure_edition,
 )
+from research.question_engine.expert_memory.validate_real_contract_inventory import (
+    read as read_real_inventory, validate as validate_real_inventory,
+)
 from research.question_engine.expert_memory.validate_security_cheque_judgments import (
     read as read_case_law, validate as validate_case_law,
 )
@@ -217,6 +220,46 @@ class FiveJudgmentResearchTests(unittest.TestCase):
     def test_cannot_silently_replace_one_judgment(self) -> None:
         self.rejects(lambda d: d["cases"][4].update(
             docket="35226-02-20"), "duplicate/unknown docket")
+
+
+class PrivateLeaseInventoryTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.inventory = read_real_inventory()
+
+    def rejects(self, edit, message: str) -> None:
+        data = deepcopy(self.inventory)
+        edit(data)
+        with self.assertRaisesRegex(ValueError, message):
+            validate_real_inventory(data)
+
+    def test_sanitized_seven_groups(self) -> None:
+        validate_real_inventory(self.inventory)
+        self.assertEqual(len(self.inventory["contracts"]), 7)
+        self.assertFalse(self.inventory["raw_sha256_values_persisted"])
+
+    def test_reject_private_filename_field(self) -> None:
+        self.rejects(lambda d: d["contracts"][0].update(
+            original_filename="never_commit.pdf"),
+            "unexpected private original identifier")
+
+    def test_reject_false_original_to_gold_link(self) -> None:
+        self.rejects(lambda d: d["prior_sanitized_assets"].update(
+            fixture_to_private_pdf_match="VERIFIED"), "linkage promoted")
+
+    def test_reject_expert_coverage_without_analysis(self) -> None:
+        self.rejects(lambda d: d["contracts"][0].update(
+            mechanism_coverage="COMPLETE"), "promoted without verification")
+
+    def test_reject_exaggerated_duplicate_count(self) -> None:
+        self.rejects(lambda d: d.update(
+            confirmed_byte_identical_extra_copy_count=5),
+            "local duplicate evidence mismatch")
+
+    def test_reject_persistent_source_hashes(self) -> None:
+        self.rejects(lambda d: d["privacy_gate"].update(
+            original_file_hashes_committed=True),
+            "private source data may not be committed")
 
 
 if __name__ == "__main__":
