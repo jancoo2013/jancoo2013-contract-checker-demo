@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "prepared_on": "2026-09-23",
+  "status": "PRIVATE_LIBRARY_METADATA_INVENTORY_ONLY",
+  "scope": "PDF records discovered in the user's project Library folder and Library root; not a completeness claim for all historical uploads.",
+  "observed_pdf_records": 14,
+  "retrieved_local_files": 8,
+  "distinct_local_sha256_groups": 7,
+  "raw_sha256_values_persisted": false,
+  "confirmed_byte_identical_extra_copy_count": 1,
+  "contracts": [
+    {
+      "id": "RC01",
+      "pages": 6,
+      "printed_pdf_text_layer": "ABSENT",
+      "library_record_candidates": 1,
+      "duplicate_evidence": "SINGLE_DISCOVERED_COPY",
+      "independently_reviewed_content": false,
+      "mechanism_coverage": "NOT_YET_MAPPED",
+      "template_family": "NOT_YET_COMPARED",
+      "cohort_role": "UNASSIGNED",
+      "privacy": "ORIGINAL_REMAINS_IN_USER_LIBRARY"
+    },
+    {
+      "id": "RC02",
+      "pages": 6,
+      "printed_pdf_text_layer": "PRESENT",
+      "library_record_candidates": 4,
+      "duplicate_evidence": "FILENAME_SIZE_CANDIDATES_NOT_HASH_VERIFIED",
+      "independently_reviewed_content": false,
+      "mechanism_coverage": "NOT_YET_MAPPED",
+      "template_family": "NOT_YET_COMPARED",
+      "cohort_role": "UNASSIGNED",
+      "privacy": "ORIGINAL_REMAINS_IN_USER_LIBRARY"
+    },
+    {
+      "id": "RC03",
+      "pages": 6,
+      "printed_pdf_text_layer": "ABSENT",
+      "library_record_candidates": 3,
+      "duplicate_evidence": "FILENAME_SIZE_CANDIDATES_NOT_HASH_VERIFIED",
+      "independently_reviewed_content": false,
+      "mechanism_coverage": "NOT_YET_MAPPED",
+      "template_family": "NOT_YET_COMPARED",
+      "cohort_role": "UNASSIGNED",
+      "privacy": "ORIGINAL_REMAINS_IN_USER_LIBRARY"
+    },
+    {
+      "id": "RC04",
+      "pages": 6,
+      "printed_pdf_text_layer": "ABSENT",
+      "library_record_candidates": 3,
+      "duplicate_evidence": "ONE_HASH_VERIFIED_DUPLICATE_PAIR_OTHER_COPY_UNVERIFIED",
+      "independently_reviewed_content": false,
+      "mechanism_coverage": "NOT_YET_MAPPED",
+      "template_family": "NOT_YET_COMPARED",
+      "cohort_role": "UNASSIGNED",
+      "privacy": "ORIGINAL_REMAINS_IN_USER_LIBRARY"
+    },
+    {
+      "id": "RC05",
+      "pages": 5,
+      "printed_pdf_text_layer": "ABSENT",
+      "library_record_candidates": 1,
+      "duplicate_evidence": "SINGLE_DISCOVERED_COPY",
+      "independently_reviewed_content": false,
+      "mechanism_coverage": "NOT_YET_MAPPED",
+      "template_family": "NOT_YET_COMPARED",
+      "cohort_role": "UNASSIGNED",
+      "privacy": "ORIGINAL_REMAINS_IN_USER_LIBRARY"
+    },
+    {
+      "id": "RC06",
+      "pages": 4,
+      "printed_pdf_text_layer": "ABSENT",
+      "library_record_candidates": 1,
+      "duplicate_evidence": "SINGLE_DISCOVERED_COPY",
+      "independently_reviewed_content": false,
+      "mechanism_coverage": "NOT_YET_MAPPED",
+      "template_family": "NOT_YET_COMPARED",
+      "cohort_role": "UNASSIGNED",
+      "privacy": "ORIGINAL_REMAINS_IN_USER_LIBRARY"
+    },
+    {
+      "id": "RC07",
+      "pages": 3,
+      "printed_pdf_text_layer": "ABSENT",
+      "library_record_candidates": 1,
+      "duplicate_evidence": "SINGLE_DISCOVERED_COPY",
+      "independently_reviewed_content": false,
+      "mechanism_coverage": "NOT_YET_MAPPED",
+      "template_family": "NOT_YET_COMPARED",
+      "cohort_role": "UNASSIGNED",
+      "privacy": "ORIGINAL_REMAINS_IN_USER_LIBRARY"
+    }
+  ],
+  "prior_sanitized_assets": {
+    "golden_fixture": "research/question_engine/golden_contracts/contract_001_he.txt",
+    "fixture_source_pages": 3,
+    "fixture_to_private_pdf_match": "NOT_ESTABLISHED",
+    "cross_contract_matrix": "research/question_engine/dispute_practice/cross_contract_mechanism_matrix_v1.json",
+    "matrix_contracts_compared": 2,
+    "matrix_to_private_pdf_match": "NOT_ESTABLISHED"
+  },
+  "privacy_gate": {
+    "original_filenames_committed": false,
+    "original_file_ids_committed": false,
+    "original_file_hashes_committed": false,
+    "unredacted_pdf_bytes_committed": false,
+    "contract_facts_committed": false
+  },
+  "next_step": "Create a sanitized mechanism coverage map from already approved fixtures and previously sanitized research; source-level attribution only after private matching. Choose dev/holdout across verified template families, not filenames."
+}
