@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "prepared_on": "2026-09-23",
+  "status": "PRIVATE_VISUAL_FAMILY_RESEARCH_NOT_GOLD",
+  "method": "Private comparison of first, second and last pages of locally available PDFs; visual layout/printed clause structure plus OCR-free local feature matching. Original images, filenames, identities, byte hashes and matching crops are not committed.",
+  "families": [
+    {
+      "id": "TF_A",
+      "groups": [
+        "RC01",
+        "RC04"
+      ],
+      "relation": "SAME_EXECUTED_DOCUMENT_DIFFERENT_CAPTURE_STRONGLY_SUPPORTED",
+      "basis": "First, second and last pages visually correspond, including handwritten/signed page layout; local image feature alignment is strong. Original PDF bytes differ; this is not a byte-duplicate claim.",
+      "review": "PRIVATE_MULTIPAGE_VISUAL_MATCH",
+      "cohort": "QUARANTINE_DUPLICATE_CHAIN"
+    },
+    {
+      "id": "TF_B",
+      "groups": [
+        "RC02",
+        "RC03",
+        "RC05"
+      ],
+      "relation": "SHARED_PRINTED_TEMPLATE_DISTINCT_AGREEMENT_EDITIONS",
+      "basis": "Same numbered boilerplate and matching first/second/last page structure; core period/payment wording differs. Group by template to avoid train/test leakage.",
+      "review": "PRIVATE_MULTIPAGE_VISUAL_MATCH",
+      "cohort": "DEVELOPMENT_CANDIDATE_SANITIZATION_REQUIRED"
+    },
+    {
+      "id": "TF_C",
+      "groups": [
+        "RC06"
+      ],
+      "relation": "VISUALLY_DISTINCT_SINGLETON_TEMPLATE",
+      "basis": "Sampled page organization and clause structure differ from TF_A, TF_B and TF_D; complete semantic independence is not established.",
+      "review": "PRIVATE_SAMPLED_PAGES_ONLY",
+      "cohort": "HOLDOUT_CANDIDATE_NOT_ACTIVATED"
+    },
+    {
+      "id": "TF_D",
+      "groups": [
+        "RC07"
+      ],
+      "relation": "VISUALLY_DISTINCT_SINGLETON_TEMPLATE",
+      "basis": "Sampled pages show a different clause sequence and layout from TF_A, TF_B and TF_C. Template separation does not certify independent lease facts.",
+      "review": "PRIVATE_SAMPLED_PAGES_ONLY",
+      "cohort": "HOLDOUT_CANDIDATE_NOT_ACTIVATED"
+    }
+  ],
+  "golden_fixture": {
+    "source": "research/question_engine/golden_contracts/contract_001_he.txt",
+    "linked_family": "NOT_ESTABLISHED",
+    "RC07_direct_match": "INCONSISTENT_PRINTED_TERM_AND_SECTION_STRUCTURE",
+    "others": "NOT_ESTABLISHED",
+    "product_owner_text_review": "PENDING"
+  },
+  "two_contract_matrix": {
+    "source": "research/question_engine/dispute_practice/cross_contract_mechanism_matrix_v1.json",
+    "family_mapping": "NOT_ESTABLISHED",
+    "relationship_to_golden": "NOT_ESTABLISHED"
+  },
+  "cohort_boundary": {
+    "split_status": "CANDIDATES_ONLY_NO_INDEPENDENT_HOLDOUT_YET",
+    "development_candidate": [
+      "TF_B"
+    ],
+    "holdout_candidates": [
+      "TF_C",
+      "TF_D"
+    ],
+    "quarantined": [
+      "TF_A"
+    ],
+    "risk": "Cross-template tenant, property, chronology and prior research overlap have not been independently excluded. Holdout family must remain unexposed to mechanism training and undergo privacy-approved review before activation."
+  },
+  "still_unknown": [
+    "Full contract contents not reanalyzed; some equal-title Library copies still require byte verification.",
+    "No verified match between sanitized research and anonymous private groups.",
+    "No verified cross-family factual independence or separate legal Gold labels."
+  ],
+  "privacy": {
+    "original_filenames_committed": false,
+    "source_ids_committed": false,
+    "byte_hashes_committed": false,
+    "original_page_images_committed": false,
+    "raw_OCR_committed": false,
+    "private_pairwise_identifiers_committed": false,
+    "external_contract_provider_runs": false,
+    "existing_fixture_modified": false
+  }
+}
