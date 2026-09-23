@@ -152,8 +152,10 @@ def validate(review: dict, printed_text: str,
             require(isinstance(x[key], list) and all(
                 isinstance(v, str) and v.strip() for v in x[key]),
                 "invalid unknowns or discussion questions")
-        require(REQUIRED_REREADS.get(x["id"], "") in x["second_pass"],
-                "required critical reread missing")
+        required_reread = REQUIRED_REREADS.get(x["id"])
+        if required_reread is not None:
+            require(required_reread in x["second_pass"],
+                    "required critical reread missing")
         require(len(x["gaps"]) >= 1, "lack of explicit uncertainty")
         quotes = x["quotes"]
         require(isinstance(quotes, list) and len(quotes) >= 2,
