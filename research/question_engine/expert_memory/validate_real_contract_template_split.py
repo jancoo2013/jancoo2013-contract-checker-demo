@@ -1,4 +1,4 @@
-"""Offline audit of anonymous, provisional PDF-template and cohort links."""
+"""Offline audit of the anonymized real-contract template-family split."""
 
 from __future__ import annotations
 
@@ -10,22 +10,21 @@ BASE = ROOT / "research/question_engine/expert_memory"
 DATA = BASE / "real_contract_template_split_v1.json"
 EXPECTED = {
     "TF_A": (["RC01", "RC04"],
-             "SAME_EXECUTED_DOCUMENT_DIFFERENT_CAPTURE_STRONGLY_SUPPORTED",
-             "PRIVATE_MULTIPAGE_VISUAL_MATCH", "QUARANTINE_DUPLICATE_CHAIN"),
+             "SAME_EXECUTED_AGREEMENT_DIFFERENT_CAPTURE_CONFIRMED",
+             "DEVELOPMENT_DUPLICATE_CHAIN_ONE_CONTENT_INSTANCE"),
     "TF_B": (["RC02", "RC03", "RC05"],
-             "SHARED_PRINTED_TEMPLATE_DISTINCT_AGREEMENT_EDITIONS",
-             "PRIVATE_MULTIPAGE_VISUAL_MATCH",
-             "DEVELOPMENT_CANDIDATE_SANITIZATION_REQUIRED"),
-    "TF_C": (["RC06"], "VISUALLY_DISTINCT_SINGLETON_TEMPLATE",
-             "PRIVATE_SAMPLED_PAGES_ONLY", "HOLDOUT_CANDIDATE_NOT_ACTIVATED"),
-    "TF_D": (["RC07"], "VISUALLY_DISTINCT_SINGLETON_TEMPLATE",
-             "PRIVATE_SAMPLED_PAGES_ONLY", "HOLDOUT_CANDIDATE_NOT_ACTIVATED"),
+             "SHARED_PRINTED_TEMPLATE_DISTINCT_AGREEMENT_EDITIONS_CONFIRMED",
+             "DEVELOPMENT"),
+    "TF_C": (["RC06"], "DISTINCT_SINGLETON_TEMPLATE_CONFIRMED",
+             "INDEPENDENT_TEST_RESERVED"),
+    "TF_D": (["RC07"], "DISTINCT_SINGLETON_TEMPLATE_CONFIRMED",
+             "INDEPENDENT_TEST_RESERVED"),
 }
-EXPECTED_PRIVACY = {
+PRIVACY_FIELDS = {
     "original_filenames_committed", "original_library_ids_committed",
-    "byte_hashes_committed", "source_identity_map_committed",
+    "byte_hash_values_committed", "source_identity_map_committed",
     "original_page_images_committed", "raw_OCR_committed",
-    "external_contract_provider_runs", "existing_fixture_modified",
+    "external_contract_provider_runs", "sidecar_report_used_as_evidence",
 }
 
 
@@ -37,12 +36,14 @@ def require(condition: bool, message: str) -> None:
 def read(path: Path) -> dict:
     require(path.is_file() and not path.is_symlink()
             and path.stat().st_size < 60_000, "unsafe or oversized research file")
+
     def no_duplicates(pairs: list[tuple[str, object]]) -> dict:
         result: dict = {}
         for key, value in pairs:
             require(key not in result, "duplicate JSON field")
             result[key] = value
         return result
+
     value = json.loads(path.read_text(encoding="utf-8"),
                        object_pairs_hook=no_duplicates)
     require(isinstance(value, dict), "expected JSON object")
@@ -51,90 +52,113 @@ def read(path: Path) -> dict:
 
 def validate(data: dict, inventory: dict, coverage: dict, gold_meta: dict) -> None:
     require(set(data) == {
-        "schema_version", "prepared_on", "status", "method", "families",
-        "golden_fixture", "two_contract_matrix", "cohort_boundary",
-        "still_unknown", "privacy",
+        "schema_version", "prepared_on", "status", "source_summary",
+        "families", "golden_fixture", "prior_two_contract_research",
+        "cohort_boundary", "still_unknown", "privacy",
     } and data["schema_version"] == 1
             and data["prepared_on"] == "2026-09-23"
-            and data["status"] == "PRIVATE_VISUAL_FAMILY_RESEARCH_NOT_GOLD"
-            and "OCR-free" in data["method"],
-            "research review or source method overstated")
-    prior_ids = {x["id"] for x in inventory["contracts"]}
+            and data["status"] == "PRIVATE_LOCAL_TEMPLATE_FAMILY_SPLIT_NOT_GOLD",
+            "template research status overstated")
+
+    source = data["source_summary"]
+    require(set(source) == {
+        "scope", "pdf_count", "distinct_byte_groups",
+        "exact_duplicate_extra_copies", "method", "identifiers_persisted",
+    } and source["pdf_count"] == 8
+            and source["distinct_byte_groups"] == 7
+            and source["exact_duplicate_extra_copies"] == 1
+            and source["identifiers_persisted"] is False
+            and "no OCR" in source["method"]
+            and "no report or sidecar JSON" in source["scope"],
+            "private local source evidence changed")
+
+    prior_ids = {item["id"] for item in inventory["contracts"]}
     require(prior_ids == {f"RC{i:02d}" for i in range(1, 8)}
-            and inventory["status"] == "PRIVATE_LIBRARY_METADATA_INVENTORY_ONLY"
-            and all(x["cohort_role"] == "UNASSIGNED"
-                    for x in inventory["contracts"]),
-            "private inventory modified or independently reviewed")
-    groups = data["families"]
-    require(isinstance(groups, list) and len(groups) == 4
-            and {x["id"] for x in groups} == set(EXPECTED),
-            "four distinct template families required")
+            and inventory["status"] == "PRIVATE_LIBRARY_METADATA_INVENTORY_ONLY",
+            "private inventory identity changed")
+    families = data["families"]
+    require(isinstance(families, list) and len(families) == 4
+            and {item["id"] for item in families} == set(EXPECTED),
+            "four confirmed template families required")
     covered: list[str] = []
-    for family in groups:
-        require(isinstance(family, dict) and set(family) == {
-            "id", "groups", "relation", "basis", "review", "cohort",
+    cohort_by_group: dict[str, str] = {}
+    for family in families:
+        require(set(family) == {
+            "id", "groups", "relation", "evidence", "evidence_grade", "cohort",
         }, "unexpected sensitive family field")
-        ids, relation, review, cohort = EXPECTED[family["id"]]
+        ids, relation, cohort = EXPECTED[family["id"]]
         require(family["groups"] == ids and family["relation"] == relation
-                and family["review"] == review and family["cohort"] == cohort,
-                "unverified template or cohort promoted")
-        require(isinstance(family["basis"], str)
-                and 30 <= len(family["basis"]) <= 500
-                and "@" not in family["basis"]
-                and "http" not in family["basis"].lower(),
-                "source identity or unbounded unsupported evidence")
-        covered.extend(family["groups"])
-    require(len(covered) == len(prior_ids) and set(covered) == prior_ids,
-            "anonymous PDFs omitted or duplicated")
-    previous = coverage["private_groups"]
-    require({x["id"] for x in previous} == prior_ids
-            and all(x["coverage"] == "UNKNOWN_NOT_REVIEWED"
-                    and x["cohort"] == "UNASSIGNED" for x in previous),
-            "old source coverage silently rewritten")
+                and family["cohort"] == cohort,
+                "confirmed family or cohort assignment changed")
+        require(family["evidence_grade"].startswith("PRIVATE_")
+                and 40 <= len(family["evidence"]) <= 500
+                and "@" not in family["evidence"]
+                and "http" not in family["evidence"].lower(),
+                "source identity or unsupported public evidence")
+        for group in ids:
+            require(group not in cohort_by_group, "group crosses template families")
+            cohort_by_group[group] = cohort
+        covered.extend(ids)
+    require(set(covered) == prior_ids and len(covered) == len(prior_ids),
+            "anonymous PDF groups omitted or duplicated")
+
+    require(all(item["coverage"] == "UNKNOWN_NOT_REVIEWED"
+                for item in coverage["private_groups"]),
+            "template comparison fabricated mechanism coverage")
     gold = data["golden_fixture"]
-    require(set(gold) == {"source", "linked_family", "RC07_direct_match",
-                          "others", "product_owner_text_review"}
-            and gold["source"] ==
+    require(set(gold) == {
+        "source", "linked_family", "excluded_direct_matches", "other_private_groups",
+        "selection", "training_eligibility", "product_owner_text_review",
+    } and gold["source"] ==
             "research/question_engine/golden_contracts/contract_001_he.txt"
-            and gold["linked_family"] == "NOT_ESTABLISHED"
-            and gold["RC07_direct_match"] ==
-            "INCONSISTENT_PRINTED_TERM_AND_SECTION_STRUCTURE"
-            and gold["others"] == "NOT_ESTABLISHED"
+            and gold["linked_family"] == "UNKNOWN"
+            and gold["excluded_direct_matches"] == ["RC07"]
+            and gold["other_private_groups"] == "UNKNOWN"
+            and gold["selection"] == "SELECTED_NEXT_DEEP_EXPERT_REVIEW"
+            and gold["training_eligibility"] ==
+            "BLOCKED_PENDING_PRIVATE_FAMILY_LINKAGE"
             and gold["product_owner_text_review"] == "PENDING"
             and "product-owner text-level review not yet recorded"
             in gold_meta["review_status"],
-            "unverified Golden Fixture identity or review claimed")
-    old = data["two_contract_matrix"]
-    require(set(old) == {"source", "family_mapping", "relationship_to_golden"}
+            "unverified Golden Fixture identity or training use claimed")
+
+    old = data["prior_two_contract_research"]
+    require(set(old) == {"source", "original_groups", "family_mapping", "reason"}
             and old["source"] ==
             "research/question_engine/dispute_practice/cross_contract_mechanism_matrix_v1.json"
-            and old["family_mapping"] == old["relationship_to_golden"]
-            == "NOT_ESTABLISHED", "two-contract aggregate wrongly attributed")
+            and old["original_groups"] == old["family_mapping"] == "UNKNOWN"
+            and len(old["reason"]) >= 50,
+            "prior two-contract originals wrongly attributed")
+
     split = data["cohort_boundary"]
     require(set(split) == {
-        "split_status", "development_candidate", "holdout_candidates",
-        "quarantined", "risk",
-    } and split["split_status"] ==
-            "CANDIDATES_ONLY_NO_INDEPENDENT_HOLDOUT_YET"
-            and split["development_candidate"] == ["TF_B"]
-            and split["holdout_candidates"] == ["TF_C", "TF_D"]
-            and split["quarantined"] == ["TF_A"]
-            and isinstance(split["risk"], str) and split["risk"].strip(),
-            "independent cohort or held-out Gold fabricated")
+        "status", "development_families", "independent_test_families",
+        "unassigned_families", "rationale", "leakage_rule",
+    } and split["status"] == "FAMILY_DISJOINT_SPLIT_RESERVED"
+            and split["development_families"] == ["TF_A", "TF_B"]
+            and split["independent_test_families"] == ["TF_C", "TF_D"]
+            and split["unassigned_families"] == []
+            and set(split["development_families"]).isdisjoint(
+                split["independent_test_families"])
+            and all(family["id"] in split["development_families"]
+                    for family in families if family["cohort"].startswith("DEVELOPMENT"))
+            and all(family["id"] in split["independent_test_families"]
+                    for family in families if family["cohort"] ==
+                    "INDEPENDENT_TEST_RESERVED"),
+            "family-disjoint cohort boundary violated")
     require(isinstance(data["still_unknown"], list)
-            and len(data["still_unknown"]) == 3
-            and all(isinstance(x, str) and len(x) > 25
-                    for x in data["still_unknown"]),
-            "unresolved primary-source overlap suppressed")
-    require(set(data["privacy"]) == EXPECTED_PRIVACY
+            and len(data["still_unknown"]) == 4
+            and all(isinstance(item, str) and len(item) > 40
+                    for item in data["still_unknown"]),
+            "material uncertainty suppressed")
+    require(set(data["privacy"]) == PRIVACY_FIELDS
             and all(value is False for value in data["privacy"].values()),
-            "private originals or provider use promoted")
+            "private source data or provider use promoted")
 
 
 if __name__ == "__main__":
-    source = read(DATA)
-    validate(source, read(BASE / "real_contract_inventory_v1.json"),
+    validate(read(DATA), read(BASE / "real_contract_inventory_v1.json"),
              read(BASE / "real_contract_coverage_v1.json"),
              read(ROOT / "research/question_engine/golden_contracts/contract_001.meta.json"))
-    print("Template split: 4 candidate families / 7 anonymized PDFs; "
-          "dev/holdout NOT ACTIVATED and NOT legal Gold.")
+    print("Template split: 4 families / 7 anonymous groups; family-disjoint "
+          "development and reserved independent-test cohorts; not legal Gold.")
