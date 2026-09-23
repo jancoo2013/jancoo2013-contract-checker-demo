@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-23-143",
+  "state_version": "privacy-ocr-2026-09-23-144",
   "active_track": "expert-memory-development",
   "next_step_id": "expert-memory-contract-001-source-family-verification-v1",
-  "next_step_summary": "PR #292 records the owner-directed second critical pass over the existing three-page sanitized printed contract_001: 15 cross-clause mechanisms, 55 exact short source quotes, and one clause-sequence integrity check. It adds property-inventory evidence, the signature-date trigger for arnona notice, and the special agreed-occupant term; separates early exit, post-term holdover, and security realization; and limits repair set-off to the landlord-responsibility, tenant-demand, and reasonable-time preconditions written in clause 9b. Missing 8.b content is not reconstructed. This is NOT independently verified legal Gold or evaluation/training data. Existing RC07 exclusion and all other original-family matches stay UNKNOWN; no raw originals, external providers, OCR, RAG, database, or runtime changes. Next bounded step: separately approved private/local verification of the sanitized transcription, clause sequence, and source family. Training and independent scoring remain blocked until family linkage is confirmed.",
-  "last_recorded_pr": 292,
-  "last_recorded_change": "expert-memory-contract-001-deep-review-v1",
+  "next_step_summary": "Owner-authorized bounded research exception PR #293 added three dated contract_001 statutory crosschecks: (1) consent-dependent renewal vs actual tenant option and 25יב 60-day notice; (2) routine/urgent repairs, 25ח 30-/3-day bounds, 9(c) emergency self-help and section 8 undisclosed defects, keeping reimbursement, reduction and set-off separate; (3) ordinary security cheque vs bank guarantee, separating 25י(b) financial-outlay amount cap from 25י(c)-(e) realization, notice/cure and return, and bank processing from landlord entitlement. The new 2026 licensed-provider amendment is dated effective 2026-09-30, not current on 2026-09-23. All checks retain 25טו applicability, 25יד non-derogation, historical/current law dating, source-review uncertainty, source-family UNKNOWN, training/evaluation block and no runtime/provider/OCR/RAG changes. The canonical next task remains expert-memory-contract-001-source-family-verification-v1.",
+  "last_recorded_pr": 293,
+  "last_recorded_change": "expert-memory-contract-001-statutory-crosschecks-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-09-23"
