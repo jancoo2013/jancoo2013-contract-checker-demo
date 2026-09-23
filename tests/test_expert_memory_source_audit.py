@@ -402,13 +402,52 @@ class Contract001DeepReviewTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, fragment):
             validate_deep(changed, self.printed, self.meta, self.split)
 
-    def test_twelve_human_style_mechanisms_source_anchored(self) -> None:
+    def test_fifteen_human_style_mechanisms_source_anchored(self) -> None:
         validate_deep(self.review, self.printed, self.meta, self.split)
-        self.assertEqual(len(self.review["mechanisms"]), 12)
+        self.assertEqual(len(self.review["mechanisms"]), 15)
         self.assertGreaterEqual(
-            sum(len(x["quotes"]) for x in self.review["mechanisms"]), 40)
+            sum(len(x["quotes"]) for x in self.review["mechanisms"]), 55)
         self.assertEqual(self.review["private_original_link"],
                          "UNKNOWN_EXCEPT_RC07_EXCLUDED")
+
+    def test_critical_pass_adds_requested_cross_clause_mechanisms(self) -> None:
+        by_id = {x["id"]: x for x in self.review["mechanisms"]}
+        self.assertEqual(
+            set(by_id["property_inventory_handover_return"]["clauses"]),
+            {"3", "9", "12", "14"})
+        self.assertEqual(
+            set(by_id["arnona_signature_deadline"]["clauses"]),
+            {"3", "5", "6"})
+        self.assertEqual(
+            set(by_id["agreed_occupants_general_and_specific"]["clauses"]),
+            {"7", "24"})
+
+    def test_early_exit_holdover_and_security_are_not_collapsed(self) -> None:
+        by_id = {x["id"]: x for x in self.review["mechanisms"]}
+        self.assertIn("Ранний выезд по §8 отличается",
+                      by_id["early_exit_transfer_and_remaining_rent"]
+                      ["second_pass"])
+        self.assertIn("§17 относится к задержке освобождения",
+                      by_id["moveout_condition_holdover_security"]
+                      ["second_pass"])
+        self.assertIn("Реализация чека по §11",
+                      by_id["security_cheque_not_bank_guarantee"]
+                      ["second_pass"])
+
+    def test_repair_setoff_retains_all_written_preconditions(self) -> None:
+        repair = next(x for x in self.review["mechanisms"]
+                      if x["id"] == "repair_setoff_vs_default")
+        quotes = {q["quote"] for q in repair["quotes"]}
+        self.assertIn("אשר החובה לתקנם תהא עליו כמשכיר", quotes)
+        self.assertIn("תוך זמן סביר מיום דרישת השוכר", quotes)
+        self.assertIn("לקזז את ההוצאה מדמי השכירות", quotes)
+
+    def test_missing_8b_is_only_an_original_comparison_gate(self) -> None:
+        check = self.review["integrity_checks"][0]
+        self.assertEqual(check["status"], "ORIGINAL_COMPARISON_REQUIRED")
+        self.assertIn("8. א.", self.printed)
+        self.assertNotIn("8. ב.", self.printed)
+        self.assertIn("особенностью бланка", check["avoid"])
 
     def test_reject_invented_hebrew_quote(self) -> None:
         self.rejects(lambda d: d["mechanisms"][0]["quotes"][0].update(
@@ -436,6 +475,10 @@ class Contract001DeepReviewTests(unittest.TestCase):
     def test_reject_missing_second_pass(self) -> None:
         self.rejects(lambda d: d["mechanisms"][4].update(
             second_pass=""), "missing independent reasoning")
+
+    def test_reject_dropped_clause_sequence_check(self) -> None:
+        self.rejects(lambda d: d.update(integrity_checks=[]),
+                     "missing clause-sequence integrity check")
 
     def test_reject_suppressed_missing_appendix(self) -> None:
         self.rejects(lambda d: d["mechanisms"][5].update(

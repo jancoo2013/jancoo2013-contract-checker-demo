@@ -1,4 +1,4 @@
-"""Offline provenance gate for assistant's first contract_001 review (not legal Gold)."""
+"""Offline provenance gate for the contract_001 critical review (not legal Gold)."""
 
 from __future__ import annotations
 
@@ -24,6 +24,9 @@ IDS = {
     "entry_coordination_qualifier",
     "tenant_goods_and_third_party_loss",
     "documents_notice_and_precedence",
+    "property_inventory_handover_return",
+    "arnona_signature_deadline",
+    "agreed_occupants_general_and_specific",
 }
 ESSENTIAL = {
     "term_payment_option_security_return": {"3", "4", "8", "11", "17"},
@@ -38,6 +41,23 @@ ESSENTIAL = {
     "entry_coordination_qualifier": {"15"},
     "tenant_goods_and_third_party_loss": {"9", "22"},
     "documents_notice_and_precedence": {"12", "21", "23"},
+    "property_inventory_handover_return": {"3", "9", "12", "14"},
+    "arnona_signature_deadline": {"3", "5", "6"},
+    "agreed_occupants_general_and_specific": {"7", "24"},
+}
+REQUIRED_REREADS = {
+    "security_cheque_not_bank_guarantee": "Реализация чека по §11",
+    "early_exit_transfer_and_remaining_rent": "Ранний выезд по §8 отличается",
+    "repair_setoff_vs_default":
+        "сначала требуется обращение арендатора, затем неисполнение в разумный срок",
+    "moveout_condition_holdover_security":
+        "§17 относится к задержке освобождения после завершения срока",
+    "property_inventory_handover_return":
+        "Приложение Б прямо названо списком дефектов",
+    "arnona_signature_deadline":
+        "Три рабочих дня считаются от подписания договора",
+    "agreed_occupants_general_and_specific":
+        "Описанное в §24 проживание нельзя объявлять нарушением",
 }
 LIMITS = [
     "No handwriting or signature reconstruction",
@@ -79,7 +99,8 @@ def validate(review: dict, printed_text: str,
              meta: dict, family_split: dict) -> None:
     require(set(review) == {"schema_version", "review_id", "source",
             "source_review", "scope", "private_original_link",
-            "development_cohort", "mechanisms", "scope_limits", "state"}
+            "development_cohort", "mechanisms", "integrity_checks",
+            "scope_limits", "state"}
             and review["schema_version"] == 1
             and review["review_id"] == "contract_001_deep_review_v1"
             and review["source"] ==
@@ -92,7 +113,7 @@ def validate(review: dict, printed_text: str,
             and review["development_cohort"] ==
             "BLOCKED_PENDING_PRIVATE_FAMILY_LINKAGE"
             and review["state"] ==
-            "FIRST_INDEPENDENT_ASSISTANT_PASS_OWNER_REVIEW_PENDING",
+            "SECOND_CRITICAL_PASS_OWNER_DIRECTED_SOURCE_NOT_SIGNED_OFF",
             "unverified review promoted or provenance changed")
     require(meta["fixture_id"] == "contract_001"
             and meta["pii_removed"] is True
@@ -131,6 +152,8 @@ def validate(review: dict, printed_text: str,
             require(isinstance(x[key], list) and all(
                 isinstance(v, str) and v.strip() for v in x[key]),
                 "invalid unknowns or discussion questions")
+        require(REQUIRED_REREADS.get(x["id"], "") in x["second_pass"],
+                "required critical reread missing")
         require(len(x["gaps"]) >= 1, "lack of explicit uncertainty")
         quotes = x["quotes"]
         require(isinstance(quotes, list) and len(quotes) >= 2,
@@ -141,11 +164,27 @@ def validate(review: dict, printed_text: str,
                     and q["quote"] in sections[q["clause"]],
                     "fabricated or misattributed Hebrew source quote")
         total_quotes += len(quotes)
-    require(total_quotes >= 40, "evidence coverage unexpectedly reduced")
+    require(total_quotes >= 55, "evidence coverage unexpectedly reduced")
+    checks = review["integrity_checks"]
+    require(isinstance(checks, list) and len(checks) == 1,
+            "missing clause-sequence integrity check")
+    check = checks[0]
+    require(set(check) == {"id", "clauses", "quotes", "observation",
+            "status", "avoid", "next_check"}
+            and check["id"] == "clause_8_subclause_sequence"
+            and check["clauses"] == ["8", "9"]
+            and check["status"] == "ORIGINAL_COMPARISON_REQUIRED"
+            and "8. ב." not in sections["8"],
+            "invalid clause-sequence integrity check")
+    for q in check["quotes"]:
+        require(set(q) == {"clause", "quote"}
+                and q["clause"] in check["clauses"]
+                and q["quote"] in sections[q["clause"]],
+                "fabricated integrity-check source quote")
 
 
 if __name__ == "__main__":
     validate(read(DATA), GOLD.read_text(encoding="utf-8"),
              read(META), read(SPLIT))
-    print("Deep contract_001: 12 source-anchored mechanisms verified; "
-          "assistant first pass, not reviewed Gold.")
+    print("Deep contract_001: 15 source-anchored mechanisms and one "
+          "integrity check verified; not reviewed legal Gold.")
