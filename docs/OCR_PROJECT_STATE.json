@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-22-138",
+  "state_version": "privacy-ocr-2026-09-23-139",
   "active_track": "expert-memory-development",
-  "next_step_id": "expert-memory-case-law-original-verification-v1",
-  "next_step_summary": "Owner-authorized bounded exception PR #288 collects five independently identifiable rental-security cheque judicial decisions with dates, dockets, public court-text mirrors or index extracts, source-quality limits and case-specific possible model-error hypotheses. Two decisions follow the 2017 residential rental reform; three predate it. Full original judiciary files, any appellate history and portions of two outcomes have not been independently checked. These are NOT observed model errors, expert-reviewed legal Gold or eligible training/evaluation labels; the existing five synthetic ExpertCase records remain unchanged. Next: retrieve original complete judgments, check appeals and independently verify each reported holding, then develop a separate specialist-review and omission/linkage challenge packet. PR #287 full/current Enforcement Authority cheque procedure remains unavailable and explicitly open for later verification. Real-contract/provider analyses remain frozen; no OCR, RAG/database or runtime changes.",
-  "last_recorded_pr": 288,
-  "last_recorded_change": "expert-memory-five-security-cheque-judgments-v1",
+  "next_step_id": "expert-memory-real-contract-coverage-v1",
+  "next_step_summary": "PR #289 is the owner-authorized first small real-lease inventory step. Fourteen discovered private Library PDF records represent seven sampled distinct-byte groups; eight readable originals include one verified duplicate, other matching-name/size duplicates remain candidates. Only anonymous group IDs, page counts and PDF text-layer presence are committed: original names, IDs, hashes, photos and contract text stay private. Existing three-page sanitized Golden Fixture contract_001 and the two-contract sanitized mechanism matrix are confirmed repository artifacts but not independently mapped to these Library groups. Next small task: build a sanitized mechanism-coverage matrix from existing permitted material, explicitly mark source and template-family unknowns, then privately validate group matching and select non-overlapping development vs holdout families. Five court originals and full/current 2025 cheque procedure remain parallel research gaps. No new real-lease provider calls, OCR, RAG, runtime, or legal Gold promotion.",
+  "last_recorded_pr": 289,
+  "last_recorded_change": "expert-memory-real-contract-inventory-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
-  "updated_on": "2026-09-22"
+  "updated_on": "2026-09-23"
 }
