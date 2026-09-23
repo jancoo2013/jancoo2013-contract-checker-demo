@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "prepared_on": "2026-09-23",
+  "status": "PRIVATE_LOCAL_TEMPLATE_FAMILY_SPLIT_NOT_GOLD",
+  "source_summary": {
+    "scope": "Eight locally supplied PDFs compared offline; no report or sidecar JSON used as evidence.",
+    "pdf_count": 8,
+    "distinct_byte_groups": 7,
+    "exact_duplicate_extra_copies": 1,
+    "method": "Local byte comparison plus multipage visual-layout and printed-clause-structure comparison; no OCR or external provider.",
+    "identifiers_persisted": false
+  },
+  "families": [
+    {
+      "id": "TF_A",
+      "groups": ["RC01", "RC04"],
+      "relation": "SAME_EXECUTED_AGREEMENT_DIFFERENT_CAPTURE_CONFIRMED",
+      "evidence": "All six corresponding pages share the same printed and completed-page structure. RC04 also contains the one byte-identical extra copy; RC01 is a different capture, not a byte duplicate.",
+      "evidence_grade": "PRIVATE_MULTIPAGE_LOCAL_COMPARISON",
+      "cohort": "DEVELOPMENT_DUPLICATE_CHAIN_ONE_CONTENT_INSTANCE"
+    },
+    {
+      "id": "TF_B",
+      "groups": ["RC02", "RC03", "RC05"],
+      "relation": "SHARED_PRINTED_TEMPLATE_DISTINCT_AGREEMENT_EDITIONS_CONFIRMED",
+      "evidence": "Numbered boilerplate and corresponding page structure match while the agreements contain edition-specific term and payment structure. The whole family remains together to prevent template leakage.",
+      "evidence_grade": "PRIVATE_MULTIPAGE_LOCAL_COMPARISON",
+      "cohort": "DEVELOPMENT"
+    },
+    {
+      "id": "TF_C",
+      "groups": ["RC06"],
+      "relation": "DISTINCT_SINGLETON_TEMPLATE_CONFIRMED",
+      "evidence": "Its sampled multipage organization and clause layout are structurally distinct from TF_A, TF_B and TF_D.",
+      "evidence_grade": "PRIVATE_LOCAL_STRUCTURE_COMPARISON",
+      "cohort": "INDEPENDENT_TEST_RESERVED"
+    },
+    {
+      "id": "TF_D",
+      "groups": ["RC07"],
+      "relation": "DISTINCT_SINGLETON_TEMPLATE_CONFIRMED",
+      "evidence": "Its three-page clause sequence and layout are structurally distinct from TF_A, TF_B and TF_C.",
+      "evidence_grade": "PRIVATE_LOCAL_STRUCTURE_COMPARISON",
+      "cohort": "INDEPENDENT_TEST_RESERVED"
+    }
+  ],
+  "golden_fixture": {
+    "source": "research/question_engine/golden_contracts/contract_001_he.txt",
+    "linked_family": "UNKNOWN",
+    "excluded_direct_matches": ["RC07"],
+    "other_private_groups": "UNKNOWN",
+    "selection": "SELECTED_NEXT_DEEP_EXPERT_REVIEW",
+    "training_eligibility": "BLOCKED_PENDING_PRIVATE_FAMILY_LINKAGE",
+    "product_owner_text_review": "PENDING"
+  },
+  "prior_two_contract_research": {
+    "source": "research/question_engine/dispute_practice/cross_contract_mechanism_matrix_v1.json",
+    "original_groups": "UNKNOWN",
+    "family_mapping": "UNKNOWN",
+    "reason": "The aggregate sanitized artifact contains no trustworthy per-contract source identity; filename, date, page count and topical similarity are insufficient."
+  },
+  "cohort_boundary": {
+    "status": "FAMILY_DISJOINT_SPLIT_RESERVED",
+    "development_families": ["TF_A", "TF_B"],
+    "independent_test_families": ["TF_C", "TF_D"],
+    "unassigned_families": [],
+    "rationale": "Development contains the only confirmed repeated-template family and the duplicate-capture chain. Structurally distinct singleton families are reserved without semantic review as independent tests.",
+    "leakage_rule": "Every capture, edition and executed instance of one template family stays in one cohort; an unresolved family or source link remains unassigned."
+  },
+  "still_unknown": [
+    "The sanitized Golden Fixture is not positively linked to any RC group; RC07 is excluded as a direct match and all other links remain UNKNOWN.",
+    "The original identities behind the prior two-contract aggregate research cannot be reconstructed from trustworthy repository evidence.",
+    "Equal-title or equal-size Library records outside the eight supplied PDFs remain byte-unverified and cannot extend these family conclusions.",
+    "No family has legal Gold labels, specialist review or independently verified mechanism coverage."
+  ],
+  "privacy": {
+    "original_filenames_committed": false,
+    "original_library_ids_committed": false,
+    "byte_hash_values_committed": false,
+    "source_identity_map_committed": false,
+    "original_page_images_committed": false,
+    "raw_OCR_committed": false,
+    "external_contract_provider_runs": false,
+    "sidecar_report_used_as_evidence": false
+  }
+}

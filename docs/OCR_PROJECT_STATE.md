@@ -1,14 +1,16 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-09-23, PR #290, `expert-memory-real-contract-coverage-v1` (после слитого #289).
+Последнее обновление: 2026-09-23, PR #291, `expert-memory-real-contract-template-split-v1` (draft, не сливать автоматически).
 
 Активный трек: `expert-memory-development`.
 
-Канонический следующий bounded-шаг: `expert-memory-real-contract-template-split-v1`.
+Канонический следующий bounded-шаг: `expert-memory-contract-001-deep-review-v1`.
 
 Решение владельца от 2026-09-22: реальные анализы договоров и повторные full-contract прогоны временно приостановлены до создания и независимой проверки качественной базы экспертных знаний. Разрешены локальные синтетические/обезличенные fixture-тесты без внешнего API. PR #281 добавляет экспериментальный Expert Pack v0.1: CORE_PROTOCOL, MECHANISM_PLAYBOOK и 15 синтетических контрастных примеров; эти материалы не являются верифицированной юридической базой. Сохранён уже слитый PR #282 и все его требования контроля Codex. Область OCR, privacy/security, runtime и провайдеров не изменена.
 
-PR #290 — карта покрытия тринадцати механизмов составлена по уже сохранённым обезличенным исследованиям двух договоров и трёхстраничному Golden Fixture. В десяти семействах у Golden Fixture есть проверяемые номера печатных пунктов; три остальных не установлены в этом обезличенном тексте — это НЕ свидетельство отсутствия в оригиналах. Добавлены семь вопросов на перекрёстное чтение взаимосвязанных пунктов и запреты на поспешные выводы. Ни один из этих материалов пока не соотнесён с конкретной анонимной PDF-группой RC01–RC07: их содержимое остаётся UNKNOWN, шаблоны UNVERIFIED, dev/holdout UNASSIGNED. Юридический Gold, новые реальные анализы через внешние модели, OCR, база данных и runtime не затронуты.
+PR #291 — восемь локально предоставленных PDF проверены без OCR и внешних сервисов: семь разных byte-групп и одна дополнительная точная копия. Подтверждены четыре обезличенных семейства: TF_A объединяет RC01/RC04 как разные захваты одного исполненного договора; TF_B объединяет RC02/RC03/RC05 как редакции одного печатного шаблона; RC06 и RC07 образуют отдельные singleton-семейства TF_C и TF_D. Development закреплён за TF_A/TF_B, независимый test зарезервирован за TF_C/TF_D; все экземпляры одного шаблона остаются в одном cohort. `contract_001` выбран для следующего глубокого экспертного разбора, но его положительное соответствие частной RC-группе остаётся UNKNOWN, поэтому training/cohort use заблокирован до приватного сопоставления. Оригиналы двух прежних обезличенных исследований также остались UNKNOWN. Имена, ID, хеши, страницы, OCR и текст оригиналов не опубликованы.
+
+PR #290 — карта покрытия тринадцати механизмов составлена по уже сохранённым обезличенным исследованиям двух договоров и трёхстраничному Golden Fixture. В десяти семействах у Golden Fixture есть проверяемые номера печатных пунктов; три остальных не установлены в этом обезличенном тексте — это НЕ свидетельство отсутствия в оригиналах. Добавлены семь вопросов на перекрёстное чтение взаимосвязанных пунктов и запреты на поспешные выводы. На момент #290 ни один материал ещё не был соотнесён с анонимной PDF-группой. Юридический Gold, новые реальные анализы через внешние модели, OCR, база данных и runtime не затронуты.
 
 PR #289 — по решению владельца выполнен первый небольшой этап инвентаризации наших реальных договоров. В доступной личной Library обнаружены 14 PDF-записей семи вероятных групп; восемь оригиналов удалось проверить локально по байтам — семь различных и одна идентичная копия. Совпадения других имён/размеров ещё не гарантируют тождество содержания. В GitHub добавлены исключительно обезличенные ID, число страниц и наличие цифрового текстового слоя; оригиналы, названия с персональными сведениями, идентификаторы Library и хеши остаются вне репозитория. Соответствие семи PDF уже имеющемуся Golden Fixture и матрице двух обезличенных договоров ещё не подтверждено. Реальные договоры через внешние модели не прогонялись.
 
@@ -225,15 +227,17 @@ The attempt ledger stores only safe error class plus safe quota scope/retry timi
 
 This PR does not add another provider, model, dependency, endpoint, permission, workflow or storage path. It does not change Question Engine semantics/schema, the privacy boundary, report payload contract or OCR scope.
 
-## 8. Canonical next step — match private template families before splitting cohorts
+## 8. Canonical next step — deep expert review of the sanitized Golden Fixture
 
-`next_step_id = expert-memory-real-contract-template-split-v1`
+`next_step_id = expert-memory-contract-001-deep-review-v1`
 
 **Freeze remains:** no raw real-lease external OCR/LLM/provider calls. The already-sanitized printed Golden Fixture, prior two-contract research summary and the private original Library belong to separate evidence layers; no unreviewed source text, recoverable PII, original PDFs or hashes enter GitHub/CI. Five existing ExpertCase seeds and five mirrored court-case leads remain legally unverified.
 
-**PR #290 delivered:** source-scoped mechanism coverage for all **13** previously classified families. The sanitized, three-page printed Golden Fixture contains clause-located evidence of **10** families; the other three are NOT_ESTABLISHED in that fixture, not proved absent from any original. Seven expert-style cross-clause questions name the exact printed sections to reread and assumptions to avoid. The prior matrix's two-contract frequencies remain aggregate research only; overlap between the Golden Fixture, the two-contract research and any anonymous RC01–RC07 group is still unverified. All seven private groups retain UNKNOWN content, UNVERIFIED template family and UNASSIGNED development/holdout cohort. Owner review of the Golden Fixture's text is still pending.
+**PR #291 delivered:** the owner-supplied private packet was compared locally and contains eight PDFs, seven distinct byte groups and one additional exact copy. Four template families are confirmed: TF_A = RC01/RC04 (same executed agreement, different captures), TF_B = RC02/RC03/RC05 (shared printed template, different agreement editions), TF_C = RC06 and TF_D = RC07. TF_A/TF_B are development; TF_C/TF_D are reserved independent test. Duplicate captures and all editions of one template never cross the boundary. Mechanism coverage remains UNKNOWN because this step compared identity/structure, not contract semantics.
 
-**Next small PR:** `expert-memory-real-contract-template-split-v1`. Privately verify which authorized original PDFs correspond to the already-sanitized artifacts and which are duplicated or amended copies of a single template. Record only abstract, privacy-reviewed family linkage and evidence quality, then reserve genuinely family-disjoint development and holdout cohorts. If any mapping cannot be safely verified, keep it unknown and the related cohort unassigned. Choose one already-sanitized development contract for the next deep human-style analysis only after the family boundary is established.
+**Remaining linkage limits:** no supplied PDF is positively linked to `contract_001`; RC07 is excluded as a direct match and all other links remain UNKNOWN. The original groups behind the prior two-contract aggregate cannot be reconstructed from trustworthy repository evidence. `contract_001` is selected for the next deep expert review because it is already sanitized, but it is not eligible for training or cohort scoring until its family link is resolved. Owner text-level review remains pending.
+
+**Next small PR:** `expert-memory-contract-001-deep-review-v1`. Perform an offline, clause-located, human-style mechanism and cross-clause analysis of the existing sanitized `contract_001` only. Preserve contradictions, missing Appendix B and handwriting exclusions; do not infer its private family, activate it for training/evaluation, call providers/OCR, or promote legal conclusions.
 
 **Parallel unverified research:** full official original/appeal checks for the five court decisions; full current Enforcement Authority 2025 cheque/note opening procedure. Neither is promoted by this coverage work.
 

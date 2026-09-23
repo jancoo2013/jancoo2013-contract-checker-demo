@@ -19,6 +19,10 @@ from research.question_engine.expert_memory.validate_real_contract_coverage impo
     DATA as COVERAGE_DATA, read as read_real_coverage,
     validate as validate_real_coverage,
 )
+from research.question_engine.expert_memory.validate_real_contract_template_split import (
+    DATA as SPLIT_DATA, read as read_template_split,
+    validate as validate_template_split,
+)
 from research.question_engine.expert_memory.validate_security_cheque_judgments import (
     read as read_case_law, validate as validate_case_law,
 )
@@ -324,6 +328,59 @@ class SanitizedRealContractCoverageTests(unittest.TestCase):
     def test_no_gold_or_external_real_contract_runs(self) -> None:
         self.rejects(lambda d: d["policy"].update(eligible_gold=True),
                      "Gold or evaluation boundary relaxed")
+
+
+class RealContractTemplateSplitTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.data = read_template_split(SPLIT_DATA)
+        cls.inventory = read_template_split(
+            BASE / "real_contract_inventory_v1.json")
+        cls.coverage = read_template_split(
+            BASE / "real_contract_coverage_v1.json")
+        cls.gold_meta = read_template_split(
+            BASE.parents[2] /
+            "research/question_engine/golden_contracts/contract_001.meta.json")
+
+    def rejects(self, edit, pattern: str) -> None:
+        changed = deepcopy(self.data)
+        edit(changed)
+        with self.assertRaisesRegex(ValueError, pattern):
+            validate_template_split(changed, self.inventory, self.coverage,
+                                    self.gold_meta)
+
+    def test_confirmed_families_and_disjoint_cohorts(self) -> None:
+        validate_template_split(self.data, self.inventory, self.coverage,
+                                self.gold_meta)
+        self.assertEqual(len(self.data["families"]), 4)
+        self.assertEqual(self.data["cohort_boundary"]["development_families"],
+                         ["TF_A", "TF_B"])
+        self.assertEqual(
+            self.data["cohort_boundary"]["independent_test_families"],
+            ["TF_C", "TF_D"])
+
+    def test_reject_cross_family_duplicate(self) -> None:
+        self.rejects(lambda d: d["families"][2]["groups"].append("RC04"),
+                     "confirmed family or cohort assignment changed")
+
+    def test_reject_holdout_leakage(self) -> None:
+        self.rejects(lambda d: d["cohort_boundary"][
+            "development_families"].append("TF_C"),
+            "family-disjoint cohort boundary violated")
+
+    def test_reject_unproven_golden_link(self) -> None:
+        self.rejects(lambda d: d["golden_fixture"].update(
+            linked_family="TF_D"), "unverified Golden Fixture identity")
+
+    def test_reject_attributed_prior_research(self) -> None:
+        self.rejects(lambda d: d["prior_two_contract_research"].update(
+            original_groups=["RC02", "RC05"]),
+            "prior two-contract originals wrongly attributed")
+
+    def test_reject_private_identifier_or_sidecar_evidence(self) -> None:
+        self.rejects(lambda d: d["privacy"].update(
+            sidecar_report_used_as_evidence=True),
+            "private source data or provider use promoted")
 
 
 if __name__ == "__main__":
