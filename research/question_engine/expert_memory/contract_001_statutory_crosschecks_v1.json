@@ -1,0 +1,189 @@
+{
+  "schema_version": 1,
+  "as_of": "2026-09-23",
+  "status": "SOURCE_BACKED_RESEARCH_HYPOTHESES_NOT_GOLD",
+  "source_contract": "research/question_engine/golden_contracts/contract_001_he.txt",
+  "source_review": "OWNER_TEXT_SIGNOFF_AND_PRIVATE_FAMILY_LINK_PENDING",
+  "source_registry": {
+    "law_2017": {
+      "url": "https://fs.knesset.gov.il/20/law/20_lsr_389390.pdf",
+      "kind": "OFFICIAL_ENACTED_AMENDMENT",
+      "verified_by_this_pr": "REPOSITORY_SOURCE_AUDIT_PLUS_PUBLIC_CONSOLIDATED_CROSSCHECK_NOT_OFFICIAL_PDF_BYTES"
+    },
+    "law_2026": {
+      "url": "https://fs.knesset.gov.il/25/law/25_lsr_12846788.pdf",
+      "kind": "OFFICIAL_ENACTED_GAZETTE",
+      "verified_by_this_pr": "EXISTING_DATED_OVERLAY_OFFICIAL_PDF_BYTES_UNAVAILABLE",
+      "effective_from": "2026-09-30",
+      "overlay": "docs/statutory/ISRAEL_RENTAL_AND_LOAN_AMENDMENT_2026_V1.json"
+    }
+  },
+  "global_gates": [
+    "RESIDENTIAL_SCOPE_AND_25טו_EXCLUSIONS",
+    "VERSION_AT_RELEVANT_DATE",
+    "25יד_NON_DEROGATION_AND_FAVORABLE_TERMS",
+    "ORIGINAL_AND_APPENDICES_NOT_VERIFIED",
+    "SPECIALIST_PROPOSITION_REVIEW_PENDING"
+  ],
+  "checks": [
+    {
+      "id": "renewal_true_option_vs_new_consent",
+      "contract_clauses": [
+        "3",
+        "4"
+      ],
+      "contract_quotes": [
+        {
+          "clause": "3",
+          "text": "ל-12 חודשים בלבד"
+        },
+        {
+          "clause": "4",
+          "text": "בכפוף להסכמת המשכיר לכך"
+        }
+      ],
+      "legal_sources": [
+        {
+          "source": "law_2017",
+          "sections": [
+            "25יב(a)",
+            "25יב(c)",
+            "25יד",
+            "25טו"
+          ]
+        }
+      ],
+      "working_hypothesis": "Section 25יב(c) specifies tenant-option notice no later than 60 days before expiry IF a genuine tenant option exists; the clause also requires fresh landlord consent and leaves the contractual notice months blank.",
+      "adversarial_check": "Do not fill the blank with 60 days, equate an invitation to renew with unilateral exercise, infer the end date from contradictory 12-month words and two-year dates, or presume statutory applicability without 25טו.",
+      "unresolved": [
+        "SIGNED_TERM_AND_RENEWAL_ADDENDUM",
+        "OWNER_APPROVED_PRINTED_TRANSCRIPTION",
+        "OPTION_PRICE_AND_CONSENT_DEPENDENCY",
+        "STATUTE_SCOPE_AND_DATE"
+      ],
+      "failure_modes": [
+        "AUTOFILL_60_DAYS_INTO_BLANK",
+        "LABEL_CONSENT_DEPENDENT_RENEWAL_AS_UNILATERAL_OPTION",
+        "NORMALIZE_CONTRADICTORY_DATES_WITHOUT_PROOF"
+      ],
+      "review": "PRIMARY_SOURCE_AND_SPECIALIST_REVIEW_REQUIRED"
+    },
+    {
+      "id": "repair_urgent_exception_and_defect_waiver",
+      "contract_clauses": [
+        "4",
+        "9",
+        "12"
+      ],
+      "contract_quotes": [
+        {
+          "clause": "9",
+          "text": "תוך זמן סביר מיום דרישת השוכר"
+        },
+        {
+          "clause": "9",
+          "text": "לקזז את ההוצאה מדמי השכירות"
+        },
+        {
+          "clause": "12",
+          "text": "פגם ו/או מום גלוי ו/או נסתר"
+        }
+      ],
+      "legal_sources": [
+        {
+          "source": "law_2017",
+          "sections": [
+            "8",
+            "9(a)",
+            "9(b)",
+            "9(c)",
+            "25ח(a)",
+            "25ח(b)",
+            "25ח(c)",
+            "25ו",
+            "25יד",
+            "25טו"
+          ]
+        }
+      ],
+      "working_hypothesis": "On eligible residential leases, section 25ח distinguishes non-trivial landlord repairs (reasonable time up to 30 days from demand) from urgent defects preventing reasonable habitation (reasonable time up to 3 days); section 9(c) addresses an emergency too urgent to wait for landlord action. Section 8 separately constrains undisclosed known or knowable defects despite broad contractual waiver.",
+      "adversarial_check": "Do not require the same demand/wait sequence for every emergency; do not treat reimbursement of reasonable self-repair, proportionate rent reduction, and set-off as synonymous; do not infer Appendix B is missing in the original; check 25יד before asserting non-derogability.",
+      "unresolved": [
+        "DEFECT_TYPE_AND_SEVERITY",
+        "LANDLORD_RESPONSIBILITY_AND_NOTICE",
+        "URGENT_EMERGENCY_EXCEPTION",
+        "APPENDIX_B_AND_OWNER_TEXT_SIGNOFF",
+        "STATUTE_SCOPE_AND_DATE"
+      ],
+      "failure_modes": [
+        "FORCE_30_DAY_WAIT_ON_URGENT_HABITABILITY_DEFECT",
+        "DENY_EMERGENCY_SELF_HELP_FOR_LACK_OF_PRIOR_DEMAND",
+        "EQUATE_SET_OFF_WITH_RENT_REDUCTION",
+        "TREAT_AS_IS_AS_UNLIMITED_IMMUNITY"
+      ],
+      "review": "PRIMARY_SOURCE_AND_SPECIALIST_REVIEW_REQUIRED"
+    },
+    {
+      "id": "security_cheque_vs_bank_guarantee_rule_split",
+      "contract_clauses": [
+        "4",
+        "11"
+      ],
+      "contract_quotes": [
+        {
+          "clause": "11",
+          "text": "שיק עירבון נוסף בסך 10000"
+        },
+        {
+          "clause": "11",
+          "text": "תוחזר הערבות הבנקאית לשוכר"
+        }
+      ],
+      "legal_sources": [
+        {
+          "source": "law_2017",
+          "sections": [
+            "25י(a)",
+            "25י(b)",
+            "25י(c)",
+            "25י(d)",
+            "25י(e)",
+            "25יד",
+            "25טו"
+          ]
+        },
+        {
+          "source": "law_2026",
+          "sections": [
+            "24",
+            "37"
+          ]
+        }
+      ],
+      "working_hypothesis": "Identify actual cheque versus bank guarantee before testing 25י(b): the cumulative amount cap is specific to security entailing tenant financial outlay, not automatically an ordinary cheque. Separately assess the broader defined security realization grounds, reasonable advance notice/cure in 25י(c)-(d), and return mechanism in 25י(e), subject to statutory scope. A bank processing a cheque does not establish that landlord realization was permissible.",
+      "adversarial_check": "Do not infer a second guarantee solely from conflicting return wording; do not transfer the three-month cash/bank cap to every cheque; equally do not mistake inapplicability of the cap for a blanket exclusion of cheques from all security provisions. New licensed-provider guarantees take effect only 2026-09-30 according to the dated overlay, not as current on 2026-09-23.",
+      "unresolved": [
+        "ACTUAL_SIGNED_INSTRUMENT_AND_FIELDS",
+        "SEPARATE_GUARANTEE_EXISTS_UNKNOWN",
+        "MISSING_CONTRACTUAL_RETURN_MONTHS",
+        "BANK_PROCESSING_VS_CLAIM_VALIDITY",
+        "EXECUTION_AUTHORITY_FULL_PROCEDURE_UNVERIFIED",
+        "STATUTE_SCOPE_AND_DATE"
+      ],
+      "failure_modes": [
+        "CAP_EVERY_SECURITY_CHEQUE_AT_THREE_MONTHS",
+        "EXEMPT_CHEQUE_FROM_ALL_25י_SUBSECTIONS",
+        "TREAT_BANK_CASHING_AS_PROOF_OF_ENTITLEMENT",
+        "APPLY_2026_AMENDMENT_BEFORE_EFFECTIVE_DATE"
+      ],
+      "review": "PRIMARY_SOURCE_AND_SPECIALIST_REVIEW_REQUIRED"
+    }
+  ],
+  "use": {
+    "production_runtime": false,
+    "expert_case_gold": false,
+    "legal_verdicts": false,
+    "private_contract_cohort": "BLOCKED_PENDING_PRIVATE_FAMILY_LINK",
+    "next_canonical_step_unmodified": "expert-memory-contract-001-source-family-verification-v1"
+  }
+}
