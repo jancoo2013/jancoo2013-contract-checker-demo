@@ -23,6 +23,11 @@ from research.question_engine.expert_memory.validate_real_contract_template_spli
     DATA as SPLIT_DATA, read as read_template_split,
     validate as validate_template_split,
 )
+from research.question_engine.expert_memory.validate_contract_001_deep_review import (
+    DATA as DEEP_DATA, GOLD as DEEP_GOLD, META as DEEP_META,
+    SPLIT as DEEP_SPLIT, read as read_deep,
+    validate as validate_deep,
+)
 from research.question_engine.expert_memory.validate_security_cheque_judgments import (
     read as read_case_law, validate as validate_case_law,
 )
@@ -381,6 +386,65 @@ class RealContractTemplateSplitTests(unittest.TestCase):
         self.rejects(lambda d: d["privacy"].update(
             sidecar_report_used_as_evidence=True),
             "private source data or provider use promoted")
+
+
+class Contract001DeepReviewTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.review = read_deep(DEEP_DATA)
+        cls.printed = DEEP_GOLD.read_text(encoding="utf-8")
+        cls.meta = read_deep(DEEP_META)
+        cls.split = read_deep(DEEP_SPLIT)
+
+    def rejects(self, edit, fragment: str) -> None:
+        changed = deepcopy(self.review)
+        edit(changed)
+        with self.assertRaisesRegex(ValueError, fragment):
+            validate_deep(changed, self.printed, self.meta, self.split)
+
+    def test_twelve_human_style_mechanisms_source_anchored(self) -> None:
+        validate_deep(self.review, self.printed, self.meta, self.split)
+        self.assertEqual(len(self.review["mechanisms"]), 12)
+        self.assertGreaterEqual(
+            sum(len(x["quotes"]) for x in self.review["mechanisms"]), 40)
+        self.assertEqual(self.review["private_original_link"],
+                         "UNKNOWN_EXCEPT_RC07_EXCLUDED")
+
+    def test_reject_invented_hebrew_quote(self) -> None:
+        self.rejects(lambda d: d["mechanisms"][0]["quotes"][0].update(
+            quote="משפט שלא מופיע בחוזה המקורי"),
+            "fabricated or misattributed Hebrew")
+
+    def test_reject_quote_assigned_to_wrong_clause(self) -> None:
+        self.rejects(lambda d: d["mechanisms"][0]["quotes"][0].update(
+            clause="17"), "fabricated or misattributed Hebrew")
+
+    def test_reject_omitted_party_payment_mechanism(self) -> None:
+        self.rejects(lambda d: d["mechanisms"].__setitem__(
+            slice(None), [x for x in d["mechanisms"]
+                          if x["id"] != "individual_payer_collective_tenant"]),
+            "missing or duplicate human-style")
+
+    def test_reject_premature_golden_family_link(self) -> None:
+        self.rejects(lambda d: d.update(
+            private_original_link="TF_A"), "unverified review promoted")
+
+    def test_reject_unreviewed_legal_gold(self) -> None:
+        self.rejects(lambda d: d.update(
+            scope="VERIFIED_LEGAL_GOLD"), "unverified review promoted")
+
+    def test_reject_missing_second_pass(self) -> None:
+        self.rejects(lambda d: d["mechanisms"][4].update(
+            second_pass=""), "missing independent reasoning")
+
+    def test_reject_suppressed_missing_appendix(self) -> None:
+        self.rejects(lambda d: d["mechanisms"][5].update(
+            gaps=[]), "lack of explicit uncertainty")
+
+    def test_reject_dropped_legal_uncertainty_boundary(self) -> None:
+        self.rejects(lambda d: d["scope_limits"].remove(
+            "No assumption of live statutory enforceability or case outcome"),
+            "missing evidence boundary")
 
 
 if __name__ == "__main__":
