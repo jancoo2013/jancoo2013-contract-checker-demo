@@ -14,6 +14,11 @@ from research.question_engine.expert_memory.validate_source_audit_packet import 
 from research.question_engine.expert_memory.validate_real_contract_inventory import (
     read as read_real_inventory, validate as validate_real_inventory,
 )
+from research.question_engine.expert_memory.validate_real_contract_coverage import (
+    ROOT as COVERAGE_ROOT, SOURCE_PATHS as COVERAGE_SOURCES,
+    DATA as COVERAGE_DATA, read as read_real_coverage,
+    validate as validate_real_coverage,
+)
 from research.question_engine.expert_memory.validate_security_cheque_judgments import (
     read as read_case_law, validate as validate_case_law,
 )
@@ -260,6 +265,65 @@ class PrivateLeaseInventoryTests(unittest.TestCase):
         self.rejects(lambda d: d["privacy_gate"].update(
             original_file_hashes_committed=True),
             "private source data may not be committed")
+
+
+class SanitizedRealContractCoverageTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.data = read_real_coverage(COVERAGE_DATA)
+        cls.evidence = {k: COVERAGE_ROOT / v for k, v
+                        in COVERAGE_SOURCES.items()}
+        cls.matrix = read_real_coverage(cls.evidence["aggregate_matrix"])
+        cls.inventory = read_real_coverage(cls.evidence["private_inventory"])
+        cls.meta = read_real_coverage(cls.evidence["golden_metadata"])
+        cls.gold_text = cls.evidence["golden_fixture"].read_text(encoding="utf-8")
+
+    def rejects(self, edit, pattern: str) -> None:
+        changed = deepcopy(self.data)
+        edit(changed)
+        with self.assertRaisesRegex(ValueError, pattern):
+            validate_real_coverage(changed, self.matrix, self.inventory,
+                                   self.meta, self.gold_text)
+
+    def test_coverage_sources_stay_separate(self) -> None:
+        validate_real_coverage(self.data, self.matrix, self.inventory,
+                               self.meta, self.gold_text)
+        self.assertEqual(len(self.data["mechanisms"]), 13)
+        self.assertEqual(len(self.data["private_groups"]), 7)
+
+    def test_golden_original_link_is_unknown(self) -> None:
+        self.rejects(lambda d: d["linkage"].update(
+            golden_to_inventory="RC07"), "source identity inferred")
+
+    def test_aggregate_frequency_not_a_new_document_oracle(self) -> None:
+        self.rejects(lambda d: d["mechanisms"][0].update(
+            aggregate_seen=7), "aggregate research re-attributed")
+
+    def test_absent_evidence_is_not_confirmed_absence(self) -> None:
+        self.rejects(lambda d: next(x for x in d["mechanisms"]
+            if x["id"] == "shared_meter_accounting").update(
+            golden_status="EVIDENCED_IN_SANITIZED_FIXTURE"),
+            "unreviewed golden fixture claim")
+
+    def test_claim_requires_real_printed_clause(self) -> None:
+        self.rejects(lambda d: d["mechanisms"][0].update(
+            golden_clause_ids=["25"]), "unreviewed golden fixture claim")
+
+    def test_cross_clause_check_requires_locators(self) -> None:
+        self.rejects(lambda d: d["golden_cross_clause_checks"][0].update(
+            clauses=["3", "25"]), "cross-clause question lacks")
+
+    def test_unread_private_contract_cannot_be_promoted(self) -> None:
+        self.rejects(lambda d: d["private_groups"][0].update(
+            coverage="EVIDENCED"), "private contract coverage")
+
+    def test_holdout_not_selected_from_unverified_templates(self) -> None:
+        self.rejects(lambda d: d["private_groups"][0].update(
+            cohort="HOLDOUT"), "private contract coverage")
+
+    def test_no_gold_or_external_real_contract_runs(self) -> None:
+        self.rejects(lambda d: d["policy"].update(eligible_gold=True),
+                     "Gold or evaluation boundary relaxed")
 
 
 if __name__ == "__main__":
