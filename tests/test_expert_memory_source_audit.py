@@ -557,6 +557,21 @@ class Contract001StatutoryCrosscheckTests(unittest.TestCase):
             "RESIDENTIAL_SCOPE_AND_25טו_EXCLUSIONS"),
             "applicability gate lost")
 
+    def test_reject_substituted_statutory_section(self) -> None:
+        self.rejects(lambda d: d["checks"][0]["legal_sources"][0][
+            "sections"].__setitem__(0, "NOT_A_STATUTE_SECTION"),
+            "unverified legal source")
+
+    def test_reject_duplicate_statutory_section(self) -> None:
+        self.rejects(lambda d: d["checks"][1]["legal_sources"][0][
+            "sections"].__setitem__(0, "9(a)"),
+            "unverified legal source")
+
+    def test_reject_duplicate_legal_source(self) -> None:
+        self.rejects(lambda d: d["checks"][2]["legal_sources"].append(
+            deepcopy(d["checks"][2]["legal_sources"][0])),
+            "unverified legal source")
+
 
 if __name__ == "__main__":
     unittest.main()
