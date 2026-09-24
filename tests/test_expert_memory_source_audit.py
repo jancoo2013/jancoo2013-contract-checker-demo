@@ -28,6 +28,10 @@ from research.question_engine.expert_memory.validate_contract_001_deep_review im
     SPLIT as DEEP_SPLIT, read as read_deep,
     validate as validate_deep,
 )
+from research.question_engine.expert_memory.validate_contract_001_statutory_crosschecks import (
+    DATA as STAT_DATA, GOLD as STAT_GOLD, OVERLAY as STAT_OVERLAY,
+    read as read_stat, validate as validate_stat,
+)
 from research.question_engine.expert_memory.validate_security_cheque_judgments import (
     read as read_case_law, validate as validate_case_law,
 )
@@ -502,6 +506,71 @@ class Contract001DeepReviewTests(unittest.TestCase):
         self.rejects(lambda d: d["scope_limits"].remove(
             "No assumption of live statutory enforceability or case outcome"),
             "missing evidence boundary")
+
+
+class Contract001StatutoryCrosscheckTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.data = read_stat(STAT_DATA)
+        cls.gold = STAT_GOLD.read_text(encoding="utf-8")
+        cls.overlay = read_stat(STAT_OVERLAY)
+
+    def rejects(self, edit, error: str) -> None:
+        data = deepcopy(self.data)
+        edit(data)
+        with self.assertRaisesRegex(ValueError, error):
+            validate_stat(data, self.gold, self.overlay)
+
+    def test_three_dated_research_hypotheses(self) -> None:
+        validate_stat(self.data, self.gold, self.overlay)
+        self.assertEqual(len(self.data["checks"]), 3)
+        self.assertFalse(self.data["use"]["expert_case_gold"])
+
+    def test_no_autofilled_option_notice(self) -> None:
+        self.rejects(lambda d: d["checks"][0]["failure_modes"].remove(
+            "AUTOFILL_60_DAYS_INTO_BLANK"), "adversarial error coverage")
+
+    def test_urgent_repair_exception_cannot_disappear(self) -> None:
+        self.rejects(lambda d: d["checks"][1]["failure_modes"].remove(
+            "DENY_EMERGENCY_SELF_HELP_FOR_LACK_OF_PRIOR_DEMAND"),
+            "adversarial error coverage")
+
+    def test_cheque_not_exempt_from_all_security_rules(self) -> None:
+        self.rejects(lambda d: d["checks"][2]["failure_modes"].remove(
+            "EXEMPT_CHEQUE_FROM_ALL_25י_SUBSECTIONS"),
+            "adversarial error coverage")
+
+    def test_reject_early_2026_effective_date(self) -> None:
+        self.rejects(lambda d: d["source_registry"]["law_2026"].update(
+            effective_from="2026-03-31"), "effective date changed")
+
+    def test_reject_fabricated_contract_quote(self) -> None:
+        self.rejects(lambda d: d["checks"][0]["contract_quotes"][0].update(
+            text="לא מופיע בחוזה"), "fabricated or redacted quote")
+
+    def test_reject_premature_expert_gold(self) -> None:
+        self.rejects(lambda d: d["use"].update(expert_case_gold=True),
+                     "promoted to runtime")
+
+    def test_reject_lost_statutory_scope_gate(self) -> None:
+        self.rejects(lambda d: d["global_gates"].remove(
+            "RESIDENTIAL_SCOPE_AND_25טו_EXCLUSIONS"),
+            "applicability gate lost")
+
+    def test_reject_substituted_statutory_section(self) -> None:
+        self.rejects(lambda d: d["checks"][0]["legal_sources"][0][
+            "sections"].__setitem__(0, "NOT_A_STATUTE_SECTION"),
+            "unverified legal source")
+
+    def test_reject_duplicate_statutory_section(self) -> None:
+        self.rejects(lambda d: d["checks"][1]["legal_sources"][0][
+            "sections"].__setitem__(0, "9(a)"),
+            "unverified legal source")
+
+    def test_reject_duplicate_legal_source(self) -> None:
+        self.rejects(lambda d: d["checks"][2]["legal_sources"].append(
+            deepcopy(d["checks"][2]["legal_sources"][0])),
+            "unverified legal source")
 
 
 if __name__ == "__main__":
