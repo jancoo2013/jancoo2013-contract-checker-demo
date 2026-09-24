@@ -30,6 +30,20 @@ EXPECTED = {
                      "APPLY_2026_AMENDMENT_BEFORE_EFFECTIVE_DATE"},
     },
 }
+SECTION_SETS = {
+    "renewal_true_option_vs_new_consent": {
+        "law_2017": {"25יב(a)", "25יב(c)", "25יד", "25טו"},
+    },
+    "repair_urgent_exception_and_defect_waiver": {
+        "law_2017": {"8", "9(a)", "9(b)", "9(c)", "25ח(a)",
+                     "25ח(b)", "25ח(c)", "25ו", "25יד", "25טו"},
+    },
+    "security_cheque_vs_bank_guarantee_rule_split": {
+        "law_2017": {"25י(a)", "25י(b)", "25י(c)", "25י(d)",
+                     "25י(e)", "25יד", "25טו"},
+        "law_2026": {"24", "37"},
+    },
+}
 GATES = {"RESIDENTIAL_SCOPE_AND_25טו_EXCLUSIONS",
          "VERSION_AT_RELEVANT_DATE",
          "25יד_NON_DEROGATION_AND_FAVORABLE_TERMS",
@@ -109,12 +123,23 @@ def validate(data: dict, gold: str, overlay: dict) -> None:
                     and 4 <= len(q["text"]) <= 100
                     and "[" not in q["text"] and q["text"] in sections[q["clause"]],
                     "fabricated or redacted quote")
-        require({x0["source"] for x0 in x["legal_sources"]} ==
-                expected["sources"] and all(
-                    set(s) == {"source", "sections"} and
-                    s["source"] in registry and s["sections"] and
-                    all(isinstance(v, str) and v.strip() for v in s["sections"])
-                    for s in x["legal_sources"]), "unverified legal source")
+        legal_sources = x["legal_sources"]
+        expected_sections = SECTION_SETS[x["id"]]
+        require(isinstance(legal_sources, list)
+                and len(legal_sources) == len(expected_sections)
+                and all(isinstance(s, dict)
+                        and set(s) == {"source", "sections"}
+                        and s["source"] in registry
+                        and s["source"] in expected_sections
+                        and isinstance(s["sections"], list)
+                        and len(s["sections"]) ==
+                            len(expected_sections[s["source"]])
+                        and all(isinstance(v, str) for v in s["sections"])
+                        and set(s["sections"]) ==
+                            expected_sections[s["source"]]
+                        for s in legal_sources)
+                and {s["source"] for s in legal_sources} ==
+                    expected["sources"], "unverified legal source")
         require(set(x["failure_modes"]) >= expected["failures"]
                 and len(x["failure_modes"]) == len(set(x["failure_modes"])),
                 "required adversarial error coverage lost")
