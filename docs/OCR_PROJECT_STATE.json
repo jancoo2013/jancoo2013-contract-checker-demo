@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-27-147",
+  "state_version": "privacy-ocr-2026-09-27-148",
   "active_track": "expert-memory-development",
   "next_step_id": "expert-memory-contract-001-source-family-verification-v1",
-  "next_step_summary": "Owner-directed bounded research exception PR #296 adds seven sanitized printed RC06 mechanisms after one full pass and short critical check. TF_C is reclassified from independent-test reserve to development research because its content has been reviewed; TF_D/RC07 remains untouched and reserved. Handwriting is fully blocked; no raw source, PII, legal Gold, training, independent scoring, provider, OCR, RAG, database or runtime change. Canonical next step remains expert-memory-contract-001-source-family-verification-v1.",
-  "last_recorded_pr": 296,
-  "last_recorded_change": "expert-memory-rc06-printed-mechanisms-v1",
+  "next_step_summary": "Corrective follow-up PR #297 synchronizes current RC01–RC07 coverage with TF_A–TF_D and printed research packets: RC01–RC04 and RC06 have source-scoped research, RC05 has no repository source-anchored packet, and RC07 remains unreviewed independent-test reserve. The 2026-09-23 inventory remains a historical metadata snapshot. No raw source, PII, legal Gold, training, independent scoring, provider, OCR, RAG, database or runtime change. Canonical next step remains expert-memory-contract-001-source-family-verification-v1.",
+  "last_recorded_pr": 297,
+  "last_recorded_change": "expert-memory-coverage-cohort-sync-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-09-27"
