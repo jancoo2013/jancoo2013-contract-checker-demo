@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "id": "rc01_rc04_rc02_rc03_printed_crosschecks_v1",
+  "status": "ASSISTANT_RESEARCH_NOT_GOLD",
+  "scope": {
+    "families": ["TF_A", "TF_B"],
+    "groups": ["RC01", "RC04", "RC02", "RC03"],
+    "source_relation": "TF_A contains two captures of one agreement; TF_B contains distinct editions of one printed template. See real_contract_template_split_v1.json.",
+    "evidence": "Private local visual review of printed clauses and one short critical cross-check per agreement chain; only anonymous locators and sanitized paraphrases are retained.",
+    "handwriting": "Presence may be flagged, but no handwritten value, signature, amendment or inventory entry was read, transcribed, inferred or used as contract evidence.",
+    "legal_layer": "No independent judicial-original check, dated statutory applicability finding, enforceability verdict or specialist signoff.",
+    "cohort": "TF_A_AND_TF_B_DEVELOPMENT_ONLY_NO_TRAINING_OR_INDEPENDENT_SCORING",
+    "model_errors": "Only the TF_A role inference was corrected during this assistant analysis; other first-read errors are proposed controls, not observed provider failures."
+  },
+  "mechanisms": [
+    {
+      "id": "tf_a_right_to_lease_and_pending_dispute",
+      "locators": ["TF_A:preamble", "TF_A:25"],
+      "printed_reading": "The granting party describes itself as a long-term lessee and holder. A later clause alerts the occupants to a judicial dispute involving a prior lessor and heirs.",
+      "first_read_trap": "Treat the dispute as proof that the granting party was mislabeled as landlord, or that it lacked power to let the premises.",
+      "correction": "The long-term lessee can also be the granting party in this agreement. The upstream power to let, subject of the dispute and its outcome require independent documents; the private contract alone settles none of them.",
+      "open_dependencies": ["upstream agreement", "actual court record and outcome", "effect on possession and continuing lease"],
+      "known_family": "party_roles_and_entitlement + referenced_external_proceedings",
+      "variant": "DOWNSTREAM_LANDLORD_ROLE_WITH_UNVERIFIED_UPSTREAM_TITLE",
+      "error_status": "ASSISTANT_FIRST_PASS_INFERENCE_CORRECTED_IN_SHORT_CHECK_NOT_PROVIDER_REGRESSION"
+    },
+    {
+      "id": "tf_a_sixty_day_exit_asymmetry",
+      "locators": ["TF_A:14", "TF_A:15"],
+      "printed_reading": "One branch describes termination after sale with sixty days' notice. A separate tenant-exit branch also mentions sixty days but requires an acceptable replacement tenant who undertakes the agreement.",
+      "first_read_trap": "Infer identical unconditional exit rights for both parties from the shared notice period.",
+      "correction": "The same number of days does not erase the replacement condition or establish the precise release date. Track notice, candidate acceptance and actual handover separately.",
+      "open_dependencies": ["replacement candidate and landlord response", "actual notices and payment chronology", "statutory scope and validity"],
+      "known_family": "early_exit_and_replacement_tenant",
+      "variant": "SAME_NOTICE_PERIOD_DIFFERENT_EXIT_PRECONDITIONS",
+      "error_status": "CANDIDATE_NOT_OBSERVED_MODEL_FAILURE"
+    },
+    {
+      "id": "tf_a_optional_insurance_and_conditional_recourse",
+      "locators": ["TF_A:12d"],
+      "printed_reading": "The tenant may present an insurance policy within seven days; if this does not happen, the granting party may insure the premises. The recourse language appears in that second branch.",
+      "first_read_trap": "Convert the initial option into an unconditional tenant insurance duty, or attach the recourse language to every possible policy.",
+      "correction": "Keep the branch trigger, policy holder, insurer and recourse scope separate. The clause does not prove which policy was obtained or that an insurer acquired a particular claim.",
+      "open_dependencies": ["actual policy and insured risks", "who procured coverage", "application of insurance law"],
+      "known_family": "insurance_and_risk_allocation",
+      "variant": "OPTION_TO_INSURE_FOLLOWED_BY_CONDITIONAL_LANDLORD_COVER_AND_RECOURSE",
+      "error_status": "CANDIDATE_NOT_OBSERVED_MODEL_FAILURE"
+    },
+    {
+      "id": "tf_a_security_return_without_instrument_inventory",
+      "locators": ["TF_A:16"],
+      "printed_reading": "A return provision refers to a security cheque after the tenancy or option and presentation of payment confirmations.",
+      "first_read_trap": "Treat a return reference as proof that a particular cheque, amount, payee or delivery date was agreed and that the return date is specified.",
+      "correction": "The printed return reference alone does not establish the issued instrument, its particulars, delivery or a fixed return deadline.",
+      "open_dependencies": ["actual issued instrument and delivery", "payment confirmations", "statutory return rules where applicable"],
+      "known_family": "security_and_enforcement",
+      "variant": "RETURN_CLAUSE_WITHOUT_PROVEN_ISSUANCE_OR_FIXED_DEADLINE",
+      "error_status": "CANDIDATE_NOT_OBSERVED_MODEL_FAILURE"
+    },
+    {
+      "id": "tf_b_draft_judgment_reference_chronology",
+      "locators": ["TF_B:RC02:preamble", "TF_B:RC02:execution_fields"],
+      "printed_reading": "The earlier edition is dated only by a blank signing day in its heading. Its recital attributes a judgment to an early-year date while the printed case identifier encodes a later month in the same year and describes a subsequent handover date.",
+      "first_read_trap": "Report the judgment, parties' title and actual handover as independently established historical events.",
+      "correction": "Flag an apparent internal chronology conflict, without choosing which digit is wrong. Treat the recital as a claim in an undated, unsigned draft until the decision and execution are independently verified.",
+      "open_dependencies": ["official judgment and correct docket", "signed edition", "actual possession chronology"],
+      "known_family": "source_status_and_external_claim_verification",
+      "variant": "COURT_CITATION_INTERNAL_DATE_CONFLICT_IN_UNSIGNED_DRAFT",
+      "error_status": "CANDIDATE_NOT_OBSERVED_MODEL_FAILURE"
+    },
+    {
+      "id": "tf_b_old_cheque_return_recital_not_receipt",
+      "locators": ["TF_B:RC02:preamble", "TF_B:RC03:14.3"],
+      "printed_reading": "The earlier draft says the tenant confirms receiving six earlier rent cheques and one security cheque back at signing. This historical recital is not repeated in the later edition; the later edition contains an entire-agreement and written-change clause.",
+      "first_read_trap": "Convert future-at-signing draft language into proof of physical return, or import the draft recital into the later edition.",
+      "correction": "Separate what the draft proposes to acknowledge from signed receipts and actual delivery. The later edition must be read on its own terms; its execution status remains unconfirmed by printed text alone.",
+      "open_dependencies": ["signed acknowledgments or receipts", "actual cheque custody", "which edition governed the period"],
+      "known_family": "security_and_enforcement + document_version_control",
+      "variant": "UNSIGNED_HISTORICAL_RECEIPT_CLAIM_OMITTED_FROM_LATER_EDITION",
+      "error_status": "CANDIDATE_NOT_OBSERVED_MODEL_FAILURE"
+    },
+    {
+      "id": "tf_b_twelve_cheques_vs_six_itemized",
+      "locators": ["TF_B:RC03:4.1", "TF_B:RC03:5.1", "TF_B:RC03:5.2", "TF_B:RC03:5.2.1", "TF_B:RC03:5.2.2", "TF_B:RC03:5.3"],
+      "printed_reading": "For a six-month term at 3,300 NIS monthly, the heading of the payment schedule says twelve cheques, but its two recipient lists itemize three cheques each, covering all six months once. The following clause instructs the landlord when to deposit rent cheques.",
+      "first_read_trap": "Treat the number twelve as twelve independently due rent cheques, or interpret the deposit instruction as six additional payments.",
+      "correction": "Record the literal twelve-versus-six discrepancy. The six dated list entries reconcile with the six monthly charges; the text does not establish twelve physically delivered cheques or resolve the typo without a corrected schedule.",
+      "open_dependencies": ["signed correction or cheque schedule", "actual delivery and bank presentment"],
+      "known_family": "payment_schedule_integrity",
+      "variant": "HEADING_COUNT_CONTRADICTS_ITEMIZED_MONTHLY_CHECK_LIST",
+      "error_status": "CANDIDATE_NOT_OBSERVED_MODEL_FAILURE"
+    },
+    {
+      "id": "tf_b_utility_return_period_scope",
+      "locators": ["TF_B:RC03:5.4.1", "TF_B:RC03:5.4.2"],
+      "printed_reading": "One subclause lists a separate 20,000 NIS security cheque. The next lists utility-payment cheques and says they will be returned within thirty days after the term, subject to proof of no debt.",
+      "first_read_trap": "Apply the thirty-day contractual return term to the separate 20,000 NIS instrument.",
+      "correction": "The plural return reference belongs to the utility instruments in the second subclause. No equally explicit thirty-day return term for the separate cheque is established by these printed clauses; statutory duties require their own dated assessment.",
+      "open_dependencies": ["actual instrument delivery", "proof of no utility debt", "applicable statutory return rule"],
+      "known_family": "security_and_enforcement",
+      "variant": "ADJACENT_SUBCLAUSE_RETURN_TERM_HAS_NARROW_REFERENT",
+      "error_status": "CANDIDATE_NOT_OBSERVED_MODEL_FAILURE"
+    }
+  ],
+  "boundaries": {
+    "training_eligible": false,
+    "independent_evaluation_eligible": false,
+    "legal_gold": false,
+    "production_rule": false,
+    "external_provider_run": false,
+    "source_media_or_raw_ocr_persisted": false,
+    "next_canonical_step_unmodified": "expert-memory-contract-001-source-family-verification-v1"
+  }
+}
