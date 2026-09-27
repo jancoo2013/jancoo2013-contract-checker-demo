@@ -363,10 +363,10 @@ class RealContractTemplateSplitTests(unittest.TestCase):
                                 self.gold_meta)
         self.assertEqual(len(self.data["families"]), 4)
         self.assertEqual(self.data["cohort_boundary"]["development_families"],
-                         ["TF_A", "TF_B"])
+                         ["TF_A", "TF_B", "TF_C"])
         self.assertEqual(
             self.data["cohort_boundary"]["independent_test_families"],
-            ["TF_C", "TF_D"])
+            ["TF_D"])
 
     def test_reject_cross_family_duplicate(self) -> None:
         self.rejects(lambda d: d["families"][2]["groups"].append("RC04"),
@@ -374,8 +374,17 @@ class RealContractTemplateSplitTests(unittest.TestCase):
 
     def test_reject_holdout_leakage(self) -> None:
         self.rejects(lambda d: d["cohort_boundary"][
-            "development_families"].append("TF_C"),
+            "development_families"].append("TF_D"),
             "family-disjoint cohort boundary violated")
+
+    def test_reviewed_rc06_cannot_be_holdout_or_training_gold(self) -> None:
+        packet = read_template_split(BASE / "rc06_printed_mechanisms_v1.json")
+        self.assertEqual(packet["source"]["anonymous_group"], "RC06")
+        self.assertEqual(packet["source"]["template_family"], "TF_C")
+        self.assertFalse(packet["boundaries"]["training_eligible"])
+        self.assertFalse(packet["boundaries"]["independent_scoring_eligible"])
+        self.assertEqual(self.data["cohort_boundary"]["independent_test_families"],
+                         ["TF_D"])
 
     def test_reject_unproven_golden_link(self) -> None:
         self.rejects(lambda d: d["golden_fixture"].update(
