@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "prepared_on": "2026-09-23",
+  "prepared_on": "2026-09-27",
   "status": "PRIVATE_LOCAL_TEMPLATE_FAMILY_SPLIT_NOT_GOLD",
   "source_summary": {
     "scope": "Eight locally supplied PDFs compared offline; no report or sidecar JSON used as evidence.",
@@ -33,7 +33,7 @@
       "relation": "DISTINCT_SINGLETON_TEMPLATE_CONFIRMED",
       "evidence": "Its sampled multipage organization and clause layout are structurally distinct from TF_A, TF_B and TF_D.",
       "evidence_grade": "PRIVATE_LOCAL_STRUCTURE_COMPARISON",
-      "cohort": "INDEPENDENT_TEST_RESERVED"
+      "cohort": "DEVELOPMENT_RESEARCH_REVIEWED_NOT_GOLD"
     },
     {
       "id": "TF_D",
@@ -61,10 +61,10 @@
   },
   "cohort_boundary": {
     "status": "FAMILY_DISJOINT_SPLIT_RESERVED",
-    "development_families": ["TF_A", "TF_B"],
-    "independent_test_families": ["TF_C", "TF_D"],
+    "development_families": ["TF_A", "TF_B", "TF_C"],
+    "independent_test_families": ["TF_D"],
     "unassigned_families": [],
-    "rationale": "Development contains the only confirmed repeated-template family and the duplicate-capture chain. Structurally distinct singleton families are reserved without semantic review as independent tests.",
+    "rationale": "The 2026-09-23 split reserved TF_C and TF_D. Owner-directed printed-text analysis of RC06 on 2026-09-27 exposed TF_C to semantic development, so it cannot remain an independent test. TF_D alone remains untouched and reserved. This reassignment does not authorize training or legal Gold.",
     "leakage_rule": "Every capture, edition and executed instance of one template family stays in one cohort; an unresolved family or source link remains unassigned."
   },
   "still_unknown": [

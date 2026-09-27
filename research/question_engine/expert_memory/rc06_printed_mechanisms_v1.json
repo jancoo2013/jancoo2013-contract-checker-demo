@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "id": "rc06_printed_mechanisms_v1",
+  "status": "ASSISTANT_RESEARCH_HYPOTHESES_NOT_GOLD",
+  "source": {
+    "anonymous_group": "RC06",
+    "template_family": "TF_C",
+    "medium": "FOUR_PRIVATE_SCANNED_PAGES_REVIEWED_LOCALLY",
+    "scope": "PRINTED_CLAUSES_ONLY",
+    "evidence_grade": "ASSISTANT_VISUAL_READING_OWNER_TEXT_SIGNOFF_PENDING",
+    "page_order": "PDF_PAGE_ORDER_1_3_2_4_FOR_CLAUSE_CONTINUITY",
+    "persisted_evidence": "ANONYMOUS_CLAUSE_LOCATORS_AND_SANITIZED_PARAPHRASES_ONLY"
+  },
+  "handwriting_gate": {
+    "rule": "DETECT_PRESENCE_AND_BLOCK_ALL_SEMANTIC_ANALYSIS",
+    "affected_fields": ["execution and tenancy dates", "initial and option durations", "rent amount and payment-date alterations", "dispute forum identifier", "signatures and instrument execution"],
+    "policy": "NO_VALUES_TRANSCRIPTION_INFERENCE_OR_USE_IN_CONCLUSIONS"
+  },
+  "comparison": {
+    "contract_001": "research/question_engine/expert_memory/contract_001_deep_review_v1.json",
+    "private_lease": "research/question_engine/expert_memory/private_lease_printed_mechanisms_v1.json",
+    "prior_rc_families": "research/question_engine/expert_memory/rc01_rc04_rc02_rc03_printed_crosschecks_v1.json",
+    "cohort": "TF_C_DEVELOPMENT_RESEARCH_NO_TRAINING_OR_INDEPENDENT_SCORING",
+    "remaining_reserved_family": "TF_D"
+  },
+  "mechanisms": [
+    {
+      "id": "dual_early_exit_routes_and_reletting_refund",
+      "printed_clauses": ["7", "8a", "8b"],
+      "reading": "One early-departure route continues rent through the original term and permits a refund of 80 percent of rent already paid for the period when the premises are also let to others. A separate route allows termination if an acceptable replacement undertakes the obligations. The general transfer ban does not itself erase that special route.",
+      "initial_error_hypothesis": "Treat any replacement as automatic release, treat reletting as a full refund, or apply the 80 percent refund to the separate accepted-replacement route.",
+      "correction": "Keep the overlapping-rent refund and accepted-replacement termination as distinct branches. Track actual reletting, payments, acceptance and the release date independently.",
+      "unresolved": ["actual original term and dates depend on blocked handwriting", "reletting chronology and receipts", "replacement acceptance and execution", "legal applicability and effect"],
+      "known_family": "early_exit_and_replacement_tenant",
+      "added_subtype": "EIGHTY_PERCENT_OVERLAP_REFUND_VS_ACCEPTED_REPLACEMENT_RELEASE",
+      "control_status": "CANDIDATE_NOT_OBSERVED_MODEL_FAILURE"
+    },
+    {
+      "id": "replacement_term_and_post_original_price",
+      "printed_clauses": ["4f", "8b"],
+      "reading": "For a replacement, the landlord may demand a new twelve-month term. A five-percent or index-based price change in that branch concerns the period after the original tenant's term; a separate option-price rule appears in clause 4f.",
+      "initial_error_hypothesis": "Import the option price into every month of the replacement lease or assume that the later replacement price starts immediately.",
+      "correction": "Locate the original-term boundary before applying the replacement price. Keep the tenant option and replacement agreement as separate mechanisms; the actual dates and option duration are blocked.",
+      "unresolved": ["original term boundary", "actual replacement agreement and rent", "index calculation and statutory scope"],
+      "known_family": "early_exit_and_replacement_tenant + option_and_renewal",
+      "added_subtype": "REPLACEMENT_TWELVE_MONTH_TERM_WITH_PRICE_CHANGE_ONLY_AFTER_OLD_TERM",
+      "control_status": "CANDIDATE_NOT_OBSERVED_MODEL_FAILURE"
+    },
+    {
+      "id": "leak_consumption_vs_repair_and_asis",
+      "printed_clauses": ["5a", "9b", "11"],
+      "reading": "The tenant is assigned ongoing utility charges even for a leak not caused by tenant negligence. A separate clause makes the landlord responsible for specified landlord-side repairs after demand and provides a conditional tenant-repair, reimbursement and setoff sequence; another clause contains a broad condition and defect acknowledgment.",
+      "initial_error_hypothesis": "Treat utility consumption, physical repair and consequential damage as the same obligation, or read the broad acknowledgment as deleting the later repair route.",
+      "correction": "Separate bill allocation, fault and repair responsibility. The printed urgent branch uses forty-eight hours before tenant repair at the landlord's expense and requires receipts; setoff follows non-reimbursement. No particular leak, bill or reimbursement is established.",
+      "unresolved": ["actual cause and meter bills", "notice and urgency", "repair receipts and reimbursement", "dated statutory comparison"],
+      "known_family": "utilities_and_occupancy_charges + condition_as_is_defects_damage + repair_setoff",
+      "added_subtype": "NONNEGLIGENT_LEAK_CONSUMPTION_SEPARATE_FROM_LANDLORD_REPAIR",
+      "control_status": "CANDIDATE_NOT_OBSERVED_MODEL_FAILURE"
+    },
+    {
+      "id": "two_open_cheques_guarantors_and_singular_collection",
+      "printed_clauses": ["19", "20"],
+      "reading": "The printed security bundle names two cheques with blank amounts and a printed limit up to 10,000 NIS, plus two guarantors. The next clause speaks in the singular of depositing a tenant cheque on unpaid debt without notice and recovering collection expenses.",
+      "initial_error_hypothesis": "Assume an aggregate or per-cheque cap without parsing the ambiguous wording, infer a third cheque from the singular reference, or treat absence of contractual notice as a legal conclusion.",
+      "correction": "Keep the two listed instruments, their actual issuance and the scope of the printed cap unresolved. The singular collection clause does not establish a third instrument. Statutory notice, cure, realization and return require separate applicable-date review.",
+      "unresolved": ["whether cheques and guarantees were executed and delivered", "cap per cheque versus total", "actual debt and notice", "applicable security law"],
+      "known_family": "security_and_enforcement",
+      "added_subtype": "TWO_BLANK_AMOUNT_CHEQUES_AMBIGUOUS_CAP_PLUS_GUARANTORS_AND_NO_NOTICE_CLAIM",
+      "control_status": "CANDIDATE_NOT_OBSERVED_MODEL_FAILURE"
+    },
+    {
+      "id": "option_condition_price_and_blocked_duration",
+      "printed_clauses": ["3", "4f"],
+      "reading": "The tenant option is conditioned on advance notice, performance of obligations and further rent cheques. The printed option rent is increased by five percent or the index rise, whichever is higher. The number of option months and the actual calendar term are handwritten and excluded.",
+      "initial_error_hypothesis": "Supply a one-year option from a handwritten blank or from the separately printed replacement-tenant term, and compute a renewal date or amount.",
+      "correction": "The option's operation, duration and calculated price remain unresolved without admissible non-handwritten evidence and an applicable-law comparison.",
+      "unresolved": ["initial and option durations blocked", "actual notice and cheques", "index data and statutory scope"],
+      "known_family": "option_and_renewal",
+      "added_subtype": "MULTIPLE_ACTIVATION_PRECONDITIONS_WITH_BLOCKED_DURATION",
+      "control_status": "CANDIDATE_NOT_OBSERVED_MODEL_FAILURE"
+    },
+    {
+      "id": "holdover_sanctions_wrong_reference_and_possessions",
+      "printed_clauses": ["4d", "4e", "12", "16", "17", "18", "unnumbered_notice_after_24"],
+      "reading": "Separate clauses address payment delay, monthly interest, a daily 200 NIS holdover amount, disposition of remaining belongings and breach termination. The daily-amount clause points to clause 12 for the condition of the premises, although clause 12 addresses neighborhood conduct. A later printed notice rule deems mail deposited in a mailbox received after seventy-two hours.",
+      "initial_error_hypothesis": "Silently repair the wrong cross-reference, sum all amounts as one automatic penalty, equate a notice-delivery presumption with a cure period, or assume the contract's possession language proves a lawful eviction method.",
+      "correction": "Flag the literal cross-reference problem. Keep trigger, accrual period, possession, notice and statutory procedure separate; do not supply the missing intended clause or a legal validity verdict.",
+      "unresolved": ["intended reference in clause 16", "actual default and return chronology", "lawful dispute and possession procedures"],
+      "known_family": "financial_sanctions_and_overlap + termination_cure_notice_eviction + source_sequence_integrity",
+      "added_subtype": "MISDIRECTED_CROSS_REFERENCE_IN_DAILY_HOLDOVER_AMOUNT",
+      "control_status": "CANDIDATE_NOT_OBSERVED_MODEL_FAILURE"
+    },
+    {
+      "id": "interest_overlay_and_religious_forum",
+      "printed_clauses": ["4e", "21", "22", "23", "24"],
+      "reading": "The printed text couples interest and proof-burden terms with a named heter-iska formula and a clause routing disputes to a Beit Din. The specific forum is filled by handwriting and is semantically blocked.",
+      "initial_error_hypothesis": "Treat the printed finance formula as proof that the interest rate is lawful, or supply the handwritten forum and pronounce its jurisdiction exclusive and effective.",
+      "correction": "Record the religious-finance and forum layer as an additional contract mechanism while leaving tribunal identity, statutory effect and validity unresolved.",
+      "unresolved": ["identity of forum blocked", "validity and scope of dispute provision", "effect of finance formula and interest", "external source and specialist review"],
+      "known_family": "NEW_CANDIDATE_FAMILY_DISPUTE_FORUM_AND_RELIGIOUS_FINANCE_OVERLAY",
+      "added_subtype": "HETER_ISKA_AND_BEIT_DIN_WITH_BLOCKED_FORUM_IDENTIFIER",
+      "control_status": "CANDIDATE_NOT_OBSERVED_MODEL_FAILURE"
+    }
+  ],
+  "boundaries": {
+    "legal_status": "NO_ENFORCEABILITY_OR_CURRENT_LAW_CONCLUSION; PRIMARY_SOURCES_AND_DATE_SCOPE_REQUIRED",
+    "actual_error_observation": "NONE; CONTROL_ERRORS_ARE_HYPOTHESES",
+    "training_eligible": false,
+    "independent_scoring_eligible": false,
+    "production_runtime": false,
+    "external_provider_run": false,
+    "raw_images_or_ocr_persisted": false,
+    "next_canonical_step_unmodified": "expert-memory-contract-001-source-family-verification-v1"
+  }
+}
