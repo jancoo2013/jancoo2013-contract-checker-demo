@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-27-146",
+  "state_version": "privacy-ocr-2026-09-27-147",
   "active_track": "expert-memory-development",
   "next_step_id": "expert-memory-contract-001-source-family-verification-v1",
-  "next_step_summary": "Owner-authorized bounded research exception PR #295 adds eight sanitized printed crosschecks across TF_A (RC01/RC04) and TF_B (RC02/RC03), distinguishing one assistant self-correction from candidate errors. Handwriting remains semantically blocked; the RC02 draft and external court claim are unverified, and no raw source, PII or instrument identifier enters GitHub. No legal Gold, training, independent scoring, provider, OCR, RAG, database or runtime change. Canonical next step remains expert-memory-contract-001-source-family-verification-v1.",
-  "last_recorded_pr": 295,
-  "last_recorded_change": "expert-memory-rc-a-b-printed-crosschecks-v1",
+  "next_step_summary": "Owner-directed bounded research exception PR #296 adds seven sanitized printed RC06 mechanisms after one full pass and short critical check. TF_C is reclassified from independent-test reserve to development research because its content has been reviewed; TF_D/RC07 remains untouched and reserved. Handwriting is fully blocked; no raw source, PII, legal Gold, training, independent scoring, provider, OCR, RAG, database or runtime change. Canonical next step remains expert-memory-contract-001-source-family-verification-v1.",
+  "last_recorded_pr": 296,
+  "last_recorded_change": "expert-memory-rc06-printed-mechanisms-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-09-27"
