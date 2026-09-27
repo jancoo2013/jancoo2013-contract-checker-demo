@@ -290,17 +290,22 @@ class SanitizedRealContractCoverageTests(unittest.TestCase):
         cls.inventory = read_real_coverage(cls.evidence["private_inventory"])
         cls.meta = read_real_coverage(cls.evidence["golden_metadata"])
         cls.gold_text = cls.evidence["golden_fixture"].read_text(encoding="utf-8")
+        cls.split = read_real_coverage(cls.evidence["template_split"])
+        cls.crosschecks = read_real_coverage(cls.evidence["printed_crosschecks"])
+        cls.rc06 = read_real_coverage(cls.evidence["rc06_review"])
 
     def rejects(self, edit, pattern: str) -> None:
         changed = deepcopy(self.data)
         edit(changed)
         with self.assertRaisesRegex(ValueError, pattern):
             validate_real_coverage(changed, self.matrix, self.inventory,
-                                   self.meta, self.gold_text)
+                                   self.meta, self.gold_text, self.split,
+                                   self.crosschecks, self.rc06)
 
     def test_coverage_sources_stay_separate(self) -> None:
         validate_real_coverage(self.data, self.matrix, self.inventory,
-                               self.meta, self.gold_text)
+                               self.meta, self.gold_text, self.split,
+                               self.crosschecks, self.rc06)
         self.assertEqual(len(self.data["mechanisms"]), 13)
         self.assertEqual(len(self.data["private_groups"]), 7)
 
@@ -327,12 +332,23 @@ class SanitizedRealContractCoverageTests(unittest.TestCase):
             clauses=["3", "25"]), "cross-clause question lacks")
 
     def test_unread_private_contract_cannot_be_promoted(self) -> None:
-        self.rejects(lambda d: d["private_groups"][0].update(
+        self.rejects(lambda d: d["private_groups"][-1].update(
             coverage="EVIDENCED"), "private contract coverage")
 
     def test_holdout_not_selected_from_unverified_templates(self) -> None:
-        self.rejects(lambda d: d["private_groups"][0].update(
+        self.rejects(lambda d: d["private_groups"][-1].update(
             cohort="HOLDOUT"), "private contract coverage")
+
+    def test_rc06_cannot_revert_to_unreviewed_or_unassigned(self) -> None:
+        self.rejects(lambda d: d["private_groups"][5].update(
+            coverage="UNKNOWN_NOT_REVIEWED"), "private contract coverage")
+        self.rejects(lambda d: d["private_groups"][5].update(
+            cohort="INDEPENDENT_TEST_RESERVED"), "private contract coverage")
+
+    def test_rc05_discussion_is_not_source_anchored(self) -> None:
+        self.rejects(lambda d: d["private_groups"][4].update(
+            coverage="PRINTED_MECHANISMS_RESEARCH_ONLY"),
+            "private contract coverage")
 
     def test_no_gold_or_external_real_contract_runs(self) -> None:
         self.rejects(lambda d: d["policy"].update(eligible_gold=True),
@@ -376,6 +392,14 @@ class RealContractTemplateSplitTests(unittest.TestCase):
         self.rejects(lambda d: d["cohort_boundary"][
             "development_families"].append("TF_D"),
             "family-disjoint cohort boundary violated")
+
+    def test_reject_stale_coverage_cohort(self) -> None:
+        stale = deepcopy(self.coverage)
+        stale["private_groups"][5]["cohort"] = "UNASSIGNED"
+        with self.assertRaisesRegex(ValueError,
+                                    "private coverage family or cohort mismatch"):
+            validate_template_split(self.data, self.inventory, stale,
+                                    self.gold_meta)
 
     def test_reviewed_rc06_cannot_be_holdout_or_training_gold(self) -> None:
         packet = read_template_split(BASE / "rc06_printed_mechanisms_v1.json")

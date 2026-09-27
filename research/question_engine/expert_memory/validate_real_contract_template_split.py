@@ -102,9 +102,20 @@ def validate(data: dict, inventory: dict, coverage: dict, gold_meta: dict) -> No
     require(set(covered) == prior_ids and len(covered) == len(prior_ids),
             "anonymous PDF groups omitted or duplicated")
 
-    require(all(item["coverage"] == "UNKNOWN_NOT_REVIEWED"
-                for item in coverage["private_groups"]),
-            "template comparison fabricated mechanism coverage")
+    coverage_by_group = {item["id"]: item for item in coverage["private_groups"]}
+    require(len(coverage_by_group) == len(prior_ids)
+            and set(coverage_by_group) == prior_ids,
+            "private coverage groups disagree with inventory")
+    for group, family in cohort_by_group.items():
+        row = coverage_by_group[group]
+        family_id = next(item["id"] for item in families
+                         if group in item["groups"])
+        expected_cohort = ("INDEPENDENT_TEST_RESERVED" if family ==
+                           "INDEPENDENT_TEST_RESERVED" else
+                           "DEVELOPMENT_RESEARCH_ONLY")
+        require(row["template_family"] == family_id
+                and row["cohort"] == expected_cohort,
+                "private coverage family or cohort mismatch")
     gold = data["golden_fixture"]
     require(set(gold) == {
         "source", "linked_family", "excluded_direct_matches", "other_private_groups",

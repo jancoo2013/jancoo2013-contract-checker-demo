@@ -1,6 +1,6 @@
 # Expert Memory — real-contract mechanism coverage v1
 
-Status: **source-scoped sanitized research, not legal Gold, not a production oracle**. Data: `research/question_engine/expert_memory/real_contract_coverage_v1.json`; offline checker: `validate_real_contract_coverage.py`.
+Status: **source-scoped sanitized research, not legal Gold, not a production oracle**. Current group projection updated 2026-09-27. Data: `research/question_engine/expert_memory/real_contract_coverage_v1.json`; offline checker: `validate_real_contract_coverage.py`.
 
 ## Three evidence scopes, deliberately not merged
 
@@ -8,7 +8,9 @@ Status: **source-scoped sanitized research, not legal Gold, not a production ora
 |---|---|---|
 | `golden_contracts/contract_001_he.txt` + metadata | Three-page sanitized **printed** text, assistant visual two-pass review; printed clause locators available | Owner text-level signoff, any unseen annexes or handwritten content, relation to private RC01–RC07 |
 | `dispute_practice/cross_contract_mechanism_matrix_v1.json` | Aggregate mechanism classification from **two previously sanitized** real-contract research passes (13 families, source frequency 1 or 2) | Which particular private RC group supplied each passage; whether the Golden Fixture overlaps either contract |
-| `expert_memory/real_contract_inventory_v1.json` | Seven anonymized private PDF byte groups, technical page/duplicate metadata | **All content coverage UNKNOWN**, all template families UNVERIFIED, all development/holdout cohorts UNASSIGNED |
+| `expert_memory/real_contract_inventory_v1.json` | Historical 2026-09-23 metadata snapshot of seven anonymized private PDF byte groups and duplicate evidence | Later family and printed-content research lives in the template split and this coverage projection; the inventory snapshot does not update those fields |
+
+The current projection links RC01/RC04 to TF_A and RC02/RC03/RC05 to TF_B. RC01–RC04 have printed crosschecks, while RC05 has no source-anchored packet in this repository. RC06/TF_C has seven printed research mechanisms and belongs to development research after its review; RC07/TF_D is still an unreviewed reserved independent-test family. None is legal Gold or eligible for training or independent scoring. The validators compare these assignments with the split and the two printed research packets; an old `UNASSIGNED` value now fails.
 
 An aggregate `seen_in_contracts=2` is inherited research metadata, **not** two newly inspected PDFs, two owner-reviewed records or proof that the Golden Fixture is a third independent template. `NOT_ESTABLISHED_IN_SANITIZED_FIXTURE` means **unknown**, not absent from the original.
 
@@ -22,8 +24,8 @@ The dataset records source clauses, one specific expert question and a forbidden
 
 These are **checks that a future Question Engine should perform**, not claims that a court would enforce/reduce any clause or that an external annex exists. A suspected issue may be `CONFIRMED`, `NARROWED` or `CLEARED` only after it rereads the relevant clauses and verifies missing evidence. Do not turn generic cross-clause checks into user questions unless a specific missing answer changes analysis.
 
-## Next small PR
+## Historical next-step note from 2026-09-23
 
-`expert-memory-real-contract-template-split-v1`: privately match already authorized originals to sanitized source identities (without committing identities), determine duplicated editions and true template-family overlap, then reserve *family-disjoint* development and holdout cohorts. If family matching cannot be verified without exposing restricted material, leave groups UNASSIGNED and record precisely which missing evidence blocks the split. Only then start a deep, manually reviewed mechanism map of one chosen sanitized real contract. The five court originals and the full current 2025 cheque procedure remain parallel research gaps.
+The template split was completed in PR #291 and TF_C was reassigned after the RC06 review in PR #296. The current canonical next step is `expert-memory-contract-001-source-family-verification-v1` in `docs/OCR_PROJECT_STATE.md`; the source family for that sanitized fixture remains unknown. The five court originals and the full current 2025 cheque procedure remain separate research gaps.
 
 No raw contract PDF, file name, contact details, source hash, OCR, new provider call, embedding/RAG, database or runtime integration is introduced.
