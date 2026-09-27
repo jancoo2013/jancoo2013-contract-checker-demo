@@ -1,12 +1,14 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-09-23, PR #293, `expert-memory-contract-001-statutory-crosschecks-v1` (одобренное владельцем исследовательское исключение после слитого #292).
+Последнее обновление: 2026-09-27, PR #294, `expert-memory-private-lease-printed-mechanisms-v1` (одобренное владельцем исследовательское исключение после слитого #293).
 
 Активный трек: `expert-memory-development`.
 
 Канонический следующий bounded-шаг: `expert-memory-contract-001-source-family-verification-v1`.
 
 Решение владельца от 2026-09-22: реальные анализы договоров и повторные full-contract прогоны временно приостановлены до создания и независимой проверки качественной базы экспертных знаний. Разрешены локальные синтетические/обезличенные fixture-тесты без внешнего API. PR #281 добавляет экспериментальный Expert Pack v0.1: CORE_PROTOCOL, MECHANISM_PLAYBOOK и 15 синтетических контрастных примеров; эти материалы не являются верифицированной юридической базой. Сохранён уже слитый PR #282 и все его требования контроля Codex. Область OCR, privacy/security, runtime и провайдеров не изменена.
+
+PR #294 — по прямому поручению владельца собран один компактный обезличенный исследовательский пакет по девятистраничному частному договору: шесть взаимосвязанных печатных механизмов, возможные ошибки первого чтения и условия, меняющие первоначальный вывод. Рукописные поля только отмечены как зависимость и полностью исключены из смыслового анализа; значения, опись, оригинальные фотографии, имена и реквизиты не сохранены. Связь с семейством RC и источник независимой оценки не установлены; контрпримеры не являются наблюдёнными ошибками модели, юридическим Gold или production-правилами. Это разовое локальное содержательное исключение; канонический следующий шаг и запрет внешних прогонов реальных договоров сохраняются.
 
 PR #293 — добавлены три датированные, пока НЕ верифицированные специалистом контрпроверки закона для уже обезличенного `contract_001`: настоящее право продления против нового согласия арендодателя (§25יב); обычный, срочный и чрезвычайный ремонт с ограничениями широкого отказа от претензий (§§8–9, 25ח); денежный предел гарантий против общих условий реализации/уведомления/возврата обеспечения (§25י). Поправка о дополнительных лицензированных гарантиях вступает в силу только 30.09.2026. В новой исследовательской карте сохранены точные цитаты, ошибки, даты, исключения §25טו, неопределённость источников и запрет на Gold/training. Исходные PDF не обрабатывались, production и текущая очередь задач не менялись.
 
@@ -242,6 +244,8 @@ This PR does not add another provider, model, dependency, endpoint, permission, 
 **Unresolved:** the original behind the three-page sanitized Golden Fixture is not positively mapped to a private RC group or template family (RC07 alone is excluded as a direct source). The product owner has not verified its full printed transcription. Appendix B, handwritten fields and signatures were excluded from the source record, so their original contents and any amendments are not known. Existing TF_A/TF_B development and TF_C/TF_D reserved independent-test families from #291 remain unchanged; the unlinked Golden Fixture is NOT eligible for training or cohort scoring.
 
 **PR #293 — bounded research exception:** three dated source-scoped and unverified statute-crosscheck hypotheses now cover actual tenant option versus renewed consent (§25יב), regular/urgent/emergency repair and undisclosed defects (§§8–9, 25ח), and financially burdensome security caps versus general realization/notice/return for an ordinary cheque (§25י). The 2026 licensed-provider amendment is future-effective only from 2026-09-30. No legal Gold or production authorization follows from this research.
+
+**PR #294 — bounded printed-contract research exception:** one sanitized packet records six mechanism variants and candidate first-read errors from a private nine-page lease. All handwritten content is excluded from semantic use; no source images, raw OCR, PII or instrument identifiers are persisted. Its private source/template-family link is UNKNOWN, and neither candidate error nor legal proposition is Gold, training, evaluation or runtime data. The canonical next step and external-provider freeze remain unchanged.
 
 **Next bounded step:** `expert-memory-contract-001-source-family-verification-v1`. In a separately approved private/local workflow, verify the sanitized transcription and the `8.א` → `9.א` sequence against the source, and try to map the fixture to a confirmed template family without publishing names, IDs, hashes or source text. If the source family remains unknown, keep training/evaluation blocked. Subsequent expert-case generation and legal-source verification are separate tasks.
 
