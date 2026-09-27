@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-27-145",
+  "state_version": "privacy-ocr-2026-09-27-146",
   "active_track": "expert-memory-development",
   "next_step_id": "expert-memory-contract-001-source-family-verification-v1",
-  "next_step_summary": "Owner-authorized bounded research exception PR #294 adds one sanitized nine-page private-lease packet with six printed cross-clause mechanisms, candidate first-read failures and corrected interpretations. Handwriting is presence-gated and excluded from all semantic conclusions; source images, raw OCR, PII, original filenames and instrument identifiers stay outside GitHub. Source/template family UNKNOWN, candidate errors not observed, no legal Gold, training, independent scoring, provider, OCR, RAG, database or runtime changes. Canonical next step remains expert-memory-contract-001-source-family-verification-v1.",
-  "last_recorded_pr": 294,
-  "last_recorded_change": "expert-memory-private-lease-printed-mechanisms-v1",
+  "next_step_summary": "Owner-authorized bounded research exception PR #295 adds eight sanitized printed crosschecks across TF_A (RC01/RC04) and TF_B (RC02/RC03), distinguishing one assistant self-correction from candidate errors. Handwriting remains semantically blocked; the RC02 draft and external court claim are unverified, and no raw source, PII or instrument identifier enters GitHub. No legal Gold, training, independent scoring, provider, OCR, RAG, database or runtime change. Canonical next step remains expert-memory-contract-001-source-family-verification-v1.",
+  "last_recorded_pr": 295,
+  "last_recorded_change": "expert-memory-rc-a-b-printed-crosschecks-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-09-27"
