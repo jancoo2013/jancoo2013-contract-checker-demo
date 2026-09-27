@@ -36,6 +36,9 @@ SOURCE_PATHS = {
     "golden_metadata": "research/question_engine/golden_contracts/contract_001.meta.json",
     "aggregate_matrix": "research/question_engine/dispute_practice/cross_contract_mechanism_matrix_v1.json",
     "private_inventory": "research/question_engine/expert_memory/real_contract_inventory_v1.json",
+    "template_split": "research/question_engine/expert_memory/real_contract_template_split_v1.json",
+    "printed_crosschecks": "research/question_engine/expert_memory/rc01_rc04_rc02_rc03_printed_crosschecks_v1.json",
+    "rc06_review": "research/question_engine/expert_memory/rc06_printed_mechanisms_v1.json",
 }
 
 
@@ -60,11 +63,12 @@ def read(path: Path) -> dict:
 
 
 def validate(data: dict, matrix: dict, inventory: dict,
-             meta: dict, gold_text: str) -> None:
+             meta: dict, gold_text: str, split: dict,
+             crosschecks: dict, rc06: dict) -> None:
     require(isinstance(data, dict) and set(data) == {
         "schema_version", "prepared_on", "status", "sources", "linkage",
         "mechanisms", "golden_cross_clause_checks", "private_groups", "policy",
-    } and data["schema_version"] == 1 and data["prepared_on"] == "2026-09-23"
+    } and data["schema_version"] == 1 and data["prepared_on"] == "2026-09-27"
             and data["status"] == "SANITIZED_SOURCE_SCOPED_RESEARCH_NOT_GOLD",
             "unsupported coverage schema or review promotion")
     sources = data["sources"]
@@ -133,17 +137,41 @@ def validate(data: dict, matrix: dict, inventory: dict,
             {x["id"] for x in inventory["contracts"]}
             and len(groups) == len(inventory["contracts"]) == 7,
             "private inventory references not synchronized")
+    require(crosschecks["status"] == "ASSISTANT_RESEARCH_NOT_GOLD"
+            and set(crosschecks["scope"]["groups"]) ==
+            {"RC01", "RC02", "RC03", "RC04"}
+            and rc06["status"] == "ASSISTANT_RESEARCH_HYPOTHESES_NOT_GOLD"
+            and rc06["source"]["anonymous_group"] == "RC06"
+            and rc06["source"]["template_family"] == "TF_C",
+            "private printed research provenance mismatch")
+    family_by_group = {group: family["id"]
+                       for family in split["families"]
+                       for group in family["groups"]}
+    require(len(family_by_group) == len(groups)
+            and set(family_by_group) == {x["id"] for x in groups}
+            and split["cohort_boundary"]["development_families"] ==
+            ["TF_A", "TF_B", "TF_C"]
+            and split["cohort_boundary"]["independent_test_families"] ==
+            ["TF_D"], "private family split changed")
     for x in groups:
+        expected_coverage = (
+            "PRINTED_CROSSCHECK_RESEARCH_ONLY" if x["id"] in
+            crosschecks["scope"]["groups"] else
+            "PRINTED_MECHANISMS_RESEARCH_ONLY" if x["id"] == "RC06" else
+            "UNKNOWN_NOT_SOURCE_ANCHORED" if x["id"] == "RC05" else
+            "UNKNOWN_NOT_REVIEWED")
+        expected_cohort = ("INDEPENDENT_TEST_RESERVED" if x["id"] == "RC07"
+                           else "DEVELOPMENT_RESEARCH_ONLY")
         require(set(x) == {"id", "coverage", "template_family", "cohort"}
-                and x["coverage"] == "UNKNOWN_NOT_REVIEWED"
-                and x["template_family"] == "UNVERIFIED"
-                and x["cohort"] == "UNASSIGNED",
-                "private contract coverage or holdout fabricated")
+                and x["coverage"] == expected_coverage
+                and x["template_family"] == family_by_group[x["id"]]
+                and x["cohort"] == expected_cohort,
+                "private contract coverage or holdout mismatch")
     require(data["policy"] == {
         "no_negative_inference_from_unmentioned_clause": True,
         "do_not_infer_handwriting": True,
         "eligible_gold": False,
-        "training_or_evaluation_assignment": "PENDING_PRIVATE_TEMPLATE_COMPARISON",
+        "training_or_evaluation_assignment": "FAMILY_SPLIT_RESEARCH_ONLY_NO_TRAINING_OR_SCORING",
         "real_contract_provider_runs": False,
     }, "real-contract privacy, Gold or evaluation boundary relaxed")
 
@@ -152,6 +180,8 @@ if __name__ == "__main__":
     evidence = {k: ROOT / v for k, v in SOURCE_PATHS.items()}
     validate(read(DATA), read(evidence["aggregate_matrix"]),
              read(evidence["private_inventory"]), read(evidence["golden_metadata"]),
-             evidence["golden_fixture"].read_text(encoding="utf-8"))
+             evidence["golden_fixture"].read_text(encoding="utf-8"),
+             read(evidence["template_split"]), read(evidence["printed_crosschecks"]),
+             read(evidence["rc06_review"]))
     print("Coverage: 13 mechanism families, 7 cross-clause checks, "
-          "7 private groups UNKNOWN; NOT legal Gold.")
+          "5 groups with printed research, 2 without source-anchored coverage; NOT legal Gold.")
