@@ -49,12 +49,12 @@
     {
       "id": "leak_consumption_vs_repair_and_asis",
       "printed_clauses": ["5a", "9b", "11"],
-      "reading": "The tenant is assigned ongoing utility charges even for a leak not caused by tenant negligence. A separate clause makes the landlord responsible for specified landlord-side repairs after demand and provides a conditional tenant-repair, reimbursement and setoff sequence; another clause contains a broad condition and defect acknowledgment.",
-      "initial_error_hypothesis": "Treat utility consumption, physical repair and consequential damage as the same obligation, or read the broad acknowledgment as deleting the later repair route.",
-      "correction": "Separate bill allocation, fault and repair responsibility. The printed urgent branch uses forty-eight hours before tenant repair at the landlord's expense and requires receipts; setoff follows non-reimbursement. No particular leak, bill or reimbursement is established.",
+      "reading": "The tenant is assigned ongoing utility charges; leak-related water consumption is included when the leak was caused by tenant negligence. A separate clause makes the landlord responsible for specified landlord-side repairs after demand and provides a conditional tenant-repair, reimbursement and setoff sequence; another clause contains a broad condition and defect acknowledgment.",
+      "initial_error_hypothesis": "Invert the negligence condition, or treat utility consumption, physical repair and consequential damage as the same obligation, or read the broad acknowledgment as deleting the later repair route.",
+      "correction": "Preserve the negligence qualifier: this clause assigns leak-related water consumption to the tenant when the leak was caused by tenant negligence; it does not establish the same allocation for a non-negligent leak. Separately track bill allocation, fault and repair responsibility. The printed urgent branch uses forty-eight hours before tenant repair at the landlord's expense and requires receipts; setoff follows non-reimbursement. No particular leak, bill or reimbursement is established.",
       "unresolved": ["actual cause and meter bills", "notice and urgency", "repair receipts and reimbursement", "dated statutory comparison"],
       "known_family": "utilities_and_occupancy_charges + condition_as_is_defects_damage + repair_setoff",
-      "added_subtype": "NONNEGLIGENT_LEAK_CONSUMPTION_SEPARATE_FROM_LANDLORD_REPAIR",
+      "added_subtype": "NEGLIGENT_LEAK_CONSUMPTION_SEPARATE_FROM_LANDLORD_REPAIR",
       "control_status": "CANDIDATE_NOT_OBSERVED_MODEL_FAILURE"
     },
     {
