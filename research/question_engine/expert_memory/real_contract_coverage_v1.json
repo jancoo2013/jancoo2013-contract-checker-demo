@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "prepared_on": "2026-09-27",
+  "prepared_on": "2026-10-01",
   "status": "SANITIZED_SOURCE_SCOPED_RESEARCH_NOT_GOLD",
-  "sources": {"golden_fixture":"research/question_engine/golden_contracts/contract_001_he.txt","golden_metadata":"research/question_engine/golden_contracts/contract_001.meta.json","golden_review":"ASSISTANT_TWO_PASS_OWNER_REVIEW_PENDING","aggregate_matrix":"research/question_engine/dispute_practice/cross_contract_mechanism_matrix_v1.json","aggregate_evidence":"TWO_CONTRACT_RESEARCH_CLASSIFICATION_NOT_PER_DOCUMENT_ORACLE","private_inventory":"research/question_engine/expert_memory/real_contract_inventory_v1.json","template_split":"research/question_engine/expert_memory/real_contract_template_split_v1.json","printed_crosschecks":"research/question_engine/expert_memory/rc01_rc04_rc02_rc03_printed_crosschecks_v1.json","rc06_review":"research/question_engine/expert_memory/rc06_printed_mechanisms_v1.json"},
+  "sources": {"golden_fixture":"research/question_engine/golden_contracts/contract_001_he.txt","golden_metadata":"research/question_engine/golden_contracts/contract_001.meta.json","golden_review":"ASSISTANT_TWO_PASS_OWNER_REVIEW_PENDING","aggregate_matrix":"research/question_engine/dispute_practice/cross_contract_mechanism_matrix_v1.json","aggregate_evidence":"TWO_CONTRACT_RESEARCH_CLASSIFICATION_NOT_PER_DOCUMENT_ORACLE","private_inventory":"research/question_engine/expert_memory/real_contract_inventory_v1.json","template_split":"research/question_engine/expert_memory/real_contract_template_split_v1.json","printed_crosschecks":"research/question_engine/expert_memory/rc01_rc04_rc02_rc03_printed_crosschecks_v1.json","rc05_review":"research/question_engine/expert_memory/rc05_printed_mechanisms_v1.json","rc06_review":"research/question_engine/expert_memory/rc06_printed_mechanisms_v1.json","rc07_review":"research/question_engine/expert_memory/rc07_printed_mechanisms_v1.json"},
   "linkage": {"golden_to_inventory":"NOT_ESTABLISHED","aggregate_to_inventory":"NOT_ESTABLISHED","golden_to_aggregate":"NOT_ESTABLISHED"},
   "mechanisms": [
     {"id":"security_and_enforcement","classification":"CORE","aggregate_seen":2,"aggregate_total":2,"golden_status":"EVIDENCED_IN_SANITIZED_FIXTURE","golden_clause_ids":["4","11"],"note":"Advance rent cheques and a security cheque are distinct; the security-return sentence also names a bank guarantee."},
@@ -33,9 +33,9 @@
     {"id":"RC02","coverage":"PRINTED_CROSSCHECK_RESEARCH_ONLY","template_family":"TF_B","cohort":"DEVELOPMENT_RESEARCH_ONLY"},
     {"id":"RC03","coverage":"PRINTED_CROSSCHECK_RESEARCH_ONLY","template_family":"TF_B","cohort":"DEVELOPMENT_RESEARCH_ONLY"},
     {"id":"RC04","coverage":"PRINTED_CROSSCHECK_RESEARCH_ONLY","template_family":"TF_A","cohort":"DEVELOPMENT_RESEARCH_ONLY"},
-    {"id":"RC05","coverage":"UNKNOWN_NOT_SOURCE_ANCHORED","template_family":"TF_B","cohort":"DEVELOPMENT_RESEARCH_ONLY"},
+    {"id":"RC05","coverage":"PRINTED_MECHANISMS_RESEARCH_ONLY","template_family":"TF_B","cohort":"DEVELOPMENT_RESEARCH_ONLY"},
     {"id":"RC06","coverage":"PRINTED_MECHANISMS_RESEARCH_ONLY","template_family":"TF_C","cohort":"DEVELOPMENT_RESEARCH_ONLY"},
-    {"id":"RC07","coverage":"UNKNOWN_NOT_REVIEWED","template_family":"TF_D","cohort":"INDEPENDENT_TEST_RESERVED"}
+    {"id":"RC07","coverage":"PRINTED_MECHANISMS_RESEARCH_ONLY","template_family":"TF_D","cohort":"DEVELOPMENT_RESEARCH_ONLY"}
   ],
   "policy": {"no_negative_inference_from_unmentioned_clause":true,"do_not_infer_handwriting":true,"eligible_gold":false,"training_or_evaluation_assignment":"FAMILY_SPLIT_RESEARCH_ONLY_NO_TRAINING_OR_SCORING","real_contract_provider_runs":false}
 }

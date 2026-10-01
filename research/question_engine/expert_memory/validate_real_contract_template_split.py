@@ -18,7 +18,7 @@ EXPECTED = {
     "TF_C": (["RC06"], "DISTINCT_SINGLETON_TEMPLATE_CONFIRMED",
              "DEVELOPMENT_RESEARCH_REVIEWED_NOT_GOLD"),
     "TF_D": (["RC07"], "DISTINCT_SINGLETON_TEMPLATE_CONFIRMED",
-             "INDEPENDENT_TEST_RESERVED"),
+             "DEVELOPMENT_RESEARCH_REVIEWED_NOT_GOLD"),
 }
 PRIVACY_FIELDS = {
     "original_filenames_committed", "original_library_ids_committed",
@@ -56,7 +56,7 @@ def validate(data: dict, inventory: dict, coverage: dict, gold_meta: dict) -> No
         "families", "golden_fixture", "prior_two_contract_research",
         "cohort_boundary", "still_unknown", "privacy",
     } and data["schema_version"] == 1
-            and data["prepared_on"] == "2026-09-27"
+            and data["prepared_on"] == "2026-10-01"
             and data["status"] == "PRIVATE_LOCAL_TEMPLATE_FAMILY_SPLIT_NOT_GOLD",
             "template research status overstated")
 
@@ -145,11 +145,11 @@ def validate(data: dict, inventory: dict, coverage: dict, gold_meta: dict) -> No
     require(set(split) == {
         "status", "development_families", "independent_test_families",
         "unassigned_families", "rationale", "leakage_rule",
-    } and split["status"] == "FAMILY_DISJOINT_SPLIT_RESERVED"
-            and split["development_families"] == ["TF_A", "TF_B", "TF_C"]
-            and split["independent_test_families"] == ["TF_D"]
+    } and split["status"] == "FAMILY_DISJOINT_NO_UNEXPOSED_TEST_FAMILY"
+            and split["development_families"] == ["TF_A", "TF_B", "TF_C", "TF_D"]
+            and split["independent_test_families"] == []
             and split["unassigned_families"] == []
-            and "cannot remain an independent test" in split["rationale"]
+            and "Neither can remain an independent test" in split["rationale"]
             and set(split["development_families"]).isdisjoint(
                 split["independent_test_families"])
             and all(family["id"] in split["development_families"]
@@ -172,5 +172,5 @@ if __name__ == "__main__":
     validate(read(DATA), read(BASE / "real_contract_inventory_v1.json"),
              read(BASE / "real_contract_coverage_v1.json"),
              read(ROOT / "research/question_engine/golden_contracts/contract_001.meta.json"))
-    print("Template split: 4 families / 7 anonymous groups; TF_C reviewed "
-          "development, TF_D reserved independent test; not legal Gold.")
+    print("Template split: 4 families / 7 anonymous groups; all reviewed "
+          "development research, no independent test family or legal Gold.")
