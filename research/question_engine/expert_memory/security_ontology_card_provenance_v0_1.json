@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "status": "SANITIZED_SOURCE_SCOPED_RESEARCH_NOT_GOLD",
+  "cards_file": "research/question_engine/expert_memory/security_ontology_cards_v0_1.json",
+  "source_limit": "Only previously published sanitized research packets are referenced. Clause locators identify printed terms, not original signatures, actual performance, source-family verification or legal authority.",
+  "sources": {
+    "SECURITY_CHECK": [
+      {"path": "research/question_engine/expert_memory/contract_001_deep_review_v1.json", "mechanism_id": "security_cheque_not_bank_guarantee", "locators": ["11"], "role": "POSITIVE_PRINTED_WITH_INSTRUMENT_CONFLICT"},
+      {"path": "research/question_engine/expert_memory/private_lease_printed_mechanisms_v1.json", "mechanism_id": "security_bundle_completion_return_and_delivery_deadline", "locators": ["13.1.1", "13.1.4", "13.7"], "role": "POSITIVE_PRINTED_UNVERIFIED_DELIVERY"},
+      {"path": "research/question_engine/expert_memory/rc01_rc04_rc02_rc03_printed_crosschecks_v1.json", "mechanism_id": "tf_b_utility_return_period_scope", "locators": ["TF_B:RC03:5.4.1", "TF_B:RC03:5.4.2"], "role": "INSTANCE_AND_RETURN_SCOPE_BOUNDARY"},
+      {"path": "research/question_engine/expert_memory/rc06_printed_mechanisms_v1.json", "mechanism_id": "two_open_cheques_guarantors_and_singular_collection", "locators": ["19", "20"], "role": "AMBIGUOUS_CAP_AND_INSTANCE_BOUNDARY"},
+      {"path": "research/question_engine/expert_memory/rc07_printed_mechanisms_v1.json", "mechanism_id": "temporary_rent_cheques_vs_separate_security", "locators": ["5", "6", "13"], "role": "DISTINCT_TEMPORARY_AND_MULTIPURPOSE_INSTANCES"},
+      {"path": "research/question_engine/expert_memory/rc05_printed_mechanisms_v1.json", "mechanism_id": "two_transfers_vs_unidentified_security", "locators": ["5.2"], "role": "NEGATIVE_BOUNDARY_INSTRUMENT_TYPE_UNKNOWN"}
+    ],
+    "PROMISSORY_NOTE": [
+      {"path": "research/question_engine/expert_memory/private_lease_printed_mechanisms_v1.json", "mechanism_id": "security_bundle_completion_return_and_delivery_deadline", "locators": ["13.1.3"], "role": "POSITIVE_PRINTED_UNVERIFIED_ISSUANCE"}
+    ],
+    "PERSONAL_GUARANTEE": [
+      {"path": "research/question_engine/expert_memory/private_lease_printed_mechanisms_v1.json", "mechanism_id": "security_bundle_completion_return_and_delivery_deadline", "locators": ["13.1.3"], "role": "POSITIVE_PRINTED_UNVERIFIED_SIGNATURES"},
+      {"path": "research/question_engine/expert_memory/rc06_printed_mechanisms_v1.json", "mechanism_id": "two_open_cheques_guarantors_and_singular_collection", "locators": ["19"], "role": "PRINTED_GUARANTOR_COUNT_NOT_EXECUTION"}
+    ],
+    "SECURITY_REALIZATION": [
+      {"path": "research/question_engine/expert_memory/contract_001_deep_review_v1.json", "mechanism_id": "security_cheque_not_bank_guarantee", "locators": ["11"], "role": "CLAIMED_USE_NOT_ADDITIONAL_PENALTY"},
+      {"path": "research/question_engine/expert_memory/private_lease_printed_mechanisms_v1.json", "mechanism_id": "security_bundle_completion_return_and_delivery_deadline", "locators": ["13.3", "13.4", "13.7"], "role": "COMPLETION_SEPARATE_FROM_DELIVERY_AND_USE"},
+      {"path": "research/question_engine/expert_memory/rc06_printed_mechanisms_v1.json", "mechanism_id": "two_open_cheques_guarantors_and_singular_collection", "locators": ["19", "20"], "role": "SINGULAR_REFERENCE_NOT_THIRD_CHEQUE"}
+    ],
+    "SECURITY_RETURN": [
+      {"path": "research/question_engine/expert_memory/rc01_rc04_rc02_rc03_printed_crosschecks_v1.json", "mechanism_id": "tf_b_utility_return_period_scope", "locators": ["TF_B:RC03:5.4.1", "TF_B:RC03:5.4.2"], "role": "ADJACENT_SUBCLAUSE_DEADLINE_SCOPE"},
+      {"path": "research/question_engine/expert_memory/rc01_rc04_rc02_rc03_printed_crosschecks_v1.json", "mechanism_id": "tf_a_security_return_without_instrument_inventory", "locators": ["TF_A:16"], "role": "RETURN_TERM_NOT_ISSUANCE"},
+      {"path": "research/question_engine/expert_memory/rc01_rc04_rc02_rc03_printed_crosschecks_v1.json", "mechanism_id": "tf_b_old_cheque_return_recital_not_receipt", "locators": ["TF_B:RC02:preamble", "TF_B:RC03:14.3"], "role": "DRAFT_RECITAL_NOT_ACTUAL_RECEIPT"},
+      {"path": "research/question_engine/expert_memory/private_lease_printed_mechanisms_v1.json", "mechanism_id": "security_bundle_completion_return_and_delivery_deadline", "locators": ["13.2"], "role": "TERM_EXTENSION_AND_CONDITIONS"},
+      {"path": "research/question_engine/expert_memory/contract_001_deep_review_v1.json", "mechanism_id": "security_cheque_not_bank_guarantee", "locators": ["11"], "role": "BANK_GUARANTEE_NAME_CONFLICT"},
+      {"path": "research/question_engine/expert_memory/rc07_printed_mechanisms_v1.json", "mechanism_id": "temporary_rent_cheques_vs_separate_security", "locators": ["5", "6", "13"], "role": "TRIGGER_BELONGS_TO_TEMPORARY_CHEQUES"}
+    ]
+  }
+}
