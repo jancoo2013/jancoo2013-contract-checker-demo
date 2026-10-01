@@ -1,12 +1,14 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-10-01, PR #299, `expert-memory-rc05-rc07-candidate-errors-and-cohort-sync` (ограниченное исследовательское исключение).
+Последнее обновление: 2026-10-01, PR #300, `expert-memory-ontology-rc05-rc07-reconciliation-v0-1` (ограниченное документационное исключение).
 
-Версия состояния: `privacy-ocr-2026-10-01-150`.
+Версия состояния: `privacy-ocr-2026-10-01-151`.
 
 Активный трек: `expert-memory-development`.
 
 Канонический следующий bounded-шаг: `expert-memory-contract-001-source-family-verification-v1`.
+
+PR #300 — к исследовательской инвентаризации онтологии добавлена сверка всех 12 обезличенных печатных механизмов RC05 и RC07 с существующими 30 кандидатами понятий. Указаны покрытия, отрицательные границы, отдельные временные триггеры и различия вне ядра: регистрация счетов/представление квитанций, предвозвратный протокол, направление возмещения ремонта и запрет зачёта, включённый недоступный документ, срок исправления после требования. Это предложения для проверки, без новых карточек, ID ядра, JSON-схемы, извлекателя, Gold, обучения или независимого scoring. Канонический следующий шаг, заморозка внешних прогонов, приватность и runtime не меняются.
 
 PR #299 — по прямому разрешению владельца опубликованы два обезличенных исследовательских пакета: по шесть привязанных к печатным пунктам кандидатов ошибок чтения RC05 и RC07. Это гипотезы контроля, а не наблюдённые сбои модели, юридический Gold или обучающие метки. RC05/TF_B имеет собственную короткую редакцию; условия RC02/RC03 не заполняют её пробелы. Поскольку RC07/TF_D был вручную прочитан, это семейство переведено в development research: среди RC01–RC07 больше нет нетронутого независимого test-семейства. Карта покрытия, split, валидаторы и исследовательские документы синхронизированы. Оригиналы, OCR, рукопись, идентификаторы, реквизиты, provider/runtime и юридические выводы не добавлены. Активный трек, заморозка внешних прогонов и канонический следующий шаг не меняются.
 
@@ -266,6 +268,8 @@ This PR does not add another provider, model, dependency, endpoint, permission, 
 **PR #297 — coverage/cohort corrective follow-up:** the current `real_contract_coverage_v1.json` now reflects TF_A–TF_D and printed research for RC01–RC04 and RC06. RC05 remains without a repository source-anchored mechanism packet; RC07 remains unreviewed independent-test reserve. The 2026-09-23 inventory is explicitly historical. Both coverage and split validators reject stale family/cohort assignments. No legal Gold, training, independent scoring, raw source, runtime or external-provider change; canonical next step unchanged.
 
 **PR #299 — RC05/RC07 candidate errors and cohort sync:** six candidate first-read traps for each contract are source-scoped with printed clause locators and missing-fact boundaries. They are not observed external-model errors or verified labels. RC05 no longer lacks a printed research packet; TF_D/RC07 is exposed development research after manual review. All four families are now exposed, leaving no independent test among the supplied RC groups. The historical inventory is unchanged. Coverage, split, validators and ontology snapshot addendum reflect the new status, while the canonical next step and all privacy, provider and runtime gates remain unchanged.
+
+**PR #300 — ontology inventory reconciliation exception:** all 12 RC05/RC07 packet mechanisms are mapped once to the original 30 candidate concepts or marked as a bounded gap. The 30 definitions and nine original temporal roles remain a dated snapshot. RC05 provides a printed example of a cure period after written rent demand; RC07 distinguishes a standing-order-triggered cheque return and an explicitly incorporated but unavailable document. Candidate gaps are not automatically new concepts or expert-verified labels. No cards, ontology JSON, extractor, runtime, external provider or canonical-next-step change.
 
 **Next bounded step:** `expert-memory-contract-001-source-family-verification-v1`. In a separately approved private/local workflow, verify the sanitized transcription and the `8.א` → `9.א` sequence against the source, and try to map the fixture to a confirmed template family without publishing names, IDs, hashes or source text. If the source family remains unknown, keep training/evaluation blocked. Subsequent expert-case generation and legal-source verification are separate tasks.
 

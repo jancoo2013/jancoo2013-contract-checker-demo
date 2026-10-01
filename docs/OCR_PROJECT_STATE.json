@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-10-01-150",
+  "state_version": "privacy-ocr-2026-10-01-151",
   "active_track": "expert-memory-development",
   "next_step_id": "expert-memory-contract-001-source-family-verification-v1",
-  "next_step_summary": "Owner-authorized research exception PR #299 records six sanitized printed-clause candidate reading traps each for RC05 and RC07. These are not observed model failures, legal Gold or training labels. RC05 is source-scoped without importing RC02/RC03 terms; reviewed RC07/TF_D is exposed development research, leaving no independent test family among RC01–RC07. No originals, raw OCR, handwriting, identifiers, provider, runtime, legal Gold, training or independent scoring change. Canonical next step remains expert-memory-contract-001-source-family-verification-v1.",
-  "last_recorded_pr": 299,
-  "last_recorded_change": "expert-memory-rc05-rc07-candidate-errors-and-cohort-sync",
+  "next_step_summary": "Owner-authorized documentation exception PR #300 maps all twelve sanitized RC05/RC07 printed mechanisms to the existing thirty candidate ontology concepts or bounded gaps. The original definitions and nine temporal roles remain a dated research snapshot. Candidate gaps, including a written-demand cure period, pre-return protocol, repair-reimbursement direction and incorporated missing document, are not new cards or verified labels. No ontology JSON, extractor, legal Gold, training, independent scoring, provider, OCR, RAG, database or runtime change. Canonical next step remains expert-memory-contract-001-source-family-verification-v1.",
+  "last_recorded_pr": 300,
+  "last_recorded_change": "expert-memory-ontology-rc05-rc07-reconciliation-v0-1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-10-01"
