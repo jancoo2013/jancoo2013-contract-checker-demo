@@ -1,12 +1,14 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-10-01, PR #301, `expert-memory-ontology-document-repair-core-decisions-v0-1` (ограниченное документационное исключение).
+Последнее обновление: 2026-10-01, PR #302, `expert-memory-security-ontology-draft-cards-v0-1` (ограниченное исследовательское исключение).
 
-Версия состояния: `privacy-ocr-2026-10-01-152`.
+Версия состояния: `privacy-ocr-2026-10-01-153`.
 
 Активный трек: `expert-memory-development`.
 
 Канонический следующий bounded-шаг: `expert-memory-contract-001-source-family-verification-v1`.
+
+PR #302 — оформлены первые пять черновых исследовательских карточек SECURITY из кандидатов №08–12: обеспечительный чек, вексель, поручительство, возможное использование и возврат обеспечения. Шесть полей каждой карточки описывают понятие, слоты-вопросы, связи и границы смешения; отдельный реестр привязывает их к опубликованным обезличенным механизмам. Проверяются раздельность инструментов, неоднозначный денежный предел RC06, узкий срок возврата коммунальных чеков RC03 и различие передачи обеспечения и уведомления перед использованием. Карточки не являются доказательством фактической выдачи или взыскания, юридическим Gold, метками обучения или runtime-схемой. Неподтверждённое происхождение `contract_001`, запрет внешних прогонов и канонический следующий шаг не изменены.
 
 PR #301 — для будущей редакции исследовательского ядра согласованы два рабочих различия: сквозная ссылка на другой документ с отдельными признаками включения, приоритета и доступности текста (`DOCUMENT_REFERENCE`), а также направленное требование расходов на ремонт (`REPAIR_COST_RECOVERY`). №14 `TENANT_REPAIR_RECOVERY` остаётся частным маршрутом в датированном снимке из 30 кандидатов; противоположная ветка RC05 не объявляется правом арендатора на зачёт. Это решения уровня глоссария без формализации карточек, новых JSON-ID, извлекателя, Gold, обучения, внешних прогонов и правовых выводов. Активный трек, канонический следующий шаг, приватность и runtime не изменены.
 
@@ -274,6 +276,8 @@ This PR does not add another provider, model, dependency, endpoint, permission, 
 **PR #300 — ontology inventory reconciliation exception:** all 12 RC05/RC07 packet mechanisms are mapped once to the original 30 candidate concepts or marked as a bounded gap. The 30 definitions and nine original temporal roles remain a dated snapshot. RC05 provides a printed example of a cure period after written rent demand; RC07 distinguishes a standing-order-triggered cheque return and an explicitly incorporated but unavailable document. Candidate gaps are not automatically new concepts or expert-verified labels. No cards, ontology JSON, extractor, runtime, external provider or canonical-next-step change.
 
 **PR #301 — glossary core decisions exception:** `DOCUMENT_REFERENCE` records the stated document relation and whether its text was supplied, without inferring contents; `REPAIR_COST_RECOVERY` preserves the repair obligor and direction of a possible cost claim. Original candidate #14 stays tenant-specific in the dated inventory. These are working research terms, not formal cards or verified labels. No runtime, external provider, privacy or canonical-next-step change.
+
+**PR #302 — five draft SECURITY cards exception:** inventory candidates #08–12 now have six-field research JSON cards and a separate source-locator registry. Their slots are questions about a target instance, not extracted values; links to other inventory candidates do not formalize those concepts. Four source-scoped ambiguity controls cover instrument identity, RC06 cap scope, RC03 return deadline scope, and delivery versus use. No source-family signoff, Gold, training, runtime, external provider, privacy or canonical-next-step change.
 
 **Next bounded step:** `expert-memory-contract-001-source-family-verification-v1`. In a separately approved private/local workflow, verify the sanitized transcription and the `8.א` → `9.א` sequence against the source, and try to map the fixture to a confirmed template family without publishing names, IDs, hashes or source text. If the source family remains unknown, keep training/evaluation blocked. Subsequent expert-case generation and legal-source verification are separate tasks.
 
