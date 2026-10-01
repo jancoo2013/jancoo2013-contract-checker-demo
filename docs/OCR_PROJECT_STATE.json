@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-09-30-149",
+  "state_version": "privacy-ocr-2026-10-01-150",
   "active_track": "expert-memory-development",
   "next_step_id": "expert-memory-contract-001-source-family-verification-v1",
-  "next_step_summary": "Owner-authorized documentation exception PR #298 publishes a research-only ontology inventory of 30 candidate concepts and nine temporal roles from existing sanitized source-scoped reviews. Instrument types remain separate from instances; monetary caps from durations; contract conditions from observed performance. RC05 and the latest template remain explicit source gaps. No JSON cards, runtime schema, extractor, legal Gold, training, independent scoring, provider, OCR, RAG or database change. Canonical next step remains expert-memory-contract-001-source-family-verification-v1.",
-  "last_recorded_pr": 298,
-  "last_recorded_change": "expert-memory-ontology-concept-inventory-v0-1",
+  "next_step_summary": "Owner-authorized research exception PR #299 records six sanitized printed-clause candidate reading traps each for RC05 and RC07. These are not observed model failures, legal Gold or training labels. RC05 is source-scoped without importing RC02/RC03 terms; reviewed RC07/TF_D is exposed development research, leaving no independent test family among RC01–RC07. No originals, raw OCR, handwriting, identifiers, provider, runtime, legal Gold, training or independent scoring change. Canonical next step remains expert-memory-contract-001-source-family-verification-v1.",
+  "last_recorded_pr": 299,
+  "last_recorded_change": "expert-memory-rc05-rc07-candidate-errors-and-cohort-sync",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
-  "updated_on": "2026-09-30"
+  "updated_on": "2026-10-01"
 }
