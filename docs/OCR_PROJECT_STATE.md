@@ -1,12 +1,14 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-10-01, PR #300, `expert-memory-ontology-rc05-rc07-reconciliation-v0-1` (ограниченное документационное исключение).
+Последнее обновление: 2026-10-01, PR #301, `expert-memory-ontology-document-repair-core-decisions-v0-1` (ограниченное документационное исключение).
 
-Версия состояния: `privacy-ocr-2026-10-01-151`.
+Версия состояния: `privacy-ocr-2026-10-01-152`.
 
 Активный трек: `expert-memory-development`.
 
 Канонический следующий bounded-шаг: `expert-memory-contract-001-source-family-verification-v1`.
+
+PR #301 — для будущей редакции исследовательского ядра согласованы два рабочих различия: сквозная ссылка на другой документ с отдельными признаками включения, приоритета и доступности текста (`DOCUMENT_REFERENCE`), а также направленное требование расходов на ремонт (`REPAIR_COST_RECOVERY`). №14 `TENANT_REPAIR_RECOVERY` остаётся частным маршрутом в датированном снимке из 30 кандидатов; противоположная ветка RC05 не объявляется правом арендатора на зачёт. Это решения уровня глоссария без формализации карточек, новых JSON-ID, извлекателя, Gold, обучения, внешних прогонов и правовых выводов. Активный трек, канонический следующий шаг, приватность и runtime не изменены.
 
 PR #300 — к исследовательской инвентаризации онтологии добавлена сверка всех 12 обезличенных печатных механизмов RC05 и RC07 с существующими 30 кандидатами понятий. Указаны покрытия, отрицательные границы, отдельные временные триггеры и различия вне ядра: регистрация счетов/представление квитанций, предвозвратный протокол, направление возмещения ремонта и запрет зачёта, включённый недоступный документ, срок исправления после требования. Это предложения для проверки, без новых карточек, ID ядра, JSON-схемы, извлекателя, Gold, обучения или независимого scoring. Канонический следующий шаг, заморозка внешних прогонов, приватность и runtime не меняются.
 
@@ -268,6 +270,8 @@ This PR does not add another provider, model, dependency, endpoint, permission, 
 **PR #297 — coverage/cohort corrective follow-up:** the current `real_contract_coverage_v1.json` now reflects TF_A–TF_D and printed research for RC01–RC04 and RC06. RC05 remains without a repository source-anchored mechanism packet; RC07 remains unreviewed independent-test reserve. The 2026-09-23 inventory is explicitly historical. Both coverage and split validators reject stale family/cohort assignments. No legal Gold, training, independent scoring, raw source, runtime or external-provider change; canonical next step unchanged.
 
 **PR #299 — RC05/RC07 candidate errors and cohort sync:** six candidate first-read traps for each contract are source-scoped with printed clause locators and missing-fact boundaries. They are not observed external-model errors or verified labels. RC05 no longer lacks a printed research packet; TF_D/RC07 is exposed development research after manual review. All four families are now exposed, leaving no independent test among the supplied RC groups. The historical inventory is unchanged. Coverage, split, validators and ontology snapshot addendum reflect the new status, while the canonical next step and all privacy, provider and runtime gates remain unchanged.
+
+**PR #301 — glossary core decisions exception:** `DOCUMENT_REFERENCE` records the stated document relation and whether its text was supplied, without inferring contents; `REPAIR_COST_RECOVERY` preserves the repair obligor and direction of a possible cost claim. Original candidate #14 stays tenant-specific in the dated inventory. These are working research terms, not formal cards or verified labels. No runtime, external provider, privacy or canonical-next-step change.
 
 **PR #300 — ontology inventory reconciliation exception:** all 12 RC05/RC07 packet mechanisms are mapped once to the original 30 candidate concepts or marked as a bounded gap. The 30 definitions and nine original temporal roles remain a dated snapshot. RC05 provides a printed example of a cure period after written rent demand; RC07 distinguishes a standing-order-triggered cheque return and an explicitly incorporated but unavailable document. Candidate gaps are not automatically new concepts or expert-verified labels. No cards, ontology JSON, extractor, runtime, external provider or canonical-next-step change.
 
