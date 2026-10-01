@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-10-01-151",
+  "state_version": "privacy-ocr-2026-10-01-152",
   "active_track": "expert-memory-development",
   "next_step_id": "expert-memory-contract-001-source-family-verification-v1",
-  "next_step_summary": "Owner-authorized documentation exception PR #300 maps all twelve sanitized RC05/RC07 printed mechanisms to the existing thirty candidate ontology concepts or bounded gaps. The original definitions and nine temporal roles remain a dated research snapshot. Candidate gaps, including a written-demand cure period, pre-return protocol, repair-reimbursement direction and incorporated missing document, are not new cards or verified labels. No ontology JSON, extractor, legal Gold, training, independent scoring, provider, OCR, RAG, database or runtime change. Canonical next step remains expert-memory-contract-001-source-family-verification-v1.",
-  "last_recorded_pr": 300,
-  "last_recorded_change": "expert-memory-ontology-rc05-rc07-reconciliation-v0-1",
+  "next_step_summary": "Owner-authorized documentation exception PR #301 records two working research glossary decisions for a future core: DOCUMENT_REFERENCE distinguishes incorporation, mention, priority and target text availability; REPAIR_COST_RECOVERY tracks the repair obligor and direction of a possible cost claim, while original candidate #14 stays tenant-specific. The original thirty candidates and nine temporal roles remain a dated snapshot. No formal cards, ontology JSON, extractor, legal Gold, training, independent scoring, provider, OCR, RAG, database or runtime change. Canonical next step remains expert-memory-contract-001-source-family-verification-v1.",
+  "last_recorded_pr": 301,
+  "last_recorded_change": "expert-memory-ontology-document-repair-core-decisions-v0-1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-10-01"
