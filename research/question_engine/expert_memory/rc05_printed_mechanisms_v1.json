@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "id": "rc05_printed_mechanisms_v1",
+  "status": "ASSISTANT_RESEARCH_HYPOTHESES_NOT_GOLD",
+  "source": {
+    "anonymous_group": "RC05",
+    "template_family": "TF_B",
+    "medium": "FIVE_PRIVATE_SCANNED_PAGES_REVIEWED_LOCALLY",
+    "scope": "PRINTED_CLAUSES_ONLY",
+    "evidence_grade": "ASSISTANT_VISUAL_READING_OWNER_TEXT_SIGNOFF_PENDING",
+    "persisted_evidence": "ANONYMOUS_CLAUSE_LOCATORS_AND_SANITIZED_PARAPHRASES_ONLY"
+  },
+  "mechanisms": [
+    {
+      "id": "short_term_sale_notice_and_option_ghost",
+      "printed_clauses": ["4.1", "4.3", "7.1", "10.2", "12.1"],
+      "reading": "A two-month printed term coexists with a sale notice worded around ninety days before its end and template references to an option. Sale is subject to preserving tenant rights; no independent option grant is established in these printed clauses.",
+      "initial_error_hypothesis": "Silently repair the ninety-day wording, treat sale as automatic termination, or infer an option from incidental references.",
+      "correction": "Flag the timing ambiguity and keep sale notice, sale effect and an unestablished option separate.",
+      "unresolved": ["whether a sale and notice occurred", "any signed option or amendment", "intended meaning of the ninety-day formula"],
+      "control_status": "CANDIDATE_NOT_OBSERVED_MODEL_FAILURE"
+    },
+    {
+      "id": "two_transfers_vs_unidentified_security",
+      "printed_clauses": ["5.1", "5.1.1", "5.1.2", "5.2"],
+      "reading": "Two monthly rent transfers are directed to different recipients. Separately, security said to be already held is returnable within thirty days after the term subject to proof of no debt; its type, number and amount are not listed here.",
+      "initial_error_hypothesis": "Double the monthly rent, count the transfers as security, or import named cheques from another TF_B edition.",
+      "correction": "Keep one monthly obligation, two payment instances and an unidentified security bundle. A return term does not prove issuance or inventory.",
+      "unresolved": ["transfer receipts", "actual security inventory and custody", "debt evidence and return"],
+      "control_status": "CANDIDATE_NOT_OBSERVED_MODEL_FAILURE"
+    },
+    {
+      "id": "replacement_route_vs_general_transfer_ban",
+      "printed_clauses": ["4.2", "10.1"],
+      "reading": "Early departure generally leaves rent through the term, with a special route for an acceptable replacement taking the contract terms. The landlord undertakes not to reject unreasonably; a general transfer restriction appears separately.",
+      "initial_error_hypothesis": "Erase the replacement route with the general ban or treat mere nomination as automatic release.",
+      "correction": "Read both clauses; distinguish nomination, acceptance, transfer and payment release.",
+      "unresolved": ["candidate and response", "replacement agreement", "release and payment dates"],
+      "control_status": "CANDIDATE_NOT_OBSERVED_MODEL_FAILURE"
+    },
+    {
+      "id": "two_ten_day_clocks_and_pre_return_protocol",
+      "printed_clauses": ["7.3", "12.1"],
+      "reading": "Registration is due ten days from taking possession, receipts ten days after demand, and correction of protocol defects ten days after a protocol planned twenty-one days before return.",
+      "initial_error_hypothesis": "Collapse three ten-day periods into one notice or count them all from signing.",
+      "correction": "Attach each duration to its own action and trigger; do not assert an inspection or demand occurred.",
+      "unresolved": ["possession and return dates", "demand and receipts", "signed protocol and defects"],
+      "control_status": "CANDIDATE_NOT_OBSERVED_MODEL_FAILURE"
+    },
+    {
+      "id": "asis_repairs_and_reimbursement_direction",
+      "printed_clauses": ["3.2.2", "3.2.3", "3.3", "8.1", "8.2", "8.3", "14.2"],
+      "reading": "The condition acknowledgment has a hidden-defect qualification and separate landlord repair duties. Clause 8.2 lets the landlord repair a tenant-side defect and seek costs; a broad no-setoff term appears elsewhere.",
+      "initial_error_hypothesis": "Treat AS IS as deleting repair duties or invert clause 8.2 into tenant repair reimbursement and rent setoff.",
+      "correction": "Keep the repair obligor, reimbursement direction, defect type and no-setoff wording separate without deciding legal validity.",
+      "unresolved": ["initial condition and cause", "notice and repairs", "expenses and signed additions"],
+      "control_status": "CANDIDATE_NOT_OBSERVED_MODEL_FAILURE"
+    },
+    {
+      "id": "holdover_amount_cure_and_delivery_clocks",
+      "printed_clauses": ["12.2", "12.3", "12.4.1", "12.4.2", "13.1", "13.2", "15"],
+      "reading": "One double-daily-rent holdover amount has multiple descriptions; other payments may continue. Seven days after written rent demand, ninety days for a different named event, and three working days of presumed registered-mail delivery have distinct purposes.",
+      "initial_error_hypothesis": "Count two daily charges from one clause, apply one cure period to every breach, or equate presumed delivery with cure or physical eviction.",
+      "correction": "Track the monetary head, triggering breach, demand, delivery, cure and return independently; do not claim an enforcement outcome.",
+      "unresolved": ["actual default and return", "notice route and dates", "overlapping loss and other charges"],
+      "control_status": "CANDIDATE_NOT_OBSERVED_MODEL_FAILURE"
+    }
+  ],
+  "boundaries": {
+    "actual_error_observation": "NONE; CONTROL_ERRORS_ARE_HYPOTHESES",
+    "training_eligible": false,
+    "independent_scoring_eligible": false,
+    "external_provider_run": false,
+    "raw_images_or_ocr_persisted": false,
+    "family_rule": "RC02_AND_RC03_CANNOT_FILL_MISSING_RC05_TERMS"
+  }
+}

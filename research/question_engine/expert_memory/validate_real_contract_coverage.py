@@ -38,7 +38,9 @@ SOURCE_PATHS = {
     "private_inventory": "research/question_engine/expert_memory/real_contract_inventory_v1.json",
     "template_split": "research/question_engine/expert_memory/real_contract_template_split_v1.json",
     "printed_crosschecks": "research/question_engine/expert_memory/rc01_rc04_rc02_rc03_printed_crosschecks_v1.json",
+    "rc05_review": "research/question_engine/expert_memory/rc05_printed_mechanisms_v1.json",
     "rc06_review": "research/question_engine/expert_memory/rc06_printed_mechanisms_v1.json",
+    "rc07_review": "research/question_engine/expert_memory/rc07_printed_mechanisms_v1.json",
 }
 
 
@@ -64,11 +66,11 @@ def read(path: Path) -> dict:
 
 def validate(data: dict, matrix: dict, inventory: dict,
              meta: dict, gold_text: str, split: dict,
-             crosschecks: dict, rc06: dict) -> None:
+             crosschecks: dict, rc05: dict, rc06: dict, rc07: dict) -> None:
     require(isinstance(data, dict) and set(data) == {
         "schema_version", "prepared_on", "status", "sources", "linkage",
         "mechanisms", "golden_cross_clause_checks", "private_groups", "policy",
-    } and data["schema_version"] == 1 and data["prepared_on"] == "2026-09-27"
+    } and data["schema_version"] == 1 and data["prepared_on"] == "2026-10-01"
             and data["status"] == "SANITIZED_SOURCE_SCOPED_RESEARCH_NOT_GOLD",
             "unsupported coverage schema or review promotion")
     sources = data["sources"]
@@ -142,26 +144,51 @@ def validate(data: dict, matrix: dict, inventory: dict,
             {"RC01", "RC02", "RC03", "RC04"}
             and rc06["status"] == "ASSISTANT_RESEARCH_HYPOTHESES_NOT_GOLD"
             and rc06["source"]["anonymous_group"] == "RC06"
-            and rc06["source"]["template_family"] == "TF_C",
+            and rc06["source"]["template_family"] == "TF_C"
+            and rc06["comparison"]["remaining_reserved_family"].startswith("NONE"),
             "private printed research provenance mismatch")
+    for packet, group, family, count in (
+        (rc05, "RC05", "TF_B", 6), (rc07, "RC07", "TF_D", 6)
+    ):
+        require(packet.get("schema_version") == 1
+                and packet.get("status") == "ASSISTANT_RESEARCH_HYPOTHESES_NOT_GOLD"
+                and packet.get("source", {}).get("anonymous_group") == group
+                and packet["source"].get("template_family") == family
+                and packet["source"].get("scope", "").startswith("PRINTED_CLAUSES_ONLY")
+                and packet["source"].get("persisted_evidence") ==
+                "ANONYMOUS_CLAUSE_LOCATORS_AND_SANITIZED_PARAPHRASES_ONLY"
+                and packet.get("boundaries", {}).get("actual_error_observation") ==
+                "NONE; CONTROL_ERRORS_ARE_HYPOTHESES"
+                and all(packet["boundaries"].get(k) is False for k in
+                        ("training_eligible", "independent_scoring_eligible",
+                         "external_provider_run", "raw_images_or_ocr_persisted"))
+                and len(packet.get("mechanisms", [])) == count
+                and len({m.get("id") for m in packet["mechanisms"]}) == count
+                and all(m.get("control_status") ==
+                        "CANDIDATE_NOT_OBSERVED_MODEL_FAILURE"
+                        and m.get("printed_clauses")
+                        and all(re.fullmatch(r"\d+(?:\.\d+)*", c)
+                                for c in m["printed_clauses"])
+                        and all(m.get(k) for k in
+                                ("reading", "initial_error_hypothesis",
+                                 "correction", "unresolved"))
+                        for m in packet["mechanisms"]),
+                "private printed research packet promoted or incomplete")
     family_by_group = {group: family["id"]
                        for family in split["families"]
                        for group in family["groups"]}
     require(len(family_by_group) == len(groups)
             and set(family_by_group) == {x["id"] for x in groups}
             and split["cohort_boundary"]["development_families"] ==
-            ["TF_A", "TF_B", "TF_C"]
+            ["TF_A", "TF_B", "TF_C", "TF_D"]
             and split["cohort_boundary"]["independent_test_families"] ==
-            ["TF_D"], "private family split changed")
+            [], "private family split changed")
     for x in groups:
         expected_coverage = (
             "PRINTED_CROSSCHECK_RESEARCH_ONLY" if x["id"] in
             crosschecks["scope"]["groups"] else
-            "PRINTED_MECHANISMS_RESEARCH_ONLY" if x["id"] == "RC06" else
-            "UNKNOWN_NOT_SOURCE_ANCHORED" if x["id"] == "RC05" else
-            "UNKNOWN_NOT_REVIEWED")
-        expected_cohort = ("INDEPENDENT_TEST_RESERVED" if x["id"] == "RC07"
-                           else "DEVELOPMENT_RESEARCH_ONLY")
+            "PRINTED_MECHANISMS_RESEARCH_ONLY")
+        expected_cohort = "DEVELOPMENT_RESEARCH_ONLY"
         require(set(x) == {"id", "coverage", "template_family", "cohort"}
                 and x["coverage"] == expected_coverage
                 and x["template_family"] == family_by_group[x["id"]]
@@ -182,6 +209,7 @@ if __name__ == "__main__":
              read(evidence["private_inventory"]), read(evidence["golden_metadata"]),
              evidence["golden_fixture"].read_text(encoding="utf-8"),
              read(evidence["template_split"]), read(evidence["printed_crosschecks"]),
-             read(evidence["rc06_review"]))
+             read(evidence["rc05_review"]), read(evidence["rc06_review"]),
+             read(evidence["rc07_review"]))
     print("Coverage: 13 mechanism families, 7 cross-clause checks, "
-          "5 groups with printed research, 2 without source-anchored coverage; NOT legal Gold.")
+          "7 groups with printed research; no independent test family or legal Gold.")

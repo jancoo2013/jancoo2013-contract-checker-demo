@@ -292,7 +292,9 @@ class SanitizedRealContractCoverageTests(unittest.TestCase):
         cls.gold_text = cls.evidence["golden_fixture"].read_text(encoding="utf-8")
         cls.split = read_real_coverage(cls.evidence["template_split"])
         cls.crosschecks = read_real_coverage(cls.evidence["printed_crosschecks"])
+        cls.rc05 = read_real_coverage(cls.evidence["rc05_review"])
         cls.rc06 = read_real_coverage(cls.evidence["rc06_review"])
+        cls.rc07 = read_real_coverage(cls.evidence["rc07_review"])
 
     def rejects(self, edit, pattern: str) -> None:
         changed = deepcopy(self.data)
@@ -300,12 +302,14 @@ class SanitizedRealContractCoverageTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, pattern):
             validate_real_coverage(changed, self.matrix, self.inventory,
                                    self.meta, self.gold_text, self.split,
-                                   self.crosschecks, self.rc06)
+                                   self.crosschecks, self.rc05, self.rc06,
+                                   self.rc07)
 
     def test_coverage_sources_stay_separate(self) -> None:
         validate_real_coverage(self.data, self.matrix, self.inventory,
                                self.meta, self.gold_text, self.split,
-                               self.crosschecks, self.rc06)
+                               self.crosschecks, self.rc05, self.rc06,
+                               self.rc07)
         self.assertEqual(len(self.data["mechanisms"]), 13)
         self.assertEqual(len(self.data["private_groups"]), 7)
 
@@ -331,7 +335,7 @@ class SanitizedRealContractCoverageTests(unittest.TestCase):
         self.rejects(lambda d: d["golden_cross_clause_checks"][0].update(
             clauses=["3", "25"]), "cross-clause question lacks")
 
-    def test_unread_private_contract_cannot_be_promoted(self) -> None:
+    def test_reviewed_private_contract_cannot_be_promoted_to_gold(self) -> None:
         self.rejects(lambda d: d["private_groups"][-1].update(
             coverage="EVIDENCED"), "private contract coverage")
 
@@ -345,10 +349,24 @@ class SanitizedRealContractCoverageTests(unittest.TestCase):
         self.rejects(lambda d: d["private_groups"][5].update(
             cohort="INDEPENDENT_TEST_RESERVED"), "private contract coverage")
 
-    def test_rc05_discussion_is_not_source_anchored(self) -> None:
+    def test_rc05_source_anchor_cannot_be_erased(self) -> None:
         self.rejects(lambda d: d["private_groups"][4].update(
-            coverage="PRINTED_MECHANISMS_RESEARCH_ONLY"),
+            coverage="UNKNOWN_NOT_SOURCE_ANCHORED"),
             "private contract coverage")
+
+    def test_rc07_review_cannot_revert_to_reserved_holdout(self) -> None:
+        self.rejects(lambda d: d["private_groups"][6].update(
+            cohort="INDEPENDENT_TEST_RESERVED"), "private contract coverage")
+        self.assertEqual(self.rc07["source"]["anonymous_group"], "RC07")
+        self.assertFalse(self.rc07["boundaries"]["independent_scoring_eligible"])
+
+    def test_candidate_errors_are_not_observed_failures(self) -> None:
+        packet = deepcopy(self.rc05)
+        packet["mechanisms"][0]["control_status"] = "OBSERVED_MODEL_FAILURE"
+        with self.assertRaisesRegex(ValueError, "packet promoted or incomplete"):
+            validate_real_coverage(self.data, self.matrix, self.inventory,
+                                   self.meta, self.gold_text, self.split,
+                                   self.crosschecks, packet, self.rc06, self.rc07)
 
     def test_no_gold_or_external_real_contract_runs(self) -> None:
         self.rejects(lambda d: d["policy"].update(eligible_gold=True),
@@ -379,18 +397,18 @@ class RealContractTemplateSplitTests(unittest.TestCase):
                                 self.gold_meta)
         self.assertEqual(len(self.data["families"]), 4)
         self.assertEqual(self.data["cohort_boundary"]["development_families"],
-                         ["TF_A", "TF_B", "TF_C"])
+                         ["TF_A", "TF_B", "TF_C", "TF_D"])
         self.assertEqual(
             self.data["cohort_boundary"]["independent_test_families"],
-            ["TF_D"])
+            [])
 
     def test_reject_cross_family_duplicate(self) -> None:
         self.rejects(lambda d: d["families"][2]["groups"].append("RC04"),
                      "confirmed family or cohort assignment changed")
 
-    def test_reject_holdout_leakage(self) -> None:
+    def test_reject_unreviewed_holdout_reintroduction(self) -> None:
         self.rejects(lambda d: d["cohort_boundary"][
-            "development_families"].append("TF_D"),
+            "independent_test_families"].append("TF_D"),
             "family-disjoint cohort boundary violated")
 
     def test_reject_stale_coverage_cohort(self) -> None:
@@ -408,7 +426,7 @@ class RealContractTemplateSplitTests(unittest.TestCase):
         self.assertFalse(packet["boundaries"]["training_eligible"])
         self.assertFalse(packet["boundaries"]["independent_scoring_eligible"])
         self.assertEqual(self.data["cohort_boundary"]["independent_test_families"],
-                         ["TF_D"])
+                         [])
 
     def test_reject_unproven_golden_link(self) -> None:
         self.rejects(lambda d: d["golden_fixture"].update(

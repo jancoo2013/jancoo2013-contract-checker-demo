@@ -24,15 +24,17 @@ signals are used only to publish the following abstract family links.
 | TF_A | RC01, RC04 | The same executed agreement in different captures; RC04 also contains the exact duplicate copy | Development, one content instance |
 | TF_B | RC02, RC03, RC05 | One printed template across distinct agreement editions | Development |
 | TF_C | RC06 | Structurally distinct singleton template | Development research after printed review; not Gold or training |
-| TF_D | RC07 | Structurally distinct singleton template | Independent test, reserved |
+| TF_D | RC07 | Structurally distinct singleton template | Development research after printed review; not Gold or training |
 
 All captures and editions of one template stay in one cohort. TF_A must contribute
 at most one semantic content instance; its extra captures are not independent
 contracts. TF_B is useful for development because it exposes within-template
-variation. TF_C was originally reserved with TF_D on 2026-09-23. Following the
-owner-directed printed-text analysis of RC06 on 2026-09-27, TF_C is now exposed
-to semantic development and cannot serve as an independent test. TF_D remains
-untouched and reserved; this does not create Gold labels or authorize training.
+variation. TF_C and TF_D were originally reserved on 2026-09-23. Following the
+owner-directed printed-text reviews of RC06 on 2026-09-27 and RC07 on 2026-10-01,
+both are exposed to semantic development and cannot serve as independent tests.
+There is no remaining unexposed independent test family among RC01–RC07. Any
+future independent test needs a new unexposed family and a separate source split.
+This does not create Gold labels or authorize training or scoring.
 
 ## Sanitized-source matching
 

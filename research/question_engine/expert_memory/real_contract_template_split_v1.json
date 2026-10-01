@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "prepared_on": "2026-09-27",
+  "prepared_on": "2026-10-01",
   "status": "PRIVATE_LOCAL_TEMPLATE_FAMILY_SPLIT_NOT_GOLD",
   "source_summary": {
     "scope": "Eight locally supplied PDFs compared offline; no report or sidecar JSON used as evidence.",
@@ -41,7 +41,7 @@
       "relation": "DISTINCT_SINGLETON_TEMPLATE_CONFIRMED",
       "evidence": "Its three-page clause sequence and layout are structurally distinct from TF_A, TF_B and TF_C.",
       "evidence_grade": "PRIVATE_LOCAL_STRUCTURE_COMPARISON",
-      "cohort": "INDEPENDENT_TEST_RESERVED"
+      "cohort": "DEVELOPMENT_RESEARCH_REVIEWED_NOT_GOLD"
     }
   ],
   "golden_fixture": {
@@ -60,18 +60,18 @@
     "reason": "The aggregate sanitized artifact contains no trustworthy per-contract source identity; filename, date, page count and topical similarity are insufficient."
   },
   "cohort_boundary": {
-    "status": "FAMILY_DISJOINT_SPLIT_RESERVED",
-    "development_families": ["TF_A", "TF_B", "TF_C"],
-    "independent_test_families": ["TF_D"],
+    "status": "FAMILY_DISJOINT_NO_UNEXPOSED_TEST_FAMILY",
+    "development_families": ["TF_A", "TF_B", "TF_C", "TF_D"],
+    "independent_test_families": [],
     "unassigned_families": [],
-    "rationale": "The 2026-09-23 split reserved TF_C and TF_D. Owner-directed printed-text analysis of RC06 on 2026-09-27 exposed TF_C to semantic development, so it cannot remain an independent test. TF_D alone remains untouched and reserved. This reassignment does not authorize training or legal Gold.",
+    "rationale": "The 2026-09-23 split reserved TF_C and TF_D. Owner-directed printed-text review of RC06 on 2026-09-27 and RC07 on 2026-10-01 exposed both families to semantic development. Neither can remain an independent test. No unexposed private family remains; this reassignment does not authorize training, scoring or legal Gold.",
     "leakage_rule": "Every capture, edition and executed instance of one template family stays in one cohort; an unresolved family or source link remains unassigned."
   },
   "still_unknown": [
     "The sanitized Golden Fixture is not positively linked to any RC group; RC07 is excluded as a direct match and all other links remain UNKNOWN.",
     "The original identities behind the prior two-contract aggregate research cannot be reconstructed from trustworthy repository evidence.",
     "Equal-title or equal-size Library records outside the eight supplied PDFs remain byte-unverified and cannot extend these family conclusions.",
-    "No family has legal Gold labels, specialist review or independently verified mechanism coverage."
+    "No family has legal Gold labels, specialist review or independently verified mechanism coverage; a future independent test requires a new unexposed family."
   ],
   "privacy": {
     "original_filenames_committed": false,

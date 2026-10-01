@@ -21,7 +21,7 @@
     "private_lease": "research/question_engine/expert_memory/private_lease_printed_mechanisms_v1.json",
     "prior_rc_families": "research/question_engine/expert_memory/rc01_rc04_rc02_rc03_printed_crosschecks_v1.json",
     "cohort": "TF_C_DEVELOPMENT_RESEARCH_NO_TRAINING_OR_INDEPENDENT_SCORING",
-    "remaining_reserved_family": "TF_D"
+    "remaining_reserved_family": "NONE_AFTER_2026_10_01_RC07_REVIEW"
   },
   "mechanisms": [
     {

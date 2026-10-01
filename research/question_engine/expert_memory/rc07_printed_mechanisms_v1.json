@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "id": "rc07_printed_mechanisms_v1",
+  "status": "ASSISTANT_RESEARCH_HYPOTHESES_NOT_GOLD",
+  "source": {
+    "anonymous_group": "RC07",
+    "template_family": "TF_D",
+    "medium": "THREE_PRIVATE_SCANNED_PAGES_REVIEWED_LOCALLY",
+    "scope": "PRINTED_CLAUSES_ONLY_HANDWRITTEN_VALUES_EXCLUDED",
+    "evidence_grade": "ASSISTANT_VISUAL_READING_OWNER_TEXT_SIGNOFF_PENDING",
+    "persisted_evidence": "ANONYMOUS_CLAUSE_LOCATORS_AND_SANITIZED_PARAPHRASES_ONLY"
+  },
+  "mechanisms": [
+    {
+      "id": "temporary_rent_cheques_vs_separate_security",
+      "printed_clauses": ["5", "6", "13"],
+      "reading": "Three deferred cheques secure rent only until a standing bank order is arranged; their stated return trigger is that arrangement. A separate fixed-amount security cheque covers several obligations and has no equally explicit return trigger here.",
+      "initial_error_hypothesis": "Treat all four cheques as one deposit, count three extra rent months, or carry the clause 6 return trigger over to clause 13.",
+      "correction": "Keep instrument instances, scope and return events distinct. Neither delivery nor return is established by the printed requirement.",
+      "unresolved": ["standing order and cheque handover", "separate security custody and return", "any actual debt or damage"],
+      "control_status": "CANDIDATE_NOT_OBSERVED_MODEL_FAILURE"
+    },
+    {
+      "id": "conditioned_one_year_option_vs_unknown_price",
+      "printed_clauses": ["4", "5", "9", "18"],
+      "reading": "Unlike template-only option mentions, clause 9 grants a one-year option subject to performance and written notice ninety days before term end. The printed reviewed clauses do not state the next year's rent.",
+      "initial_error_hypothesis": "Discard the actual option as a ghost, presume its exercise, or automatically carry the original rent into the further year.",
+      "correction": "Record the conditional option and leave exercise and future price unresolved, including any effect of the missing incorporated draft.",
+      "unresolved": ["notice and performance", "draft text and any price term", "actual renewal"],
+      "control_status": "CANDIDATE_NOT_OBSERVED_MODEL_FAILURE"
+    },
+    {
+      "id": "early_departure_payment_vs_replacement",
+      "printed_clauses": ["10", "11", "13", "16"],
+      "reading": "An early departure provision preserves payment through the term; a separate replacement route requires written notice at least three months ahead and a reasonably acceptable candidate taking all terms and security duties.",
+      "initial_error_hypothesis": "Apply the general payment rule without the special route or treat nomination alone as automatic release of payment and existing instruments.",
+      "correction": "Distinguish notice, candidate approval, new obligation, possession and security exchange.",
+      "unresolved": ["notice and delivery", "candidate acceptance", "substitution agreement and instrument custody"],
+      "control_status": "CANDIDATE_NOT_OBSERVED_MODEL_FAILURE"
+    },
+    {
+      "id": "entire_agreement_vs_incorporated_unseen_draft",
+      "printed_clauses": ["15", "18"],
+      "reading": "A general entire-agreement term excludes earlier external understandings, while a specific clause expressly incorporates an earlier signed draft whose text was not supplied.",
+      "initial_error_hypothesis": "Declare all earlier terms excluded or invent the incorporated draft's content from a different contract.",
+      "correction": "Preserve the specific reference and mark the incorporated document as missing; do not infer which terms prevail without its text.",
+      "unresolved": ["draft content and identity", "how it interacts with the present clauses"],
+      "control_status": "CANDIDATE_NOT_OBSERVED_MODEL_FAILURE"
+    },
+    {
+      "id": "notice_timings_and_delivery_presumption",
+      "printed_clauses": ["9", "11", "16"],
+      "reading": "Ninety days before term end concerns option notice, three months concerns replacement notice, and seventy-two hours after posting concerns presumed postal delivery.",
+      "initial_error_hypothesis": "Merge the two advance periods or treat postal delivery time as an option or replacement cure period.",
+      "correction": "Bind each duration to its own action, trigger and method of notice.",
+      "unresolved": ["dates and proof of dispatch", "actual receipt", "the event each message concerned"],
+      "control_status": "CANDIDATE_NOT_OBSERVED_MODEL_FAILURE"
+    },
+    {
+      "id": "asis_condition_and_security_not_proof_of_damage",
+      "printed_clauses": ["3", "8", "12", "13", "14", "17"],
+      "reading": "A broad condition acknowledgment and damage wording coexist with return duties and a security cheque also covering unpaid charges. The printed terms do not prove a defect, causation, unpaid bill or right to cash a cheque in a particular event.",
+      "initial_error_hypothesis": "Use AS IS or possession of security as proof of tenant-caused damage or debt, or turn a broad waiver into a legal validity conclusion.",
+      "correction": "Separate the written duty, actual state, causation, bills and realization procedure; leave external law to a dated source review.",
+      "unresolved": ["entry and return condition", "charges and receipts", "damage cause and applicable law"],
+      "control_status": "CANDIDATE_NOT_OBSERVED_MODEL_FAILURE"
+    }
+  ],
+  "boundaries": {
+    "actual_error_observation": "NONE; CONTROL_ERRORS_ARE_HYPOTHESES",
+    "training_eligible": false,
+    "independent_scoring_eligible": false,
+    "external_provider_run": false,
+    "raw_images_or_ocr_persisted": false,
+    "cohort": "DEVELOPMENT_RESEARCH_EXPOSED_NO_INDEPENDENT_TEST_REMAINING"
+  }
+}
