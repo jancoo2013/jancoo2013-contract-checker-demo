@@ -8,6 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]
 BASE = ROOT / "research/question_engine/expert_memory"
 DATA = BASE / "real_contract_template_split_v1.json"
+CROSSCHECK = BASE / "contract_001_source_family_crosscheck_v1.json"
 EXPECTED = {
     "TF_A": (["RC01", "RC04"],
              "SAME_EXECUTED_AGREEMENT_DIFFERENT_CAPTURE_CONFIRMED",
@@ -118,11 +119,17 @@ def validate(data: dict, inventory: dict, coverage: dict, gold_meta: dict) -> No
                 "private coverage family or cohort mismatch")
     gold = data["golden_fixture"]
     require(set(gold) == {
-        "source", "linked_family", "excluded_direct_matches", "other_private_groups",
+        "source", "linked_family", "candidate_family", "candidate_status",
+        "candidate_evidence", "excluded_direct_matches", "other_private_groups",
         "selection", "training_eligibility", "product_owner_text_review",
     } and gold["source"] ==
             "research/question_engine/golden_contracts/contract_001_he.txt"
             and gold["linked_family"] == "UNKNOWN"
+            and gold["candidate_family"] == "TF_C"
+            and gold["candidate_status"] ==
+            "LOCAL_MULTICLAUSE_TEMPLATE_MATCH_OWNER_REVIEW_PENDING"
+            and gold["candidate_evidence"] ==
+            "research/question_engine/expert_memory/contract_001_source_family_crosscheck_v1.json"
             and gold["excluded_direct_matches"] == ["RC07"]
             and gold["other_private_groups"] == "UNKNOWN"
             and gold["selection"] == "SELECTED_NEXT_DEEP_EXPERT_REVIEW"
@@ -132,6 +139,35 @@ def validate(data: dict, inventory: dict, coverage: dict, gold_meta: dict) -> No
             and "product-owner text-level review not yet recorded"
             in gold_meta["review_status"],
             "unverified Golden Fixture identity or training use claimed")
+    crosscheck = read(CROSSCHECK)
+    require(set(crosscheck) == {
+        "schema_version", "prepared_on", "status", "fixture", "method",
+        "source_alignment", "template_comparison", "training_eligibility", "privacy",
+    } and crosscheck["schema_version"] == 1
+            and crosscheck["status"] == "LOCAL_OCR_CROSSCHECK_CANDIDATE_NOT_GOLD"
+            and crosscheck["fixture"] == gold["source"]
+            and crosscheck["training_eligibility"] ==
+            "BLOCKED_OWNER_REVIEW_AND_NO_INDEPENDENT_TEST",
+            "source crosscheck promoted or disconnected")
+    method = crosscheck["method"]
+    alignment = crosscheck["source_alignment"]
+    comparison = crosscheck["template_comparison"]
+    require(method["private_source_photos"] == gold_meta["source_pages"] == 3
+            and method["external_contract_provider_calls"] is False
+            and method["raw_ocr_persisted"] is False
+            and alignment["status"] ==
+            "HIGH_CONFIDENCE_THREE_PHOTO_SOURCE_MATCH_OWNER_TEXT_REVIEW_PENDING"
+            and alignment["clause_8_to_9"] ==
+            "LOCAL_OCR_ANCHORS_CONTIGUOUS_8A_THEN_9A"
+            and alignment["owner_text_signoff"] == "PENDING"
+            and comparison["candidate_family"] == gold["candidate_family"]
+            and comparison["status"] ==
+            "STRONG_MULTICLAUSE_PRINTED_TEMPLATE_CANDIDATE_NOT_CANONICAL_LINK"
+            and comparison["direct_rc_pdf_identity"] == "NOT_ESTABLISHED"
+            and comparison["canonical_linked_family"] == gold["linked_family"]
+            and set(crosscheck["privacy"]) == PRIVACY_FIELDS
+            and all(value is False for value in crosscheck["privacy"].values()),
+            "private source crosscheck boundary or candidate mismatch")
 
     old = data["prior_two_contract_research"]
     require(set(old) == {"source", "original_groups", "family_mapping", "reason"}

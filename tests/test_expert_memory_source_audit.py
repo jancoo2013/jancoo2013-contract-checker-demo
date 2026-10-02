@@ -432,6 +432,17 @@ class RealContractTemplateSplitTests(unittest.TestCase):
         self.rejects(lambda d: d["golden_fixture"].update(
             linked_family="TF_D"), "unverified Golden Fixture identity")
 
+    def test_tentative_tf_c_match_stays_out_of_training(self) -> None:
+        gold = self.data["golden_fixture"]
+        self.assertEqual(gold["candidate_family"], "TF_C")
+        self.assertEqual(gold["linked_family"], "UNKNOWN")
+        self.assertEqual(gold["training_eligibility"],
+                         "BLOCKED_PENDING_PRIVATE_FAMILY_LINKAGE")
+        self.rejects(lambda d: d["golden_fixture"].update(
+            candidate_family="TF_B"), "unverified Golden Fixture identity")
+        self.rejects(lambda d: d["golden_fixture"].update(
+            training_eligibility="ELIGIBLE"), "unverified Golden Fixture identity")
+
     def test_reject_attributed_prior_research(self) -> None:
         self.rejects(lambda d: d["prior_two_contract_research"].update(
             original_groups=["RC02", "RC05"]),
