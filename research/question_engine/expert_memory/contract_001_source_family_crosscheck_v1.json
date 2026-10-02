@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "prepared_on": "2026-10-01",
+  "status": "LOCAL_OCR_CROSSCHECK_CANDIDATE_NOT_GOLD",
+  "fixture": "research/question_engine/golden_contracts/contract_001_he.txt",
+  "method": {
+    "private_source_photos": 3,
+    "scope": "Printed text only; handwriting, signatures and identity-heavy regions are excluded from semantic use.",
+    "local_processing": "Offline Hebrew OCR of owner-supplied photos and locally available RC PDFs; compare normalized word sequences against the sanitized fixture. OCR is a diagnostic crosscheck, not a replacement for owner visual text signoff.",
+    "external_contract_provider_calls": false,
+    "raw_ocr_persisted": false
+  },
+  "source_alignment": {
+    "status": "HIGH_CONFIDENCE_THREE_PHOTO_SOURCE_MATCH_OWNER_TEXT_REVIEW_PENDING",
+    "basis": "The three photos align in page order with distinctive printed passages across the sanitized fixture, including the special final clause. Independent numeric reading supports the printed term, rent, security and holdover values; an OCR hit is not a full line-by-line source certification.",
+    "clause_8_to_9": "LOCAL_OCR_ANCHORS_CONTIGUOUS_8A_THEN_9A",
+    "clause_8_limit": "No intervening printed 8.b was observed between the matched ending of 8.a and start of 9.a in this photo sequence. This does not establish that no separate amendment exists.",
+    "limited_ocr_support": ["Clause 12 has weaker diagnostic OCR overlap; its wording and the unseen appendix remain subject to owner source review."],
+    "owner_text_signoff": "PENDING"
+  },
+  "template_comparison": {
+    "candidate_family": "TF_C",
+    "status": "STRONG_MULTICLAUSE_PRINTED_TEMPLATE_CANDIDATE_NOT_CANONICAL_LINK",
+    "basis": "The four-page RC06 edition shares long printed sequences and matching clause functions with the fixture across clauses 7, 8, 9, 10, 17 and 19. It is substantially closer in local normalized word-sequence diagnostics than TF_A, TF_B or TF_D; page count and superficial topic alone were not used for this candidate.",
+    "edition_boundaries": [
+      "RC06 has an additional early-exit and reletting branch absent from the sanitized fixture's clause 8 sequence.",
+      "RC06 has a distinct urgent repair branch and a different security bundle; neither is imported into contract_001.",
+      "Related printed boilerplate does not establish that RC06 and the fixture are the same signed agreement or exact PDF."
+    ],
+    "direct_rc_pdf_identity": "NOT_ESTABLISHED",
+    "canonical_linked_family": "UNKNOWN"
+  },
+  "training_eligibility": "BLOCKED_OWNER_REVIEW_AND_NO_INDEPENDENT_TEST",
+  "privacy": {
+    "original_filenames_committed": false,
+    "original_library_ids_committed": false,
+    "byte_hash_values_committed": false,
+    "source_identity_map_committed": false,
+    "original_page_images_committed": false,
+    "raw_OCR_committed": false,
+    "external_contract_provider_runs": false,
+    "sidecar_report_used_as_evidence": false
+  }
+}

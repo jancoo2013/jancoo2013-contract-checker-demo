@@ -47,6 +47,9 @@
   "golden_fixture": {
     "source": "research/question_engine/golden_contracts/contract_001_he.txt",
     "linked_family": "UNKNOWN",
+    "candidate_family": "TF_C",
+    "candidate_status": "LOCAL_MULTICLAUSE_TEMPLATE_MATCH_OWNER_REVIEW_PENDING",
+    "candidate_evidence": "research/question_engine/expert_memory/contract_001_source_family_crosscheck_v1.json",
     "excluded_direct_matches": ["RC07"],
     "other_private_groups": "UNKNOWN",
     "selection": "SELECTED_NEXT_DEEP_EXPERT_REVIEW",
@@ -68,7 +71,7 @@
     "leakage_rule": "Every capture, edition and executed instance of one template family stays in one cohort; an unresolved family or source link remains unassigned."
   },
   "still_unknown": [
-    "The sanitized Golden Fixture is not positively linked to any RC group; RC07 is excluded as a direct match and all other links remain UNKNOWN.",
+    "The sanitized Golden Fixture has a strong TF_C printed-template candidate from a local source-photo crosscheck, but no canonical family link or exact RC PDF identity is established; owner text review remains pending.",
     "The original identities behind the prior two-contract aggregate research cannot be reconstructed from trustworthy repository evidence.",
     "Equal-title or equal-size Library records outside the eight supplied PDFs remain byte-unverified and cannot extend these family conclusions.",
     "No family has legal Gold labels, specialist review or independently verified mechanism coverage; a future independent test requires a new unexposed family."
