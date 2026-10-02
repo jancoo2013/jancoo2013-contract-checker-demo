@@ -1,12 +1,14 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-10-01, PR #302, `expert-memory-security-ontology-draft-cards-v0-1` (ограниченное исследовательское исключение).
+Последнее обновление: 2026-10-02, PR #303, `expert-memory-contract-001-local-source-family-crosscheck-v1`.
 
-Версия состояния: `privacy-ocr-2026-10-01-153`.
+Версия состояния: `privacy-ocr-2026-10-02-154`.
 
 Активный трек: `expert-memory-development`.
 
 Канонический следующий bounded-шаг: `expert-memory-contract-001-source-family-verification-v1`.
+
+PR #303 — приватная локальная OCR-сверка трёх исходных фотографий с обезличенным `contract_001` дала высокую уверенность в соответствии источника и поддержала печатную последовательность `8.א` → `9.א` без промежуточного напечатанного `8.ב` в этих фотографиях. Сравнение нескольких пунктов с архивными PDF выявило сильного кандидата печатного семейства TF_C, но RC06 представляет другую редакцию: его дополнительные условия не переносились в fixture. Каноническая связь с RC-группой и тождество конкретного PDF остаются UNKNOWN; полный текст не подтверждён владельцем, по пункту 12 OCR слабее. Рукопись, подписи и возможные отдельные дополнения не анализировались. Опубликованы только обезличенные выводы, ограничения и локальные проверки; Gold, обучение, cohort scoring, внешний провайдер и runtime не открыты. Следующий шаг — подтверждение текста владельцем и точной исходной связи при наличии доказательств.
 
 PR #302 — оформлены первые пять черновых исследовательских карточек SECURITY из кандидатов №08–12: обеспечительный чек, вексель, поручительство, возможное использование и возврат обеспечения. Шесть полей каждой карточки описывают понятие, слоты-вопросы, связи и границы смешения; отдельный реестр привязывает их к опубликованным обезличенным механизмам. Проверяются раздельность инструментов, неоднозначный денежный предел RC06, узкий срок возврата коммунальных чеков RC03 и различие передачи обеспечения и уведомления перед использованием. Карточки не являются доказательством фактической выдачи или взыскания, юридическим Gold, метками обучения или runtime-схемой. Неподтверждённое происхождение `contract_001`, запрет внешних прогонов и канонический следующий шаг не изменены.
 
@@ -255,11 +257,11 @@ This PR does not add another provider, model, dependency, endpoint, permission, 
 
 `next_step_id = expert-memory-contract-001-source-family-verification-v1`
 
-**Freeze remains:** no new full real-contract external-LLM/OCR/provider calls. No raw private originals, recoverable PII, signed names/IDs, page images, original source names or hashes in GitHub, CI, logs or RAG. Only the already-sanitized three-page printed `contract_001` is available for this step.
+**Freeze remains:** no new full real-contract external-LLM/OCR/provider calls. No raw private originals, recoverable PII, signed names/IDs, page images, original source names or hashes in GitHub, CI, logs or RAG. The sanitized three-page printed `contract_001` and privately held source photographs can be compared locally for this step; private source data is not persisted in the repository.
 
 **PR #292 delivered:** a second, owner-directed critical pass containing **15** cross-clause mechanisms backed by **55** exact short Hebrew quotes from the sanitized printed source, plus a clause-sequence integrity check. It adds the unverified property inventory, the signature-date trigger for arnona notice, and the special agreed-occupant term; separates early exit, post-term holdover and security realization; and narrows repair set-off to all three written preconditions. `8.ב` is not reconstructed. This research is not an observation of a model failure, an original-court holding or reviewed legal Gold.
 
-**Unresolved:** the original behind the three-page sanitized Golden Fixture is not positively mapped to a private RC group or template family (RC07 alone is excluded as a direct source). The product owner has not verified its full printed transcription. Appendix B, handwritten fields and signatures were excluded from the source record, so their original contents and any amendments are not known. PR #291 originally reserved TF_C and TF_D as independent-test families; after the owner-directed RC06 review in #296 and RC07 review in #299, both are development research. No unexposed independent test family remains among RC01–RC07. The unlinked Golden Fixture is NOT eligible for training or cohort scoring.
+**Unresolved:** local OCR strongly aligns three private source photographs with the sanitized Golden Fixture, and TF_C is a strong printed-template candidate. The original is not positively mapped to an exact private RC PDF/group; canonical `linked_family` remains UNKNOWN (RC07 is excluded as a direct source). The product owner has not verified the full printed transcription, including the less legible clause 12. Appendix B, handwritten fields and signatures were excluded from semantic use, so their original contents and any amendments are not known. PR #291 originally reserved TF_C and TF_D as independent-test families; after the owner-directed RC06 review in #296 and RC07 review in #299, both are development research. No unexposed independent test family remains among RC01–RC07. The unlinked Golden Fixture is NOT eligible for training or cohort scoring.
 
 **PR #293 — bounded research exception:** three dated source-scoped and unverified statute-crosscheck hypotheses now cover actual tenant option versus renewed consent (§25יב), regular/urgent/emergency repair and undisclosed defects (§§8–9, 25ח), and financially burdensome security caps versus general realization/notice/return for an ordinary cheque (§25י). The 2026 licensed-provider amendment is future-effective only from 2026-09-30. No legal Gold or production authorization follows from this research.
 

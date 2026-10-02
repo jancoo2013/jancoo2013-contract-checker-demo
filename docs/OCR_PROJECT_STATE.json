@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-10-01-153",
+  "state_version": "privacy-ocr-2026-10-02-154",
   "active_track": "expert-memory-development",
   "next_step_id": "expert-memory-contract-001-source-family-verification-v1",
-  "next_step_summary": "Owner-authorized bounded research exception PR #302 drafts five six-field SECURITY cards for original inventory candidates #08-12, with separate sanitized mechanism provenance. Slots describe questions about a particular instrument, not extracted values; relations to other inventory candidates are not formal cards. The RC06 amount-cap ambiguity, RC03 adjacent return deadline, instrument identity conflict and delivery-versus-use distinction remain explicit. These are not original-source-verified facts, legal Gold, training/evaluation labels, extractor or runtime schema. No external provider, OCR, RAG, database or privacy change. Canonical next step remains expert-memory-contract-001-source-family-verification-v1.",
-  "last_recorded_pr": 302,
-  "last_recorded_change": "expert-memory-security-ontology-draft-cards-v0-1",
+  "next_step_summary": "PR #303 privately crosschecked three owner-supplied source photos against the sanitized contract_001 fixture with local OCR. The printed 8.a to 9.a order is supported without an intervening printed 8.b in the observed photo sequence. Multi-clause diagnostics give a strong TF_C printed-template candidate, but RC06 is a distinct edition, direct RC PDF identity and canonical family linkage remain UNKNOWN, and full owner text signoff remains pending (especially clause 12 and excluded appendix). No legal Gold, training/cohort scoring, external provider or runtime change. Continue owner source-text and exact-family verification under expert-memory-contract-001-source-family-verification-v1.",
+  "last_recorded_pr": 303,
+  "last_recorded_change": "expert-memory-contract-001-local-source-family-crosscheck-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
-  "updated_on": "2026-10-01"
+  "updated_on": "2026-10-02"
 }
