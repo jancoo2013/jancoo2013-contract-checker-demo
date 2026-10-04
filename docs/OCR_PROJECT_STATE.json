@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-10-04-155",
+  "state_version": "privacy-ocr-2026-10-04-156",
   "active_track": "expert-memory-development",
   "next_step_id": "expert-memory-router-blind-synthetic-evaluation-v1",
-  "next_step_summary": "PR #304 records an assistant visual source check of three contract_001 photos: selected material printed anchors, clause 12 and the 8.a to 9.a sequence are supported, without certifying every character or an unseen appendix. A model-neutral first-pass Router contract and a 43-block nonblind same-assistant development trace preserve multiple families, OTHER, signature exclusion and six second-pass links. This is not independent model accuracy, legal Gold, training or runtime. Direct RC PDF identity and canonical TF_C linkage remain UNKNOWN. Next, evaluate fresh concealed synthetic clauses in a separate model context, count omissions/excess routes and test linked-clause retrieval without sending real contracts to an external provider.",
-  "last_recorded_pr": 304,
-  "last_recorded_change": "expert-memory-contract-001-visual-router-smoke-v1",
+  "next_step_summary": "PR #305 lets the orchestrating assistant merge an authorized bounded PR after final-head, CI, state and security gates without a second owner command; an explicit owner hold or blocking finding still prevents merge, and GitHub auto-merge stays off. No product, data or security gate changes. Next, evaluate fresh concealed synthetic clauses in a separate model context, count omissions/excess routes and test linked-clause retrieval without sending real contracts to an external provider. Direct RC PDF identity and canonical TF_C linkage remain UNKNOWN.",
+  "last_recorded_pr": 305,
+  "last_recorded_change": "post-gate-assistant-merge-policy-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-10-04"

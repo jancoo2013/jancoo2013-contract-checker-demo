@@ -4,8 +4,8 @@ Status: repository protocol for bounded Codex execution and periodic batch audit
 
 ## 1. Roles
 
-- The product owner chooses product direction, approves bounded steps, decides whether to merge, and may request an immediate audit.
-- The orchestrating assistant reads repository state, defines bounded work, audits each PR, maintains state continuity, and performs the per-PR security review.
+- The product owner chooses product direction, approves bounded steps, may reserve a merge decision explicitly, and may request an immediate audit.
+- The orchestrating assistant reads repository state, defines bounded work, audits each PR, maintains state continuity, performs the per-PR security review, and may merge after all gates pass without a second owner command.
 - Codex may be used in two separate modes:
   1. **bounded executor** for a specifically assigned implementation task;
   2. **periodic batch auditor** for a range of accumulated merged work.
@@ -40,7 +40,7 @@ When Codex is explicitly assigned one PR, the task packet must contain:
 - focused tests and final validation;
 - failure and blocker policy;
 - draft/Ready requirements;
-- no-auto-merge instruction.
+- post-gate merge handoff; GitHub auto-merge remains disabled.
 
 Avoid broad instructions such as “improve security”, “clean up the subsystem”, or “fix everything you find”.
 
@@ -59,7 +59,7 @@ Codex must:
 9. re-run final checks after the last change;
 10. verify declared and actual paths match exactly;
 11. record exact validation evidence and remaining limitations;
-12. leave merge and auto-merge disabled.
+12. leave the merge to the orchestrating assistant after its per-PR audit; keep GitHub auto-merge disabled.
 
 When Codex implements the PR, its final implementation report is not an additional independent Codex review gate. The orchestrating assistant still performs the normal per-PR audit and security verdict.
 

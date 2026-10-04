@@ -172,7 +172,7 @@ Documentation-only PRs do not require application tests, but must validate refer
 
 - Create the PR against `main`.
 - Open every PR as a draft first so its number is known.
-- Do not auto-merge.
+- Keep GitHub auto-merge disabled; every merge follows an explicit final-gate check.
 - Read current binding/state documents and check overlapping open PRs before branching.
 - Publish the Context Gate before edits.
 - Branch from current `main`.
@@ -183,17 +183,17 @@ Documentation-only PRs do not require application tests, but must validate refer
 - Compare declared and actual changed paths exactly.
 - Perform the mandatory final-diff security review.
 - Mark Ready only after state agreement, final validation, and `Security review: PASS`.
-- Leave merge decision to the product owner.
+- After the owner authorizes a bounded task, the orchestrating assistant may merge its PR without a second owner command once the final-head checks, required CI, state agreement and security review pass. An explicit owner hold or blocking finding stops the merge.
 
 The PR body must state changed files/scope, state effect, runtime/data/privacy/security impact, dependencies/network/API changes, validation, limitations, and exactly one final security verdict required by `SECURITY.md`.
 
-Codex must not merge a PR or enable auto-merge when acting as executor or reviewer.
+A bounded executor or reviewer must leave the merge to the orchestrating assistant after its independent per-PR audit. GitHub auto-merge remains disabled.
 
 ## 9. Codex execution and audit
 
 `docs/CODEX_WORKFLOW.md` defines detailed mechanics.
 
-When Codex is used as a bounded executor, the task packet must include the repository/base, current state identifiers, one measurable change, exactly one Context Gate, allowed paths, explicit forbidden changes, expected behavior, focused/final validation, blocker policy, draft/Ready requirements, and no-auto-merge instruction.
+When Codex is used as a bounded executor, the task packet must include the repository/base, current state identifiers, one measurable change, exactly one Context Gate, allowed paths, explicit forbidden changes, expected behavior, focused/final validation, blocker policy, draft/Ready requirements, and the post-gate merge handoff.
 
 Do not say that Codex was invoked, is running, or completed work unless an actual Codex invocation occurred. If direct invocation is unavailable, provide a ready-to-run packet and say execution has not started.
 
