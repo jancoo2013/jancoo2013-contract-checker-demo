@@ -23,7 +23,7 @@ class SecurityOntologyCardTests(unittest.TestCase):
 
     def test_2026_overlay_is_marked_in_force_without_runtime_promotion(self) -> None:
         self.assertEqual(self.overlay["commencement"]["effective_from"], "2026-09-30")
-        self.assertEqual(self.overlay["status"], "IN_FORCE_GAZETTE_NOT_EXPERT_REVIEWED")
+        self.assertEqual(self.overlay["status"], "ENACTED_GAZETTE_NOT_EXPERT_REVIEWED")
         self.assertEqual(self.overlay["usage"]["current_phase"], "IN_FORCE_FROM_2026-09-30")
         self.assertFalse(self.overlay["usage"]["production_runtime_wired"])
         self.assertFalse(self.overlay["usage"]["expert_verified"])
