@@ -2,8 +2,8 @@
   "schema_version": 1,
   "snapshot_id": "israel-rental-and-loan-amendment-2026-v1",
   "jurisdiction": "IL",
-  "as_of": "2026-09-22",
-  "status": "ENACTED_GAZETTE_NOT_EXPERT_REVIEWED",
+  "as_of": "2026-10-05",
+  "status": "IN_FORCE_GAZETTE_NOT_EXPERT_REVIEWED",
   "principal_law": {
     "name_he": "חוק השכירות והשאילה, התשל״א-1971",
     "knesset_law_item_id": "2000596",
@@ -78,6 +78,7 @@
     "production_runtime_wired": false,
     "expert_verified": false,
     "safe_as_current_law_without_date_and_applicability_gate": false,
-    "pending": "Verify any subsequent changes in the official consolidated statute before production use; independently check current Enforcement Authority procedure and specialist interpretations."
+    "pending": "Verify any subsequent changes in the official consolidated statute before production use; independently check current Enforcement Authority procedure and specialist interpretations.",
+    "current_phase": "IN_FORCE_FROM_2026-09-30"
   }
 }
