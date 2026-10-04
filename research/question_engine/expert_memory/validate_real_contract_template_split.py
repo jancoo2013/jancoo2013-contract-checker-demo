@@ -152,6 +152,7 @@ def validate(data: dict, inventory: dict, coverage: dict, gold_meta: dict) -> No
     method = crosscheck["method"]
     alignment = crosscheck["source_alignment"]
     comparison = crosscheck["template_comparison"]
+    visual = alignment["assistant_visual_review"]
     require(method["private_source_photos"] == gold_meta["source_pages"] == 3
             and method["external_contract_provider_calls"] is False
             and method["raw_ocr_persisted"] is False
@@ -160,6 +161,13 @@ def validate(data: dict, inventory: dict, coverage: dict, gold_meta: dict) -> No
             and alignment["clause_8_to_9"] ==
             "LOCAL_OCR_ANCHORS_CONTIGUOUS_8A_THEN_9A"
             and alignment["owner_text_signoff"] == "PENDING"
+            and visual["status"] ==
+            "MATERIAL_PRINTED_ANCHORS_CONFIRMED_NOT_VERBATIM_GOLD"
+            and visual["checked_on"] == "2026-10-04"
+            and visual["material_discrepancies_found"] is False
+            and visual["literal_full_transcript_certified"] is False
+            and "Appendix B" in visual["clause_12"]
+            and "9.a" in visual["clause_8_to_9"]
             and comparison["candidate_family"] == gold["candidate_family"]
             and comparison["status"] ==
             "STRONG_MULTICLAUSE_PRINTED_TEMPLATE_CANDIDATE_NOT_CANONICAL_LINK"

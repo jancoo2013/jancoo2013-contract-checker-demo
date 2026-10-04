@@ -35,6 +35,11 @@ from research.question_engine.expert_memory.validate_contract_001_statutory_cros
 from research.question_engine.expert_memory.validate_security_cheque_judgments import (
     read as read_case_law, validate as validate_case_law,
 )
+from research.question_engine.expert_memory.validate_first_pass_router_smoke import (
+    DATA as ROUTER_DATA, FIXTURE as ROUTER_FIXTURE,
+    read as read_router, validate_packet as validate_router_packet,
+    validate_response as validate_router_response,
+)
 
 
 class SourceAuditPacketTests(unittest.TestCase):
@@ -443,6 +448,17 @@ class RealContractTemplateSplitTests(unittest.TestCase):
         self.rejects(lambda d: d["golden_fixture"].update(
             training_eligibility="ELIGIBLE"), "unverified Golden Fixture identity")
 
+    def test_visual_source_check_does_not_become_owner_gold(self) -> None:
+        crosscheck = read_template_split(
+            BASE / "contract_001_source_family_crosscheck_v1.json")
+        visual = crosscheck["source_alignment"]["assistant_visual_review"]
+        self.assertFalse(visual["material_discrepancies_found"])
+        self.assertFalse(visual["literal_full_transcript_certified"])
+        self.assertEqual(crosscheck["source_alignment"]["owner_text_signoff"],
+                         "PENDING")
+        self.assertEqual(self.data["golden_fixture"]["linked_family"],
+                         "UNKNOWN")
+
     def test_reject_attributed_prior_research(self) -> None:
         self.rejects(lambda d: d["prior_two_contract_research"].update(
             original_groups=["RC02", "RC05"]),
@@ -633,6 +649,38 @@ class Contract001StatutoryCrosscheckTests(unittest.TestCase):
         self.rejects(lambda d: d["checks"][2]["legal_sources"].append(
             deepcopy(d["checks"][2]["legal_sources"][0])),
             "unverified legal source")
+
+
+class FirstPassRouterSmokeTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.packet = read_router(ROUTER_DATA)
+        cls.source = ROUTER_FIXTURE.read_text(encoding="utf-8")
+
+    def response(self) -> dict:
+        return {"schema_version": 1, "items": [
+            {"block_id": item["block_id"], "families": item["families"]}
+            for item in self.packet["trace"]]}
+
+    def test_nonblind_trace_validates_without_accuracy_claim(self) -> None:
+        validate_router_packet(self.packet, self.source)
+        self.assertIsNone(self.packet["limitations"]["accuracy_or_recall_score"])
+
+    def test_missing_block_and_generated_quote_are_rejected(self) -> None:
+        response = self.response()
+        response["items"].pop(23)
+        with self.assertRaisesRegex(ValueError, "missing or fabricated source block"):
+            validate_router_response(response, 43)
+        response = self.response()
+        response["items"][0]["quote"] = "model-written source"
+        with self.assertRaisesRegex(ValueError, "generated quote"):
+            validate_router_response(response, 43)
+
+    def test_signatures_cannot_gain_semantic_family(self) -> None:
+        response = self.response()
+        response["items"][-1]["families"] = ["EXCLUDED", "SECURITY"]
+        with self.assertRaisesRegex(ValueError, "mixed excluded family"):
+            validate_router_response(response, 43)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,471 @@
+{
+  "schema_version": 1,
+  "prepared_on": "2026-10-04",
+  "status": "ASSISTANT_NONBLIND_DEVELOPMENT_TRACE_NOT_EVALUATION_OR_GOLD",
+  "source": {
+    "fixture": "research/question_engine/golden_contracts/contract_001_he.txt",
+    "source_review": "research/question_engine/expert_memory/contract_001_source_family_crosscheck_v1.json",
+    "segmentation": "Split sanitized printed text at blank lines; B01-B43 are paragraphs, not PDF pages or independently verified clauses.",
+    "block_count": 43,
+    "handwriting_excluded": true
+  },
+  "router_contract": {
+    "labels": [
+      "TERM",
+      "RENT_PAYMENT",
+      "OTHER_PAYMENT",
+      "OPTION",
+      "NOTICE",
+      "SECURITY",
+      "REPAIR",
+      "PROPERTY_CONDITION",
+      "DAMAGE",
+      "TRANSFER",
+      "EARLY_EXIT",
+      "BREACH",
+      "VACATING",
+      "ACCESS",
+      "INSURANCE",
+      "OTHER"
+    ],
+    "special_label": "EXCLUDED",
+    "response_shape": {
+      "schema_version": 1,
+      "items": [
+        {
+          "block_id": "B01",
+          "families": [
+            "OTHER"
+          ]
+        }
+      ]
+    },
+    "instructions": [
+      "Return exactly one item for every supplied block ID. Use only the supplied IDs, not generated source quotes.",
+      "Assign all observable printed-content families; several labels may apply to one block. OTHER may coexist when a material part is not covered by the named families.",
+      "Use EXCLUDED alone for the technical signature marker. Do not infer handwriting, completed fields, appendix contents, identity, delivery, payment or realization from printed promises.",
+      "Do not decide legal validity, material risk, actual performance or which conflicting time or instrument is correct. Preserve empty fields and conflicting printed terms for later review."
+    ]
+  },
+  "trace": [
+    {
+      "block_id": "B01",
+      "clause": "Заголовок",
+      "families": [
+        "OTHER"
+      ],
+      "reason": "Вид документа вне ядра понятий."
+    },
+    {
+      "block_id": "B02",
+      "clause": "Реквизиты подписания",
+      "families": [
+        "OTHER"
+      ],
+      "reason": "Дата и место удалены; не восстанавливать."
+    },
+    {
+      "block_id": "B03",
+      "clause": "Сдающая сторона",
+      "families": [
+        "OTHER"
+      ],
+      "reason": "Роль участника вне ядра."
+    },
+    {
+      "block_id": "B04",
+      "clause": "Снимающая сторона",
+      "families": [
+        "OTHER"
+      ],
+      "reason": "Роль участника вне ядра."
+    },
+    {
+      "block_id": "B05",
+      "clause": "Преамбула",
+      "families": [
+        "OTHER"
+      ],
+      "reason": "Заявление о праве сдавать и объекте."
+    },
+    {
+      "block_id": "B06",
+      "clause": "Преамбула",
+      "families": [
+        "OTHER"
+      ],
+      "reason": "Заявленный статус пользования."
+    },
+    {
+      "block_id": "B07",
+      "clause": "Преамбула",
+      "families": [
+        "OTHER"
+      ],
+      "reason": "Заявление об отсутствии платы за ключ; не создавать платёж."
+    },
+    {
+      "block_id": "B08",
+      "clause": "Преамбула",
+      "families": [
+        "OTHER"
+      ],
+      "reason": "Цель и статус договора."
+    },
+    {
+      "block_id": "B09",
+      "clause": "Вводная формула",
+      "families": [
+        "OTHER"
+      ],
+      "reason": "Не самостоятельное обязательство."
+    },
+    {
+      "block_id": "B10",
+      "clause": "§1",
+      "families": [
+        "OTHER"
+      ],
+      "reason": "Включение преамбулы в договор."
+    },
+    {
+      "block_id": "B11",
+      "clause": "§2",
+      "families": [
+        "OTHER"
+      ],
+      "reason": "Заявленный правовой статус; без оценки действительности."
+    },
+    {
+      "block_id": "B12",
+      "clause": "§3",
+      "families": [
+        "TERM",
+        "OTHER"
+      ],
+      "reason": "Срок и пользование вещами; состав вещей не установлен."
+    },
+    {
+      "block_id": "B13",
+      "clause": "§4а",
+      "families": [
+        "RENT_PAYMENT"
+      ],
+      "reason": "Месячная аренда и график арендных чеков."
+    },
+    {
+      "block_id": "B14",
+      "clause": "§4б",
+      "families": [
+        "OPTION",
+        "NOTICE"
+      ],
+      "reason": "Продление, письменное сообщение и условия согласия."
+    },
+    {
+      "block_id": "B15",
+      "clause": "§4в",
+      "families": [
+        "BREACH",
+        "VACATING"
+      ],
+      "reason": "Порог просрочки, отмена и требование освободить."
+    },
+    {
+      "block_id": "B16",
+      "clause": "§4г",
+      "families": [
+        "OTHER_PAYMENT",
+        "BREACH"
+      ],
+      "reason": "Проценты и индексация при просрочке."
+    },
+    {
+      "block_id": "B17",
+      "clause": "§5а",
+      "families": [
+        "OTHER_PAYMENT"
+      ],
+      "reason": "Текущие коммунальные и эксплуатационные расходы."
+    },
+    {
+      "block_id": "B18",
+      "clause": "§5б",
+      "families": [
+        "OTHER"
+      ],
+      "reason": "Хранение квитанций и представление по запросу."
+    },
+    {
+      "block_id": "B19",
+      "clause": "§6а",
+      "families": [
+        "OTHER_PAYMENT",
+        "NOTICE"
+      ],
+      "reason": "Арнона и сообщение муниципалитету."
+    },
+    {
+      "block_id": "B20",
+      "clause": "§6б",
+      "families": [
+        "OTHER_PAYMENT"
+      ],
+      "reason": "Налоговая обязанность сдающей стороны."
+    },
+    {
+      "block_id": "B21",
+      "clause": "§7",
+      "families": [
+        "TRANSFER"
+      ],
+      "reason": "Передача прав, вещей, владения и допуск жильцов."
+    },
+    {
+      "block_id": "B22",
+      "clause": "§8а",
+      "families": [
+        "EARLY_EXIT",
+        "RENT_PAYMENT"
+      ],
+      "reason": "Выезд до срока при сохранении платежей."
+    },
+    {
+      "block_id": "B23",
+      "clause": "§9а",
+      "families": [
+        "REPAIR",
+        "PROPERTY_CONDITION",
+        "DAMAGE",
+        "VACATING",
+        "OTHER"
+      ],
+      "reason": "Повреждения, износ, состояние возврата; отдельное правило о переделках."
+    },
+    {
+      "block_id": "B24",
+      "clause": "§9б",
+      "families": [
+        "REPAIR",
+        "RENT_PAYMENT"
+      ],
+      "reason": "Ремонт сдающей стороны и условное возмещение/зачёт."
+    },
+    {
+      "block_id": "B25",
+      "clause": "§9в",
+      "families": [
+        "DAMAGE"
+      ],
+      "reason": "Ущерб третьим лицам и возмещение."
+    },
+    {
+      "block_id": "B26",
+      "clause": "§10",
+      "families": [
+        "VACATING"
+      ],
+      "reason": "Возврат владения и вещей после срока."
+    },
+    {
+      "block_id": "B27",
+      "clause": "§11а",
+      "families": [
+        "SECURITY",
+        "OPTION"
+      ],
+      "reason": "Обеспечительный чек, заявленный возврат и ссылка на продление."
+    },
+    {
+      "block_id": "B28",
+      "clause": "§11б",
+      "families": [
+        "SECURITY"
+      ],
+      "reason": "Заявленное полномочие использовать тот же чек."
+    },
+    {
+      "block_id": "B29",
+      "clause": "§12",
+      "families": [
+        "PROPERTY_CONDITION"
+      ],
+      "reason": "Признание состояния и ссылка на список недостатков."
+    },
+    {
+      "block_id": "B30",
+      "clause": "§13",
+      "families": [
+        "OTHER"
+      ],
+      "reason": "Соседство, чистота, общие требования."
+    },
+    {
+      "block_id": "B31",
+      "clause": "§14",
+      "families": [
+        "OTHER"
+      ],
+      "reason": "Переделки и перемещение вещей вне ядра."
+    },
+    {
+      "block_id": "B32",
+      "clause": "§15",
+      "families": [
+        "ACCESS"
+      ],
+      "reason": "Доступ для перечисленных целей с оговоркой о согласовании."
+    },
+    {
+      "block_id": "B33",
+      "clause": "§16",
+      "families": [
+        "OTHER",
+        "BREACH",
+        "VACATING"
+      ],
+      "reason": "Судьба переделок и заявленное последствие нарушения."
+    },
+    {
+      "block_id": "B34",
+      "clause": "§17",
+      "families": [
+        "VACATING",
+        "OTHER_PAYMENT"
+      ],
+      "reason": "Плата за задержку освобождения."
+    },
+    {
+      "block_id": "B35",
+      "clause": "§18",
+      "families": [
+        "OTHER"
+      ],
+      "reason": "Заявление об отсутствии платы за ключ/вложения."
+    },
+    {
+      "block_id": "B36",
+      "clause": "§19",
+      "families": [
+        "BREACH",
+        "VACATING"
+      ],
+      "reason": "Общая отмена за неисполнение и требование освободить."
+    },
+    {
+      "block_id": "B37",
+      "clause": "§20",
+      "families": [
+        "NOTICE"
+      ],
+      "reason": "Адреса для сообщений; значения удалены."
+    },
+    {
+      "block_id": "B38",
+      "clause": "§21",
+      "families": [
+        "NOTICE"
+      ],
+      "reason": "Правило предполагаемого получения почтового сообщения."
+    },
+    {
+      "block_id": "B39",
+      "clause": "§22",
+      "families": [
+        "DAMAGE"
+      ],
+      "reason": "Отказ от ответственности за вещи снимающей стороны."
+    },
+    {
+      "block_id": "B40",
+      "clause": "§23",
+      "families": [
+        "OTHER"
+      ],
+      "reason": "Приоритет документов вне ядра."
+    },
+    {
+      "block_id": "B41",
+      "clause": "§24",
+      "families": [
+        "RENT_PAYMENT",
+        "OTHER"
+      ],
+      "reason": "Особое проживание и указание на одного плательщика."
+    },
+    {
+      "block_id": "B42",
+      "clause": "Завершение",
+      "families": [
+        "OTHER"
+      ],
+      "reason": "Формула о подписании без содержания подписей."
+    },
+    {
+      "block_id": "B43",
+      "clause": "Маркер подписей",
+      "families": [
+        "EXCLUDED"
+      ],
+      "reason": "Подписи не читаются и не используются как доказательство."
+    }
+  ],
+  "second_pass_dependencies": [
+    {
+      "blocks": [
+        "B12",
+        "B13",
+        "B14"
+      ],
+      "issue": "Printed duration versus dates and option conditions must be read together; payment-check count cannot repair the term."
+    },
+    {
+      "blocks": [
+        "B13",
+        "B27",
+        "B28"
+      ],
+      "issue": "Rent-payment checks and the named security check are separate instruments; a bank-guarantee return phrase does not prove a second issued instrument."
+    },
+    {
+      "blocks": [
+        "B21",
+        "B41"
+      ],
+      "issue": "A general occupancy restriction and the special agreed-occupant clause need joint reading."
+    },
+    {
+      "blocks": [
+        "B22",
+        "B34"
+      ],
+      "issue": "Early departure payments and post-term holdover compensation have different triggers."
+    },
+    {
+      "blocks": [
+        "B23",
+        "B24",
+        "B29"
+      ],
+      "issue": "Repair allocation, conditional reimbursement/set-off and condition acknowledgment remain separate; Appendix B content is unavailable."
+    },
+    {
+      "blocks": [
+        "B15",
+        "B16",
+        "B36",
+        "B38"
+      ],
+      "issue": "Breach threshold, interest, termination and postal-delivery timing are distinct events."
+    }
+  ],
+  "limitations": {
+    "same_assistant_had_prior_contract_and_ontology_context": true,
+    "independent_model_run": false,
+    "external_provider_calls": false,
+    "gold_labels": false,
+    "accuracy_or_recall_score": null,
+    "training_eligible": false,
+    "purpose": "A development smoke trace and output contract for a later provider-neutral first-pass test, not evidence that a new model detects these entities."
+  }
+}
