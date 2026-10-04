@@ -1,12 +1,14 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-10-04, PR #304, `expert-memory-contract-001-visual-router-smoke-v1`.
+Последнее обновление: 2026-10-04, PR #305, `post-gate-assistant-merge-policy-v1`.
 
-Версия состояния: `privacy-ocr-2026-10-04-155`.
+Версия состояния: `privacy-ocr-2026-10-04-156`.
 
 Активный трек: `expert-memory-development`.
 
 Канонический следующий bounded-шаг: `expert-memory-router-blind-synthetic-evaluation-v1`.
+
+PR #305 — по решению владельца ассистент, отвечающий за PR, может слить авторизованное ограниченное изменение без повторной команды владельца после сверки финального diff, обязательных проверок CI, обоих state-файлов и итогового security review. Отдельный исполнитель оставляет решение ассистенту-организатору; явный запрет владельца или блокирующая находка останавливает merge. GitHub auto-merge остаётся выключенным. Продуктовый шаг, границы данных и безопасность не меняются.
 
 PR #304 — по поручению владельца ассистент визуально сверил три исходные фотографии с обезличенным `contract_001`: последовательность `8.א` → `9.א`, печатное содержание §12 и выбранные существенные опоры §§3, 4, 9, 11, 17, 21, 24 подтверждены без обнаруженного существенного расхождения. Это не удостоверение каждого символа, содержимого недоступного приложения или рукописи. Добавлен исследовательский первый проход Router по 43 блокам обезличенного текста: множественные семейства, сохраняющий содержание `OTHER`, техническое исключение подписей, шесть связей для повторного чтения и офлайн-проверка полноты структурированного ответа. Проход сделал тот же ассистент, знакомый с договором и онтологией: независимого теста модели, показателя точности, Gold или разрешения обучения нет. Прямое тождество с архивным RC PDF и каноническая связь с TF_C остаются UNKNOWN; следующий шаг — новый слепой синтетический тест Router с отдельной проверкой ошибок, без внешнего прогона реального договора.
 
@@ -325,4 +327,4 @@ Last completed Question Engine batch audit marker: 2026-09-08, start `cbbb8e0905
 
 Before a new PR read from current base: `AGENTS.md`, `SECURITY.md`, `docs/ARCHITECTURE.md`, `docs/CUSTOM_OCR_PIPELINE.md`, `docs/SERVERLESS_GPU_OCR_PIPELINE_V1.md`, both state files, `docs/DOCUMENT_STATUS_INDEX.md`, and `docs/CODEX_WORKFLOW.md`.
 
-Every PR: exactly one Context Gate v1; both state files updated; final checks apply to the exact final head; actual paths exactly match the Context Gate; mandatory final-diff security review; auto-merge disabled.
+Every PR: exactly one Context Gate v1; both state files updated; final checks apply to the exact final head; actual paths exactly match the Context Gate; mandatory final-diff security review. GitHub auto-merge remains disabled; the orchestrating assistant may merge an authorized PR after the gates pass without a second owner command, unless the owner explicitly holds it.
