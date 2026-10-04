@@ -1,12 +1,14 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-10-02, PR #303, `expert-memory-contract-001-local-source-family-crosscheck-v1`.
+Последнее обновление: 2026-10-04, PR #304, `expert-memory-contract-001-visual-router-smoke-v1`.
 
-Версия состояния: `privacy-ocr-2026-10-02-154`.
+Версия состояния: `privacy-ocr-2026-10-04-155`.
 
 Активный трек: `expert-memory-development`.
 
-Канонический следующий bounded-шаг: `expert-memory-contract-001-source-family-verification-v1`.
+Канонический следующий bounded-шаг: `expert-memory-router-blind-synthetic-evaluation-v1`.
+
+PR #304 — по поручению владельца ассистент визуально сверил три исходные фотографии с обезличенным `contract_001`: последовательность `8.א` → `9.א`, печатное содержание §12 и выбранные существенные опоры §§3, 4, 9, 11, 17, 21, 24 подтверждены без обнаруженного существенного расхождения. Это не удостоверение каждого символа, содержимого недоступного приложения или рукописи. Добавлен исследовательский первый проход Router по 43 блокам обезличенного текста: множественные семейства, сохраняющий содержание `OTHER`, техническое исключение подписей, шесть связей для повторного чтения и офлайн-проверка полноты структурированного ответа. Проход сделал тот же ассистент, знакомый с договором и онтологией: независимого теста модели, показателя точности, Gold или разрешения обучения нет. Прямое тождество с архивным RC PDF и каноническая связь с TF_C остаются UNKNOWN; следующий шаг — новый слепой синтетический тест Router с отдельной проверкой ошибок, без внешнего прогона реального договора.
 
 PR #303 — приватная локальная OCR-сверка трёх исходных фотографий с обезличенным `contract_001` дала высокую уверенность в соответствии источника и поддержала печатную последовательность `8.א` → `9.א` без промежуточного напечатанного `8.ב` в этих фотографиях. Сравнение нескольких пунктов с архивными PDF выявило сильного кандидата печатного семейства TF_C, но RC06 представляет другую редакцию: его дополнительные условия не переносились в fixture. Каноническая связь с RC-группой и тождество конкретного PDF остаются UNKNOWN; полный текст не подтверждён владельцем, по пункту 12 OCR слабее. Рукопись, подписи и возможные отдельные дополнения не анализировались. Опубликованы только обезличенные выводы, ограничения и локальные проверки; Gold, обучение, cohort scoring, внешний провайдер и runtime не открыты. Следующий шаг — подтверждение текста владельцем и точной исходной связи при наличии доказательств.
 
@@ -253,15 +255,15 @@ The attempt ledger stores only safe error class plus safe quota scope/retry timi
 
 This PR does not add another provider, model, dependency, endpoint, permission, workflow or storage path. It does not change Question Engine semantics/schema, the privacy boundary, report payload contract or OCR scope.
 
-## 8. Canonical next step — private source and family verification
+## 8. Canonical next step — independent Router diagnostic
 
-`next_step_id = expert-memory-contract-001-source-family-verification-v1`
+`next_step_id = expert-memory-router-blind-synthetic-evaluation-v1`
 
 **Freeze remains:** no new full real-contract external-LLM/OCR/provider calls. No raw private originals, recoverable PII, signed names/IDs, page images, original source names or hashes in GitHub, CI, logs or RAG. The sanitized three-page printed `contract_001` and privately held source photographs can be compared locally for this step; private source data is not persisted in the repository.
 
 **PR #292 delivered:** a second, owner-directed critical pass containing **15** cross-clause mechanisms backed by **55** exact short Hebrew quotes from the sanitized printed source, plus a clause-sequence integrity check. It adds the unverified property inventory, the signature-date trigger for arnona notice, and the special agreed-occupant term; separates early exit, post-term holdover and security realization; and narrows repair set-off to all three written preconditions. `8.ב` is not reconstructed. This research is not an observation of a model failure, an original-court holding or reviewed legal Gold.
 
-**Unresolved:** local OCR strongly aligns three private source photographs with the sanitized Golden Fixture, and TF_C is a strong printed-template candidate. The original is not positively mapped to an exact private RC PDF/group; canonical `linked_family` remains UNKNOWN (RC07 is excluded as a direct source). The product owner has not verified the full printed transcription, including the less legible clause 12. Appendix B, handwritten fields and signatures were excluded from semantic use, so their original contents and any amendments are not known. PR #291 originally reserved TF_C and TF_D as independent-test families; after the owner-directed RC06 review in #296 and RC07 review in #299, both are development research. No unexposed independent test family remains among RC01–RC07. The unlinked Golden Fixture is NOT eligible for training or cohort scoring.
+**Unresolved:** local OCR strongly aligns three private source photographs with the sanitized Golden Fixture, and TF_C is a strong printed-template candidate. An assistant visual check now supports the selected material printed anchors, including clause 12, but does not certify every character. The original is not positively mapped to an exact private RC PDF/group; canonical `linked_family` remains UNKNOWN (RC07 is excluded as a direct source). Appendix B, handwritten fields and signatures were excluded from semantic use, so their original contents and any amendments are not known. PR #291 originally reserved TF_C and TF_D as independent-test families; after the owner-directed RC06 review in #296 and RC07 review in #299, both are development research. No unexposed independent test family remains among RC01–RC07. The unlinked Golden Fixture is NOT eligible for training or cohort scoring. Owner Hebrew reading is not required for the next synthetic Router experiment.
 
 **PR #293 — bounded research exception:** three dated source-scoped and unverified statute-crosscheck hypotheses now cover actual tenant option versus renewed consent (§25יב), regular/urgent/emergency repair and undisclosed defects (§§8–9, 25ח), and financially burdensome security caps versus general realization/notice/return for an ordinary cheque (§25י). The 2026 licensed-provider amendment is future-effective only from 2026-09-30. No legal Gold or production authorization follows from this research.
 
@@ -281,7 +283,9 @@ This PR does not add another provider, model, dependency, endpoint, permission, 
 
 **PR #302 — five draft SECURITY cards exception:** inventory candidates #08–12 now have six-field research JSON cards and a separate source-locator registry. Their slots are questions about a target instance, not extracted values; links to other inventory candidates do not formalize those concepts. Four source-scoped ambiguity controls cover instrument identity, RC06 cap scope, RC03 return deadline scope, and delivery versus use. No source-family signoff, Gold, training, runtime, external provider, privacy or canonical-next-step change.
 
-**Next bounded step:** `expert-memory-contract-001-source-family-verification-v1`. In a separately approved private/local workflow, verify the sanitized transcription and the `8.א` → `9.א` sequence against the source, and try to map the fixture to a confirmed template family without publishing names, IDs, hashes or source text. If the source family remains unknown, keep training/evaluation blocked. Subsequent expert-case generation and legal-source verification are separate tasks.
+**PR #304 — assistant visual check and nonblind Router smoke:** three original photographs were inspected privately. The printed `8.א` to `9.א` sequence and selected material clauses, including §12, support the sanitized fixture without a material discrepancy found. Exact full transcription, unseen Appendix B and direct RC PDF identity are still unverified. A 43-block nonblind assistant trace exercises the proposed first-pass families, preserves meaningful `OTHER`, excludes the signature marker and identifies six cross-clause dependencies for the second pass. Its validator checks structured coverage and prohibited generated quotes; it does not measure model accuracy or authorize Gold, training, external real-contract calls or runtime use.
+
+**Next bounded step:** `expert-memory-router-blind-synthetic-evaluation-v1`. Prepare fresh synthetic printed clauses with a concealed reference routing set, run a separate model context using the same portable first-pass JSON contract, then record missing and excess families and whether necessary linked clauses survive the second pass. Do not call an external provider with a real contract, infer an independent score from the same-assistant trace or promote the unresolved source family to training/holdout use. Exact private PDF identity remains an open provenance question, not a prerequisite for this synthetic experiment.
 
 **Parallel unverified research:** original and appellate checks for the five court decisions; full/current 2025 Enforcement Authority cheque procedure. They cannot be promoted merely because this contract analysis mentions a related mechanism.
 
