@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-10-04-156",
+  "state_version": "privacy-ocr-2026-10-04-157",
   "active_track": "expert-memory-development",
   "next_step_id": "expert-memory-router-blind-synthetic-evaluation-v1",
-  "next_step_summary": "PR #305 lets the orchestrating assistant merge an authorized bounded PR after final-head, CI, state and security gates without a second owner command; an explicit owner hold or blocking finding still prevents merge, and GitHub auto-merge stays off. No product, data or security gate changes. Next, evaluate fresh concealed synthetic clauses in a separate model context, count omissions/excess routes and test linked-clause retrieval without sending real contracts to an external provider. Direct RC PDF identity and canonical TF_C linkage remain UNKNOWN.",
-  "last_recorded_pr": 305,
-  "last_recorded_change": "post-gate-assistant-merge-policy-v1",
+  "next_step_summary": "PR #306 records a user-reported manual Gemini second-pass observation on the sanitized RC07: the 6/13 pair was seeded in a JSON example, and claims about notice dispatch, replacement release and security retention exceed printed support. Full prompt and exact model variant remain unknown; no independent score, Gold, training, new provider call, Router/core-question or runtime change. Next, evaluate fresh concealed synthetic clauses in a separate model context, count omissions/excess routes and test linked-clause retrieval without sending real contracts to an external provider. Direct RC PDF identity and canonical TF_C linkage remain UNKNOWN.",
+  "last_recorded_pr": 306,
+  "last_recorded_change": "rc07-gemini-second-pass-qa-observation-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-10-04"
