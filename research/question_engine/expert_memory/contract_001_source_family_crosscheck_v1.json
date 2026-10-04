@@ -6,7 +6,7 @@
   "method": {
     "private_source_photos": 3,
     "scope": "Printed text only; handwriting, signatures and identity-heavy regions are excluded from semantic use.",
-    "local_processing": "Offline Hebrew OCR of owner-supplied photos and locally available RC PDFs; compare normalized word sequences against the sanitized fixture. OCR is a diagnostic crosscheck, not a replacement for owner visual text signoff.",
+    "local_processing": "Offline Hebrew OCR of owner-supplied photos and locally available RC PDFs, followed by direct assistant visual review of the same three photographs against the sanitized fixture. OCR is diagnostic; visual review covers printed material anchors and does not certify every character.",
     "external_contract_provider_calls": false,
     "raw_ocr_persisted": false
   },
@@ -15,7 +15,16 @@
     "basis": "The three photos align in page order with distinctive printed passages across the sanitized fixture, including the special final clause. Independent numeric reading supports the printed term, rent, security and holdover values; an OCR hit is not a full line-by-line source certification.",
     "clause_8_to_9": "LOCAL_OCR_ANCHORS_CONTIGUOUS_8A_THEN_9A",
     "clause_8_limit": "No intervening printed 8.b was observed between the matched ending of 8.a and start of 9.a in this photo sequence. This does not establish that no separate amendment exists.",
-    "limited_ocr_support": ["Clause 12 has weaker diagnostic OCR overlap; its wording and the unseen appendix remain subject to owner source review."],
+    "limited_ocr_support": ["Clause 12 had weaker diagnostic OCR overlap. Direct visual review supports its printed condition, Appendix B reference and waiver wording; the appendix itself was not supplied."],
+    "assistant_visual_review": {
+      "status": "MATERIAL_PRINTED_ANCHORS_CONFIRMED_NOT_VERBATIM_GOLD",
+      "checked_on": "2026-10-04",
+      "scope": "Three photographed pages in order; visible printed numbering 1-24 and targeted comparison of clauses 3, 4, 8, 9, 11, 12, 17, 21 and 24 against the sanitized fixture. Identity-heavy header, handwriting and signatures were excluded from semantic review.",
+      "clause_8_to_9": "Direct visual check confirms printed 8.a followed by printed 9.a on the second photographed page, with no intervening printed 8.b in the available sequence.",
+      "clause_12": "Direct visual check supports the fixture's printed condition acknowledgment, the reference to an Appendix B defects list and the visible/hidden defect wording; the appendix is not in the three photographed pages.",
+      "material_discrepancies_found": false,
+      "literal_full_transcript_certified": false
+    },
     "owner_text_signoff": "PENDING"
   },
   "template_comparison": {
