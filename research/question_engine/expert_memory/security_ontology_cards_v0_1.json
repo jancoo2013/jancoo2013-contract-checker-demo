@@ -2,7 +2,7 @@
   "schema_version": 1,
   "status": "RESEARCH_DRAFT_NOT_GOLD_OR_RUNTIME",
   "source_inventory": "docs/EXPERT_MEMORY_ONTOLOGY_CONCEPT_INVENTORY_V0_1.md",
-  "scope": "Five SECURITY concept types from candidates 08-12. Slots describe questions to ask of a particular instrument or clause; they are not extracted values. Relations point to inventory candidates, including candidates without cards.",
+  "scope": "Six SECURITY research cards: five original inventory candidates 08-12 plus one statutory-driven institutional-guarantee extension. Slots describe questions to ask of a particular instrument or clause; they are not extracted values. Relations point to inventory candidates, including candidates without cards.",
   "cards": [
     {
       "id": "SECURITY_CHECK",
@@ -105,6 +105,30 @@
         "Тридцать дней RC03 §5.4.2 относятся к коммунальным инструментам, а не автоматически к отдельному чеку §5.4.1.",
         "Возврат временных чеков RC07 после оформления постоянного поручения не переносить на многоцелевой обеспечительный чек.",
         "Упоминание возврата не доказывает фактическую выдачу, доставку или заполненные реквизиты инструмента."
+      ]
+    },
+    {
+      "id": "INSTITUTIONAL_GUARANTEE",
+      "definition": "Печатное условие о гарантии, выпускаемой банком либо иным поставщиком гарантии из категорий, определённых §25י(a). Карточка описывает тип инструмента и эмитента; наличие лицензии конкретного небанковского эмитента, денежные расходы арендатора и применимость установленного §25י(b) лимита устанавливаются отдельно.",
+      "slots": {
+        "instrument_instance": "Какая именно гарантия названа и есть ли отдельный текст инструмента.",
+        "issuer_class_and_license": "BANK либо один из statutory provider classes: licensed_credit_provider, licensed_deposit_and_credit_provider, licensed_financially_stable_payment_service_provider, insurer; для небанковского эмитента — вид лицензии и регулятор, если установлены.",
+        "amount_and_cap": "Сумма гарантии и отдельно статус применимости совокупного лимита §25י(b).",
+        "tenant_financial_outlay": "Несёт ли арендатор денежный расход для этой гарантии; комиссия, залог или блокировка средств могут быть доказательствами, но не считаются закрытым перечнем.",
+        "secured_obligations": "Какие обязательства арендатора прямо обеспечиваются.",
+        "instrument_terms": "Срок действия, условия предъявления и порядок освобождения/аннулирования, если они доступны."
+      },
+      "relations": ["SECURITY_REALIZATION", "SECURITY_RETURN"],
+      "do_not_confuse": [
+        "`INSTITUTIONAL_GUARANTEE` не равна `PERSONAL_GUARANTEE`: поручитель-физлицо или слово ערב/ערבים без институционального эмитента не создаёт банковскую или лицензированную гарантию.",
+        "`SECURITY_CHECK` и `PROMISSORY_NOTE` не переклассифицируются автоматически в институциональную гарантию из-за того, что они входят в тот же пакет обеспечений."
+      ],
+      "validation_rules": [
+        "На первом Router-проходе семейство остаётся `SECURITY`; `INSTITUTIONAL_GUARANTEE` — тип механизма внутри семейства, а не новая Router-family.",
+        "Поправка №3 применяется как датированный statutory overlay с 2026-09-30; для более ранней даты не использовать добавленную категорию `ערבות מנותן ערבות אחר` как действующее правило.",
+        "Фразы `ערבות מנותן ערבות אחר`, `בעל רישיון למתן אשראי`, `בעל רישיון למתן שירותי פיקדון ואשראי`, `בעל רישיון נותן שירותי תשלום יציבותי`, `מבטח` являются кандидатными lexical anchors и сами по себе не подтверждают лицензию конкретного эмитента.",
+        "Если денежный расход арендатора для гарантии не установлен, статус применения лимита остаётся `UNRESOLVED_CAP_APPLICABILITY`; не заменять юридический критерий закрытым списком комиссия/залог/блокировка.",
+        "Разделять доказательства существования/условий инструмента, фактической реализации и возврата/аннулирования; подтверждение предварительного уведомления перед реализацией требуется только при анализе состоявшейся или заявленной реализации."
       ]
     }
   ]

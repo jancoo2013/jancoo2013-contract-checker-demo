@@ -75,6 +75,7 @@
   },
   "usage": {
     "scope": "research_statutory_overlay_only",
+    "current_phase": "IN_FORCE_FROM_2026-09-30",
     "production_runtime_wired": false,
     "expert_verified": false,
     "safe_as_current_law_without_date_and_applicability_gate": false,

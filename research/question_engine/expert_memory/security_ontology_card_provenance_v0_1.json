@@ -2,7 +2,7 @@
   "schema_version": 1,
   "status": "SANITIZED_SOURCE_SCOPED_RESEARCH_NOT_GOLD",
   "cards_file": "research/question_engine/expert_memory/security_ontology_cards_v0_1.json",
-  "source_limit": "Only previously published sanitized research packets are referenced. Clause locators identify printed terms, not original signatures, actual performance, source-family verification or legal authority.",
+  "source_limit": "Existing contract-driven cards reference previously published sanitized research packets. A statutory-driven extension may reference a versioned statutory overlay; it remains research, not expert-reviewed legal Gold or a production rule.",
   "sources": {
     "SECURITY_CHECK": [
       {"path": "research/question_engine/expert_memory/contract_001_deep_review_v1.json", "mechanism_id": "security_cheque_not_bank_guarantee", "locators": ["11"], "role": "POSITIVE_PRINTED_WITH_INSTRUMENT_CONFLICT"},
@@ -31,6 +31,9 @@
       {"path": "research/question_engine/expert_memory/private_lease_printed_mechanisms_v1.json", "mechanism_id": "security_bundle_completion_return_and_delivery_deadline", "locators": ["13.2"], "role": "TERM_EXTENSION_AND_CONDITIONS"},
       {"path": "research/question_engine/expert_memory/contract_001_deep_review_v1.json", "mechanism_id": "security_cheque_not_bank_guarantee", "locators": ["11"], "role": "BANK_GUARANTEE_NAME_CONFLICT"},
       {"path": "research/question_engine/expert_memory/rc07_printed_mechanisms_v1.json", "mechanism_id": "temporary_rent_cheques_vs_separate_security", "locators": ["5", "6", "13"], "role": "TRIGGER_BELONGS_TO_TEMPORARY_CHEQUES"}
+    ],
+    "INSTITUTIONAL_GUARANTEE": [
+      {"path": "docs/statutory/ISRAEL_RENTAL_AND_LOAN_AMENDMENT_2026_V1.json", "mechanism_id": "normalized_changes.section_25y_a+section_25y_b_opening", "locators": ["25י(a)", "25י(b)", "Economic Programme Law 2026 §24", "§37"], "role": "STATUTORY_IN_FORCE_TYPED_GUARANTEE_BOUNDARY"}
     ]
   }
 }

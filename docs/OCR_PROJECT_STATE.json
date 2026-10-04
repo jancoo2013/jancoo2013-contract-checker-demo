@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-10-04-157",
+  "state_version": "privacy-ocr-2026-10-05-158",
   "active_track": "expert-memory-development",
   "next_step_id": "expert-memory-router-blind-synthetic-evaluation-v1",
-  "next_step_summary": "PR #306 records a user-reported manual Gemini second-pass observation on the sanitized RC07: the 6/13 pair was seeded in a JSON example, and claims about notice dispatch, replacement release and security retention exceed printed support. Full prompt and exact model variant remain unknown; no independent score, Gold, training, new provider call, Router/core-question or runtime change. Next, evaluate fresh concealed synthetic clauses in a separate model context, count omissions/excess routes and test linked-clause retrieval without sending real contracts to an external provider. Direct RC PDF identity and canonical TF_C linkage remain UNKNOWN.",
-  "last_recorded_pr": 306,
-  "last_recorded_change": "rc07-gemini-second-pass-qa-observation-v1",
+  "next_step_summary": "PR #307 records the 2026 section 25y institutional-guarantee amendment as in force from 2026-09-30 and adds a research SECURITY subtype with provider/license, financial-outlay, effective-date and instrument-boundary controls plus focused regressions. It does not add a Router family or runtime rule; expert verification and production wiring remain false. Next, evaluate fresh concealed synthetic clauses in a separate model context, count omissions/excess routes and test linked-clause retrieval without sending real contracts to an external provider. Direct RC PDF identity and canonical TF_C linkage remain UNKNOWN.",
+  "last_recorded_pr": 307,
+  "last_recorded_change": "security-institutional-guarantee-2026-in-force-v1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
-  "updated_on": "2026-10-04"
+  "updated_on": "2026-10-05"
 }
