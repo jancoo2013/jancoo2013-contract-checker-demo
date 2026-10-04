@@ -1,12 +1,14 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-10-04, PR #305, `post-gate-assistant-merge-policy-v1`.
+Последнее обновление: 2026-10-04, PR #306, `rc07-gemini-second-pass-qa-observation-v1`.
 
-Версия состояния: `privacy-ocr-2026-10-04-156`.
+Версия состояния: `privacy-ocr-2026-10-04-157`.
 
 Активный трек: `expert-memory-development`.
 
 Канонический следующий bounded-шаг: `expert-memory-router-blind-synthetic-evaluation-v1`.
+
+PR #306 — отдельно сохранена обезличенная исследовательская заметка по вручную присланному ответу второго прохода Gemini на RC07. Связь §§6/13 была показана модели в примере формата; выводы о поздней отправке уведомления, автоматическом освобождении при замене и удержании обеспечительного чека весь срок выходят за пределы печатных опор. Пропуски связей отмечены без подсчёта точности. Полный промпт и точная версия модели неизвестны, оригинал и рукопись не опубликованы; Router, рабочие вопросы, исторический пакет RC07, Gold, обучение, внешний provider/runtime и канонический следующий шаг не меняются.
 
 PR #305 — по решению владельца ассистент, отвечающий за PR, может слить авторизованное ограниченное изменение без повторной команды владельца после сверки финального diff, обязательных проверок CI, обоих state-файлов и итогового security review. Отдельный исполнитель оставляет решение ассистенту-организатору; явный запрет владельца или блокирующая находка останавливает merge. GitHub auto-merge остаётся выключенным. Продуктовый шаг, границы данных и безопасность не меняются.
 
@@ -286,6 +288,8 @@ This PR does not add another provider, model, dependency, endpoint, permission, 
 **PR #302 — five draft SECURITY cards exception:** inventory candidates #08–12 now have six-field research JSON cards and a separate source-locator registry. Their slots are questions about a target instance, not extracted values; links to other inventory candidates do not formalize those concepts. Four source-scoped ambiguity controls cover instrument identity, RC06 cap scope, RC03 return deadline scope, and delivery versus use. No source-family signoff, Gold, training, runtime, external provider, privacy or canonical-next-step change.
 
 **PR #304 — assistant visual check and nonblind Router smoke:** three original photographs were inspected privately. The printed `8.א` to `9.א` sequence and selected material clauses, including §12, support the sanitized fixture without a material discrepancy found. Exact full transcription, unseen Appendix B and direct RC PDF identity are still unverified. A 43-block nonblind assistant trace exercises the proposed first-pass families, preserves meaningful `OTHER`, excludes the signature marker and identifies six cross-clause dependencies for the second pass. Its validator checks structured coverage and prohibited generated quotes; it does not measure model accuracy or authorize Gold, training, external real-contract calls or runtime use.
+
+**PR #306 — user-reported RC07 Gemini trace:** one sanitized QA note separates the prompted 6/13 pair from autonomous link discovery, identifies unsupported inferences about notice dispatch, replacement release and security retention, and records possible missed links without scoring. Model variant and exact full prompt are not archived; this retrospectively records the owner's supplied output and does not authorize further real-contract provider runs, change the Router/core inventory or promote RC07 to Gold.
 
 **Next bounded step:** `expert-memory-router-blind-synthetic-evaluation-v1`. Prepare fresh synthetic printed clauses with a concealed reference routing set, run a separate model context using the same portable first-pass JSON contract, then record missing and excess families and whether necessary linked clauses survive the second pass. Do not call an external provider with a real contract, infer an independent score from the same-assistant trace or promote the unresolved source family to training/holdout use. Exact private PDF identity remains an open provenance question, not a prerequisite for this synthetic experiment.
 
