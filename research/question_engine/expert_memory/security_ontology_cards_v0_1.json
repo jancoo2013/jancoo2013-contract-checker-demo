@@ -14,12 +14,7 @@
         "secured_obligations": "Какие обязательства обеспечивает этот экземпляр.",
         "delivery_and_completion": "Условие о передаче, срок и договорное утверждение о заполнении пустых реквизитов."
       },
-      "relations": [
-        "SECURITY_REALIZATION",
-        "SECURITY_RETURN",
-        "RENT_OBLIGATION",
-        "OCCUPANCY_CHARGE"
-      ],
+      "relations": ["SECURITY_REALIZATION", "SECURITY_RETURN", "RENT_OBLIGATION", "OCCUPANCY_CHARGE"],
       "do_not_confuse": [
         "Платёжный чек за аренду, временный чек до постоянного поручения и многоцелевой обеспечительный чек — разные экземпляры.",
         "Слова о банковской гарантии, векселе или поручителях не создают ещё один обеспечительный чек."
@@ -41,11 +36,7 @@
         "guarantor_relation": "Названная связь с поручителями, если она установлена текстом.",
         "issuance_status": "Наличие отдельного оформленного и переданного документа либо неустановленность."
       },
-      "relations": [
-        "PERSONAL_GUARANTEE",
-        "SECURITY_REALIZATION",
-        "SECURITY_RETURN"
-      ],
+      "relations": ["PERSONAL_GUARANTEE", "SECURITY_REALIZATION", "SECURITY_RETURN"],
       "do_not_confuse": [
         "Вексель не становится обеспечительным чеком, банковской гарантией или депозитом.",
         "Упоминание поручителей не подтверждает их подписи или действительную выдачу векселя."
@@ -64,10 +55,7 @@
         "separate_document": "Ссылка на отдельное поручительство или приложение и его доступность.",
         "execution_status": "Установлено ли оформление; подписи и рукопись не читаются в этих источниках."
       },
-      "relations": [
-        "PROMISSORY_NOTE",
-        "SECURITY_CHECK"
-      ],
+      "relations": ["PROMISSORY_NOTE", "SECURITY_CHECK"],
       "do_not_confuse": [
         "Поручитель не равен арендатору, подписанту чека или банку-гаранту.",
         "Два поручителя не означают два дополнительных чека или две банковские гарантии."
@@ -87,12 +75,7 @@
         "notice_and_cure": "Напечатанные правила уведомления и исправления нарушения, если они есть.",
         "method_and_costs": "Описанный способ использования и расходы взыскания."
       },
-      "relations": [
-        "SECURITY_CHECK",
-        "PROMISSORY_NOTE",
-        "BREACH_TRIGGER",
-        "CONTRACT_NOTICE"
-      ],
+      "relations": ["SECURITY_CHECK", "PROMISSORY_NOTE", "BREACH_TRIGGER", "CONTRACT_NOTICE"],
       "do_not_confuse": [
         "Договорное заполнение реквизитов, банковское проведение и доказанная реализация — разные действия.",
         "Номинал обеспечения не является автоматически дополнительным ущербом или штрафом."
@@ -113,12 +96,7 @@
         "conditions_and_proof": "Расчёты, квитанции, отсутствие долга и иные напечатанные условия.",
         "extension_effect": "Влияние продления аренды, если оно прямо указано."
       },
-      "relations": [
-        "SECURITY_CHECK",
-        "PROMISSORY_NOTE",
-        "LEASE_EXTENSION",
-        "VACATING_OBLIGATION"
-      ],
+      "relations": ["SECURITY_CHECK", "PROMISSORY_NOTE", "LEASE_EXTENSION", "VACATING_OBLIGATION"],
       "do_not_confuse": [
         "Срок действия инструмента, срок его выдачи и срок возврата — разные временные роли.",
         "Обещание возврата в проекте или упоминание банковской гарантии не являются доказательством получения старых чеков или существования второго инструмента."
@@ -140,10 +118,7 @@
         "secured_obligations": "Какие обязательства арендатора прямо обеспечиваются.",
         "instrument_terms": "Срок действия, условия предъявления и порядок освобождения/аннулирования, если они доступны."
       },
-      "relations": [
-        "SECURITY_REALIZATION",
-        "SECURITY_RETURN"
-      ],
+      "relations": ["SECURITY_REALIZATION", "SECURITY_RETURN"],
       "do_not_confuse": [
         "`INSTITUTIONAL_GUARANTEE` не равна `PERSONAL_GUARANTEE`: поручитель-физлицо или слово ערב/ערבים без институционального эмитента не создаёт банковскую или лицензированную гарантию.",
         "`SECURITY_CHECK` и `PROMISSORY_NOTE` не переклассифицируются автоматически в институциональную гарантию из-за того, что они входят в тот же пакет обеспечений."
