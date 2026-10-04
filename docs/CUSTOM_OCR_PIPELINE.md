@@ -223,4 +223,4 @@ Use one bounded branch and PR per measurable step. Every privacy/OCR PR must sta
 - final SHA and changed paths;
 - remaining privacy, legal, quality, cost, and licensing limitations.
 
-Do not merge automatically.
+Keep GitHub auto-merge disabled. After the mandatory final-head and security gates pass, the orchestrating assistant may merge an authorized PR unless the owner explicitly reserves the decision.
