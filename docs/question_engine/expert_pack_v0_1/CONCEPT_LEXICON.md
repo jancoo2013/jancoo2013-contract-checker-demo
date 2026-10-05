@@ -277,7 +277,7 @@ For every concept:
 - kind: CONDITION
 - definition: a restriction on assignment, subletting, transfer of possession, or allowing another person to occupy/use the property.
 - essential_slots: actor; prohibited/conditioned act; target person; consent; exception; special route.
-- relations: REPLACEMENT_TENANT_ROUTE, ALTERATION_PERMISSION.
+- relations: REPLACEMENT_TENANT_ROUTE, CONTRACT_NOTICE.
 - do_not_confuse: guest/occupant permission; a specific replacement route; landlord access.
 - evidence_boundary: a general restriction does not erase a more specific permitted route.
 
