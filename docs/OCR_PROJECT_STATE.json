@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-10-05-158",
+  "state_version": "privacy-ocr-2026-10-05-159",
   "active_track": "expert-memory-development",
   "next_step_id": "expert-memory-router-blind-synthetic-evaluation-v1",
-  "next_step_summary": "PR #307 records the 2026 section 25y institutional-guarantee amendment as in force from 2026-09-30 and adds a research SECURITY subtype with provider/license, financial-outlay, effective-date and instrument-boundary controls plus focused regressions. It does not add a Router family or runtime rule; expert verification and production wiring remain false. Next, evaluate fresh concealed synthetic clauses in a separate model context, count omissions/excess routes and test linked-clause retrieval without sending real contracts to an external provider. Direct RC PDF identity and canonical TF_C linkage remain UNKNOWN.",
-  "last_recorded_pr": 307,
-  "last_recorded_change": "security-institutional-guarantee-2026-in-force-v1",
+  "next_step_summary": "PR #308 records an experimental general-to-specific model-teaching/context strategy and compact Foundation Core for Expert Memory: establish contract-system concepts first, use Router as a structural/retrieval pass, load only relevant mechanism modules for targeted analysis, then reconcile linked clauses and run a final completeness audit. It also makes source/package completeness, missing referenced documents, unreadable text/handwriting dependencies, deontic distinctions, temporal logic, evidence-layer separation and explicit uncertainty part of the foundation. This is documentation-only: no model-weight training, Gold label, Router family, runtime schema, statutory authority, provider use or privacy boundary changes. Next, evaluate fresh concealed synthetic clauses in a separate model context, count omissions/excess routes and test linked-clause retrieval without sending real contracts to an external provider. Direct RC PDF identity and canonical TF_C linkage remain UNKNOWN.",
+  "last_recorded_pr": 308,
+  "last_recorded_change": "expert-memory-learning-core-v0-1",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-10-05"
