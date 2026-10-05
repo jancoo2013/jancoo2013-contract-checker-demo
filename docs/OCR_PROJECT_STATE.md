@@ -1,12 +1,14 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-10-05, PR #307, `security-institutional-guarantee-2026-in-force-v1`.
+Последнее обновление: 2026-10-05, PR #308, `expert-memory-learning-core-v0-1`.
 
-Версия состояния: `privacy-ocr-2026-10-05-158`.
+Версия состояния: `privacy-ocr-2026-10-05-159`.
 
 Активный трек: `expert-memory-development`.
 
 Канонический следующий bounded-шаг: `expert-memory-router-blind-synthetic-evaluation-v1`.
+
+PR #308 — по решению владельца зафиксирована экспериментальная стратегия обучения/контекстного инструктирования Expert Memory от общего к частному и компактное Foundation Core. Базовое ядро объясняет договор как связанную систему механизмов, вводит проверку полноты страниц и прямо указанных приложений до сильных выводов, различает отсутствие факта и нехватку данных, сохраняет границы нечитаемого текста/рукописи, определения и ссылки, временную логику, право/обязанность/разрешение/запрет, четыре слоя доказательств и явную неопределённость. Рабочий порядок: Foundation Core → первый структурный Router-проход без оценки риска → второй проход с подгрузкой только релевантных механизмов → третий проход сверки связанных пунктов → финальный completeness audit. Router рассматривается как индекс/слой retrieval, а не как фундамент онтологии; полный разрастающийся «учебник» не должен подаваться модели целиком в каждом запросе. Это документальная исследовательская гипотеза, не обучение весов, не Gold, не новый Router family, не runtime-схема и не правовой источник. Активный трек и канонический следующий шаг `expert-memory-router-blind-synthetic-evaluation-v1` не изменены.
 
 PR #307 — bounded statutory/Expert Memory exception. The 2026 section 25y institutional-guarantee amendment is recorded as in force from 2026-09-30 without expert-review or runtime promotion. `INSTITUTIONAL_GUARANTEE` is a subtype inside Router family `SECURITY`; personal guarantees, security cheques and promissory notes remain distinct, and unknown tenant financial outlay leaves cap applicability unresolved. Focused regressions cover provider classes, date and provenance. The canonical next step is unchanged.
 
