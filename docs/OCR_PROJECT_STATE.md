@@ -1,12 +1,14 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-10-05, PR #312, `expert-memory-concept-lexicon-v0-3-audit`.
+Последнее обновление: 2026-10-05, PR #313, `expert-memory-blind-synthetic-fixture-v1`.
 
-Версия состояния: `privacy-ocr-2026-10-05-163`.
+Версия состояния: `privacy-ocr-2026-10-05-164`.
 
 Активный трек: `expert-memory-development`.
 
 Канонический следующий bounded-шаг: `expert-memory-router-blind-synthetic-evaluation-v1`.
+
+PR #313 — подготовлен свежий blind synthetic lease fixture для текущего шага `expert-memory-router-blind-synthetic-evaluation-v1`. Добавлен полностью синтетический ивритский договор без реальных сторон/адресов/реквизитов/подписей/сырого OCR, отдельный sealed reference JSON и операторский протокол stock-baseline vs taught-pipeline. Договор содержит 22 пункта + приложенный synthetic Annex A и намеренно отсутствующий в test package Annex B; механизмы включают definitions/document precedence, claimed letting authority, split payment channels, service-account registration/evidence, condition/repairs/recovery/setoff, use/occupancy/access/alterations, tenant replacement and landlord transfer, two distinct security instruments, option with external CPI dependency, insurance branching, breach-specific vs general cure, vacating/pre-return protocol/left-behind property/holdover and dispute forum. Sealed reference фиксирует 21 critical fact, expected Router families по пунктам, required concepts/temporal roles, 17 cross-clause checks, prohibited inferences и scoring weights. Внешняя модель в этом PR не вызывалась; gold нельзя передавать тестируемой модели. `next_step_id` остаётся прежним до фактического baseline/taught run и scoring.
 
 PR #312 — выполнен второй проход по `Concept Lexicon`: v0.2 сверена с Foundation Core, Mechanism Map v0.2, recurring Question Engine inventory, Expert Pack examples/playbook и текущими обезличенными/печатными mechanism packets. Исправлены ошибки типов: `LETTING_ENTITLEMENT_CLAIM` и `CONDITION_ACKNOWLEDGMENT` теперь `ASSERTION`, `LEASE_TERM` — `TEMPORAL_STRUCTURE`, `DEFECTS_LIST`/`PROPERTY_INVENTORY`/`CONDITION_PROTOCOL` — `DOCUMENT`, `DISPUTE_FORUM` — договорная `RELATION` с отдельной внешней проверкой эффекта. `TRANSFER_RESTRICTION` перенесён из M05 в M06. Добавлены семь понятий, которых не хватало для точного покрытия: `CONTRACT_DEFINITION`, `USE_OCCUPANCY_RULE`, `LANDLORD_TRANSFER_RULE`, `LEFT_BEHIND_PROPERTY_RULE`, `SERVICE_ACCOUNT_REGISTRATION`, `EVIDENCE_PRODUCTION_OBLIGATION`, `EXTERNAL_FINANCIAL_FRAMEWORK`. Текущий teaching set: 54 top-level concepts + 10 temporal roles; все 30 исторических IDs сохранены. SECURITY, Router, extraction/runtime schema, Gold, statutory authority и privacy boundaries не менялись. Канонический следующий шаг `expert-memory-router-blind-synthetic-evaluation-v1` не изменён.
 
