@@ -1,4 +1,4 @@
-# Expert Memory — Concept Lexicon v0.2
+# Expert Memory — Concept Lexicon v0.3
 
 Status: experimental third learning layer for the Expert Memory track.
 
@@ -6,7 +6,7 @@ Purpose: teach a general-purpose model the concrete concepts that make up reside
 
 This lexicon is not a Router schema, extraction schema, legal rule source, statutory baseline, Gold annotation set, risk catalogue, runtime contract, or claim that every concept must appear in every lease.
 
-It consolidates the historical 30-concept research inventory, the later SECURITY cards, the two glossary decisions DOCUMENT_REFERENCE and REPAIR_COST_RECOVERY, and distinctions exposed by the Mechanism Map v0.2 and the currently reviewed sanitized/printed corpus. The current compact teaching set contains 47 top-level concepts plus 10 reusable temporal roles.
+It consolidates the historical 30-concept research inventory, the later SECURITY cards, the two glossary decisions DOCUMENT_REFERENCE and REPAIR_COST_RECOVERY, and distinctions exposed by the Mechanism Map v0.2 and the currently reviewed sanitized/printed corpus. The current compact teaching set contains 54 top-level concepts plus 10 reusable temporal roles.
 
 ## 1. Position in the knowledge hierarchy
 
@@ -48,20 +48,35 @@ The whole lexicon should not be loaded into every prompt merely because it exist
 The kind field prevents different semantic levels from being treated as interchangeable.
 
 - ACTOR_ROLE: a contractual role occupied by a participant.
-- OBJECT: the dwelling, property, item, document, or other thing to which a mechanism refers.
+- OBJECT: the dwelling, property, item, or other non-document thing to which a mechanism refers.
+- DOCUMENT: a document-like contractual object such as an inventory, defects list, or inspection protocol.
 - INSTRUMENT: a payment, security, guarantee, or similar operative instrument.
-- OBLIGATION: a duty to pay, repair, vacate, restore, or perform another action.
+- OBLIGATION: a duty to pay, repair, vacate, restore, provide evidence, register an account, or perform another action.
 - PERMISSION: a contractual permission or conditional entitlement.
 - PROCEDURE: an ordered route made of actions, triggers, prerequisites, and consequences.
 - CONDITION: a trigger, restriction, prerequisite, exception, or classification that affects another mechanism.
+- ASSERTION: a contractual statement or acknowledgment about a fact, state, capacity, or condition that is evidence of what the document says but not independent proof that the statement is true.
+- DEFINITION: an explicit contractual definition that assigns meaning to a term or role inside the document.
 - RELATION: a directed semantic relation between actors, objects, payments, documents, or mechanisms.
+- TEMPORAL_STRUCTURE: a contract-level interval or period such as the lease term itself, distinct from a deadline attached to an action.
 - MONETARY_EFFECT: an amount or formula arising from a defined event beyond the ordinary principal obligation.
 - DOCUMENT_LINK: a relation to another document, document version, protocol, appendix, or priority rule.
 - SOURCE_STATE: status of a source or document version, not proof of its truth.
-- EXTERNAL_DEPENDENCY: a value, source, forum, proceeding, or framework whose content/effect must be checked outside the immediate clause.
+- EXTERNAL_DEPENDENCY: a value, source, proceeding, framework, or external rule whose content/effect must be checked outside the immediate clause.
 - TEMPORAL_ROLE: a named role played by a date, duration, deadline, threshold, or delay.
 
 Kinds describe how to reason about a concept. They are not production enums.
+
+### Second-pass audit findings
+
+The v0.3 audit compared v0.2 against the Foundation Core, Mechanism Map v0.2, the current Question Engine recurring inventory, Expert Pack examples/playbook, and the reviewed sanitized/printed contract mechanism packets.
+
+The audit found two kinds of defects:
+
+1. taxonomy errors: assertions were being labeled as conditions/relations, document objects were being labeled as document links, LEASE_TERM lacked a temporal-structure kind, and DISPUTE_FORUM was incorrectly typed as an external dependency rather than a contractual relation whose legal effect is external;
+2. coverage gaps: contractual definitions, ordinary use/occupancy rules, landlord-side transfer/sale rules, property left behind after return, evidence-production duties, service/account registration duties, and externally referenced finance frameworks lacked explicit concepts.
+
+v0.3 corrects those points without turning the lexicon into a clause checklist or runtime schema.
 
 ## 3. Global concept rules
 
@@ -95,8 +110,16 @@ For every concept:
 - do_not_confuse: tenant property; common property; an item merely mentioned in a repair clause.
 - evidence_boundary: do not supply an omitted address, item, or accessory from context or another edition.
 
+### CONTRACT_DEFINITION
+- kind: DEFINITION
+- definition: an explicit contract rule assigning a meaning, role, scope, or referent to a term used elsewhere in the document.
+- essential_slots: defined term; defining text; scope; target actor/object/mechanism; exceptions; clauses that rely on it.
+- relations: PARTY_ROLE, DOCUMENT_REFERENCE, and any mechanism whose wording uses the defined term.
+- do_not_confuse: ordinary-language meaning; an external legal definition; a cross-reference that does not itself define a term.
+- evidence_boundary: apply only the definition actually supplied by the contract; do not expand it from common usage, another template, or external law without a separately authorized layer.
+
 ### LETTING_ENTITLEMENT_CLAIM
-- kind: RELATION
+- kind: ASSERTION
 - definition: the contract's statement that a granting party owns, holds, leases, controls, or otherwise claims authority to let the property.
 - essential_slots: claimant role; claimed basis; target property; upstream agreement/source if named; qualification/dispute if stated.
 - relations: PARTY_ROLE, CONTRACT_OBJECT, DOCUMENT_REFERENCE, EXTERNAL_PROCEEDING_REFERENCE.
@@ -138,7 +161,7 @@ For every concept:
 ## 5. M01 — Term, continuation, and renewal
 
 ### LEASE_TERM
-- kind: RELATION
+- kind: TEMPORAL_STRUCTURE
 - definition: the initial tenancy period expressed by dates, duration, or both.
 - essential_slots: start; end; duration; unit; effective boundaries.
 - relations: RENT_OBLIGATION, LEASE_EXTENSION, VACATING_OBLIGATION.
@@ -232,7 +255,7 @@ For every concept:
 - evidence_boundary: retain as a subtype for continuity with the historical inventory; do not use it as the parent concept.
 
 ### CONDITION_ACKNOWLEDGMENT
-- kind: CONDITION
+- kind: ASSERTION
 - definition: a statement by a party about inspection, suitability, AS-IS condition, or limits on condition-related complaints.
 - essential_slots: speaker; property/object; stated condition; scope; exceptions; linked defects/protocol.
 - relations: DEFECTS_LIST, CONDITION_PROTOCOL, REPAIR_OBLIGATION, DAMAGE_RESPONSIBILITY.
@@ -240,7 +263,7 @@ For every concept:
 - evidence_boundary: read together with exceptions and repair duties; do not turn acknowledgment into factual proof of perfect condition.
 
 ### DEFECTS_LIST
-- kind: DOCUMENT_LINK
+- kind: DOCUMENT
 - definition: a referenced list or appendix identifying defects or exceptions to a general condition statement.
 - essential_slots: target document; purpose; availability; printed defects if supplied; relation to condition acknowledgment.
 - relations: DOCUMENT_REFERENCE, CONDITION_ACKNOWLEDGMENT, REPAIR_OBLIGATION.
@@ -248,7 +271,7 @@ For every concept:
 - evidence_boundary: a reference does not establish the unseen list's contents.
 
 ### PROPERTY_INVENTORY
-- kind: DOCUMENT_LINK
+- kind: DOCUMENT
 - definition: an inventory of furniture, fixtures, equipment, or other property linked to use, condition, custody, or return.
 - essential_slots: document/reference; items; quantity; condition; source for each value; availability.
 - relations: DOCUMENT_REFERENCE, CONTRACT_OBJECT, DAMAGE_RESPONSIBILITY, VACATING_OBLIGATION.
@@ -256,7 +279,7 @@ For every concept:
 - evidence_boundary: blocked handwriting cannot supply items or quantities.
 
 ### CONDITION_PROTOCOL
-- kind: DOCUMENT_LINK
+- kind: DOCUMENT
 - definition: an entry, handover, inspection, or pre-return protocol used to record property condition and possible corrective work.
 - essential_slots: protocol type; timing; participants; availability; observations; correction route; relation to final handover.
 - relations: DOCUMENT_REFERENCE, CONDITION_ACKNOWLEDGMENT, REPAIR_OBLIGATION, VACATING_OBLIGATION.
@@ -273,13 +296,13 @@ For every concept:
 
 ## 9. M05 — Use, occupancy, alterations, and access
 
-### TRANSFER_RESTRICTION
+### USE_OCCUPANCY_RULE
 - kind: CONDITION
-- definition: a restriction on assignment, subletting, transfer of possession, or allowing another person to occupy/use the property.
-- essential_slots: actor; prohibited/conditioned act; target person; consent; exception; special route.
-- relations: REPLACEMENT_TENANT_ROUTE, CONTRACT_NOTICE.
-- do_not_confuse: guest/occupant permission; a specific replacement route; landlord access.
-- evidence_boundary: a general restriction does not erase a more specific permitted route.
+- definition: a rule permitting, prohibiting, or conditioning how the dwelling may be used, who may reside there, or what conduct is allowed in the property or common areas.
+- essential_slots: actor/occupant; use or conduct; permission/prohibition; consent; named occupants; guests/pets/business/common-area scope; exceptions; special condition.
+- relations: PARTY_ROLE, CONTRACT_OBJECT, TRANSFER_RESTRICTION, CONTRACT_NOTICE.
+- do_not_confuse: ordinary occupancy with assignment/subletting; conduct restrictions with damage liability; a specific agreed occupant with an unauthorized transferee.
+- evidence_boundary: a specific occupancy clause may narrow a general restriction; do not classify residence, guests, pets, or conduct as a transfer without textual support.
 
 ### ALTERATION_PERMISSION
 - kind: PERMISSION
@@ -306,6 +329,22 @@ For every concept:
 - evidence_boundary: preserve the exact strength of wording such as "coordinate", "with consent", or "where possible".
 
 ## 10. M06 — Transfer, substitution, and early exit
+
+### TRANSFER_RESTRICTION
+- kind: CONDITION
+- definition: a restriction on assignment, subletting, transfer of contractual rights, transfer of possession, or another act that changes who holds or exercises the tenant-side position.
+- essential_slots: actor; prohibited/conditioned transfer; target person; consent; exception; special replacement route.
+- relations: REPLACEMENT_TENANT_ROUTE, USE_OCCUPANCY_RULE, CONTRACT_NOTICE.
+- do_not_confuse: guest/occupant permission; ordinary residence/use; a specific replacement route; landlord-side transfer.
+- evidence_boundary: a general restriction does not erase a more specific permitted replacement route, and an occupancy rule does not automatically become an assignment rule.
+
+### LANDLORD_TRANSFER_RULE
+- kind: PROCEDURE
+- definition: a contractual route describing sale, assignment, or other transfer by the landlord/granting side and the stated effect on the tenancy.
+- essential_slots: transferring role; transfer/sale event; successor role; notice; continuity of tenant rights/duties; termination branch if stated; handover of payments/security/documents if stated.
+- relations: CONTRACT_NOTICE, TERMINATION_ROUTE, LETTING_ENTITLEMENT_CLAIM, DOCUMENT_REFERENCE.
+- do_not_confuse: tenant transfer restriction; no-cause termination; verified completion or legal effect of a sale.
+- evidence_boundary: a sale/transfer clause does not prove that a transfer occurred, who acquired title, or what external law does beyond the printed contractual rule.
 
 ### EARLY_DEPARTURE_PAYMENT
 - kind: OBLIGATION
@@ -359,7 +398,7 @@ For every concept:
 
 ### INSTITUTIONAL_GUARANTEE
 - kind: INSTRUMENT
-- definition: a guarantee issued by a bank or another qualifying institutional guarantee provider; issuer class and any applicable legal overlay are established separately.
+- definition: a guarantee identified as being issued by a bank or another institutional guarantee provider; the provider's exact class, licensing, and any applicable legal overlay are established separately.
 - essential_slots: instrument instance; issuer; issuer class/license if relevant; amount; tenant financial outlay; secured obligations; validity/realization/release terms.
 - relations: SECURITY_REALIZATION, SECURITY_RETURN, EXTERNAL_VALUE_LINKAGE when amount changes by formula.
 - do_not_confuse: personal guarantee; security cheque; promissory note.
@@ -417,6 +456,14 @@ For every concept:
 - do_not_confuse: early departure; holdover compensation; physical eviction.
 - evidence_boundary: a contractual duty to vacate does not itself establish lawful self-help or enforcement procedure.
 
+### LEFT_BEHIND_PROPERTY_RULE
+- kind: PROCEDURE
+- definition: a contractual rule addressing tenant-owned property or belongings remaining in the dwelling after a return, termination, or vacating event.
+- essential_slots: property category; triggering event; notice; storage/removal/disposal claim; retrieval opportunity; stated costs; relation to possession handover.
+- relations: VACATING_OBLIGATION, DAMAGE_RESPONSIBILITY, EVIDENCE_PRODUCTION_OBLIGATION.
+- do_not_confuse: landlord-owned inventory; proof of abandonment; the landlord's right to physical eviction.
+- evidence_boundary: the clause does not prove that property was actually left behind or that any stated disposal route is legally effective.
+
 ### HOLDOVER_COMPENSATION
 - kind: MONETARY_EFFECT
 - definition: a payment or compensation formula triggered by failure to return possession after the relevant end point.
@@ -437,6 +484,22 @@ For every concept:
 
 ## 15. M11 — Notices, evidence, and procedural connectors
 
+### SERVICE_ACCOUNT_REGISTRATION
+- kind: OBLIGATION
+- definition: a duty to register, transfer, update, or close a municipal, utility, building, or other service account/status in connection with the tenancy.
+- essential_slots: obligated actor; authority/provider; service/account; required action; trigger; deadline; proof/receipt; end-of-term reversal if stated.
+- relations: OCCUPANCY_CHARGE, CONTRACT_NOTICE, EVIDENCE_PRODUCTION_OBLIGATION, VACATING_OBLIGATION.
+- do_not_confuse: paying the underlying charge; merely notifying the landlord; proof that registration actually occurred.
+- evidence_boundary: a registration duty and its deadline do not establish performance, the account holder shown by the external provider, or a breach without the relevant chronology.
+
+### EVIDENCE_PRODUCTION_OBLIGATION
+- kind: OBLIGATION
+- definition: a duty to retain, obtain, show, or deliver documentary evidence such as receipts, payment confirmations, no-debt confirmations, policies, consents, or inspection records.
+- essential_slots: obligated actor; evidence type; event/claim it supports; recipient; trigger; deadline; form; stated consequence.
+- relations: OCCUPANCY_CHARGE, SECURITY_RETURN, INSURANCE_ROUTE, CONDITION_PROTOCOL, CONTRACT_NOTICE.
+- do_not_confuse: the duty to provide evidence with proof that the underlying event occurred; a notice with the document that proves compliance.
+- evidence_boundary: a requirement to produce a receipt or confirmation does not prove that the document exists, was delivered, or is substantively correct.
+
 ### CONTRACT_NOTICE
 - kind: PROCEDURE
 - definition: a contractually relevant communication about a specified action or event between identified actors or an external body.
@@ -446,6 +509,14 @@ For every concept:
 - evidence_boundary: a deemed-receipt rule does not prove that a notice was sent.
 
 ## 16. M12 — Monetary remedies, sanctions, set-off, and overlap
+
+### EXTERNAL_FINANCIAL_FRAMEWORK
+- kind: EXTERNAL_DEPENDENCY
+- definition: a contractual reference to an external financial or religious-finance framework that purports to qualify, structure, or explain an interest/payment arrangement beyond the numeric formula printed in the immediate clause.
+- essential_slots: target payment/interest rule; named framework/source; incorporated text availability; contractual effect claimed; external verification status.
+- relations: LATE_PAYMENT_INTEREST, DOCUMENT_REFERENCE, EXTERNAL_VALUE_LINKAGE.
+- do_not_confuse: a numeric index or exchange rate; a fixed contractual interest rate; proof that the framework validates the payment term.
+- evidence_boundary: preserve the reference as part of the contract while leaving the framework's legal/economic effect unresolved until its external source is separately verified.
 
 ### LATE_PAYMENT_INTEREST
 - kind: MONETARY_EFFECT
@@ -474,12 +545,12 @@ For every concept:
 ## 17. M13 — Dispute forum and adjudication
 
 ### DISPUTE_FORUM
-- kind: EXTERNAL_DEPENDENCY
-- definition: a contract clause naming or describing a court, arbitration, Beit Din, tribunal, or other forum for future disputes.
+- kind: RELATION
+- definition: a contractual relation that directs or refers future disputes to a court, arbitration, Beit Din, tribunal, or other forum.
 - essential_slots: forum type; forum identity if readable; covered parties/issues; mandatory/permissive wording; exclusivity claim; incorporated rules/document.
 - relations: DOCUMENT_REFERENCE, EXTERNAL_PROCEEDING_REFERENCE, CONTRACT_NOTICE.
 - do_not_confuse: named forum with verified jurisdiction; forum clause with breach/termination clause.
-- evidence_boundary: do not infer validity, exclusivity, waiver, or procedural effect; handwritten forum identity remains blocked.
+- evidence_boundary: the forum relation is a contract fact; validity, jurisdiction, exclusivity, waiver, procedural effect, and the forum's external rules remain separate. Handwritten forum identity remains blocked.
 
 ## 18. Temporal roles
 
@@ -556,9 +627,9 @@ The following remain outside the compact core until source coverage or teaching 
 - CASH_DEPOSIT: known generic security form but not sufficiently evidenced in the reviewed contract corpus for a dedicated current card;
 - separate BANK_GUARANTEE: represented for now by INSTITUTIONAL_GUARANTEE plus issuer class rather than a parallel top-level concept;
 - POST_TERM_VALIDITY: insufficient source support as a distinct contract concept;
-- separate account-registration / receipt-presentation concepts: currently represented as obligations/evidence slots under payment and notice mechanisms;
-- religious-finance formula / heter-iska: preserved as external financial-framework material under M12/OTHER until a dedicated concept is justified;
-- standalone pre-return timing concept: represented by CONDITION_PROTOCOL plus temporal attributes rather than another top-level concept.
+- standalone pre-return timing concept: represented by CONDITION_PROTOCOL plus temporal attributes rather than another top-level concept;
+- separate pet/guest/business/noise/cleanliness concept IDs: represented as subtypes/slots of USE_OCCUPANCY_RULE until evidence shows a reconstruction-relevant boundary;
+- separate sale-notice concept: represented within LANDLORD_TRANSFER_RULE plus CONTRACT_NOTICE rather than duplicating the same route.
 
 Not promoting a term does not mean ignoring the clause. Unmatched material stays visible for OTHER/novel-issue review.
 
@@ -597,15 +668,28 @@ EARLY_EXIT + TRANSFER
 BREACH + NOTICE + OTHER_PAYMENT
 -> M08 + M11 + M12
 -> BREACH_TRIGGER / TERMINATION_ROUTE / BREACH_TERMINATION /
-   CONTRACT_NOTICE / LATE_PAYMENT_INTEREST /
-   BREACH_CANCELLATION_COMPENSATION / SETOFF_RULE
+   CONTRACT_NOTICE / EVIDENCE_PRODUCTION_OBLIGATION /
+   LATE_PAYMENT_INTEREST / BREACH_CANCELLATION_COMPENSATION /
+   SETOFF_RULE / EXTERNAL_FINANCIAL_FRAMEWORK
+
+ACCESS + TRANSFER + EARLY_EXIT
+-> M05 + M06
+-> USE_OCCUPANCY_RULE / ACCESS_PERMISSION /
+   TRANSFER_RESTRICTION / LANDLORD_TRANSFER_RULE /
+   EARLY_DEPARTURE_PAYMENT / REPLACEMENT_TENANT_ROUTE
+
+NOTICE + OTHER
+-> M00 + M11
+-> CONTRACT_DEFINITION / DOCUMENT_REFERENCE /
+   SERVICE_ACCOUNT_REGISTRATION / EVIDENCE_PRODUCTION_OBLIGATION /
+   CONTRACT_NOTICE
 ~~~
 
 A concept slice may cross Mechanism Map boundaries when the contract itself creates a cross-clause dependency.
 
 ## 22. Completeness and expansion rule
 
-Against the currently reviewed sanitized/printed corpus, this v0.2 lexicon gives an explicit teaching concept or parent concept to the material distinctions that survived the Mechanism Map v0.2 audit.
+Against the currently reviewed sanitized/printed corpus and the structural requirements of Foundation Core / Mechanism Map v0.2, this v0.3 lexicon gives an explicit teaching concept or parent concept to the material distinctions identified in the second-pass audit.
 
 This is not universal completeness.
 
