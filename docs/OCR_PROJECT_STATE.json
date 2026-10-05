@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-10-05-160",
+  "state_version": "privacy-ocr-2026-10-05-161",
   "active_track": "expert-memory-development",
   "next_step_id": "expert-memory-router-blind-synthetic-evaluation-v1",
-  "next_step_summary": "PR #309 adds the second Expert Memory teaching layer between the Foundation Core and Router: a function-first residential-lease mechanism map covering contract frame, term/continuation, rent, other payments, property condition/repair/damage, use/access/alterations, transfer/early exit, security, breach/cure/termination, end-of-tenancy/holdover, insurance/liability, and cross-cutting notice/evidence/reference connectors. Each mechanism records core questions, Router support and boundaries against semantic mixing. It explicitly treats Router labels as indexing/retrieval signals rather than one-to-one ontology foundations, preserves OTHER as potentially meaningful structural material, and supplies selective retrieval clusters for second-pass analysis. This remains documentation/research only: no Router schema, Gold labels, runtime rules, statutory authority, provider use or privacy boundary changes. Next, evaluate fresh concealed synthetic clauses in a separate model context, count omissions/excess routes and test linked-clause retrieval without sending real contracts to an external provider. Direct RC PDF identity and canonical TF_C linkage remain UNKNOWN.",
-  "last_recorded_pr": 309,
-  "last_recorded_change": "expert-memory-mechanism-map-v0-1",
+  "next_step_summary": "PR #310 performs a second-pass audit of the Expert Memory mechanism map against the current sanitized/printed corpus and recurring inventory. v0.2 keeps the original lease-lifecycle structure but adds explicit coverage for party entitlement/external title or proceeding dependencies, source/document version and integration rules, cross-cutting monetary remedies/indexation/set-off/overlap, and contractual dispute-forum/adjudication clauses. M12 covers monetary remedies, sanctions, set-off and overlap; M13 covers forum/adjudication while keeping enforceability and procedure in the external-law layer. M00-M11, cross-mechanism connectors and retrieval clusters are tightened accordingly. Every material printed mechanism in the currently reviewed corpus now has an explicit home, without claiming universal completeness for all Israeli leases. This remains documentation/research only: no Router schema, Gold labels, runtime rules, statutory authority, provider use or privacy boundary changes. Next, evaluate fresh concealed synthetic clauses in a separate model context, count omissions/excess routes and test linked-clause retrieval without sending real contracts to an external provider. Direct RC PDF identity and canonical TF_C linkage remain UNKNOWN.",
+  "last_recorded_pr": 310,
+  "last_recorded_change": "expert-memory-mechanism-map-v0-2-audit",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-10-05"
