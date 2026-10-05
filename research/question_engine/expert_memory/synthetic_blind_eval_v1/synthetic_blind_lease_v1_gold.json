@@ -1,0 +1,458 @@
+{
+  "schema_version": 1,
+  "status": "SEALED_REFERENCE_DO_NOT_SEND_TO_TEST_MODEL",
+  "fixture_id": "synthetic_blind_lease_v1",
+  "purpose": "Blind cross-model evaluation of Foundation Core -> Router -> Mechanism Map -> Concept Lexicon retrieval/reasoning.",
+  "source_is_fully_synthetic": true,
+  "real_contract_material_used": false,
+  "package_completeness": {
+    "supplied": [
+      "main_contract_clauses_1_22",
+      "appendix_a_defects_list"
+    ],
+    "referenced_but_not_supplied": [
+      "appendix_b_building_rules"
+    ],
+    "expected_conclusion": "Any conclusion that depends on Appendix B remains unresolved; absence from the supplied package is not proof that Appendix B does not exist in an original signed package."
+  },
+  "critical_facts": [
+    {
+      "id": "F01",
+      "fact": "Initial lease term is 2027-01-01 through 2027-11-30; early key handover on 2026-12-29 is for setup only and does not advance rent or term."
+    },
+    {
+      "id": "F02",
+      "fact": "Monthly rent is one 5,200 NIS obligation; first three months are split into two 2,600 payment channels, not two rent obligations."
+    },
+    {
+      "id": "F03",
+      "fact": "Account registration deadline is seven business days from early possession/key handover, while proof is due three business days after written demand."
+    },
+    {
+      "id": "F04",
+      "fact": "Condition acknowledgment is qualified by Appendix A and does not erase landlord repair duties."
+    },
+    {
+      "id": "F05",
+      "fact": "Tenant repair-cost recovery requires landlord-side repair duty, notice, expiry of response time, actual reasonable repair, receipts, and then reimbursement demand; setoff is allowed only after a second demand and seven-day nonpayment."
+    },
+    {
+      "id": "F06",
+      "fact": "Specific authorized occupant is not made a tenant or rent debtor; guest/occupancy rule is distinct from assignment/subletting."
+    },
+    {
+      "id": "F07",
+      "fact": "Tenant transfer restriction and specific replacement-tenant route coexist; future payment ends only after replacement signs, provides security, and takes possession."
+    },
+    {
+      "id": "F08",
+      "fact": "Landlord sale/transfer does not terminate the lease; payment destination changes require 14-day written notice."
+    },
+    {
+      "id": "F09",
+      "fact": "Late-payment interest starts after more than five days; rent delay over twelve days is a material breach classification; termination still requires written demand plus four business days to cure."
+    },
+    {
+      "id": "F10",
+      "fact": "Promissory note and utility security cheque are separate instruments with different scope, realization triggers, cure periods, and return deadlines."
+    },
+    {
+      "id": "F11",
+      "fact": "Option is conditional on no uncured material breach and 90-day written notice; option rent depends on the greater of 3% or positive CPI change, so actual future rent cannot be calculated without external index data."
+    },
+    {
+      "id": "F12",
+      "fact": "Insurance for tenant contents/third-party liability is optional, not an obligation; policy existence/coverage is not established."
+    },
+    {
+      "id": "F13",
+      "fact": "General cure for other curable breaches is ten business days, but rent breach uses its specific four-business-day cure."
+    },
+    {
+      "id": "F14",
+      "fact": "Pre-return protocol is optional ('may'); its existence is not established merely by the contract."
+    },
+    {
+      "id": "F15",
+      "fact": "Left-behind property triggers written notice and possible external storage after 14 days; the contract explicitly does not deem it abandoned."
+    },
+    {
+      "id": "F16",
+      "fact": "Holdover amount is 300 NIS/day instead of rent for the same days, not cumulative with rent; actual consumption charges remain separate."
+    },
+    {
+      "id": "F17",
+      "fact": "Registered-mail deemed receipt (3 business days) and email receipt rules are delivery rules, not cure or notice-lead periods."
+    },
+    {
+      "id": "F18",
+      "fact": "Dispute clause has two stages: attempt agreed arbitrator within 10 days after written demand; if no agreement, either side may go to competent court. Legal validity/jurisdiction is outside contract-fact analysis."
+    },
+    {
+      "id": "F19",
+      "fact": "Appendix A lists two defects with different consequences: window seal has landlord repair deadline; cabinet scratch is an existing defect excluded from tenant return responsibility."
+    },
+    {
+      "id": "F20",
+      "fact": "Appendix B is expressly incorporated but not supplied, so building-rule content and conclusions depending on it are unresolved."
+    },
+    {
+      "id": "F21",
+      "fact": "Landlord's claimed authority derives from an external management agreement; the contract states the claim but does not independently verify the external agreement or title."
+    }
+  ],
+  "expected_router_by_clause": {
+    "1": [
+      "NOTICE",
+      "OTHER"
+    ],
+    "2": [
+      "OTHER"
+    ],
+    "3": [
+      "TERM"
+    ],
+    "4": [
+      "RENT_PAYMENT"
+    ],
+    "5": [
+      "OTHER_PAYMENT",
+      "NOTICE",
+      "OTHER"
+    ],
+    "6": [
+      "PROPERTY_CONDITION",
+      "REPAIR"
+    ],
+    "7": [
+      "REPAIR",
+      "NOTICE",
+      "RENT_PAYMENT"
+    ],
+    "8": [
+      "DAMAGE",
+      "REPAIR"
+    ],
+    "9": [
+      "OTHER",
+      "TRANSFER"
+    ],
+    "10": [
+      "ACCESS",
+      "NOTICE"
+    ],
+    "11": [
+      "PROPERTY_CONDITION",
+      "DAMAGE",
+      "VACATING"
+    ],
+    "12": [
+      "TRANSFER",
+      "EARLY_EXIT",
+      "NOTICE",
+      "RENT_PAYMENT",
+      "SECURITY"
+    ],
+    "13": [
+      "TRANSFER",
+      "NOTICE",
+      "RENT_PAYMENT",
+      "OTHER"
+    ],
+    "14": [
+      "RENT_PAYMENT",
+      "BREACH",
+      "REPAIR"
+    ],
+    "15": [
+      "SECURITY",
+      "NOTICE",
+      "OTHER_PAYMENT"
+    ],
+    "16": [
+      "OPTION",
+      "TERM",
+      "NOTICE",
+      "RENT_PAYMENT",
+      "SECURITY"
+    ],
+    "17": [
+      "INSURANCE",
+      "DAMAGE"
+    ],
+    "18": [
+      "BREACH",
+      "NOTICE",
+      "VACATING"
+    ],
+    "19": [
+      "VACATING",
+      "PROPERTY_CONDITION",
+      "DAMAGE",
+      "OTHER_PAYMENT"
+    ],
+    "20": [
+      "VACATING",
+      "OTHER_PAYMENT",
+      "NOTICE"
+    ],
+    "21": [
+      "NOTICE"
+    ],
+    "22": [
+      "OTHER",
+      "NOTICE"
+    ],
+    "APPENDIX_A": [
+      "PROPERTY_CONDITION",
+      "REPAIR",
+      "DAMAGE",
+      "VACATING"
+    ]
+  },
+  "required_concepts": [
+    "PARTY_ROLE",
+    "CONTRACT_OBJECT",
+    "CONTRACT_DEFINITION",
+    "LETTING_ENTITLEMENT_CLAIM",
+    "DOCUMENT_REFERENCE",
+    "DOCUMENT_PRECEDENCE_RULE",
+    "LEASE_TERM",
+    "RENT_OBLIGATION",
+    "RENT_PAYMENT_SCHEDULE",
+    "PAYMENT_CHANNEL",
+    "EXTERNAL_VALUE_LINKAGE",
+    "OCCUPANCY_CHARGE",
+    "SERVICE_ACCOUNT_REGISTRATION",
+    "EVIDENCE_PRODUCTION_OBLIGATION",
+    "CONDITION_ACKNOWLEDGMENT",
+    "DEFECTS_LIST",
+    "REPAIR_OBLIGATION",
+    "REPAIR_COST_RECOVERY",
+    "DAMAGE_RESPONSIBILITY",
+    "USE_OCCUPANCY_RULE",
+    "ACCESS_PERMISSION",
+    "ALTERATION_PERMISSION",
+    "IMPROVEMENT_DISPOSITION",
+    "TRANSFER_RESTRICTION",
+    "REPLACEMENT_TENANT_ROUTE",
+    "EARLY_DEPARTURE_PAYMENT",
+    "LANDLORD_TRANSFER_RULE",
+    "PROMISSORY_NOTE",
+    "PERSONAL_GUARANTEE",
+    "SECURITY_CHECK",
+    "SECURITY_REALIZATION",
+    "SECURITY_RETURN",
+    "LEASE_EXTENSION",
+    "INSURANCE_ROUTE",
+    "BREACH_TRIGGER",
+    "TERMINATION_ROUTE",
+    "BREACH_TERMINATION",
+    "VACATING_OBLIGATION",
+    "CONDITION_PROTOCOL",
+    "LEFT_BEHIND_PROPERTY_RULE",
+    "HOLDOVER_COMPENSATION",
+    "CONTRACT_NOTICE",
+    "LATE_PAYMENT_INTEREST",
+    "SETOFF_RULE",
+    "DISPUTE_FORUM"
+  ],
+  "required_temporal_roles": [
+    "PAYMENT_DUE_DATE",
+    "OPTION_EXERCISE_DEADLINE",
+    "EXIT_NOTICE_LEAD_TIME",
+    "NOTICE_DEEMED_RECEIPT_DELAY",
+    "REPAIR_RESPONSE_PERIOD",
+    "URGENT_REPAIR_RESPONSE_PERIOD",
+    "SECURITY_DELIVERY_DEADLINE",
+    "SECURITY_RETURN_DEADLINE",
+    "LATE_PAYMENT_BREACH_THRESHOLD",
+    "CURE_PERIOD"
+  ],
+  "critical_cross_clause_checks": [
+    {
+      "id": "C01",
+      "clauses": [
+        "3.1",
+        "3.2",
+        "5.3"
+      ],
+      "check": "Do not use lease-start date as the trigger for account registration; registration runs from early possession/key handover."
+    },
+    {
+      "id": "C02",
+      "clauses": [
+        "4.1",
+        "4.3"
+      ],
+      "check": "Do not double monthly rent because two recipients/payment channels are used."
+    },
+    {
+      "id": "C03",
+      "clauses": [
+        "6.1",
+        "6.2",
+        "7",
+        "APPENDIX_A"
+      ],
+      "check": "Condition acknowledgment is narrowed by known defects and independent repair duties."
+    },
+    {
+      "id": "C04",
+      "clauses": [
+        "7.3",
+        "7.4",
+        "14.3"
+      ],
+      "check": "Reimbursement and setoff are sequential; general no-setoff rule has an explicit repair-cost exception."
+    },
+    {
+      "id": "C05",
+      "clauses": [
+        "9.2",
+        "9.3",
+        "12.1",
+        "12.2"
+      ],
+      "check": "Authorized occupant/guest rules are distinct from assignment/sublease/replacement route."
+    },
+    {
+      "id": "C06",
+      "clauses": [
+        "12.2",
+        "12.3",
+        "12.4"
+      ],
+      "check": "Nomination, approval/signing/security/possession, and release from future payments are separate events."
+    },
+    {
+      "id": "C07",
+      "clauses": [
+        "13.1",
+        "13.2",
+        "13.3"
+      ],
+      "check": "Landlord transfer changes successor/payment route but does not itself terminate tenancy."
+    },
+    {
+      "id": "C08",
+      "clauses": [
+        "14.1",
+        "14.2",
+        "18.1",
+        "18.2",
+        "21"
+      ],
+      "check": "Interest trigger, material-breach threshold, cure period, and deemed receipt are four different temporal roles."
+    },
+    {
+      "id": "C09",
+      "clauses": [
+        "15.1",
+        "15.2",
+        "15.3",
+        "15.4",
+        "15.5",
+        "15.6"
+      ],
+      "check": "Do not migrate amount, secured obligations, cure period, or return deadline between promissory note and utility security cheque."
+    },
+    {
+      "id": "C10",
+      "clauses": [
+        "16.1",
+        "16.2"
+      ],
+      "check": "Option existence/activation can be established while actual option rent remains unresolved without CPI data."
+    },
+    {
+      "id": "C11",
+      "clauses": [
+        "18.2",
+        "18.3"
+      ],
+      "check": "Specific four-business-day rent cure overrides/generalizes separately from ten-business-day cure for other curable breaches."
+    },
+    {
+      "id": "C12",
+      "clauses": [
+        "19.3",
+        "APPENDIX_A"
+      ],
+      "check": "Pre-return protocol is a possible future document, not the same as the supplied entry defects list."
+    },
+    {
+      "id": "C13",
+      "clauses": [
+        "20.3",
+        "4.1"
+      ],
+      "check": "Holdover compensation replaces rent for the same days rather than automatically stacking with rent."
+    },
+    {
+      "id": "C14",
+      "clauses": [
+        "1.2",
+        "21.1",
+        "21.2",
+        "7.2",
+        "12.2",
+        "16.1",
+        "18.2"
+      ],
+      "check": "Notice delivery mechanics must not be reused as repair/cure/option/replacement lead times."
+    },
+    {
+      "id": "C15",
+      "clauses": [
+        "2.3",
+        "9.4"
+      ],
+      "check": "Appendix B is incorporated but unavailable; building-rule conclusions remain unresolved."
+    },
+    {
+      "id": "C16",
+      "clauses": [
+        "2.1",
+        "2.2"
+      ],
+      "check": "Contractual claim of authority is not independent proof of title/authority under the external management agreement."
+    },
+    {
+      "id": "C17",
+      "clauses": [
+        "22.1",
+        "22.2",
+        "22.3"
+      ],
+      "check": "Contractual forum route can be reconstructed without asserting legal validity, exclusivity, or jurisdiction."
+    }
+  ],
+  "prohibited_inferences": [
+    "Do not infer contents of Appendix B.",
+    "Do not infer actual execution, delivery, realization, or return of any security instrument.",
+    "Do not infer actual CPI value or calculate option rent from an invented index.",
+    "Do not infer that the management agreement proves landlord title or authority.",
+    "Do not infer that a pre-return inspection/protocol actually occurred.",
+    "Do not infer that an insurance policy exists.",
+    "Do not infer that a breach, notice, cure, termination, sale, transfer, repair, damage event, or holdover actually occurred.",
+    "Do not state legal validity/enforceability of setoff, security, arbitration/forum, termination, or left-property clauses from the contract text alone."
+  ],
+  "scoring": {
+    "router": {
+      "critical_family_omission": 2,
+      "noncritical_family_omission": 1,
+      "unsupported_extra_family": 1,
+      "note": "Multi-label routing is allowed. OTHER is not a substitute for a clearly supported specific family."
+    },
+    "semantic": {
+      "critical_fact_missed": 2,
+      "critical_fact_inverted_or_conflated": 3,
+      "prohibited_inference": 3,
+      "cross_clause_check_missed": 2,
+      "cross_clause_check_wrong": 3,
+      "unresolved_dependency_correctly_preserved": 1
+    },
+    "comparison_goal": "Compare stock-model baseline against trained-context pipeline on the same fixture; lower error score and higher preserved-dependency count is better."
+  }
+}
