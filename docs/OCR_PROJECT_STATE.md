@@ -1,12 +1,14 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-10-05, PR #309, `expert-memory-mechanism-map-v0-1`.
+Последнее обновление: 2026-10-05, PR #310, `expert-memory-mechanism-map-v0-2-audit`.
 
-Версия состояния: `privacy-ocr-2026-10-05-160`.
+Версия состояния: `privacy-ocr-2026-10-05-161`.
 
 Активный трек: `expert-memory-development`.
 
 Канонический следующий bounded-шаг: `expert-memory-router-blind-synthetic-evaluation-v1`.
+
+PR #310 — выполнен второй проход по карте механизмов Expert Memory с сопоставлением против текущего обезличенного/печатного корпуса и recurring inventory. v0.1 в целом правильно покрывала жизненный цикл аренды, но недостаточно явно представляла четыре структуры: (1) право/полномочие сдающей стороны и внешние title/proceeding dependencies; (2) статус/версию документа, entire-agreement, supersession, written-change и incorporation; (3) сквозные денежные последствия — проценты, индексацию, компенсацию, collection/repair costs, set-off и overlap нескольких денежных heads; (4) договорный forum/adjudication mechanism (court/arbitration/Beit Din) как часть текста договора, отдельно от внешней процессуальной действительности. Карта обновлена до v0.2; добавлены M12 `Monetary remedies, sanctions, set-off, and overlap` и M13 `Dispute forum and adjudication clauses`, усилены M00–M11, connectors и retrieval clusters. По текущему изученному корпусу каждому существенному печатному механизму теперь есть явное место; универсальная полнота для всех израильских договоров не утверждается. Router schema, Gold, runtime, statutory authority, provider use и канонический следующий шаг `expert-memory-router-blind-synthetic-evaluation-v1` не изменены.
 
 PR #309 — добавлен второй учебный слой Expert Memory: функциональная карта механизмов жилой аренды между Foundation Core и Router. Карта описывает рамку договора/стороны/объект, срок и продление, арендную плату, прочие денежные обязанности, состояние/ремонт/ущерб, использование/доступ/изменения, передачу/замену/досрочный выход, обеспечения, нарушение/уведомление/исправление/расторжение, возврат/освобождение/holdover, страхование/ответственность и сквозные уведомления/доказательства/ссылки. Для каждого механизма зафиксированы функция, ключевые вопросы, Router-support и границы смешения. Отдельно закреплено, что механизм не равен Router-label: Router — слой индексирования/retrieval, NOTICE и OTHER сквозные, а один механизм может требовать нескольких семей. Добавлены cross-mechanism connectors и примерная selective-retrieval map для второго прохода. Это не новый Router schema, не Gold, не правовой источник и не runtime-правило; канонический следующий шаг `expert-memory-router-blind-synthetic-evaluation-v1` не изменён.
 
