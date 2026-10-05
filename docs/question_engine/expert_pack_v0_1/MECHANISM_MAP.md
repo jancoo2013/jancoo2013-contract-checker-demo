@@ -1,4 +1,4 @@
-# Expert Memory — Residential Lease Mechanism Map v0.1
+# Expert Memory — Residential Lease Mechanism Map v0.2
 
 Status: experimental teaching/retrieval map for the Expert Memory track.
 
@@ -30,6 +30,19 @@ It does not yet answer:
 > What are all possible subtypes, legal rules, market practices, risk thresholds, or jurisdiction-specific consequences?
 
 Those belong to later targeted modules.
+
+### Second-pass audit basis
+
+v0.2 was checked against the current sanitized/printed Expert Memory corpus and recurring Question Engine inventory, including the cross-contract coverage map and RC01/RC04/RC02/RC03, RC05, RC06, RC07 and private-lease mechanism packets.
+
+The audit found that v0.1 covered the main lease lifecycle correctly but underrepresented four recurring structures:
+
+- party entitlement / authority to let and external title or proceeding dependencies;
+- source status, document version, entire-agreement and amendment/integration rules;
+- cross-cutting monetary remedies, penalties, indexation, set-off and overlap;
+- contractual dispute-forum / adjudication clauses.
+
+v0.2 adds those explicitly without turning the map into a legal-rule catalogue.
 
 ## 2. Mechanisms are not identical to Router labels
 
@@ -63,6 +76,11 @@ Establish who is participating, what dwelling or property is being leased, which
 - Which appendices, inventories, protocols, guarantees, or special conditions are expressly incorporated?
 - Is the supplied package complete enough to support contract-wide conclusions?
 - Is there a document-priority rule between main text, appendix, handwritten addition, or later amendment?
+- Is the document a draft, signed agreement, later version, amendment, receipt, or incorporated prior document?
+- Does the contract contain an entire-agreement, written-change, supersession, or amendment rule?
+- What does the granting party claim about ownership, possession, leasehold, authority, or other entitlement to let the property?
+- Does the contract itself disclose an upstream agreement, ownership dispute, court proceeding, estate issue, or other external dependency affecting that entitlement?
+- Does the contract declare a special contractual/legal status or regime that must later be checked against external law rather than accepted as legal fact?
 
 ### Typical Router support
 
@@ -75,6 +93,10 @@ Do not infer a missing participant, object, appendix, or term merely because suc
 Do not treat a referenced but unavailable document as though its content were known.
 
 Do not infer individual party numbering when operative text treats multiple people as one contractual role.
+
+A party's recital that it owns, holds, leases, or may let the property is contract evidence of what that party states; it is not independent proof of title, authority, or the outcome of an external dispute.
+
+Do not treat an unsigned or undated draft recital as proof that an event occurred.
 
 ## 4. M01 — Term, duration, continuation, and renewal
 
@@ -122,6 +144,9 @@ Define the primary consideration paid for the right to occupy the dwelling.
 - Does another clause change the amount or method during an option period?
 - What happens if rent remains payable after early departure?
 - Does delayed payment trigger interest, indexation, breach, cure, or termination?
+- Is rent linked to CPI, currency, a bank/reference rate, or another external value?
+- Which source and comparison date determine an indexed amount?
+- Is the payment channel, recipient, or account split distinct from the amount of the underlying rent obligation?
 
 ### Typical Router support
 
@@ -149,6 +174,8 @@ Allocate non-rent financial obligations between the parties.
 - Must receipts or proof of payment be retained or shown?
 - Is an amount fixed, variable, formula-based, or externally determined?
 - Does late payment create interest, reimbursement, set-off, breach, or another consequence?
+- Are brokerage, registration, administrative, collection, inspection, repair, or other third-party costs allocated?
+- Is the person receiving money the same party to whom the underlying obligation is owed, or merely a payment channel?
 
 ### Typical Router support
 
@@ -180,6 +207,7 @@ Define the factual and contractual state of the dwelling, responsibility for def
 - What damage is attributed to tenant conduct, third parties, ordinary wear, or another cause?
 - What return condition is required?
 - Do alterations or improvements affect restoration duties?
+- What happens if the dwelling or a material system becomes unusable, substantially damaged, or unavailable, if the contract addresses that event?
 
 ### Typical Router support
 
@@ -212,6 +240,7 @@ Define how the dwelling may be used, who may occupy it, what changes may be made
 - For what purposes?
 - Is prior coordination, notice, consent, emergency access, or a time restriction stated?
 - Must alterations be removed or left in place at the end?
+- Are noise, cleanliness, neighbors, common areas, building rules, smoking, pets, or similar conduct restrictions stated?
 
 ### Typical Router support
 
@@ -245,6 +274,8 @@ Define whether the tenant or landlord may transfer contractual position, possess
 - Is there a notice requirement?
 - Does landlord sale or transfer affect the tenant's rights or duties?
 - Are transfer and early-exit mechanisms linked or independent?
+- Does an early-exit or replacement route create a brokerage or other transaction cost?
+- If the landlord transfers or sells its position, what notice, continuity, or handover rules are stated?
 
 ### Typical Router support
 
@@ -279,6 +310,8 @@ Provide additional assurance that contractual obligations will be performed or t
 - When must the instrument be returned, cancelled, released, or replaced?
 - Does renewal require continuation or replacement of security?
 - Are several security instruments present, and do they secure the same or different obligations?
+- Does the printed contract merely require delivery, or is actual execution/delivery/custody independently established?
+- Does the contract authorize completion of blank fields, and exactly which fields or instruments does that authorization concern?
 
 ### Typical Router support
 
@@ -315,6 +348,8 @@ Define what happens when an obligation is not performed and how the contractual 
 - Does termination create a separate duty to vacate?
 - Are monetary consequences separate from termination?
 - Does a clause-specific procedure narrow a broad breach definition?
+- Is termination tied to breach, or is there a separate no-cause / convenience termination route?
+- Does the text create only a contractual duty to vacate, or does it also make a separate claim about possession/enforcement that must not be confused with lawful physical eviction procedure?
 
 ### Typical Router support
 
@@ -348,6 +383,8 @@ Define how possession is returned, what condition is required, what must be comp
 - When are security instruments returned or released?
 - What event constitutes holdover?
 - What payment or consequence follows holdover, and how is it calculated?
+- What happens to property or belongings left behind, if the contract addresses them?
+- Are utilities, receipts, account transfers, keys, or other closing evidence conditions tied to final handover or security return?
 
 ### Typical Router support
 
@@ -376,6 +413,8 @@ Allocate responsibility for insured or uninsured loss, injury, property damage, 
 - Does liability depend on fault, possession, negligence, use, or another trigger?
 - Are tenant property, landlord property, visitors, neighbors, or third parties treated separately?
 - Does the insurance clause interact with repair or damage duties?
+- Is insurance mandatory, optional, or a fallback that one party may procure if the other does not?
+- Does the contract allocate recourse, waiver of subrogation, or reimbursement differently depending on who procures the policy?
 
 ### Typical Router support
 
@@ -409,6 +448,8 @@ This is a cross-cutting mechanism rather than an isolated economic subsystem.
 - Does the referenced source exist and actually address the claimed subject?
 - Is there a document-priority rule?
 - Does missing evidence prevent a later conclusion?
+- Does an entire-agreement, written-change, supersession, or incorporation clause alter which document version controls?
+- Does the text cite an external proceeding, judgment, upstream contract, policy, formula, or other source whose content must be verified separately?
 
 ### Typical Router support
 
@@ -424,7 +465,72 @@ A cross-reference must be checked semantically, not merely by clause number.
 
 A missing referenced document is a first-class unresolved dependency.
 
-## 15. Cross-mechanism connectors
+## 15. M12 — Monetary remedies, sanctions, set-off, and overlap
+
+### Function
+
+Keep distinct the money consequences that arise after different events, and define how each amount is calculated, triggered, limited, credited, reimbursed, or potentially overlaps with another monetary head.
+
+This mechanism is cross-cutting. It exists because the corpus repeatedly shows that models collapse separate sums into one generic "penalty" or assume that every amount automatically accumulates.
+
+### Core questions
+
+- What event triggers each monetary consequence?
+- Is the amount rent, interest, indexation, reimbursement, compensation, liquidated/daily amount, collection expense, repair cost, indemnity, or another head?
+- Is it a principal obligation or a consequence of non-performance?
+- Is it fixed, percentage-based, daily, monthly, indexed, actual-cost-based, or dependent on an external value?
+- What time period does it accrue over?
+- Does the text state whether one amount is in addition to, credited against, or exclusive of another amount?
+- Is there a set-off right, a set-off prohibition, or a conditional reimbursement-before-set-off sequence?
+- Does a third-party cost arise only if a service is actually used?
+- Does the clause allocate a burden of proof, receipt requirement, or calculation evidence?
+- Is the amount tied to actual loss, or does the text describe a standalone contractual sum?
+
+### Typical Router support
+
+Usually `RENT_PAYMENT`, `OTHER_PAYMENT`, `BREACH`, `VACATING`, `DAMAGE`, `REPAIR`, `SECURITY`, and sometimes `OTHER`.
+
+### Boundaries
+
+Do not automatically add separate monetary heads together.
+
+Do not convert a deemed-delivery period into an accrual period or cure period.
+
+Do not treat a right to reimbursement as an automatic right of set-off.
+
+Do not treat an external index, exchange rate, religious-finance formula, or other referenced calculation framework as self-proving; preserve it as an external dependency until its source and operation are known.
+
+## 16. M13 — Dispute forum and adjudication clauses
+
+### Function
+
+Identify whether the contract directs future disputes to a court, arbitration, Beit Din, named tribunal, or another adjudicative mechanism, and preserve the literal scope of that agreement without deciding its legal validity.
+
+### Core questions
+
+- Does the contract identify a forum or dispute-resolution mechanism?
+- Which disputes or parties does it purport to cover?
+- Is the forum identified in printed text, handwriting, an appendix, or an external document?
+- Is the clause mandatory, permissive, exclusive, or unclear from the wording?
+- Does it require a separate submission, arbitration agreement, ruleset, or incorporated document?
+- Is the named forum actually identifiable from the available material?
+- Does another clause conflict with or qualify the forum provision?
+
+### Typical Router support
+
+Currently usually `OTHER`, sometimes together with `NOTICE`, `BREACH`, or a later dedicated family if repeated evidence justifies one.
+
+### Boundaries
+
+A contractual forum clause is part of the contract and belongs in semantic analysis.
+
+Its enforceability, jurisdiction, procedural effect, and the actual conduct of litigation or enforcement belong to a separate external-law/procedure layer.
+
+Do not reconstruct a handwritten forum identity.
+
+Do not infer exclusivity, validity, or waiver merely because a forum is named.
+
+## 17. Cross-mechanism connectors
 
 Some facts are not mechanisms by themselves but connect mechanisms and must survive the first pass.
 
@@ -444,11 +550,18 @@ Preserve at least:
 - cross-reference;
 - document dependency;
 - contradiction;
-- unresolved value.
+- unresolved value;
+- document/source status and version;
+- execution / delivery / custody status;
+- entitlement / authority dependency;
+- payment channel / recipient;
+- external-value or external-formula dependency;
+- monetary-head identity;
+- forum / adjudication reference.
 
 These are the edges from which the second-pass mechanism graph is built.
 
-## 16. Suggested retrieval clusters
+## 18. Suggested retrieval clusters
 
 The Router output may be translated into module retrieval approximately as follows:
 
@@ -461,6 +574,8 @@ RENT_PAYMENT
 
 OTHER_PAYMENT
   -> M03 Other monetary obligations
+  -> M12 Monetary remedies when the clause is a consequence, sanction,
+     reimbursement, set-off, collection cost or other post-trigger amount
 
 PROPERTY_CONDITION + REPAIR + DAMAGE
   -> M04 Property condition / repair / damage
@@ -476,12 +591,17 @@ SECURITY
 
 BREACH
   -> M08 Breach / cure / termination
+  -> M12 Monetary remedies when breach also triggers money consequences
 
 VACATING
   -> M09 End of tenancy / return / holdover
+  -> M12 Monetary remedies when holdover or return failure triggers money
 
 INSURANCE
   -> M10 Insurance / liability
+
+OTHER + forum / arbitration / Beit Din / adjudication signal
+  -> M13 Dispute forum / adjudication
 
 NOTICE
   -> M11 Notice / procedural connector
@@ -489,9 +609,11 @@ NOTICE
 
 OTHER
   -> do not discard;
-     inspect for M00 contract-frame material,
+     inspect for M00 contract-frame, entitlement, version or integration material,
      M05 use/alteration material,
      M11 document/reference material,
+     M12 external financial-formula or monetary-remedy material,
+     M13 dispute-forum material,
      or a genuinely new mechanism not represented by current Router families
 ```
 
@@ -499,7 +621,7 @@ This is retrieval guidance, not a deterministic final mapping.
 
 Multiple modules may be loaded when one clause or dependency graph spans several mechanisms.
 
-## 17. First-pass implications
+## 19. First-pass implications
 
 The first structural pass should not attempt full legal or risk analysis.
 
@@ -513,7 +635,7 @@ Its job is to produce enough information to answer:
 
 A strong first pass therefore optimizes recall of relevant mechanism families and links, not elegance of the final explanation.
 
-## 18. Second-pass implications
+## 20. Second-pass implications
 
 The second pass should receive:
 
@@ -524,7 +646,7 @@ The second pass should receive:
 
 It should then reconstruct the mechanism rather than merely summarize the selected clauses.
 
-## 19. What this map deliberately does not decide
+## 21. What this map deliberately does not decide
 
 This version does not decide:
 
@@ -534,13 +656,19 @@ This version does not decide:
 - statutory rights or mandatory duties;
 - market-standard amounts or notice periods;
 - detailed subtypes of every instrument;
-- litigation or enforcement procedure;
+- litigation or enforcement procedure beyond identifying a contractual forum clause;
 - production risk scoring;
 - final user-facing wording.
 
 Those belong to separate verified layers.
 
-## 20. Expansion rule
+### Second-pass completeness conclusion
+
+Against the currently reviewed corpus, v0.2 now has an explicit home for every material printed mechanism that previously appeared as a recurring family or a documented novel candidate.
+
+This does not prove universal completeness for all Israeli residential leases. The map remains open-ended by design: a genuinely new mechanism should be preserved rather than forced into an existing category.
+
+## 22. Expansion rule
 
 When a real or synthetic contract reveals a material mechanism not well represented here:
 
