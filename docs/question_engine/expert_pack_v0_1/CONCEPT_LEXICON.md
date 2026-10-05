@@ -6,7 +6,7 @@ Purpose: teach a general-purpose model the concrete concepts that make up reside
 
 This lexicon is not a Router schema, extraction schema, legal rule source, statutory baseline, Gold annotation set, risk catalogue, runtime contract, or claim that every concept must appear in every lease.
 
-It consolidates the historical 30-concept research inventory, the later SECURITY cards, the two glossary decisions DOCUMENT_REFERENCE and REPAIR_COST_RECOVERY, and distinctions exposed by the Mechanism Map v0.2 and the currently reviewed sanitized/printed corpus.
+It consolidates the historical 30-concept research inventory, the later SECURITY cards, the two glossary decisions DOCUMENT_REFERENCE and REPAIR_COST_RECOVERY, and distinctions exposed by the Mechanism Map v0.2 and the currently reviewed sanitized/printed corpus. The current compact teaching set contains 47 top-level concepts plus 10 reusable temporal roles.
 
 ## 1. Position in the knowledge hierarchy
 
@@ -523,7 +523,7 @@ Current reusable roles:
 
 ## 19. Legacy and specialization decisions
 
-### TENANT_REPAIR_RECOVERY
+#### TENANT_REPAIR_RECOVERY
 
 Retained for continuity with the historical inventory, but treated as a specialization of REPAIR_COST_RECOVERY.
 
@@ -539,7 +539,7 @@ landlord repairs tenant-side defect
 
 The roles must reverse with the source obligation; they must not be copied from one branch to the other.
 
-### INSTITUTIONAL_GUARANTEE
+#### INSTITUTIONAL_GUARANTEE
 
 Included as a concrete security-instrument concept because the maintained SECURITY cards and dated statutory overlay now distinguish institutional guarantees from personal guarantees, cheques, and promissory notes.
 
