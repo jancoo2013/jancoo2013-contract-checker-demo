@@ -1,4 +1,4 @@
-# Expert Memory — Learning Strategy and Foundation Core v0.1
+# Expert Memory — Learning Strategy and Foundation Core v0.2
 
 Status: experimental model-teaching/context strategy for the Expert Memory track.
 
@@ -12,6 +12,8 @@ The current hypothesis is that model quality may improve when lease analysis is 
 
 ```text
 foundation: what a lease is and how contractual mechanisms work
+-> mechanism map: the major subsystems of a lease
+-> concept lexicon: concrete entities, instruments, procedures, conditions and relations
 -> structural discovery / routing
 -> targeted mechanism knowledge
 -> cross-clause reconciliation
@@ -40,7 +42,9 @@ pass 1:
 
 pass 2:
   Foundation Core
-  + only the mechanism modules selected by pass 1
+  + relevant Mechanism Map section
+  + only the relevant Concept Lexicon slice
+  + only the detailed mechanism modules selected by pass 1
 
 pass 3:
   Foundation Core
@@ -53,7 +57,7 @@ final audit:
 
 The Router is therefore an indexing and retrieval layer, not the conceptual foundation of the ontology.
 
-A growing glossary may still be useful, but concepts should be taught through function, mechanism, attributes, and boundaries rather than as isolated vocabulary.
+The Concept Lexicon is the third learning layer, but it is not a flat prompt appendix. Concepts are taught through function, kind, parent mechanism, essential slots, relations, boundaries, and evidence limits. Only the relevant concept slice should normally be loaded after routing.
 
 ## 3. Pass strategy
 
@@ -77,7 +81,7 @@ Output should be a semantic map of the contract, not a final analysis.
 
 ### Pass 2 — targeted mechanism analysis
 
-For each routed family or linked family set, load only the relevant mechanism knowledge.
+For each routed family or linked family set, load the relevant Mechanism Map section, the relevant Concept Lexicon slice, and only the detailed mechanism knowledge needed for those concepts.
 
 Reconstruct the mechanism by asking:
 

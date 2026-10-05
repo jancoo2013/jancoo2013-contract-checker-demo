@@ -13,6 +13,7 @@ The intended teaching sequence is:
 ```text
 Foundation Core
 -> Mechanism Map
+-> Concept Lexicon
 -> Router / structural discovery
 -> targeted mechanism modules
 -> cross-clause reconciliation
@@ -29,7 +30,7 @@ It does not yet answer:
 
 > What are all possible subtypes, legal rules, market practices, risk thresholds, or jurisdiction-specific consequences?
 
-Those belong to later targeted modules.
+Those belong to the Concept Lexicon, later targeted modules, or separately verified legal layers depending on the level of detail.
 
 ### Second-pass audit basis
 
