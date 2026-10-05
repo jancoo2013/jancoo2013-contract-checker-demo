@@ -1,12 +1,14 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-10-05, PR #310, `expert-memory-mechanism-map-v0-2-audit`.
+Последнее обновление: 2026-10-05, PR #311, `expert-memory-concept-lexicon-v0-2`.
 
-Версия состояния: `privacy-ocr-2026-10-05-161`.
+Версия состояния: `privacy-ocr-2026-10-05-162`.
 
 Активный трек: `expert-memory-development`.
 
 Канонический следующий bounded-шаг: `expert-memory-router-blind-synthetic-evaluation-v1`.
+
+PR #311 — добавлена третья учебная часть Expert Memory: `Concept Lexicon v0.2`. Она объединяет исходные 30 кандидатов понятий, текущие SECURITY-карточки, решения `DOCUMENT_REFERENCE`/`REPAIR_COST_RECOVERY` и различия, найденные аудитом Mechanism Map v0.2, в текущий компактный набор из 47 top-level concepts и 10 reusable temporal roles. Для каждого понятия задаются `kind`, определение, essential slots, relations, `do_not_confuse` и evidence boundary; `TENANT_REPAIR_RECOVERY` сохранён как исторический subtype общего `REPAIR_COST_RECOVERY`, `INSTITUTIONAL_GUARANTEE` включён в SECURITY без новой Router-family. Добавлены явные понятия для ролей/объекта/основания сдачи, статуса и связей документов, payment channel, external value linkage, condition protocol, alterations/improvements, generalized termination, set-off и dispute forum. Learning Strategy и Mechanism Map синхронизированы: knowledge hierarchy теперь `Foundation Core → Mechanism Map → Concept Lexicon → detailed modules/examples → verified legal overlays`, при этом operational pass 1 остаётся компактным, а pass 2 загружает только релевантный slice лексикона. Старый 30-concept inventory остаётся историческим research snapshot. Это документационный исследовательский слой, не Router schema, не extraction schema, не Gold, не runtime и не правовой источник; канонический следующий шаг `expert-memory-router-blind-synthetic-evaluation-v1` не изменён.
 
 PR #310 — выполнен второй проход по карте механизмов Expert Memory с сопоставлением против текущего обезличенного/печатного корпуса и recurring inventory. v0.1 в целом правильно покрывала жизненный цикл аренды, но недостаточно явно представляла четыре структуры: (1) право/полномочие сдающей стороны и внешние title/proceeding dependencies; (2) статус/версию документа, entire-agreement, supersession, written-change и incorporation; (3) сквозные денежные последствия — проценты, индексацию, компенсацию, collection/repair costs, set-off и overlap нескольких денежных heads; (4) договорный forum/adjudication mechanism (court/arbitration/Beit Din) как часть текста договора, отдельно от внешней процессуальной действительности. Карта обновлена до v0.2; добавлены M12 `Monetary remedies, sanctions, set-off, and overlap` и M13 `Dispute forum and adjudication clauses`, усилены M00–M11, connectors и retrieval clusters. По текущему изученному корпусу каждому существенному печатному механизму теперь есть явное место; универсальная полнота для всех израильских договоров не утверждается. Router schema, Gold, runtime, statutory authority, provider use и канонический следующий шаг `expert-memory-router-blind-synthetic-evaluation-v1` не изменены.
 
