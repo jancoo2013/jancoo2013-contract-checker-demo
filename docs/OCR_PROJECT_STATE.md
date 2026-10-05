@@ -1,12 +1,14 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-10-05, PR #311, `expert-memory-concept-lexicon-v0-2`.
+Последнее обновление: 2026-10-05, PR #312, `expert-memory-concept-lexicon-v0-3-audit`.
 
-Версия состояния: `privacy-ocr-2026-10-05-162`.
+Версия состояния: `privacy-ocr-2026-10-05-163`.
 
 Активный трек: `expert-memory-development`.
 
 Канонический следующий bounded-шаг: `expert-memory-router-blind-synthetic-evaluation-v1`.
+
+PR #312 — выполнен второй проход по `Concept Lexicon`: v0.2 сверена с Foundation Core, Mechanism Map v0.2, recurring Question Engine inventory, Expert Pack examples/playbook и текущими обезличенными/печатными mechanism packets. Исправлены ошибки типов: `LETTING_ENTITLEMENT_CLAIM` и `CONDITION_ACKNOWLEDGMENT` теперь `ASSERTION`, `LEASE_TERM` — `TEMPORAL_STRUCTURE`, `DEFECTS_LIST`/`PROPERTY_INVENTORY`/`CONDITION_PROTOCOL` — `DOCUMENT`, `DISPUTE_FORUM` — договорная `RELATION` с отдельной внешней проверкой эффекта. `TRANSFER_RESTRICTION` перенесён из M05 в M06. Добавлены семь понятий, которых не хватало для точного покрытия: `CONTRACT_DEFINITION`, `USE_OCCUPANCY_RULE`, `LANDLORD_TRANSFER_RULE`, `LEFT_BEHIND_PROPERTY_RULE`, `SERVICE_ACCOUNT_REGISTRATION`, `EVIDENCE_PRODUCTION_OBLIGATION`, `EXTERNAL_FINANCIAL_FRAMEWORK`. Текущий teaching set: 54 top-level concepts + 10 temporal roles; все 30 исторических IDs сохранены. SECURITY, Router, extraction/runtime schema, Gold, statutory authority и privacy boundaries не менялись. Канонический следующий шаг `expert-memory-router-blind-synthetic-evaluation-v1` не изменён.
 
 PR #311 — добавлена третья учебная часть Expert Memory: `Concept Lexicon v0.2`. Она объединяет исходные 30 кандидатов понятий, текущие SECURITY-карточки, решения `DOCUMENT_REFERENCE`/`REPAIR_COST_RECOVERY` и различия, найденные аудитом Mechanism Map v0.2, в текущий компактный набор из 47 top-level concepts и 10 reusable temporal roles. Для каждого понятия задаются `kind`, определение, essential slots, relations, `do_not_confuse` и evidence boundary; `TENANT_REPAIR_RECOVERY` сохранён как исторический subtype общего `REPAIR_COST_RECOVERY`, `INSTITUTIONAL_GUARANTEE` включён в SECURITY без новой Router-family. Добавлены явные понятия для ролей/объекта/основания сдачи, статуса и связей документов, payment channel, external value linkage, condition protocol, alterations/improvements, generalized termination, set-off и dispute forum. Learning Strategy и Mechanism Map синхронизированы: knowledge hierarchy теперь `Foundation Core → Mechanism Map → Concept Lexicon → detailed modules/examples → verified legal overlays`, при этом operational pass 1 остаётся компактным, а pass 2 загружает только релевантный slice лексикона. Старый 30-concept inventory остаётся историческим research snapshot. Это документационный исследовательский слой, не Router schema, не extraction schema, не Gold, не runtime и не правовой источник; канонический следующий шаг `expert-memory-router-blind-synthetic-evaluation-v1` не изменён.
 
