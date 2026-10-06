@@ -33,6 +33,10 @@ Do not send a complete domain textbook on every pass.
 Use a small stable foundation core plus only the modules required by the current task:
 
 ```text
+source pass:
+  supplied contract + stable source locators
+  (independent verification is an operator/evidence step)
+
 always:
   Foundation Core
 
@@ -59,7 +63,21 @@ The Router is therefore an indexing and retrieval layer, not the conceptual foun
 
 The Concept Lexicon is the third learning layer, but it is not a flat prompt appendix. Concepts are taught through function, kind, parent mechanism, essential slots, relations, boundaries, and evidence limits. Only the relevant concept slice should normally be loaded after routing.
 
+### Source-evidence gate before semantic passes
+
+Source reading is a separate stage from routing and connecting clauses. For every material candidate fact, retain the supplied source locator (page and clause or deterministic text span), the observed actor/action/object/amount/deadline when applicable, and a status: `SOURCE_VERIFIED`, `CANDIDATE_UNVERIFIED`, or `UNREADABLE_OR_UNAVAILABLE`. An LLM-copied Hebrew phrase is a candidate transcription, never an exact source quotation merely because the model produced it.
+
+For a text fixture, independently check the candidate against the supplied sanitized text and its locator. For a scanned page, check the visible printed source or a separately validated transcription; first confirm that the relevant page and crop are present and legible. Do not infer the cause of a wrong transcription from one run: rendering, visual reading, prompt selectivity, and later reasoning need separate diagnostics.
+
+The operational sequence is `source candidates -> independent source check -> routing -> linked mechanisms -> reconciliation`. Only source-verified facts and explicit unknowns may support a retained conclusion. A mismatch or missing material fact blocks that affected conclusion until corrected from the source, not by asking the same model to certify its own quote. Preserve model outputs unchanged as observations. For a blind evaluation of the ungated model pipeline, finish the predeclared runs before opening the sealed reference; score source-reading failures separately and do not repair the model context mid-run. Such a run does not measure the benefit of the operational source-verification gate.
+
+For the corpus, keep three distinct records: the model's observation, an independently checked source fact with its locator, and any later eligible teaching/evaluation label. Real-contract research and a repeated model answer are not automatically Gold or training material. If a fixture or expected answer is genuinely wrong, version the correction with source evidence and the before/after reason; do not silently rewrite the sealed target after seeing outputs.
+
 ## 3. Pass strategy
+
+### Pass 0 — source-bound candidates
+
+Before routing, extract candidate printed facts across all supplied clauses with stable locators. Preserve both material positives and explicit unreadable or missing areas. The model must not mark its own copied text as independently verified. Apply the source-evidence gate above before using candidates for an operational conclusion; in a blind comparison, retain the uncorrected output and measure the error at this stage.
 
 ### Pass 1 — structural discovery
 
