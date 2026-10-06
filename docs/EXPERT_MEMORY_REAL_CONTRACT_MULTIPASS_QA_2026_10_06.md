@@ -70,9 +70,12 @@ This is a user-reported UI/session observation, not a provider log verified by t
 
 - the 3.5 Flash continuation must not be scored as the next pass of the 3.1 Pro experiment;
 - the incident is not evidence that Expert Memory caused context loss;
+- the incident does not establish that Gemini 3.1 Pro loses context when the model/version remains unchanged;
 - a multi-pass evaluation is valid only while the declared model/version remains unchanged;
 - if an automatic fallback changes the model, the prior run ends and later output is a separate observation;
 - for reproducibility, each pass should have a recoverable self-contained input package, even when the UI normally preserves chat history.
+
+No clean standalone Gemini 3.5 Flash result was completed in this session. A fresh baseline setup using only the contract plus a fixed prompt was prepared conceptually, but the owner stopped further model testing before such a run was executed.
 
 ## Durable rules extracted from the run
 
@@ -84,4 +87,5 @@ This is a user-reported UI/session observation, not a provider log verified by t
 6. Monetary consequences are typed by function and trigger, not by the mere presence of money.
 7. Scored multi-pass experiments require the same declared model/version for all passes; automatic model fallback terminates comparability.
 8. Preserve the original model outputs as observations; do not silently repair them and then score the repaired version.
+9. Keep experiment arms separate: a stock baseline receives only the contract plus its frozen baseline prompt; Expert Memory, prior-pass JSON, Router output and corrective hints belong to the taught-pipeline arm, not to the baseline.
 
