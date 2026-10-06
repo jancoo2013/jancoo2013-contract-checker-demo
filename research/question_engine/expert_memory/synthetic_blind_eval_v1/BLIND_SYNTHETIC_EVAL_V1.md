@@ -35,9 +35,7 @@ A copied Hebrew excerpt in a model answer is a candidate transcription. It is no
 
 Use a fresh conversation/context.
 
-Provide only the synthetic lease and a neutral task equivalent to:
-
-> Analyze this residential lease. Reconstruct the important contractual mechanisms, dependencies, uncertainties, and issues that would matter to a tenant. Do not assume facts not established by the supplied text.
+Provide only the synthetic lease and the exact stock-baseline prompt stored in `RUN_A_STOCK_BASELINE_PROMPT.md`. Do not add follow-up hints, clause targets, examples, or corrections during the run.
 
 Do not provide Foundation Core, Mechanism Map, Concept Lexicon, Expert Examples, playbook, or the gold file.
 
@@ -68,15 +66,17 @@ Save the output unchanged.
 
 ### Pass 2
 
-Based on the Pass-1 routes, provide the selected Mechanism Map sections, Concept Lexicon slice, and connected source clauses. Freeze and record the exact family-to-module and clause-selection rule **before** inspecting any model output; apply it literally, including for multi-label and `OTHER` routes. The current packet does not define that deterministic rule, so a scored taught-pipeline run remains blocked until it is added. Do not fill this gap with operator judgment during the run.
+For this v1 experiment, use a deterministic **ALL-CONTEXT semantic rule**: provide the complete synthetic lease again, the complete current Mechanism Map, and the complete current Concept Lexicon. Do not suppress or add source clauses or teaching sections based on the model's Pass-1 routes. Pass 1 is therefore scored as an independent Router diagnostic and cannot starve Pass 2 of the knowledge needed to reconstruct a mechanism.
 
-Ask the model to reconstruct each mechanism and preserve unresolved dependencies.
+Ask the model to reconstruct the contractual mechanisms, preserve unresolved dependencies, distinguish instrument/actor/trigger/timing identities, and identify cross-clause relationships supported by the supplied text. Do not reveal the sealed reference or intended traps.
+
+This deliberately tests whether the current Expert Memory teaching material can improve the same base model when the required knowledge is available. It does **not** yet measure retrieval efficiency or the quality of a family-to-module selector; those remain a later experiment after semantic benefit is established.
 
 Save the output unchanged.
 
 ### Pass 3
 
-Provide the candidate analysis plus the connected clauses/references needed for reconciliation.
+Provide the complete synthetic lease again plus the unchanged Pass-2 candidate analysis for reconciliation. Do not use Pass-1 routing to remove source material at this stage.
 
 Ask the model to check:
 - general versus specific rules;
@@ -104,7 +104,7 @@ The human/operator may know that the fixture is synthetic. "Blind" means the tes
 
 ## Primary measurements
 
-Score both baseline and taught run against the same sealed semantic reference only after the prompts, segmentation, and retrieval rule are frozen. Compare source-reading errors, semantic omissions, invented facts, and linked-clause results across both arms. Router family omissions/extras apply only to Run B Pass 1 because Run A is not asked to emit Router labels. Report raw family counts; defer a weighted Router score until the sealed reference defines which expected families receive its critical versus noncritical omission weight. If a source-backed expected label is disputed, adjudicate and version the reference before scoring rather than silently changing it after seeing a response.
+Score both baseline and taught run against the same sealed semantic reference only after the prompts and pass structure are frozen. Compare source-reading errors, semantic omissions, invented facts, and linked-clause results across both arms. Router family omissions/extras apply only to Run B Pass 1 because Run A is not asked to emit Router labels. For v1, Router scoring is deliberately unweighted: every missing expected family and every unsupported extra family counts as one error. This avoids inventing a second criticality taxonomy before the first blind run. If a source-backed expected label is disputed, adjudicate and version the reference before scoring rather than silently changing it after seeing a response.
 
 This A/B delta measures the whole taught staged pipeline against one-shot stock use. It does not isolate Foundation Core, pass splitting, or the operational source-verification gate. Run A has no dedicated extraction prompt, so only source claims actually made in its final answer can be compared with factual errors across the staged output.
 
