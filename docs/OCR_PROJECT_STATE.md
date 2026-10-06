@@ -1,12 +1,14 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-10-06, PR #314, `expert-memory-source-evidence-gate-v1`.
+Последнее обновление: 2026-10-06, PR #315, `expert-memory-synthetic-eval-runnable-v1`.
 
-Версия состояния: `privacy-ocr-2026-10-06-165`.
+Версия состояния: `privacy-ocr-2026-10-06-166`.
 
 Активный трек: `expert-memory-development`.
 
 Канонический следующий bounded-шаг: `expert-memory-router-blind-synthetic-evaluation-v1`.
+
+PR #315 — сняты два методических блокера перед blind synthetic evaluation без добавления нового retrieval-слоя. Для Run A зафиксирован один неизменяемый stock-baseline prompt. Для Pass 2/3 v1 введено детерминированное правило ALL-CONTEXT: модель снова получает весь синтетический договор, полный текущий Mechanism Map и полный Concept Lexicon; Router Pass 1 оценивается отдельно и не может лишить семантический проход нужного знания. Router-scoring упрощён до невзвешенного подсчёта missing/unsupported families; деление ожидаемых меток на critical/noncritical в v1 не вводится. Содержимое synthetic lease, expected Router families, 21 critical fact, 17 cross-clause checks, prohibited inferences, runtime, privacy boundary и real-contract corpus не изменены. Следующее действие — фактически выполнить Run A на выбранной базовой модели в свежем контексте и сохранить ответ без исправлений, затем тем же model/version выполнить Run B.
 
 PR #314 — внесён source-evidence gate в стратегию Expert Memory и уточнён blind synthetic protocol: модельные цитаты остаются кандидатами, существенные факты для рабочего вывода требуют независимой сверки с доступным источником и локатором; стадия чтения оценивается отдельно от Router и связей. Зафиксирована ограниченная ручная диагностика RC07 со слов владельца для Gemini 3.1 Pro: ошибки PDF-ответа и третьего прохода, а также улучшение отдельного PNG-ответа без приписывания причины формату. Печатный приватный источник не публикуется; наблюдение не становится Gold или обучающей меткой. Sealed synthetic reference и runtime не менялись, внешняя модель в PR не вызывалась. Канонический `next_step_id` остаётся прежним; scored taught-pipeline run пока требует заранее фиксированного правила выбора модулей/связанных пунктов, а взвешенная оценка Router — явной разметки критичности ожидаемых меток.
 
