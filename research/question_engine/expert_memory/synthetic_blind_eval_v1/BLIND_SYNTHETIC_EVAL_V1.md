@@ -93,7 +93,6 @@ Save the output unchanged.
 
 Do not turn a model-generated quote or paraphrase from Pass 0 into a verified corpus fact or a teaching example. Keep raw outputs, independent source checks, and later eligible annotations as separate records.
 
-
 Before the tested model has finished:
 - do not expose the gold JSON;
 - do not mention the intended traps;
