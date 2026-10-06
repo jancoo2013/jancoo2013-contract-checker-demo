@@ -318,3 +318,20 @@ The foundation core deliberately excludes detailed rules for:
 Those belong to targeted modules or separately verified legal layers.
 
 Keeping them out of the foundation is intentional: the foundation teaches the model how to think about a lease before teaching it every lease-specific mechanism.
+
+
+## 7. Integrity and evaluation continuity rules
+
+The 2026-10-06 real-contract multi-pass observation adds two operational constraints.
+
+### 7.1 Unresolved does not authorize a merge
+
+If two named instruments, payments, notices, periods, actors, or document references may or may not be the same instance, keep them separate until the supplied source establishes identity. Do not transfer amount, trigger, timing, realization, return, release, or notice attributes across the unresolved boundary. Do not create a graph relation that presupposes the unresolved identity. An item listed in `unresolved` must not simultaneously be treated elsewhere as an established fact.
+
+Every relation must have two existing mechanism IDs and source-supported endpoints. A label, appendix name, or prose object that has no mechanism ID is not a valid relation target.
+
+### 7.2 Preserve model/version continuity in scored multi-pass runs
+
+A scored multi-pass run must use the same declared model/version across all passes. If the provider UI automatically falls back to another model because of quota, availability, or routing, the comparable run ends at that point; later output is a separate observation.
+
+For recoverability, keep each pass reproducible from a self-contained input package even when the UI normally preserves chat context. This is an evaluation-control rule, not a claim that every operational production call must resend the entire knowledge base.
