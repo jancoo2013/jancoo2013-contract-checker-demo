@@ -4,16 +4,20 @@ Status: research-only record of an owner-operated manual model evaluation. This 
 
 ## 1. Why this record exists
 
-The synthetic blind-evaluation path prepared in PRs #313–#315 was not executed to completion. During the manual research session on 2026-10-06, the product owner explicitly changed the evaluation direction:
+The synthetic blind-evaluation path prepared in PRs #313–#315 was not executed to completion. During the manual research session on 2026-10-06, the owner instead exercised the current Expert Memory stack on one complete private lease and later stopped further model testing after the model-limit / fallback incident.
 
-- stop inventing synthetic contracts for model-quality evaluation;
-- stop splitting a lease into isolated fragments before model analysis;
-- evaluate semantic reading on one complete real lease as a whole document;
-- keep the existing rule that handwriting is detected but not semantically reconstructed or analyzed.
+This records what happened in that session; it does **not** establish a permanent abandonment of synthetic evaluation and does not by itself select a new canonical project direction.
 
-This is a research-method decision for owner-operated manual evaluation. It is **not** authorization for the repository runtime to send restricted raw material or PII to downstream LLMs. `SECURITY.md`, the Israel-only boundary, and the no-raw-downstream-LLM production constraint remain binding.
+For the manual run described here:
 
-The existing synthetic fixtures are retained as historical research artifacts; they are not deleted or redefined as failed evidence.
+- the lease was presented as a complete document rather than semantic fragments;
+- handwriting remained detected but not semantically reconstructed or analyzed;
+- Pass 1 and Pass 2 were observed on owner-reported Gemini 3.1 Pro;
+- no clean standalone Gemini 3.5 Flash run was completed after the automatic fallback.
+
+This is a research-method observation for owner-operated manual evaluation. It is **not** authorization for the repository runtime to send restricted raw material or PII to downstream LLMs. `SECURITY.md`, the Israel-only boundary, and the no-raw-downstream-LLM production constraint remain binding.
+
+The existing synthetic fixtures remain valid historical research artifacts; this session neither deletes them nor decides whether they will be used later.
 
 ## 2. Test material and model context
 
@@ -131,23 +135,25 @@ The session does **not** establish that Gemini 3.5 Flash is intrinsically worse 
 
 Future comparisons must record the exact model/version used for every pass and must not score a mixed-model sequence as one continuous run.
 
-## 8. Evaluation direction after this session
+## 8. Session-level methodological conclusions
 
-For the current Expert Memory research direction:
+The session supports the following bounded conclusions without selecting a permanent research direction:
 
-- do not make the synthetic blind evaluation the next canonical model-quality task;
-- prefer complete real-contract evaluation for manual research;
-- do not split the contract into semantic fragments before the tested model reads it;
-- preserve handwriting as blocked/unresolved rather than reconstructing it;
-- keep Router as a revisable indexing hypothesis rather than an authority;
-- evaluate source localization separately from semantic mechanism quality;
-- require cross-pass consistency checks for unresolved identities and graph references.
+- a complete real contract exposed source-localization and instance-identity failures that are worth preserving as QA targets;
+- Router should remain a revisable indexing hypothesis rather than source authority;
+- source localization should be evaluated separately from semantic mechanism quality;
+- unresolved identities must block cross-instance attribute propagation and graph edges that depend on the unresolved identity;
+- model/version continuity must be recorded explicitly for any multi-pass comparison;
+- if a future owner-operated real-contract test is run, presenting the contract as a complete document is a valid method for that experiment;
+- handwriting remains blocked/unresolved rather than reconstructed.
+
+The owner ended further model testing in this session. That stop is a session boundary, not a permanent cancellation of the synthetic path or an automatic replacement of the canonical next step.
 
 Repository privacy/security rules remain unchanged. No real contract, raw image, raw OCR, or recoverable PII is to be committed to GitHub, CI, logs, or repository fixtures.
 
-## 9. Next bounded research step
+## 9. Future evaluation requirements
 
-When testing resumes, the next useful bounded step is not another synthetic lease. It is to formalize and run a reproducible **complete-real-contract, full-document evaluation protocol** that measures at least:
+This observation does not choose the next canonical model-quality task. When model testing resumes, whichever evaluation path the owner selects should measure or control at least:
 
 - clause/source localization;
 - mechanism reconstruction;
@@ -155,6 +161,8 @@ When testing resumes, the next useful bounded step is not another synthetic leas
 - unresolved-dependency preservation;
 - graph-reference validity;
 - self-correction between Router and semantic passes;
-- model/version continuity.
+- exact model/version continuity.
 
-The protocol should record only sanitized evaluation observations in the repository. It must not weaken or bypass the production privacy/security boundary.
+For stock baseline runs, keep the experiment clean: use only the contract plus the frozen baseline prompt. Expert Memory materials, Router output, prior-pass JSON and corrective hints belong to a separate taught-pipeline arm.
+
+Any future protocol should record only sanitized evaluation observations in the repository and must not weaken or bypass the production privacy/security boundary.
