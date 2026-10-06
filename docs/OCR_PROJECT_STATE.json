@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "state_version": "privacy-ocr-2026-10-06-167",
+  "state_version": "privacy-ocr-2026-10-06-168",
   "active_track": "expert-memory-development",
-  "next_step_id": "expert-memory-complete-real-contract-evaluation-v1",
-  "next_step_summary": "PR #318 records the 2026-10-06 owner-operated complete-real-contract Expert Memory evaluation and supersedes the synthetic blind run as the next canonical model-quality task. Gemini 3.1 Pro Pass 1 Router showed broad recall but consecutive source-clause drift and over-routing. Pass 2, using the complete real lease plus unchanged Router and the current Core Protocol / Mechanism Map / Concept Lexicon, self-corrected several routing errors and recovered major mechanisms, missing-document uncertainty and printed inconsistencies, but still showed source-clause drift around adjacent clauses, migrated a return rule across unresolved security-instrument identity, and emitted a relation to a nonexistent mechanism ID. Future evaluation must measure source localization, object/instrument identity preservation, unresolved-dependency preservation, graph-reference validity, Router-to-semantic self-correction and exact model/version continuity. Conversation memory is not sufficient experimental state. The next bounded step is to formalize and run a reproducible complete-real-contract, full-document evaluation protocol; repository records remain sanitized and SECURITY.md production privacy constraints remain unchanged.",
-  "last_recorded_pr": 318,
-  "last_recorded_change": "expert-memory-real-contract-eval-observation-2026-10-06",
+  "next_step_id": "expert-memory-router-blind-synthetic-evaluation-v1",
+  "next_step_summary": "PR #319 corrects an over-attribution introduced by PR #318 while preserving its substantive 2026-10-06 QA findings. The owner stopped further model testing in that session after the owner-reported Gemini 3.1 Pro quota exhaustion and automatic UI fallback to Gemini 3.5 Flash; no clean standalone Flash run was completed, and the session did not establish a permanent abandonment of synthetic evaluation or select a new canonical evaluation direction. Pass 2 observations remain: the current Expert Memory stack self-corrected several Router errors but retained source-clause drift, unresolved security-instrument attribute leakage and an invalid graph reference. Exact model/version continuity, unresolved-instance consistency, valid relation endpoints and clean baseline-versus-taught separation remain required evaluation controls. The previously approved synthetic blind evaluation from PR #315 is restored as the canonical next step, to be resumed only if and when the owner chooses to restart model testing.",
+  "last_recorded_pr": 319,
+  "last_recorded_change": "correct-eval-direction-attribution-2026-10-06",
   "state_update_required_per_pr": true,
   "canonical_state_document": "docs/OCR_PROJECT_STATE.md",
   "updated_on": "2026-10-06"
