@@ -2,7 +2,7 @@
   "schema_version": 1,
   "status": "SEALED_REFERENCE_DO_NOT_SEND_TO_TEST_MODEL",
   "fixture_id": "synthetic_blind_lease_v1",
-  "purpose": "Blind cross-model evaluation of Foundation Core -> Router -> Mechanism Map -> Concept Lexicon retrieval/reasoning.",
+  "purpose": "Blind evaluation of stock use versus the current Expert Memory teaching/reasoning flow; Router is scored independently from semantic passes.",
   "source_is_fully_synthetic": true,
   "real_contract_material_used": false,
   "package_completeness": {
@@ -440,10 +440,9 @@
   ],
   "scoring": {
     "router": {
-      "critical_family_omission": 2,
-      "noncritical_family_omission": 1,
+      "family_omission": 1,
       "unsupported_extra_family": 1,
-      "note": "Multi-label routing is allowed. OTHER is not a substitute for a clearly supported specific family."
+      "note": "v1 uses unweighted Router scoring. Each missing expected family and each unsupported extra family counts once; no critical/noncritical Router label taxonomy is applied."
     },
     "semantic": {
       "critical_fact_missed": 2,
