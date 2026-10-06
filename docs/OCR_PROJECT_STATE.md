@@ -1,12 +1,14 @@
 # OCR Project State & Continuity v0
 
-Последнее обновление: 2026-10-05, PR #313, `expert-memory-blind-synthetic-fixture-v1`.
+Последнее обновление: 2026-10-06, PR #314, `expert-memory-source-evidence-gate-v1`.
 
-Версия состояния: `privacy-ocr-2026-10-05-164`.
+Версия состояния: `privacy-ocr-2026-10-06-165`.
 
 Активный трек: `expert-memory-development`.
 
 Канонический следующий bounded-шаг: `expert-memory-router-blind-synthetic-evaluation-v1`.
+
+PR #314 — внесён source-evidence gate в стратегию Expert Memory и уточнён blind synthetic protocol: модельные цитаты остаются кандидатами, существенные факты для рабочего вывода требуют независимой сверки с доступным источником и локатором; стадия чтения оценивается отдельно от Router и связей. Зафиксирована ограниченная ручная диагностика RC07 со слов владельца для Gemini 3.1 Pro: ошибки PDF-ответа и третьего прохода, а также улучшение отдельного PNG-ответа без приписывания причины формату. Печатный приватный источник не публикуется; наблюдение не становится Gold или обучающей меткой. Sealed synthetic reference и runtime не менялись, внешняя модель в PR не вызывалась. Канонический `next_step_id` остаётся прежним; scored taught-pipeline run пока требует заранее фиксированного правила выбора модулей/связанных пунктов, а взвешенная оценка Router — явной разметки критичности ожидаемых меток.
 
 PR #313 — подготовлен свежий blind synthetic lease fixture для текущего шага `expert-memory-router-blind-synthetic-evaluation-v1`. Добавлен полностью синтетический ивритский договор без реальных сторон/адресов/реквизитов/подписей/сырого OCR, отдельный sealed reference JSON и операторский протокол stock-baseline vs taught-pipeline. Договор содержит 22 пункта + приложенный synthetic Annex A и намеренно отсутствующий в test package Annex B; механизмы включают definitions/document precedence, claimed letting authority, split payment channels, service-account registration/evidence, condition/repairs/recovery/setoff, use/occupancy/access/alterations, tenant replacement and landlord transfer, two distinct security instruments, option with external CPI dependency, insurance branching, breach-specific vs general cure, vacating/pre-return protocol/left-behind property/holdover and dispute forum. Sealed reference фиксирует 21 critical fact, expected Router families по пунктам, required concepts/temporal roles, 17 cross-clause checks, prohibited inferences и scoring weights. Внешняя модель в этом PR не вызывалась; gold нельзя передавать тестируемой модели. `next_step_id` остаётся прежним до фактического baseline/taught run и scoring.
 
